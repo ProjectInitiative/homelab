@@ -1,4 +1,3 @@
-```markdown
 # Multi-Cluster Kubernetes with Istio, Tailscale, and Cert-Manager (Homelab Focus)
 
 This guide walks through setting up a multi-cluster Istio service mesh across two Kubernetes clusters (Cluster A and Cluster B). The clusters are connected via a Tailscale mesh network, and `cert-manager` is used to manage the Certificate Authority (CA) hierarchy for Istio's mTLS.
@@ -507,4 +506,3 @@ You can also try accessing other httpbin endpoints like `/headers`.
 ---
 
 This guide provides a solid foundation for your homelab multi-cluster Istio setup. Remember that production environments would require more stringent security practices, especially around CA management and gateway exposure.
-```
