@@ -1,0 +1,18 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: istio-intermediate-ca-cluster-b
+  namespace: cert-manager # Or a staging namespace in Cluster A
+spec:
+  isCA: true
+  commonName: istio-intermediate-ca-cluster-b
+  duration: 2160h
+  renewBefore: 360h
+  secretName: istio-intermediate-ca-cluster-b-secret # Stored in Cluster A
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: homelab-istio-root-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io

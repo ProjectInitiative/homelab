@@ -1,0 +1,24 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: istio-intermediate-ca-cluster-a
+  namespace: istio-system # Where Istio expects its cacerts secret
+spec:
+  isCA: true
+  commonName: istio-intermediate-ca-cluster-a
+  duration: 2160h # 90d (example)
+  renewBefore: 360h # 15d (example)
+  secretName: cacerts # Istio will look for this secret name
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: homelab-istio-root-ca-issuer # Signed by your root
+    kind: ClusterIssuer
+    group: cert-manager.io
+  # Additional fields for constructing the final `cacerts` secret:
+  # We need root-cert.pem and cert-chain.pem in the cacerts secret.
+  # One way is to create a job/script that assembles this from
+  # homelab-istio-root-ca-secret and the generated intermediate.
+  # For simplicity here, we're just generating the intermediate.
+  # The manual step would be to construct the full `cacerts` secret.
