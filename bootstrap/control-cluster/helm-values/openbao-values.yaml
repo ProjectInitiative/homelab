@@ -1,0 +1,20 @@
+# homelab.git/bootstrap/control-cluster/helm-values/openbao-values.yaml
+server:
+  ha:
+    enabled: true
+    # For auto-unseal with KMS, configure it here.
+    # Example for AWS KMS:
+    # config: |
+    #   seal "awskms" {
+    #     region     = "us-east-1"
+    #     kms_key_id = "arn:aws:kms:us-east-1:123456789012:key/your-kms-key-id"
+    #   }
+  tls:
+    enabled: true
+    secretName: openbao-tls-secret # Cert-manager will create this
+  # Add other OpenBao configurations here, e.g., resource limits, storage class
+  # For a basic test, you might use:
+  # dev:
+  #   enabled: true # ONLY FOR DEV/TEST, NOT PRODUCTION
+  #   devRootToken: "dev-only-token-not-for-prod"
+  # But for your scenario, you want HA/production-like setup

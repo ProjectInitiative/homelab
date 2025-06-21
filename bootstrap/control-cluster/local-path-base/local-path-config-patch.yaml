@@ -1,0 +1,50 @@
+# homelab.git/bootstrap/control-cluster/local-path-base/local-path-config-patch.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: local-path-config
+  namespace: local-path-provisioner # <-- IMPORTANT: Match your live namespace
+data:
+  config.json: |-
+    {
+      "nodePathMap": [
+        {
+          "node": "DEFAULT_PATH_FOR_NON_LISTED_NODES",
+          "paths": [
+            "/mnt/local-provisioner"
+          ]
+        }
+        # Add your custom node paths here if you want to modify them from default
+        # Example:
+        # {
+        #   "node": "your-specific-node-name",
+        #   "paths": ["/var/lib/local-storage"]
+        # }
+      ]
+    }
+  helperPod.yaml: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: helper-pod
+      namespace: local-path-provisioner
+    spec:
+      priorityClassName: system-node-critical
+      tolerations:
+        - key: node.kubernetes.io/disk-pressure
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: helper-pod
+          image: busybox:latest # <-- Match your live image tag
+          imagePullPolicy: IfNotPresent
+          resources:
+            {}
+  setup: |-
+    #!/bin/sh
+    set -eu
+    mkdir -m 0777 -p "$VOL_DIR"
+  teardown: |-
+    #!/bin/sh
+    set -eu
+    rm -rf "$VOL_DIR"

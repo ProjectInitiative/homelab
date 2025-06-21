@@ -1,0 +1,34 @@
+# homelab.git/bootstrap/control-cluster/local-path-provisioner-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: local-path-provisioner
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "0" 
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/projectinitiative/homelab.git # Your Git repo
+    targetRevision: HEAD
+    path: bootstrap/control-cluster/local-path-base # <--- Points to your Kustomize base directory
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: local-path-provisioner # Ensure this namespace is created by core-namespaces.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      # Crucial for adoption: only apply changes if out of sync, not on every reconcile.
+      # Helps with initial adoption by telling Argo CD "don't force apply if already there."
+      - ApplyOutOfSyncOnly=true
+      # Recommended for most controllers and CRDs
+      - ServerSideApply=true
+      # Useful if certain fields are managed by other controllers (e.g., status fields)
+      - RespectIgnoreDifferences=true # You might need to explicitly define ignored fields if issues arise.
+      # Consider this if you previously manually managed labels/annotations that Argo CD now adds
+      # - Replace=true # Use with extreme caution. This will delete and recreate resources. Not for adoption.

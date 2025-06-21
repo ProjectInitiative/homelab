@@ -1,0 +1,74 @@
+# homelab.git/bootstrap/control-cluster/helm-values/step-ca-values.yaml
+replicaCount: 3
+
+# Configure existingSecrets to be TRUE for GitOps
+existingSecrets:
+  enabled: true
+  ca: true           # Expects {{fullname}}-ca-password secret
+  issuer: true       # Expects {{fullname}}-certificate-issuer-password secret
+  certsAsSecret: true # Expects {{fullname}}-certs secret
+  configAsSecret: true # Expects {{fullname}}-config secret
+
+bootstrap:
+  enabled: false # Disable bootstrap init-container
+  secrets: false
+  configmaps: false
+
+inject:
+  enabled: false # Disable injection via Helm chart values
+
+config:
+  ca.json: |
+    {
+      "address": ":9000",
+      "dnsNames": [
+        "step-ca.step-ca.svc.cluster.local",
+        "step-ca.step-ca.svc"
+      ],
+      "logger": {
+        "format": "json"
+      },
+      "db": {
+        "type": "badger",
+        "dataSource": "db"
+      },
+      "authority": {
+        "disableHealthCheck": false
+      },
+      "federate": {
+        "enabled": false
+      },
+      "tls": {
+        "cipherSuites": [
+          "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+          "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"
+        ],
+        "minVersion": "TLS1.2"
+      },
+      "acme": {
+        "enabled": true
+      },
+      "apps": [
+        {
+          "name": "default",
+          "provisioner": {
+            "name": "default",
+            "type": "ACME",
+            "x5c": {},
+            "jwk": {}
+          }
+        }
+      ]
+    }
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 443
+  targetPort: 9000
+
+# IMPORTANT: Ensure persistent storage is configured for the DB
+persistence:
+  enabled: true
+  size: 1Gi # Adjust size as needed
+  storageClassName: local-path # Use the StorageClass you just deployed

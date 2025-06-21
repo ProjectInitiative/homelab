@@ -1,0 +1,29 @@
+# homelab.git/bootstrap/control-cluster/openbao-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: openbao
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "90" 
+spec:
+  project: default
+  source:
+    repoURL: https://charts.openbao.io/
+    targetRevision: 0.x.x # Use a specific chart version!
+    chart: openbao
+    # This tells Argo CD to use the specified values file
+    helm:
+      valueFiles:
+        - ../helm-values/openbao-values.yaml # Relative path from the chart's root or the app's 'path' if using it
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openbao # Ensure this namespace is created first!
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false # Ensure the openbao namespace is created if not already by a prior app

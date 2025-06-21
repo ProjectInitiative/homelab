@@ -1,0 +1,16 @@
+# homelab.git/bootstrap/control-cluster/local-path-base/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Reference the upstream raw YAML as a resource
+resources:
+  - https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.31/deploy/local-path-storage.yaml
+  - local-path-storageclass.yaml
+
+# Apply the patch to the ConfigMap
+patches:
+  - path: local-path-config-patch.yaml # Path to your patch file within this directory
+    target:
+      kind: ConfigMap
+      name: local-path-config
+      namespace: local-path-provisioner # Ensure this matches the ConfigMap's namespace

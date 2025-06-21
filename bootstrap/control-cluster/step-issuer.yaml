@@ -1,0 +1,28 @@
+# homelab.git/bootstrap/control-cluster/step-issuer-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: step-issuer
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "70" 
+spec:
+  project: default
+  source:
+    repoURL: https://smallstep.github.io/helm-charts # Smallstep's Helm repo
+    targetRevision: v1.1.x # Specify a stable version!
+    chart: step-issuer
+    helm:
+      valueFiles:
+        - ../helm-values/step-issuer-values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager # step-issuer is part of cert-manager ecosystem
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false # Namespace created by core-namespaces

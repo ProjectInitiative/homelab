@@ -1,0 +1,29 @@
+# homelab.git/bootstrap/control-cluster/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # PHASE 1: Core Namespaces and Storage Provisioners
+  - core-namespaces.yaml           # Sync Wave -10
+
+  # Local Path Provisioner (existing)
+  - local-path-provisioner-app.yaml # Sync Wave 0
+
+  # Piraeus Storage
+  # - piraeus-operator-app.yaml     # Sync Wave 10
+  # - linstor-cluster-app.yaml      # Sync Wave 20
+  # - linstor-config/linstor-storageclass.yaml # This is a direct resource, no app
+
+  # PHASE 2: Database
+  # - cnpg-operator-app.yaml        # Sync Wave 30
+  # - main-postgres-cluster-app.yaml # Sync Wave 40
+
+  # PHASE 3: Certificate Authority
+  # - cert-manager-app.yaml         # Sync Wave 50
+  # - step-ca-app.yaml              # Sync Wave 60
+  # - step-issuer-app.yaml          # Sync Wave 70
+  # - certs/step-ca-clusterissuer-app.yaml # Sync Wave 80
+
+  # PHASE 4: Core Services
+  # - openbao-app.yaml              # Sync Wave 90
+  # - external-secrets-app.yaml     # Sync Wave 100 (or later)
