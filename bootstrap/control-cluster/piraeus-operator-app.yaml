@@ -11,10 +11,12 @@ metadata:
 spec:
   project: default
   source:
-    # Official Piraeus Operator manifest URL
-    repoURL: "https://github.com/piraeusdatastore/piraeus-operator/releases/latest/download/manifest.yaml"
-    targetRevision: HEAD # Will always get the latest from 'latest' release
-    path: "" # Empty path as repoURL points directly to the file
+    # Point to the root of the Git repository
+    repoURL: https://github.com/piraeusdatastore/piraeus-operator.git
+    # CRITICAL: Pin to a specific, immutable Git tag (e.g., from the Releases page)
+    targetRevision: v2.9.0 
+    # Path to the kustomization.yaml within that repository
+    path: config/manifests
   destination:
     server: https://kubernetes.default.svc
     namespace: piraeus-datastore # Operator deploys itself into this namespace
@@ -24,5 +26,5 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=false # Namespace created by core-namespaces
-      - ServerSideApply=true # IMPORTANT: As per Piraeus docs
+      - ServerSideApply=true # Important: Piraeus docs specify this
       - ApplyOutOfSyncOnly=true
