@@ -9,3 +9,17 @@ spec:
     - name: pool # Name as in official guide
       fileThinPool:
         directory: /mnt/local-provisioner/piraeus # Default path
+          # This will apply the patch to the satellite pods
+  podTemplate:
+    spec:
+      volumes:
+      - name: kbuild-tools
+        hostPath:
+          type: Directory
+          path: /usr/src/linux-headers-6.1.84-6-rk2410
+      initContainers:
+      - name: drbd-module-loader
+        volumeMounts:
+        - mountPath: /usr/src/linux-headers-6.1.84-6-rk2410
+          name: kbuild-tools
+          readOnly: true
