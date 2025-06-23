@@ -1,0 +1,8 @@
+# homelab.git/bootstrap/control-cluster/piraeus-kustomize-config/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - linstor-cluster.yaml
+  - linstor-satellite-config.yaml
+  - piraeus-storageclass.yaml

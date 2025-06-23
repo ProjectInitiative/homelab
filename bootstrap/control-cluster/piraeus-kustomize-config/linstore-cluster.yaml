@@ -1,0 +1,7 @@
+# homelab.git/bootstrap/control-cluster/piraeus-kustomize-config/linstor-cluster.yaml
+apiVersion: piraeus.io/v1
+kind: LinstorCluster
+metadata:
+  name: linstorcluster # Name as in official guide
+  namespace: piraeus-datastore
+spec: {} # Empty spec as per tutorial for basic deployment

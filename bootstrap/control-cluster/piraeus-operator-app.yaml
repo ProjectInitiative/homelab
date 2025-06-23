@@ -1,0 +1,28 @@
+# homelab.git/bootstrap/control-cluster/piraeus-operator-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: piraeus-operator
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "10" # Early sync wave for operator
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    # Official Piraeus Operator manifest URL
+    repoURL: "https://github.com/piraeusdatastore/piraeus-operator/releases/latest/download/manifest.yaml"
+    targetRevision: HEAD # Will always get the latest from 'latest' release
+    path: "" # Empty path as repoURL points directly to the file
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: piraeus-datastore # Operator deploys itself into this namespace
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false # Namespace created by core-namespaces
+      - ServerSideApply=true # IMPORTANT: As per Piraeus docs
+      - ApplyOutOfSyncOnly=true

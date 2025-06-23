@@ -1,0 +1,11 @@
+# homelab.git/bootstrap/control-cluster/piraeus-kustomize-config/linstor-satellite-config.yaml
+apiVersion: piraeus.io/v1
+kind: LinstorSatelliteConfiguration
+metadata:
+  name: storage-pool # Name as in official guide
+  namespace: piraeus-datastore
+spec:
+  storagePools:
+    - name: pool # Name as in official guide
+      fileThinPool:
+        directory: /mnt/local-provisioner/piraeus # Default path
