@@ -2,24 +2,6 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: local-path
-  annotations:
-    # Add any annotations you need, like the defaultClass=false
-    storageclass.kubernetes.io/is-default-class: "false"
-    # meta.helm.sh/release-name and meta.helm.sh/release-namespace are typically
-    # added by Helm itself, so you might omit them if not using Helm directly.
-provisioner: cluster.local/local-path-provisioner # IMPORTANT: Must match the provisioner deployed by local-path-provisioner
-reclaimPolicy: Delete # From your example, note this is 'Retain'
-volumeBindingMode: WaitForFirstConsumer
-allowVolumeExpansion: True
-# If you need specific parameters for this SC, add them here.
-# For local-path-provisioner, common parameters relate to node paths or fsGroup.
-# parameters:
-#   path: "/custom/path/for/multi" # Example of a custom path for this SC
----
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
   name: multi-local-path
   annotations:
     # Add any annotations you need, like the defaultClass=false

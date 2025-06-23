@@ -11,13 +11,9 @@ metadata:
 spec:
   project: default
   source:
-    # NEW: Point to the Git repository containing the Helm chart
     repoURL: https://github.com/piraeusdatastore/piraeus-operator.git
-    # NEW: Specify the branch for the v2 chart
     targetRevision: v2
-    # NEW: Point to the directory *within that Git repo* where the Helm chart resides
-    path: charts/piraeus-operator
-    # NEW: Add helm-specific configuration
+    path: charts/piraeus
     helm:
       values: |
         # Any specific values for the piraeus-operator Helm chart would go here.
