@@ -10,9 +10,8 @@ resources:
   - local-path-provisioner-app.yaml # Sync Wave 0
 
   # Piraeus Storage
-  - piraeus-operator-app.yaml     # Sync Wave 10
-  - linstor-cluster-app.yaml      # Sync Wave 20
-  - linstor-config/linstor-storageclass.yaml # This is a direct resource, no app
+  - piraeus-operator-app.yaml       # Piraeus Operator
+  - piraeus-config-app.yaml         # Piraeus LinstorCluster, SatelliteConfig, StorageClass
 
   # PHASE 2: Database
   # - cnpg-operator-app.yaml        # Sync Wave 30
