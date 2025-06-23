@@ -16,6 +16,8 @@ spec:
     path: charts/piraeus
     helm:
       values: |
+        crds:
+          install: true
         # Any specific values for the piraeus-operator Helm chart would go here.
         # The documentation implies the defaults are often sufficient for basic deployment.
         # For example, to control operator resources or replica count:
