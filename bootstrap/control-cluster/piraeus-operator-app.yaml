@@ -38,5 +38,5 @@ spec:
       - CreateNamespace=false # Namespace created by core-namespaces
       # ServerSideApply is typically handled by Helm now.
       # If you encounter issues with CRDs not applying, you might try:
-      # - ServerSideApply=true
+      - ServerSideApply=true
       # But often, Helm manages CRD installation directly.
