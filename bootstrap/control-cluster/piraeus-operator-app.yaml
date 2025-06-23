@@ -5,26 +5,25 @@ metadata:
   name: piraeus-operator
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "10" # Early sync wave for operator
+    argocd.argoproj.io/sync-wave: "10"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
-    # Point to the root of the Git repository
-    repoURL: https://github.com/piraeusdatastore/piraeus-operator.git
-    # CRITICAL: Pin to a specific, immutable Git tag (e.g., from the Releases page)
-    targetRevision: v2.9.0 
-    # Path to the kustomization.yaml within that repository
-    path: config/manifests
+    # NEW: Point to your own Git repository
+    repoURL: https://github.com/projectinitiative/homelab.git
+    targetRevision: HEAD # Or a specific branch like 'main'
+    # NEW: Point to the path *within your Git repo* where you placed the manifest
+    path: bootstrap/control-cluster/piraeus-operator-manifest.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: piraeus-datastore # Operator deploys itself into this namespace
+    namespace: piraeus-datastore
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=false # Namespace created by core-namespaces
-      - ServerSideApply=true # Important: Piraeus docs specify this
+      - CreateNamespace=false
+      - ServerSideApply=true
       - ApplyOutOfSyncOnly=true
