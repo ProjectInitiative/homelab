@@ -5,25 +5,42 @@ metadata:
   name: piraeus-operator
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "10"
+    argocd.argoproj.io/sync-wave: "10" # Early sync wave for operator
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
-    # NEW: Point to your own Git repository
-    repoURL: https://github.com/projectinitiative/homelab.git
-    targetRevision: HEAD # Or a specific branch like 'main'
-    # NEW: Point to the path *within your Git repo* where you placed the manifest
-    path: bootstrap/control-cluster/piraeus-operator-manifest.yaml
+    # NEW: Point to the Git repository containing the Helm chart
+    repoURL: https://github.com/piraeusdatastore/piraeus-operator.git
+    # NEW: Specify the branch for the v2 chart
+    targetRevision: v2
+    # NEW: Point to the directory *within that Git repo* where the Helm chart resides
+    path: charts/piraeus-operator
+    # NEW: Add helm-specific configuration
+    helm:
+      values: |
+        # Any specific values for the piraeus-operator Helm chart would go here.
+        # The documentation implies the defaults are often sufficient for basic deployment.
+        # For example, to control operator resources or replica count:
+        # replicas: 1
+        # resources:
+        #   limits:
+        #     cpu: 100m
+        #     memory: 256Mi
+        #   requests:
+        #     cpu: 50m
+        #     memory: 128Mi
   destination:
     server: https://kubernetes.default.svc
-    namespace: piraeus-datastore
+    namespace: piraeus-datastore # Operator deploys itself into this namespace
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=false
-      - ServerSideApply=true
-      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=false # Namespace created by core-namespaces
+      # ServerSideApply is typically handled by Helm now.
+      # If you encounter issues with CRDs not applying, you might try:
+      # - ServerSideApply=true
+      # But often, Helm manages CRD installation directly.
