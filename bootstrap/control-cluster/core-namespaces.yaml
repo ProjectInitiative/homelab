@@ -1,28 +1,29 @@
 # homelab.git/bootstrap/control-cluster/core-namespaces.yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: core-namespaces
-  namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
-  annotations:
-    argocd.argoproj.io/sync-wave: "-10" 
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/projectinitiative/homelab.git
-    targetRevision: HEAD
-    path: bootstrap/control-cluster/control-namespaces.yaml # Points to your namespace definitions
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: default
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
+
+# apiVersion: argoproj.io/v1alpha1
+# kind: Application
+# metadata:
+#   name: core-namespaces
+#   namespace: argocd
+#   finalizers:
+#     - resources-finalizer.argocd.argoproj.io
+#   annotations:
+#     argocd.argoproj.io/sync-wave: "-10" 
+# spec:
+#   project: default
+#   source:
+#     repoURL: https://github.com/projectinitiative/homelab.git
+#     targetRevision: HEAD
+#     path: bootstrap/control-cluster/control-namespaces.yaml # Points to your namespace definitions
+#   destination:
+#     server: https://kubernetes.default.svc
+#     namespace: default
+#   syncPolicy:
+#     automated:
+#       prune: true
+#       selfHeal: true
+#     syncOptions:
+#       - CreateNamespace=true
 
 ---
 # homelab.git/bootstrap/control-cluster/namespaces/local-path-provisioner-namespace.yaml
