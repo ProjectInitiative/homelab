@@ -20,4 +20,4 @@ spec:
     apiVersion: self-node-remediation.medik8s.io/v1alpha1
     kind: SelfNodeRemediation
     name: self-node-remediation-resource-action
-    namespace: medik8s
+    namespace: operators

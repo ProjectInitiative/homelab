@@ -26,6 +26,13 @@
 #       - CreateNamespace=true
 
 ---
+# homelab.git/bootstrap/control-cluster/namespaces/olm.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: olm
+
+---
 # homelab.git/bootstrap/control-cluster/namespaces/local-path-provisioner-namespace.yaml
 apiVersion: v1
 kind: Namespace
@@ -33,11 +40,11 @@ metadata:
   name: local-path-provisioner
 
 ---
-# homelab.git/bootstrap/control-cluster/namespaces/medik8s-namespace.yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: medik8s
+# # homelab.git/bootstrap/control-cluster/namespaces/medik8s-namespace.yaml
+# apiVersion: v1
+# kind: Namespace
+# metadata:
+#   name: medik8s
 
 ---
 # homelab.git/bootstrap/control-cluster/namespaces/piraeus-namespace.yaml

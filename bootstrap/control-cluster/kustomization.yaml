@@ -6,6 +6,11 @@ resources:
   # PHASE 1: Core Namespaces and Storage Provisioners
   - core-namespaces.yaml           # Sync Wave -10
 
+    # PHASE 1.5: Operator Lifecycle Manager (OLM)
+  - olm-crds-app.yaml              # Sync Wave -5 (CRDs must be first)
+  - olm-operator-app.yaml           # Sync Wave -4 (OLM operator components)
+
+
   # Local Path Provisioner (existing)
   - local-path-provisioner-app.yaml # Sync Wave 0
 

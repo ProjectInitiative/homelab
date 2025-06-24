@@ -5,7 +5,7 @@ kind: Kustomization
 # Reference the upstream raw YAML as a resource
 resources:
   - https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.31/deploy/local-path-storage.yaml
-  - local-path-storageclass.yaml
+  # - local-path-storageclass.yaml
 
 # Apply the patch to the ConfigMap
 patches:

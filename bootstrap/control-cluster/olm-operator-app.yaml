@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: olm-operator
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-4" # Install OLM operator after CRDs
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/operator-framework/operator-lifecycle-manager.git
+    targetRevision: v0.32.0 # Specify a stable OLM version
+    path: deploy/upstream/quickstart # The directory contains olm.yaml
+    directory:
+      include: olm.yaml # Only include olm.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: olm # OLM components are typically deployed in the 'olm' namespace
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true

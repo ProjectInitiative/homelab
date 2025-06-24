@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: olm-crds
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5" # Install CRDs very early
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/operator-framework/operator-lifecycle-manager.git
+    targetRevision: v0.32.0 # Specify a stable OLM version
+    path: deploy/upstream/quickstart # The directory contains crds.yaml
+    directory:
+      include: crds.yaml # Only include crds.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: olm
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true # Important for CRDs
+      - ApplyOutOfSyncOnly=true

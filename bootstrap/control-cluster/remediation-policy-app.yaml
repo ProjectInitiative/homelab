@@ -16,7 +16,7 @@ spec:
       include: remediation-policy.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: medik8s
+    namespace: operators
   syncPolicy:
     automated:
       prune: true
