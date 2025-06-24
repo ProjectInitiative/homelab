@@ -33,6 +33,13 @@ metadata:
   name: local-path-provisioner
 
 ---
+# homelab.git/bootstrap/control-cluster/namespaces/medik8s-namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: medik8s
+
+---
 # homelab.git/bootstrap/control-cluster/namespaces/piraeus-namespace.yaml
 apiVersion: v1
 kind: Namespace

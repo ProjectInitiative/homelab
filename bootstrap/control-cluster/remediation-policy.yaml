@@ -1,0 +1,23 @@
+apiVersion: "remediation.medik8s.io/v1alpha1"
+kind: NodeHealthCheck
+metadata:
+  name: aggressive-remediation-for-all-nodes
+spec:
+  # This selector targets all nodes. You could make it more specific.
+  selector: {}
+  # This section defines what is considered "unhealthy"
+  unhealthyConditions:
+    - type: Ready
+      status: "False"
+      # AGGRESSIVE: The node is considered failed after only 45 seconds
+      # of being NotReady. Increase for safety with stateful workloads.
+      duration: "45s"
+    - type: Ready
+      status: "Unknown"
+      duration: "45s"
+  # This defines what action to take
+  remediationTemplate:
+    apiVersion: self-node-remediation.medik8s.io/v1alpha1
+    kind: SelfNodeRemediation
+    name: self-node-remediation-resource-action
+    namespace: medik8s

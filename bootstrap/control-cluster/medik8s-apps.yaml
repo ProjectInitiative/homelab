@@ -1,0 +1,71 @@
+# --- Node HealthCheck Operator (The Detector) ---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: medik8s-nhc
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "100"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/projectinitiative/homelab.git # Use your repo URL
+    targetRevision: HEAD
+    path: bootstrap/control-cluster/medik8s/nhc
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: medik8s
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+---
+# --- Self Node Remediation Operator (The Rebooter) ---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: medik8s-snr
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "101"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/projectinitiative/homelab.git # Use your repo URL
+    targetRevision: HEAD
+    path: bootstrap/control-cluster/medik8s/snr
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: medik8s
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+---
+# --- Fence Agents Remediation Operator (The Shutdown/Fencer) ---
+# apiVersion: argoproj.io/v1alpha1
+# kind: Application
+# metadata:
+#   name: medik8s-far
+#   namespace: argocd
+#   annotations:
+#     argocd.argoproj.io/sync-wave: "101" # Runs in parallel with SNR
+# spec:
+#   project: default
+#   source:
+#     repoURL: https://github.com/projectinitiative/homelab.git # Use your repo URL
+#     targetRevision: HEAD
+#     path: bootstrap/control-cluster/medik8s/far
+#   destination:
+#     server: https://kubernetes.default.svc
+#     namespace: medik8s
+#   syncPolicy:
+#     automated:
+#       prune: true
+#       selfHeal: true
+#     syncOptions:
+#       - CreateNamespace=false
