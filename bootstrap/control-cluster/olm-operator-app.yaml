@@ -15,20 +15,20 @@ spec:
     # This now points to the directory containing the Helm chart
     path: deploy/chart
     # We now specify 'helm' as the source type
-    helm:
-      # These values will override the defaults in the chart's values.yaml
-      values: |
-        olm:
-          image:
-            ref: quay.io/operator-framework/olm:v0.32.0
-        catalog:
-          image:
-            ref: quay.io/operator-framework/olm:v0.32.0
-          commandArgs: --configmapServerImage=quay.io/operator-framework/configmap-operator-registry:v0.32.0
-          opmImageArgs: --opmImage=quay.io/operator-framework/opm:v0.32.0
-        package:
-          image:
-            ref: quay.io/operator-framework/olm:v0.32.0
+    # helm:
+    #   # These values will override the defaults in the chart's values.yaml
+    #   values: |
+    #     olm:
+    #       image:
+    #         ref: quay.io/operator-framework/olm:v0.32.0
+    #     catalog:
+    #       image:
+    #         ref: quay.io/operator-framework/olm:v0.32.0
+    #       commandArgs: --configmapServerImage=quay.io/operator-framework/configmap-operator-registry:v0.32.0
+    #       opmImageArgs: --opmImage=quay.io/operator-framework/opm:v0.32.0
+    #     package:
+    #       image:
+    #         ref: quay.io/operator-framework/olm:v0.32.0
   destination:
     server: https://kubernetes.default.svc
     namespace: operator-lifecycle-manager
