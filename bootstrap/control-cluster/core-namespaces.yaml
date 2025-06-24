@@ -26,13 +26,6 @@
 #       - CreateNamespace=true
 
 ---
-# homelab.git/bootstrap/control-cluster/namespaces/olm.yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: olm
-
----
 # homelab.git/bootstrap/control-cluster/namespaces/local-path-provisioner-namespace.yaml
 apiVersion: v1
 kind: Namespace
