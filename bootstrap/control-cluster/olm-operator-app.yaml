@@ -13,6 +13,43 @@ spec:
     path: deploy/upstream/quickstart # The directory contains olm.yaml
     directory:
       include: olm.yaml # Only include olm.yaml
+    patches:
+    # Patch the olm-operator deployment to use the versioned image
+    - patch: |-
+        - op: replace
+          path: /spec/template/spec/containers/0/image
+          value: quay.io/operator-framework/olm:v0.32.0
+      target:
+        group: apps
+        kind: Deployment
+        name: olm-operator
+        namespace: olm
+    # Patch the catalog-operator deployment to use versioned images for the operator, configmap server, and util image
+    - patch: |-
+        - op: replace
+          path: /spec/template/spec/containers/0/image
+          value: quay.io/operator-framework/olm:v0.32.0
+        - op: replace
+          path: /spec/template/spec/containers/0/args/2
+          value: -configmapServerImage=quay.io/operator-framework/configmap-operator-registry:v0.32.0
+        - op: replace
+          path: /spec/template/spec/containers/0/args/4
+          value: quay.io/operator-framework/olm:v0.32.0
+      target:
+        group: apps
+        kind: Deployment
+        name: catalog-operator
+        namespace: olm
+    # Patch the packageserver ClusterServiceVersion to use the versioned image
+    - patch: |-
+        - op: replace
+          path: /spec/install/spec/deployments/0/spec/template/spec/containers/0/image
+          value: quay.io/operator-framework/olm:v0.32.0
+      target:
+        group: operators.coreos.com
+        kind: ClusterServiceVersion
+        name: packageserver
+        namespace: olm
   destination:
     server: https://kubernetes.default.svc
     namespace: olm # OLM components are typically deployed in the 'olm' namespace
