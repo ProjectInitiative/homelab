@@ -1,0 +1,31 @@
+# bootstrap/control-cluster/cnpg-operator-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cnpg-operator
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "30"
+spec:
+  project: default
+  source:
+    repoURL: https://cloudnative-pg.github.io/charts
+    chart: cloudnative-pg
+    # It's always best to pin to a specific, stable chart version
+    targetRevision: 0.21.1
+    helm:
+      # The chart installs its own CRDs, which is standard for this operator
+      values: |
+        crds.create: true
+  destination:
+    server: https://kubernetes.default.svc
+    # The operator will be installed into its own dedicated namespace
+    namespace: cnpg-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true
+

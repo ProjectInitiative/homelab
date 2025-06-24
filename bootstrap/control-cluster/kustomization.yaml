@@ -19,8 +19,8 @@ resources:
   - piraeus-config-app.yaml         # Piraeus LinstorCluster, SatelliteConfig, StorageClass
 
   # PHASE 2: Database
-  # - cnpg-operator-app.yaml        # Sync Wave 30
-  # - main-postgres-cluster-app.yaml # Sync Wave 40
+  - cnpg-operator-app.yaml        # Sync Wave 30
+  - main-postgres-cluster-app.yaml # Sync Wave 40
 
   # PHASE 3: Certificate Authority
   # - cert-manager-app.yaml         # Sync Wave 50
@@ -33,5 +33,6 @@ resources:
   # - external-secrets-app.yaml     # Sync Wave 100 (or later)
 
     # PHASE 5: Node Remediation
-  - medik8s-apps.yaml
-  - remediation-policy-app.yaml
+  # arm not supported right now. will come back to this
+  # - medik8s-apps.yaml
+  # - remediation-policy-app.yaml

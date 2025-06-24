@@ -1,0 +1,27 @@
+# Create file: bootstrap/control-cluster/database/main-postgres-cluster.yaml
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: main-postgres-cluster
+  namespace: postgres-db
+spec:
+  # Creates a 3-node HA cluster
+  instances: 3
+
+  # Basic PostgreSQL configuration
+  postgresql:
+    parameters:
+      max_connections: '200'
+      shared_buffers: '512MB'
+
+  # Defines the storage configuration for the database
+  storage:
+    storageClass: local-path
+    size: 20Gi # Adjust size as needed
+
+  # Enables the pg_stat_statements extension for better query analysis
+  enableSuperuserAccess: true
+  bootstrap:
+    initdb:
+      postInitSQL:
+        - CREATE EXTENSION IF NOT EXISTS pg_stat_statements;

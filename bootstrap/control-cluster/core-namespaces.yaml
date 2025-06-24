@@ -47,6 +47,20 @@ metadata:
   name: piraeus-datastore
 
 ---
+# homelab.git/bootstrap/control-cluster/namespaces/cnpg-system.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cnpg-system
+
+---
+# homelab.git/bootstrap/control-cluster/namespaces/postgres-db.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: postgres-db
+
+---
 # homelab.git/bootstrap/control-cluster/namespaces/cert-manager-namespace.yaml
 apiVersion: v1
 kind: Namespace

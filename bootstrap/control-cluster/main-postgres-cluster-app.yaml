@@ -1,0 +1,25 @@
+# bootstrap/control-cluster/main-postgres-cluster-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: main-postgres-cluster
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "40"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/projectinitiative/homelab.git # Your repo
+    targetRevision: HEAD
+    # This application deploys a single manifest from within your Git repo
+    path: bootstrap/control-cluster/database
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: postgres-db
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true
