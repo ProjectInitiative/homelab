@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://github.com/operator-framework/operator-lifecycle-manager.git
     targetRevision: v0.32.0 # Specify a stable OLM version
-    path: deploy/charts/crds # The directory contains crds.yaml
+    path: deploy/chart/crds # The directory contains crds.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: olm
