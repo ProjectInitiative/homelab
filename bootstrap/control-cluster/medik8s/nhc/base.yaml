@@ -7,4 +7,4 @@ spec:
   channel: stable
   name: node-healthcheck-operator
   source: operatorhubio-catalog
-  sourceNamespace: olm
+  sourceNamespace: operator-lifecycle-manager

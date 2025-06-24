@@ -31,8 +31,7 @@ spec:
             ref: quay.io/operator-framework/olm:v0.32.0
   destination:
     server: https://kubernetes.default.svc
-    # The chart will be installed into the 'olm' namespace.
-    namespace: olm
+    namespace: operator-lifecycle-manager
   syncPolicy:
     automated:
       prune: true

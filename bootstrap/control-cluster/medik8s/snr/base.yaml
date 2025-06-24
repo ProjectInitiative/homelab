@@ -7,4 +7,4 @@ spec:
   channel: stable
   name: self-node-remediation
   source: operatorhubio-catalog
-  sourceNamespace: olm
+  sourceNamespace: operator-lifecycle-manager

@@ -13,7 +13,7 @@ spec:
     path: deploy/chart/crds # The directory contains crds.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: olm
+    namespace: operator-lifecycle-manager
   syncPolicy:
     automated:
       prune: true
