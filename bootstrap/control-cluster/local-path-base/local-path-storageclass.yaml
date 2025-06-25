@@ -2,7 +2,7 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: multi-local-path
+  name: local-path-sticky
   annotations:
     # Add any annotations you need, like the defaultClass=false
     storageclass.kubernetes.io/is-default-class: "false"
