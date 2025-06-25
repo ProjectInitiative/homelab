@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: olm-crds
+  name: olm-crds-main-cluster
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "-5"
@@ -10,9 +10,9 @@ spec:
   source:
     repoURL: https://github.com/projectinitiative/homelab.git
     targetRevision: HEAD
-    path: apps/overlays/control-cluster/olm-crds
+    path: apps/overlays/main-cluster/olm-crds
   destination:
-    server: https://kubernetes.default.svc
+    server: https://kubernetes.default.svc # This app lives in the Argo cluster
     namespace: argocd
   syncPolicy:
     automated:

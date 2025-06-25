@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: piraeus-datastore-config-main-cluster
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/projectinitiative/homelab.git
+    targetRevision: HEAD
+    path: apps/overlays/main-cluster/piraeus-config
+  destination:
+    server: https://your-main-cluster-api-server # <-- IMPORTANT: CHANGE THIS
+    namespace: piraeus-datastore
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

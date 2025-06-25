@@ -1,10 +1,8 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: step-ca
+  name: step-ca-main-cluster
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
   annotations:
     argocd.argoproj.io/sync-wave: "60"
 spec:
@@ -17,11 +15,11 @@ spec:
       valueFiles:
         - $values/apps/base/step-ca/values.yaml
   destination:
-    server: https://kubernetes.default.svc
+    server: https://your-main-cluster-api-server # <-- IMPORTANT: CHANGE THIS
     namespace: step-ca
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=false
+      - CreateNamespace=true

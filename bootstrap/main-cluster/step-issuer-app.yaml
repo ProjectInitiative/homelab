@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: step-issuer-main-cluster
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "70"
+spec:
+  project: default
+  source:
+    repoURL: https://smallstep.github.io/helm-charts
+    targetRevision: v1.1.x # Pinned version from your file
+    chart: step-issuer
+    helm:
+      valueFiles:
+        - $values/apps/base/step-issuer/values.yaml
+  destination:
+    server: https://your-main-cluster-api-server # <-- IMPORTANT: CHANGE THIS
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false # cert-manager should already be there

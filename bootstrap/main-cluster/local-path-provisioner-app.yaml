@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: local-path-provisioner-main-cluster
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/projectinitiative/homelab.git # Change if your repo URL is different
+    targetRevision: HEAD
+    path: apps/overlays/main-cluster/local-path-provisioner
+  destination:
+    server: https://your-main-cluster-api-server # <-- IMPORTANT: CHANGE THIS
+    namespace: local-path-provisioner
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

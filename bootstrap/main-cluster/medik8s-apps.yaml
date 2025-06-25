@@ -1,8 +1,7 @@
-# --- Node HealthCheck Operator (The Detector) ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: medik8s-nhc
+  name: medik8s-nhc-main-cluster
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "100"
@@ -11,22 +10,21 @@ spec:
   source:
     repoURL: https://github.com/projectinitiative/homelab.git
     targetRevision: HEAD
-    path: apps/overlays/control-cluster/medik8s-nhc
+    path: apps/overlays/main-cluster/medik8s-nhc
   destination:
-    server: https://kubernetes.default.svc
+    server: https://your-main-cluster-api-server # <-- IMPORTANT: CHANGE THIS
     namespace: operators
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=false
+      - CreateNamespace=true
 ---
-# --- Self Node Remediation Operator (The Rebooter) ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: medik8s-snr
+  name: medik8s-snr-main-cluster
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "101"
@@ -35,9 +33,9 @@ spec:
   source:
     repoURL: https://github.com/projectinitiative/homelab.git
     targetRevision: HEAD
-    path: apps/overlays/control-cluster/medik8s-snr
+    path: apps/overlays/main-cluster/medik8s-snr
   destination:
-    server: https://kubernetes.default.svc
+    server: https://your-main-cluster-api-server # <-- IMPORTANT: CHANGE THIS
     namespace: operators
   syncPolicy:
     automated:

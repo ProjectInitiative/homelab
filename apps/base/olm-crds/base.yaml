@@ -1,24 +1,21 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: olm-operator
-  namespace: argocd
+  name: olm-crds # This will be overridden by the overlay
 spec:
   project: default
   source:
     repoURL: https://github.com/operator-framework/operator-lifecycle-manager.git
-    targetRevision: v0.32.0
-    path: deploy/chart
-    helm:
-      valueFiles:
-        - $values/apps/base/olm-operator/values.yaml
+    targetRevision: v0.32.0 # Pinned from your file
+    path: deploy/chart/crds
   destination:
-    server: https://kubernetes.default.svc
+    server: https://kubernetes.default.svc # This will be overridden
     namespace: operator-lifecycle-manager
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=false
+      - CreateNamespace:false
       - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true

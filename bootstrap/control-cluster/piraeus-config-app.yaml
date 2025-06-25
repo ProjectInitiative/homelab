@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: https://github.com/projectinitiative/homelab.git # Your repo
     targetRevision: HEAD
-    path: bootstrap/control-cluster/piraeus-kustomize-config # Path to Kustomize base
+    path: apps/overlays/control-cluster/piraeus-config # Path to Kustomize base
   destination:
     server: https://kubernetes.default.svc
     namespace: piraeus-datastore # Linstor resources also live here

@@ -1,0 +1,11 @@
+olm:
+  image:
+    ref: quay.io/operator-framework/olm:v0.32.0
+catalog:
+  image:
+    ref: quay.io/operator-framework/olm:v0.32.0
+  commandArgs: --configmapServerImage=quay.io/operator-framework/configmap-operator-registry:v0.32.0
+  opmImageArgs: --opmImage=quay.io/operator-framework/opm:master
+package:
+  image:
+    ref: quay.io/operator-framework/olm:v0.32.0

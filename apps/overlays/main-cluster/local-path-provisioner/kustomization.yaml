@@ -1,0 +1,5 @@
+# apps/overlays/main-cluster/local-path-provisioner/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../../base/local-path-provisioner

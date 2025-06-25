@@ -1,0 +1,7 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: main-postgres-cluster
+spec:
+  storage:
+    storageClass: piraeus-storage # Changed for the main cluster

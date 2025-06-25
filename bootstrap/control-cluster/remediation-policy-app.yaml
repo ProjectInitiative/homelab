@@ -8,12 +8,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/projectinitiative/homelab.git # Use your repo URL
+    repoURL: https://github.com/projectinitiative/homelab.git
     targetRevision: HEAD
-    path: bootstrap/control-cluster
-    # This tells ArgoCD to only sync our policy file from this path
-    directory:
-      include: remediation-policy.yaml
+    path: apps/overlays/control-cluster/remediation-policy
   destination:
     server: https://kubernetes.default.svc
     namespace: operators

@@ -1,12 +1,10 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: piraeus-operator
+  name: piraeus-operator-main-cluster
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "10"
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
@@ -17,12 +15,12 @@ spec:
       valueFiles:
         - $values/apps/base/piraeus-operator/values.yaml
   destination:
-    server: https://kubernetes.default.svc
+    server: https://your-main-cluster-api-server # <-- IMPORTANT: CHANGE THIS
     namespace: piraeus-datastore
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=false
+      - CreateNamespace=true
       - ServerSideApply=true

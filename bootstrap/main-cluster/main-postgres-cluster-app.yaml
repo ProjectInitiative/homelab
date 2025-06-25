@@ -1,20 +1,18 @@
-# bootstrap/control-cluster/main-postgres-cluster-app.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: main-postgres-cluster
+  name: main-postgres-cluster-main-cluster
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "40"
 spec:
   project: default
   source:
-    repoURL: https://github.com/projectinitiative/homelab.git # Your repo
+    repoURL: https://github.com/projectinitiative/homelab.git
     targetRevision: HEAD
-    # This application deploys a single manifest from within your Git repo
-    path: apps/overlays/control-cluster/main-postgres-cluster
+    path: apps/overlays/main-cluster/main-postgres-cluster
   destination:
-    server: https://kubernetes.default.svc
+    server: https://your-main-cluster-api-server # <-- IMPORTANT: CHANGE THIS
     namespace: postgres-db
   syncPolicy:
     automated:

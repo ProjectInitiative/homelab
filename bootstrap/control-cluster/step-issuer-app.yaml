@@ -1,21 +1,21 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: cert-manager
+  name: step-issuer
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
   annotations:
-    argocd.argoproj.io/sync-wave: "50"
+    argocd.argoproj.io/sync-wave: "70"
 spec:
   project: default
   source:
-    repoURL: https://charts.jetstack.io
-    targetRevision: v1.18.1 # Pinned version from your file
-    chart: cert-manager
+    repoURL: https://smallstep.github.io/helm-charts
+    targetRevision: v1.1.x # Pinned version from your file
+    chart: step-issuer
     helm:
       valueFiles:
-        - $values/apps/base/cert-manager/values.yaml
+        - $values/apps/base/step-issuer/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager
@@ -25,6 +25,3 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=false
-      - ServerSideApply=true
-      - ApplyOutOfSyncOnly=true
-      - RespectIgnoreDifferences=true

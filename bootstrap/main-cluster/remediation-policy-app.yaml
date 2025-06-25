@@ -1,19 +1,19 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: olm-crds
+  name: remediation-policy-main-cluster
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "-5"
+    argocd.argoproj.io/sync-wave: "110"
 spec:
   project: default
   source:
     repoURL: https://github.com/projectinitiative/homelab.git
     targetRevision: HEAD
-    path: apps/overlays/control-cluster/olm-crds
+    path: apps/overlays/main-cluster/remediation-policy
   destination:
-    server: https://kubernetes.default.svc
-    namespace: argocd
+    server: https://your-main-cluster-api-server # <-- IMPORTANT: CHANGE THIS
+    namespace: operators
   syncPolicy:
     automated:
       prune: true
