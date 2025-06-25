@@ -12,11 +12,11 @@ spec:
           # This will apply the patch to the satellite pods
   podTemplate:
     spec:
-      volumes:
-      - name: kbuild-tools
-        hostPath:
-          type: Directory
-          path: /usr/src/linux-headers-6.1.84-6-rk2410
+      # volumes:
+      # - name: kbuild-tools
+      #   hostPath:
+      #     type: Directory
+      #     path: /usr/src/linux-headers-6.1.84-6-rk2410
       initContainers:
         - name: drbd-module-loader
           $patch: delete
