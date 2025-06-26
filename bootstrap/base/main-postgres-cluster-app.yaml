@@ -12,7 +12,7 @@ spec:
     repoURL: https://github.com/projectinitiative/homelab.git # Your repo
     targetRevision: HEAD
     # This application deploys a single manifest from within your Git repo
-    path: base/database
+    path: bootstrap/base/database
   destination:
     server: https://kubernetes.default.svc
     namespace: postgres-db
