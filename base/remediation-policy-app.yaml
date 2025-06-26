@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://github.com/projectinitiative/homelab.git # Use your repo URL
     targetRevision: HEAD
-    path: bootstrap/control-cluster
+    path: .
     # This tells ArgoCD to only sync our policy file from this path
     directory:
       include: remediation-policy.yaml

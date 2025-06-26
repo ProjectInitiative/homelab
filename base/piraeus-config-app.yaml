@@ -1,4 +1,4 @@
-# homelab.git/bootstrap/control-cluster/piraeus-config-app.yaml
+# homelab.git/base/piraeus-config-app.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: https://github.com/projectinitiative/homelab.git # Your repo
     targetRevision: HEAD
-    path: bootstrap/control-cluster/piraeus-kustomize-config # Path to Kustomize base
+    path: piraeus-kustomize-config # Path to Kustomize base
   destination:
     server: https://kubernetes.default.svc
     namespace: piraeus-datastore # Linstor resources also live here

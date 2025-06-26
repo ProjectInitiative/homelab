@@ -1,4 +1,4 @@
-# homelab.git/bootstrap/control-cluster/step-issuer-app.yaml
+# homelab.git/base/step-issuer.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

@@ -14,7 +14,7 @@
 #   source:
 #     repoURL: https://github.com/projectinitiative/homelab.git
 #     targetRevision: HEAD
-#     path: bootstrap/control-cluster/control-namespaces.yaml # Points to your namespace definitions
+#     path: control-namespaces.yaml # Points to your namespace definitions
 #   destination:
 #     server: https://kubernetes.default.svc
 #     namespace: default
@@ -61,28 +61,28 @@ metadata:
   name: postgres-db
 
 ---
-# homelab.git/bootstrap/control-cluster/namespaces/cert-manager-namespace.yaml
+# homelab.git/base/namespaces/cert-manager-namespace.yaml
 apiVersion: v1
 kind: Namespace
 metadata:
   name: cert-manager
 
 ---
-# homelab.git/bootstrap/control-cluster/namespaces/step-ca-namespace.yaml
+# homelab.git/base/namespaces/step-ca-namespace.yaml
 apiVersion: v1
 kind: Namespace
 metadata:
   name: step-ca
 
 ---
-# homelab.git/bootstrap/control-cluster/namespaces/openbao-namespace.yaml
+# homelab.git/base/namespaces/openbao-namespace.yaml
 apiVersion: v1
 kind: Namespace
 metadata:
   name: openbao
 
 ---
-# homelab.git/bootstrap/control-cluster/namespaces/external-secrets-namespace.yaml
+# homelab.git/base/namespaces/external-secrets-namespace.yaml
 apiVersion: v1
 kind: Namespace
 metadata:

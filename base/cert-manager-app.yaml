@@ -1,4 +1,4 @@
-# homelab.git/bootstrap/control-cluster/cert-manager-app.yaml
+# homelab.git/base/cert-manager-app.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

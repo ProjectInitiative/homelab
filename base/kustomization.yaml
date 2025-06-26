@@ -1,4 +1,4 @@
-# homelab.git/bootstrap/control-cluster/kustomization.yaml
+# homelab.git/base/kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 

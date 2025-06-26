@@ -1,4 +1,4 @@
-# homelab.git/bootstrap/control-cluster/openbao-app.yaml
+# homelab.git/base/openbao-app.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

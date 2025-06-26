@@ -1,4 +1,4 @@
-# homelab.git/bootstrap/control-cluster/step-ca-app.yaml
+# homelab.git/base/step-ca-app.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

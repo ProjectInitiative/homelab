@@ -1,4 +1,4 @@
-# homelab.git/bootstrap/control-cluster/local-path-provisioner-app.yaml
+# homelab.git/base/local-path-provisioner-app.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: https://github.com/projectinitiative/homelab.git # Your Git repo
     targetRevision: HEAD
-    path: bootstrap/control-cluster/local-path-base # <--- Points to your Kustomize base directory
+    path: local-path-base # <--- Points to your Kustomize base directory
   destination:
     server: https://kubernetes.default.svc
     namespace: local-path-provisioner # Ensure this namespace is created by core-namespaces.yaml
