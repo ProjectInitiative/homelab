@@ -1,3 +1,14 @@
+# Phase 3: Deploy step-ca via GitOps
+
+Now that the database is ready and the root of trust secrets are in the cluster, we can update our GitOps repository to deploy `step-ca`.
+
+## Steps
+
+1.  **Update `step-ca-values.yaml`:**
+    Modify `bootstrap/base/helm-values/step-ca-values.yaml` to use the PostgreSQL database and the secrets we created.
+
+    ```yaml
+    # In bootstrap/base/helm-values/step-ca-values.yaml
     replicaCount: 3
 
     existingSecrets:
@@ -42,3 +53,15 @@
           secretKeyRef:
             name: step-ca-db-datasource
             key: datasource
+    ```
+
+    **Note:** The `dataSource` is now pulled from the `step-ca-db-datasource` secret, ensuring the password is not committed to Git.
+
+2.  **Commit and Push to Git:**
+    Commit the changes to your Git repository. Argo CD will detect the changes and deploy `step-ca`.
+
+    ```bash
+    git add bootstrap/base/helm-values/step-ca-values.yaml
+    git commit -m "Configure step-ca for HA with PostgreSQL"
+    git push
+    ```
