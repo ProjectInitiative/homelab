@@ -8,9 +8,7 @@ spec:
   source:
     repoURL: https://github.com/projectinitiative/homelab.git
     targetRevision: HEAD
-    path: .
-    kustomize:
-      path: overlays/control-cluster
+    path: overlays/control-cluster
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
