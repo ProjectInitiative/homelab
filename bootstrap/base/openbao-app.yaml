@@ -17,7 +17,7 @@ spec:
     # This tells Argo CD to use the specified values file
     helm:
       valueFiles:
-        - ../helm-values/openbao-values.yaml # Relative path from the chart's root or the app's 'path' if using it
+        - ./helm-values/openbao-values.yaml # Relative path from the chart's root or the app's 'path' if using it
   destination:
     server: https://kubernetes.default.svc
     namespace: openbao # Ensure this namespace is created first!

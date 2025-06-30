@@ -17,7 +17,7 @@ spec:
     chart: step-certificates
     helm:
       valueFiles:
-        - ../helm-values/step-ca-values.yaml
+        - ./helm-values/step-ca-values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: step-ca

@@ -16,7 +16,7 @@ spec:
     chart: step-issuer
     helm:
       valueFiles:
-        - ../helm-values/step-issuer-values.yaml
+        - ./helm-values/step-issuer-values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager # step-issuer is part of cert-manager ecosystem

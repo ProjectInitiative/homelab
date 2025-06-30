@@ -17,7 +17,7 @@ spec:
     chart: cert-manager
     helm:
       valueFiles:
-        - ../helm-values/cert-manager-values.yaml # Path to your cert-manager values
+        - ./helm-values/cert-manager-values.yaml # Path to your cert-manager values
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager
