@@ -10,6 +10,11 @@
     bootstrap:
       enabled: false
 
+    ca:
+      db:
+        enabled: false
+        persistent: false
+
     config:
       ca.json: |
         {
@@ -22,7 +27,13 @@
             "format": "json"
           },
           "db": {
-            "type": "postgres"
+            "type": "postgresql"
+          },
+          "ca": {
+            "db": {
+              "enabled": false,
+              "persistent": false
+            }
           },
           "authority": {},
           "tls": {
@@ -37,8 +48,28 @@
           }
         }
     env:
-      - name: STEP_DB_DATASOURCE
+      - name: PGHOST
         valueFrom:
           secretKeyRef:
             name: step-ca-db-datasource
-            key: datasource
+            key: host
+      - name: PGPORT
+        valueFrom:
+          secretKeyRef:
+            name: step-ca-db-datasource
+            key: port
+      - name: PGDATABASE
+        valueFrom:
+          secretKeyRef:
+            name: step-ca-db-datasource
+            key: database
+      - name: PGUSER
+        valueFrom:
+          secretKeyRef:
+            name: step-ca-db-datasource
+            key: user
+      - name: PGPASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: step-ca-db-datasource
+            key: password
