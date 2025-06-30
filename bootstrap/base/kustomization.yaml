@@ -26,7 +26,6 @@ resources:
   - cert-manager-app.yaml         # Sync Wave 50
   - step-ca-app.yaml              # Sync Wave 60
   - step-issuer-app.yaml          # Sync Wave 70
-  - certs/step-ca-clusterissuer-app.yaml # Sync Wave 80
 
   # PHASE 4: Core Services
   # - openbao-app.yaml              # Sync Wave 90

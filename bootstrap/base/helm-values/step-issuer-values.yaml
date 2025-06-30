@@ -1,0 +1,14 @@
+stepClusterIssuer:
+  create: true
+  caUrl: "https://step-ca.step-ca.svc.cluster.local:443/acme/acme/directory"
+  email: "no-reply@moonwake.io" # Your email for ACME registration
+  caBundle:
+    configMap:
+      name: step-ca-ca-bundle
+      key: ca.crt
+  provisioner:
+    name: "your-provisioner-name" # IMPORTANT: Replace with your actual provisioner name from step-ca
+    kid: "your-kid" # IMPORTANT: Replace with your actual kid from step-ca
+    passwordRef:
+      name: "step-issuer-provisioner-password" # Secret containing the provisioner password
+      key: "password"
