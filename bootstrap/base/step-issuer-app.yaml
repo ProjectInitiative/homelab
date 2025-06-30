@@ -10,13 +10,16 @@ metadata:
     argocd.argoproj.io/sync-wave: "70" 
 spec:
   project: default
-  source:
-    repoURL: https://smallstep.github.io/helm-charts # Smallstep's Helm repo
-    targetRevision: v1.9.8 # Specify a stable version!
-    chart: step-issuer
-    helm:
-      valueFiles:
-        - ./helm-values/step-issuer-values.yaml
+  sources:
+    - chart: step-issuer
+      repoURL: https://smallstep.github.io/helm-charts # Smallstep's Helm repo
+      targetRevision: v1.9.8 # Specify a stable version!
+      helm:
+        valueFiles:
+          - $values/bootstrap/base/helm-values/step-issuer-values.yaml
+    - repoURL: https://github.com/projectinitiative/homelab.git
+      targetRevision: HEAD
+      ref: values
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager # step-issuer is part of cert-manager ecosystem

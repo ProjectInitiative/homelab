@@ -10,14 +10,17 @@ metadata:
     argocd.argoproj.io/sync-wave: "90" 
 spec:
   project: default
-  source:
-    repoURL: https://charts.openbao.io/
-    targetRevision: 0.x.x # Use a specific chart version!
-    chart: openbao
-    # This tells Argo CD to use the specified values file
-    helm:
-      valueFiles:
-        - ./helm-values/openbao-values.yaml # Relative path from the chart's root or the app's 'path' if using it
+  sources:
+    - chart: openbao
+      repoURL: https://charts.openbao.io/
+      targetRevision: 0.x.x # Use a specific chart version!
+      # This tells Argo CD to use the specified values file
+      helm:
+        valueFiles:
+          - $values/bootstrap/base/helm-values/openbao-values.yaml # Relative path from the chart's root or the app's 'path' if using it
+    - repoURL: https://github.com/projectinitiative/homelab.git
+      targetRevision: HEAD
+      ref: values
   destination:
     server: https://kubernetes.default.svc
     namespace: openbao # Ensure this namespace is created first!
