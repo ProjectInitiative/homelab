@@ -1,0 +1,75 @@
+    replicaCount: 3
+
+    existingSecrets:
+      enabled: true
+      ca: true
+      issuer: true
+      certsAsSecret: true
+      configAsSecret: true
+
+    bootstrap:
+      enabled: false
+
+    ca:
+      db:
+        enabled: false
+        persistent: false
+
+    config:
+      ca.json: |
+        {
+          "address": ":9000",
+          "dnsNames": [
+            "step-ca.step-ca.svc.cluster.local",
+            "step-ca.step-ca.svc"
+          ],
+          "logger": {
+            "format": "json"
+          },
+          "db": {
+            "type": "postgresql"
+          },
+          "ca": {
+            "db": {
+              "enabled": false,
+              "persistent": false
+            }
+          },
+          "authority": {},
+          "tls": {
+            "cipherSuites": [
+              "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+              "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"
+            ],
+            "minVersion": "1.2"
+          },
+          "acme": {
+            "enabled": true
+          }
+        }
+    env:
+      - name: PGHOST
+        valueFrom:
+          secretKeyRef:
+            name: step-ca-db-datasource
+            key: host
+      - name: PGPORT
+        valueFrom:
+          secretKeyRef:
+            name: step-ca-db-datasource
+            key: port
+      - name: PGDATABASE
+        valueFrom:
+          secretKeyRef:
+            name: step-ca-db-datasource
+            key: database
+      - name: PGUSER
+        valueFrom:
+          secretKeyRef:
+            name: step-ca-db-datasource
+            key: user
+      - name: PGPASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: step-ca-db-datasource
+            key: password
