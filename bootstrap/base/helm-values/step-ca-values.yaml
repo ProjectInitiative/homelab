@@ -5,7 +5,7 @@
       ca: true
       issuer: true
       certsAsSecret: true
-      configAsSecret: true
+      configAsSecret: false
 
     bootstrap:
       enabled: false
