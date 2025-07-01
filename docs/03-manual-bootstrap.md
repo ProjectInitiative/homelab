@@ -29,26 +29,42 @@ This is the most critical phase for the security and recoverability of your PKI.
     First, create the secrets for the passwords:
     ```bash
     # CA password
-    kubectl create secret generic step-ca-password -n step-ca \
+    kubectl create secret generic step-ca-step-certificates-ca-password -n step-ca \
       --from-file=password=root-ca-password.txt
 
     # Intermediate CA password
-    kubectl create secret generic step-ca-intermediate-password -n step-ca \
+    kubectl create secret generic step-ca-step-certificates-provisioner-password -n step-ca \
+      --from-file=password=intermediate-ca-password.txt
+
+    # Certificate issuer password (also from your intermediate-ca-password.txt)
+    kubectl create secret generic step-ca-step-certificates-certificate-issuer-password -n step-ca \
       --from-file=password=intermediate-ca-password.txt
     ```
 
     Next, create the TLS secrets. We will use `openssl` to decrypt the keys in memory and pipe them directly to `kubectl` to avoid writing the unencrypted key to disk.
 
     ```bash
-    # Root CA certificates and keys
-    openssl pkey -in secrets/root_ca_key -passin file:root-ca-password.txt | \
-      kubectl create secret tls step-ca-certs -n step-ca \
-        --cert=certs/root_ca.crt \
-        --key=/dev/stdin
-
-    # Intermediate CA certificates and keys
-    openssl pkey -in secrets/intermediate_ca_key -passin file:root-ca-password.txt | \
-      kubectl create secret tls step-ca-intermediate-certs -n step-ca \
-        --cert=certs/intermediate_ca.crt \
-        --key=/dev/stdin
+    # Public certificates secret
+    kubectl create secret generic step-ca-step-certificates-certs -n step-ca \
+      --from-file=root_ca.crt=secrets/certs/root_ca.crt \
+      --from-file=intermediate_ca.crt=secrets/certs/intermediate_ca.crt
+   
+    # Encrypted private keys secret
+    kubectl create secret generic step-ca-step-certificates-secrets -n step-ca \
+      --from-file=root_ca_key=secrets/secrets/root_ca_key \
+      --from-file=intermediate_ca_key=secrets/secrets/intermediate_ca_key
     ```
+
+    <!-- ```bash -->
+    <!-- # Root CA certificates and keys -->
+    <!-- openssl pkey -in secrets/root_ca_key -passin file:root-ca-password.txt | \ -->
+      <!-- kubectl create secret tls step-ca-certs -n step-ca \ -->
+        <!-- --cert=certs/root_ca.crt \ -->
+        <!-- --key=/dev/stdin -->
+
+    <!-- # Intermediate CA certificates and keys -->
+    <!-- openssl pkey -in secrets/intermediate_ca_key -passin file:root-ca-password.txt | \ -->
+      <!-- kubectl create secret tls step-ca-intermediate-certs -n step-ca \ -->
+        <!-- --cert=certs/intermediate_ca.crt \ -->
+        <!-- --key=/dev/stdin -->
+    <!-- ``` -->
