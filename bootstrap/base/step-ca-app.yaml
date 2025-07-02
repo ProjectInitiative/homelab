@@ -14,7 +14,7 @@ spec:
   source:
     repoURL: https://github.com/projectinitiative/homelab.git
     targetRevision: HEAD
-    path: bootstrap/base/step-ca-kustomization-config
+    path: bootstrap/base/step-ca-kustomize-config
     # This is a Kustomize application
     kustomize: {}
   syncPolicy:
