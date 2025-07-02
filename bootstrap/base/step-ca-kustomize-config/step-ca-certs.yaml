@@ -1,0 +1,36 @@
+# 04-certs.yaml - SAFE TO COMMIT
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: step-certificates-certs
+  namespace: step-ca # Ensure this matches your target namespace
+data:
+    # intermediate_ca contains the text of the intermediate CA Certificate
+    intermediate_ca: |
+      -----BEGIN CERTIFICATE-----
+      MIIByDCCAW6gAwIBAgIQUePumns1nAhuF99Qk6ZohDAKBggqhkjOPQQDAjAuMREw
+      DwYDVQQKEwhtb29ud2FrZTEZMBcGA1UEAxMQbW9vbndha2UgUm9vdCBDQTAeFw0y
+      NTA3MDIwMjUyMTRaFw0zNTA2MzAwMjUyMTRaMDYxETAPBgNVBAoTCG1vb253YWtl
+      MSEwHwYDVQQDExhtb29ud2FrZSBJbnRlcm1lZGlhdGUgQ0EwWTATBgcqhkjOPQIB
+      BggqhkjOPQMBBwNCAARhNPTA+/lomDb8zrHqbFBRwbWnJP14Y0koslOyGBTV2Usb
+      RpRMX3yCoChap7HURql+8uI8SXDGRCRdSJVhvA/7o2YwZDAOBgNVHQ8BAf8EBAMC
+      AQYwEgYDVR0TAQH/BAgwBgEB/wIBADAdBgNVHQ4EFgQU5Sc/yQAu0gMWZD7f0d0e
+      FrASSNkwHwYDVR0jBBgwFoAUfasgTn+VdcwP5x727vu+F64MDEwwCgYIKoZIzj0E
+      AwIDSAAwRQIhAM0NpW6jqFoZq3HOAn5ewFIKYwKKvGw1JDdHS9MwPMvfAiAvMekq
+      95LlU/IwdsnBJ05c6i0C/+c0qjSBH+b1pNiw9g==
+      -----END CERTIFICATE-----
+      
+      
+    # root_ca contains the text of the root CA Certificate
+    root_ca: |
+      -----BEGIN CERTIFICATE-----
+      MIIBnzCCAUagAwIBAgIRAPIO1gcN/dvpiJh911xse/EwCgYIKoZIzj0EAwIwLjER
+      MA8GA1UEChMIbW9vbndha2UxGTAXBgNVBAMTEG1vb253YWtlIFJvb3QgQ0EwHhcN
+      MjUwNzAyMDI1MjEzWhcNMzUwNjMwMDI1MjEzWjAuMREwDwYDVQQKEwhtb29ud2Fr
+      ZTEZMBcGA1UEAxMQbW9vbndha2UgUm9vdCBDQTBZMBMGByqGSM49AgEGCCqGSM49
+      AwEHA0IABAvJjUonX6XumPusF0YNaGT4fX6zZBozeBDMumVWoElm6smoJvkn6k+5
+      TM0v8C5AbRv00B8ljov4mhKdB7nhqBajRTBDMA4GA1UdDwEB/wQEAwIBBjASBgNV
+      HRMBAf8ECDAGAQH/AgEBMB0GA1UdDgQWBBR9qyBOf5V1zA/nHvbu+74XrgwMTDAK
+      BggqhkjOPQQDAgNHADBEAiBAqWC1XTFjOPopR2R9Of/Bo0mdwHXS5nYBawCIKe8t
+      nQIgPEwdbpuEvKL003CyBqdys3ReRIKfy4WKk2hlzF12C8w=
+      -----END CERTIFICATE-----

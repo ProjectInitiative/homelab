@@ -2,6 +2,31 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
+  name: step-ca-bootstrap
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "59"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: step-ca
+  source:
+    repoURL: https://github.com/projectinitiative/homelab.git
+    targetRevision: HEAD
+    path: bootstrap/base/step-ca-kustomization-config
+    # This is a Kustomize application
+    kustomize: {}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false # Namespace created by core-namespaces
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
   name: step-ca
   namespace: argocd
   finalizers:

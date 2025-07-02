@@ -1,0 +1,12 @@
+# kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# The namespace for all these resources
+namespace: step-ca
+
+# List all the manifest files to be applied
+resources:
+  - step-ca-config.yaml
+  - step-ca-certs.yaml
+  - step-ca-keys-secret.yaml
