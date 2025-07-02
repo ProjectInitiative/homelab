@@ -51,6 +51,8 @@ ca:
         secretKeyRef:
           name: step-ca-db-datasource
           key: password
+    - name: PGSSLMODE
+      value: disable
   # Disable the built-in persistent database.
   db:
     persistent: false
