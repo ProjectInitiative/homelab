@@ -33,7 +33,7 @@ data:
         "minVersion": "1.2",
         "maxVersion": "1.3",
         "renegotiation": false
-	    }
+       }
     }
   defaults.json: |
     {
