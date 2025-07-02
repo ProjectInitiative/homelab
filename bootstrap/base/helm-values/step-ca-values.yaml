@@ -9,7 +9,9 @@ replicaCount: 3
 inject:
   enabled: false
 bootstrap:
+  secrets: false
   enabled: false
+  configmaps: false
 
 # This block is now the main configuration.
 # It tells the chart to use the ConfigMaps and Secrets we just created.
