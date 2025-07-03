@@ -53,36 +53,38 @@ ca:
   # Disable the built-in persistent database.
   db:
     persistent: false
-    # Mount the passfile from the database secret into the container.
-  extraInitContainers:
-    - name: fix-passfile-ownership
-      image: alpine:latest
-      command:
-        - /bin/sh
-        - -c
-        - |
-          cp /mnt/secrets/passfile /mnt/pgpass/passfile && \
-          chown 1000:1000 /mnt/pgpass/passfile && \
-          chmod 0600 /mnt/pgpass/passfile
-      volumeMounts:
-        - name: pgpass-secret-volume # Mount the original secret
-          mountPath: /mnt/secrets
-        - name: pgpass-shared-volume # Mount the shared directory
-          mountPath: /mnt/pgpass
 
-  extraVolumes:
-    - name: pgpass-shared-volume
-      emptyDir: {}
-    - name: pgpass-volume
-      secret:
-        secretName: step-ca-db-datasource
-        defaultMode: 384 # 0600 file permission
-        items:
-          - key: passfile
-            path: passfile
-  extraVolumeMounts:
-    - name: pgpass-shared-volume
-      mountPath: /tmp
+# Mount the passfile from the database secret into the container.
+extraInitContainers:
+- name: fix-passfile-ownership
+  image: alpine:latest
+  command:
+    - /bin/sh
+    - -c
+    - |
+      cp /mnt/secrets/passfile /mnt/pgpass/passfile && \
+      chown 1000:1000 /mnt/pgpass/passfile && \
+      chmod 0600 /mnt/pgpass/passfile
+  volumeMounts:
+    - name: pgpass-secret-volume # Mount the original secret
+      mountPath: /mnt/secrets
+    - name: pgpass-shared-volume # Mount the shared directory
+      mountPath: /mnt/pgpass
+
+extraVolumes:
+  - name: pgpass-shared-volume
+    emptyDir: {}
+  - name: pgpass-volume
+    secret:
+      secretName: step-ca-db-datasource
+      defaultMode: 384 # 0600 file permission
+      items:
+        - key: passfile
+          path: passfile
+
+extraVolumeMounts:
+  - name: pgpass-shared-volume
+    mountPath: /tmp
     # - name: pgpass-volume
     #   mountPath: "/tmp"
     #   readOnly: true
