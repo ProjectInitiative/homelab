@@ -26,6 +26,8 @@ existingSecrets:
 ca:
   # Inject database credentials into the pod's environment.
   env:
+    - name: PGPASSFILE
+      value: /tmp/passfile
     - name: PGHOST
       valueFrom:
         secretKeyRef:
@@ -46,16 +48,24 @@ ca:
         secretKeyRef:
           name: step-ca-db-datasource
           key: user
-    - name: PGPASSWORD
-      valueFrom:
-        secretKeyRef:
-          name: step-ca-db-datasource
-          key: password
     - name: PGSSLMODE
-      value: disable
+      value: require
   # Disable the built-in persistent database.
   db:
     persistent: false
+    # Mount the passfile from the database secret into the container.
+  extraVolumes:
+    - name: pgpass-volume
+      secret:
+        secretName: step-ca-db-datasource
+        defaultMode: 384 # 0600 file permission
+        items:
+          - key: passfile
+            path: passfile
+  extraVolumeMounts:
+    - name: pgpass-volume
+      mountPath: "/tmp"
+      readOnly: true
 
 # Configure the service port.
 service:
