@@ -66,7 +66,7 @@ extraInitContainers:
       chown 1000:1000 /mnt/pgpass/passfile && \
       chmod 0600 /mnt/pgpass/passfile
   volumeMounts:
-    - name: pgpass-secret-volume # Mount the original secret
+    - name: pgpass-volume # Mount the original secret
       mountPath: /mnt/secrets
     - name: pgpass-shared-volume # Mount the shared directory
       mountPath: /mnt/pgpass
@@ -85,9 +85,10 @@ extraVolumes:
 extraVolumeMounts:
   - name: pgpass-shared-volume
     mountPath: /tmp
-    # - name: pgpass-volume
-    #   mountPath: "/tmp"
-    #   readOnly: true
+
+  - name: pgpass-volume
+    mountPath: "/tmp"
+    readOnly: true
 
 # Configure the service port.
 service:
