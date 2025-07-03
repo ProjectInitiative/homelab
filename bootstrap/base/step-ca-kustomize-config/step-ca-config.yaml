@@ -19,7 +19,8 @@ data:
       "logger": { "format": "json" },
       "db": {
         "type": "postgresql",
-        "dataSource": ""
+        "datasource": "postgresql://stepca_user@main-postgres-cluster-rw.postgres-db.svc.cluster.local:5432/",
+        "database": "stepca"
       },
       "authority": {
         "enableAdmin": false,
