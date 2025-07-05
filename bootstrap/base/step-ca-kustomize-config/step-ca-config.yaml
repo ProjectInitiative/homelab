@@ -7,39 +7,47 @@ metadata:
 data:
   ca.json: |
     {
-      "root": "/home/step/certs/root_ca.crt",
-      "federateRoots": [],
-      "crt": "/home/step/certs/intermediate_ca.crt",
-      "key": "/home/step/secrets/intermediate_ca_key",
-      "address": ":9000",
-      "dnsNames": [
-        "moonwake.io",
-        "step-certificates.default.svc.cluster.local"
-      ],
+    	"root": "/home/step/certs/root_ca.crt",
+    	"federatedRoots": null,
+    	"crt": "/home/step/certs/intermediate_ca.crt",
+    	"key": "/home/step/secrets/intermediate_ca_key",
+    	"address": ":9000",
+    	"insecureAddress": "",
+    	"dnsNames": [
+    		"moonwake.io",
+    		"step-certificates.default.svc.cluster.local"
+    	],
       "logger": { "format": "json" },
       "db": {
         "type": "postgresql",
         "datasource": "postgresql://stepca_user@main-postgres-cluster-rw.postgres-db.svc.cluster.local:5432/",
         "database": "stepca"
       },
-      "authority": {
-        "enableAdmin": false,
-        "provisioners": [{"type":"JWK","name":"admin","key":{"use":"sig","kty":"EC","kid":"d03W2d-WuinSKMzXw0PrnG84ibrp2thzCZ5UWJihW24","crv":"P-256","alg":"ES256","x":"Y72DpSv7bkwIR_N59Ql7Mmqt31S5o3d_xYaD31WWwVM","y":"drzV5m4e2tSE1-qicvUxhaSGyoMU7XY47Rr9MSbBwEo"},"encryptedKey":"eyJhbGciOiJQQkVTMi1IUzI1NitBMTI4S1ciLCJjdHkiOiJqd2sranNvbiIsImVuYyI6IkEyNTZHQ00iLCJwMmMiOjYwMDAwMCwicDJzIjoiVVg4ZVVQRkpfVVNnTjhDNWp3V2xkUSJ9.DGw1sKegvG5ySgZY_3sErotFzQo3qnooIB-s17hcG2XZiDzjSA7oFg.VkfuBDTz5T8LsbfW.TKjHpfb9DyJIFdmBRWZdaEiYy4jgF-yfVbPuXcyJqhrykJe5DcAgn5TsLhe-F84BeheUUd4GyEHWP4vzJKeh1r6O6vrrAMxBGRySmhPJeoSNzc6_TYM8leNsbL-Way72SIFYYyTuNGUS-_sbnroeeEKd1HnT5sASd5d_sW3A6UN3ir3gpNB61L6DQi82gEej_Ew3-o8FLS-HW9Jlpb7e96WF9adUXs1q2XuJXjI3QXfxV_6zyBrVf4snIG1et0OaU8CNa7Szg32Rqg4cyIkErk_y69KIltC09BX8jvOVD1HqMCZKnFtUqzjIbqCbQHYOXn5-gp_9k9CbQhBluwM.gP5sbjdn5l5rEsgX1-lvqQ","options":{"x509":{},"ssh":{}}}]
-      },
-      "tls": {
-        "cipherSuites": [
-          "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
-          "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"
-        ],
-        "minVersion": 1.2,
-        "maxVersion": 1.3,
-        "renegotiation": false
-       }
-    }
-  defaults.json: |
-    {
-      "ca-url": "https://moonwake.io",
-      "ca-config": "/home/step/config/ca.json",
-      "fingerprint": "4e9bd5cf10bfbdb50a0a2f7393c5157fb18c051cd85cffd812829adb9c58a7f7",
-      "root": "/home/step/certs/root_ca.crt"
+    	"authority": {
+    		"provisioners": [
+    			{
+    				"type": "JWK",
+    				"name": "admin",
+    				"key": {
+    					"use": "sig",
+    					"kty": "EC",
+    					"kid": "bW6zAJ1Jm4iFYk_25FbHVINVo8pWr7_Azq9VoNpePq0",
+    					"crv": "P-256",
+    					"alg": "ES256",
+    					"x": "8AQnzgGJx2nqwaNA89VmUnvDETBDGArn4e5y5wMolEI",
+    					"y": "VEBsrE4JMHASa5Q7BU1YgVmcaElE7hvSW3BfhTDz-_g"
+    				},
+    				"encryptedKey": "eyJhbGciOiJQQkVTMi1IUzI1NitBMTI4S1ciLCJjdHkiOiJqd2sranNvbiIsImVuYyI6IkEyNTZHQ00iLCJwMmMiOjYwMDAwMCwicDJzIjoicVkySmR0SzJQUXhMS1JhMUQ3aktwdyJ9.J5_tQE5RQY0ts-SSncJVTaD6jkajuRcp6sG_dgJK85u2IWJkP_ji-Q.DjLGLWsH5XsTFj9h.-sKW_SysLKecG6xrejoWi1xHhMdySczpHE3m-SBXXcGXWnkNMm9OZZ9B9ANg8SevlApYp7LI1qp3lHzgvOJIh-UimvSYQ65AWuj7FrzQ3UyRJrdx7EkztVgCAKRgjhokAfT-sNxg6b5dir9_89YLL7h-u_mBHNBjT0ItEGmKwSRG9DlksaYD5g27weKAEYlWarPK7kyDfHhQoQyzcdkhjGxrwHTVogCoxUOLbZqahzcxvsRXGHMZTF4MGt9g35IOoku9TJTUBsHVB0DLK5IlaKJgFQ2esAUTuvKCePkhaLkxSuTXTomEeK7cWjBFxv3s-fFAhwty3biB60_OEIE.Bo03nwA0g5j82Ya2yEpdVg"
+    			}
+    		]
+    	},
+    	"tls": {
+    		"cipherSuites": [
+    			"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
+    			"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"
+    		],
+    		"minVersion": 1.2,
+    		"maxVersion": 1.3,
+    		"renegotiation": false
+    	}
     }

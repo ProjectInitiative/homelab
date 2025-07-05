@@ -9,4 +9,3 @@ namespace: step-ca
 resources:
   - step-ca-config.yaml
   - step-ca-certs.yaml
-  - step-ca-keys-secret.yaml
