@@ -68,6 +68,7 @@ extraInitContainers:
   volumeMounts:
     - name: pgpass-volume # Mount the original secret
       mountPath: /mnt/secrets
+      readonly: true
     - name: pgpass-shared-volume # Mount the shared directory
       mountPath: /mnt/pgpass
 
@@ -84,11 +85,11 @@ extraVolumes:
 
 extraVolumeMounts:
   - name: pgpass-shared-volume
-    mountPath: /tmp
-
-  - name: pgpass-volume
     mountPath: "/tmp"
-    readOnly: true
+
+  # - name: pgpass-volume
+  #   mountPath: "/tmp"
+  #   readOnly: true
 
 # Configure the service port.
 service:
