@@ -6,7 +6,7 @@ metadata:
   namespace: step-ca # Ensure this matches your target namespace
 data:
     # intermediate_ca contains the text of the intermediate CA Certificate
-    intermediate_ca: |
+    intermediate_ca.crt: |
       -----BEGIN CERTIFICATE-----
       MIIByDCCAW6gAwIBAgIQUePumns1nAhuF99Qk6ZohDAKBggqhkjOPQQDAjAuMREw
       DwYDVQQKEwhtb29ud2FrZTEZMBcGA1UEAxMQbW9vbndha2UgUm9vdCBDQTAeFw0y
@@ -22,7 +22,7 @@ data:
       
       
     # root_ca contains the text of the root CA Certificate
-    root_ca: |
+    root_ca.crt: |
       -----BEGIN CERTIFICATE-----
       MIIBnzCCAUagAwIBAgIRAPIO1gcN/dvpiJh911xse/EwCgYIKoZIzj0EAwIwLjER
       MA8GA1UEChMIbW9vbndha2UxGTAXBgNVBAMTEG1vb253YWtlIFJvb3QgQ0EwHhcN
