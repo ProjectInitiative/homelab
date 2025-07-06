@@ -11,7 +11,7 @@ spec:
   source:
     repoURL: https://github.com/projectinitiative/homelab.git # Use your repo URL
     targetRevision: HEAD
-    path: medik8s/nhc
+    path: bootstrap/base/medik8s/nhc
   destination:
     server: https://kubernetes.default.svc
     namespace: operators
@@ -35,7 +35,7 @@ spec:
   source:
     repoURL: https://github.com/projectinitiative/homelab.git # Use your repo URL
     targetRevision: HEAD
-    path: medik8s/snr
+    path: bootstrap/base/medik8s/snr
   destination:
     server: https://kubernetes.default.svc
     namespace: operators
