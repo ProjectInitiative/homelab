@@ -33,5 +33,5 @@ resources:
 
     # PHASE 5: Node Remediation
   # arm not supported right now. will come back to this
-  # - medik8s-apps.yaml
-  # - remediation-policy-app.yaml
+  - medik8s-apps.yaml
+  - remediation-policy-app.yaml
