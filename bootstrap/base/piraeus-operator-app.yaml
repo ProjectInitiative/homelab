@@ -32,3 +32,33 @@ spec:
       # If you encounter issues with CRDs not applying, you might try:
       - ServerSideApply=true
       # But often, Helm manages CRD installation directly.
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: linstore-affinity-controller
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "11" 
+spec:
+  project: default
+  sources:
+    - chart: linstore-affinity-controller
+      repoURL: https://piraeus.io/helm-charts/
+      targetRevision: 1.4.1
+      # This tells Argo CD to use the specified values file
+      helm:
+        values: |
+          replicaCount: 3
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: piraeus-datastore # Ensure this namespace is created first!
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false # Ensure the linstore-affinity-controller namespace is created if not already by a prior app
+
