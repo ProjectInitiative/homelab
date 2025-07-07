@@ -27,6 +27,6 @@ spec:
   syncPolicy:
     automated:
       prune: true
-      selfHeal: true
+      selfHeal: false
     syncOptions:
       - CreateNamespace=false # Ensure the openbao namespace is created if not already by a prior app
