@@ -1,20 +1,34 @@
 # homelab.git/bootstrap/control-cluster/helm-values/openbao-values.yaml
+# These values configure a highly available OpenBao cluster using the
+# integrated Raft storage engine. Data is stored on 'local-path'
+# while audit logs are stored on 'piraeus'.
+
 server:
+  # Disable standalone mode to run in HA.
+  standalone:
+    enabled: false
+
+  # Enable High Availability (HA) mode.
   ha:
     enabled: true
-    # For auto-unseal with KMS, configure it here.
-    # Example for AWS KMS:
-    # config: |
-    #   seal "awskms" {
-    #     region     = "us-east-1"
-    #     kms_key_id = "arn:aws:kms:us-east-1:123456789012:key/your-kms-key-id"
-    #   }
-  tls:
+    replicas: 3 # Set to 3 for a robust Raft quorum.
+
+    # Configure and enable the Raft integrated storage backend.
+    # The default HCL configuration under `raft.config` is used automatically.
+    raft:
+      enabled: true
+
+  # Configure the persistent volume for the Raft data.
+  # Raft manages replication; this provides the underlying storage for each pod.
+  dataStorage:
     enabled: true
-    secretName: openbao-tls-secret # Cert-manager will create this
-  # Add other OpenBao configurations here, e.g., resource limits, storage class
-  # For a basic test, you might use:
-  # dev:
-  #   enabled: true # ONLY FOR DEV/TEST, NOT PRODUCTION
-  #   devRootToken: "dev-only-token-not-for-prod"
-  # But for your scenario, you want HA/production-like setup
+    size: 10Gi
+    # Use 'local-path' for the Raft data logs.
+    storageClass: "local-path-sticky"
+
+  # Configure a separate persistent volume for audit logs.
+  auditStorage:
+    enabled: true
+    size: 10Gi
+    # Use the 'piraeus' StorageClass for audit log persistence.
+    storageClass: "piraeus-storage-sticky"

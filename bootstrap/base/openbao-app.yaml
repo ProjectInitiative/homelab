@@ -13,7 +13,7 @@ spec:
   sources:
     - chart: openbao
       repoURL: https://charts.openbao.io/
-      targetRevision: 0.x.x # Use a specific chart version!
+      targetRevision: 0.16.1
       # This tells Argo CD to use the specified values file
       helm:
         valueFiles:
