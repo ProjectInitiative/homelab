@@ -16,7 +16,7 @@ spec:
 
   # Defines the storage configuration for the database
   storage:
-    storageClass: local-path
+    storageClass: local-path-sticky
     size: 20Gi # Adjust size as needed
 
   # Enables the pg_stat_statements extension for better query analysis

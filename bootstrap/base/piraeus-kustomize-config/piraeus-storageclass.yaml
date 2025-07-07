@@ -11,6 +11,8 @@ volumeBindingMode: WaitForFirstConsumer
 parameters:
   linstor.csi.linbit.com/storagePool: pool # Link to the storage pool defined in LinstorSatelliteConfiguration
   linstor.csi.linbit.com/placementCount: "2"
+  linstor.csi.linbit.com/allowRemoteVolumeAccess: "true"
+  linstor.csi.linbit.com/replicasOnDifferent: "topology.kubernetes.io/hostname"
   # Optional: To make it work similarly to the DRBD-backed ones:
   # linstor.csi.linbit.com/Net/Protocol: "C" # Synchronous replication (often implied by NrCopies > 1)
 reclaimPolicy: Delete
@@ -27,6 +29,8 @@ volumeBindingMode: WaitForFirstConsumer
 parameters:
   linstor.csi.linbit.com/storagePool: pool # Link to the storage pool defined in LinstorSatelliteConfiguration
   linstor.csi.linbit.com/placementCount: "2"
+  linstor.csi.linbit.com/allowRemoteVolumeAccess: "true"
+  linstor.csi.linbit.com/replicasOnDifferent: "topology.kubernetes.io/hostname"
   # Optional: To make it work similarly to the DRBD-backed ones:
   # linstor.csi.linbit.com/Net/Protocol: "C" # Synchronous replication (often implied by NrCopies > 1)
 reclaimPolicy: Retain
