@@ -28,7 +28,7 @@ resources:
   # - step-issuer-app.yaml          # Sync Wave 70
 
   # PHASE 4: Core Services
-  - openbao-app.yaml              # Sync Wave 90
+  # - openbao-app.yaml              # Sync Wave 90
   # - external-secrets-app.yaml     # Sync Wave 100 (or later)
 
     # PHASE 5: Node Remediation
