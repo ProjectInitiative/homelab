@@ -36,7 +36,7 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: linstore-affinity-controller
+  name: linstor-affinity-controller
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -45,7 +45,7 @@ metadata:
 spec:
   project: default
   sources:
-    - chart: linstore-affinity-controller
+    - chart: linstor-affinity-controller
       repoURL: https://piraeus.io/helm-charts/
       targetRevision: 1.4.1
       # This tells Argo CD to use the specified values file
