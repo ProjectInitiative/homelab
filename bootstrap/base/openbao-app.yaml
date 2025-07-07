@@ -12,7 +12,7 @@ spec:
   project: default
   sources:
     - chart: openbao
-      repoURL: https://charts.openbao.io/
+      repoURL: https://openbao.github.io/openbao-helm
       targetRevision: 0.16.1
       # This tells Argo CD to use the specified values file
       helm:
