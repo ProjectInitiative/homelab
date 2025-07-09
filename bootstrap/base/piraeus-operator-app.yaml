@@ -27,7 +27,7 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=false # Namespace created by core-namespaces
+      - CreateNamespace=true # Namespace created by core-namespaces
       # ServerSideApply is typically handled by Helm now.
       # If you encounter issues with CRDs not applying, you might try:
       - ServerSideApply=true
@@ -71,5 +71,5 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=false # Ensure the linstore-affinity-controller namespace is created if not already by a prior app
+      - CreateNamespace=true # Ensure the linstore-affinity-controller namespace is created if not already by a prior app
 

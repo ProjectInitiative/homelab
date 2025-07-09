@@ -4,7 +4,7 @@ kind: Kustomization
 
 resources:
   # PHASE 1: Core Namespaces and Storage Provisioners
-  - core-namespaces.yaml           # Sync Wave -10
+  # - core-namespaces.yaml           # Sync Wave -10
 
     # PHASE 1.5: Operator Lifecycle Manager (OLM)
   - olm-crds-app.yaml              # Sync Wave -5 (CRDs must be first)

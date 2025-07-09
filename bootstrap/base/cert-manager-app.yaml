@@ -29,7 +29,7 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=false # Namespace created by core-namespaces
+      - CreateNamespace=true # Namespace created by core-namespaces
       # CRITICAL: These options ensure CRDs are ready before other resources.
       - ServerSideApply=true
       - ApplyOutOfSyncOnly=true

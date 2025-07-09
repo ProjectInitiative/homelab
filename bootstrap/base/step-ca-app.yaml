@@ -22,7 +22,7 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=false # Namespace created by core-namespaces
+      - CreateNamespace=true # Namespace created by core-namespaces
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -55,4 +55,4 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=false # Namespace created by core-namespaces
+      - CreateNamespace=true # Namespace created by core-namespaces

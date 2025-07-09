@@ -20,7 +20,7 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=false
+      - CreateNamespace=true
 ---
 # --- Self Node Remediation Operator (The Rebooter) ---
 apiVersion: argoproj.io/v1alpha1
@@ -44,7 +44,7 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=false
+      - CreateNamespace=true
 ---
 # --- Fence Agents Remediation Operator (The Shutdown/Fencer) ---
 # apiVersion: argoproj.io/v1alpha1
@@ -68,4 +68,4 @@ spec:
 #       prune: true
 #       selfHeal: true
 #     syncOptions:
-#       - CreateNamespace=false
+#       - CreateNamespace=true

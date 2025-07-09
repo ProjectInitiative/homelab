@@ -22,6 +22,6 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=false
+      - CreateNamespace=true
       - ServerSideApply=true # For Custom Resources
       - ApplyOutOfSyncOnly=true

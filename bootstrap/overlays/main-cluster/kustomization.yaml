@@ -1,0 +1,40 @@
+# bootstrap/overlays/main-cluster/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# 1. Reference the base applications you want to deploy
+resources:
+  - ../../base/local-path-provisioner-app.yaml
+  - ../../base/piraeus-operator-app.yaml
+  - ../../base/piraeus-config-app.yaml
+  - ../../base/openbao-app.yaml
+
+# 2. Apply patches to modify the destination for each application
+patches:
+  - path: patches/local-path-patch.yaml
+    target:
+      group: argoproj.io
+      version: v1alpha1
+      kind: Application
+      name: local-path-provisioner
+
+  - path: patches/piraeus-operator-patch.yaml
+    target:
+      group: argoproj.io
+      version: v1alpha1
+      kind: Application
+      name: piraeus-operator
+
+  - path: patches/piraeus-config-patch.yaml
+    target:
+      group: argoproj.io
+      version: v1alpha1
+      kind: Application
+      name: piraeus-config
+
+  - path: patches/openbao-patch.yaml
+    target:
+      group: argoproj.io
+      version: v1alpha1
+      kind: Application
+      name: openbao
