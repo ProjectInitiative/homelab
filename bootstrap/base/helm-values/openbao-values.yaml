@@ -31,4 +31,4 @@ server:
     enabled: true
     size: 10Gi
     # Use the 'piraeus' StorageClass for audit log persistence.
-    storageClass: "piraeus-storage-sticky"
+    storageClass: "local-path-sticky"
