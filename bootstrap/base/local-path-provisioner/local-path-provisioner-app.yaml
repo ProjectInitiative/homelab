@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: https://github.com/projectinitiative/homelab.git # Your Git repo
     targetRevision: HEAD
-    path: bootstrap/base/local-path-base # <--- Points to your Kustomize base directory
+    path: bootstrap/base/local-path-provisioner/config
   destination:
     server: https://kubernetes.default.svc
     namespace: local-path-provisioner # Ensure this namespace is created by core-namespaces.yaml

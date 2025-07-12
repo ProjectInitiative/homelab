@@ -1,0 +1,10 @@
+# This patch will be applied to every Application resource
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  # The name here is ignored when patching
+  name: not-important
+spec:
+  destination:
+    # Set the correct destination for this specific cluster
+    server: https://172.16.1.50:6443

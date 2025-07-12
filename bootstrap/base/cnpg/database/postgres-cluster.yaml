@@ -2,7 +2,7 @@
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
-  name: main-postgres-cluster
+  name: postgres-cluster
   namespace: postgres-db
 spec:
   # Creates a 3-node HA cluster

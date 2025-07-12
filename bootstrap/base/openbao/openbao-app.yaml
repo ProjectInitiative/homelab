@@ -17,7 +17,7 @@ spec:
       # This tells Argo CD to use the specified values file
       helm:
         valueFiles:
-          - $values/bootstrap/base/helm-values/openbao-values.yaml # Relative path from the chart's root or the app's 'path' if using it
+          - $values/bootstrap/base/openbao/openbao-values.yaml # Relative path from the chart's root or the app's 'path' if using it
     - repoURL: https://github.com/projectinitiative/homelab.git
       targetRevision: HEAD
       ref: values

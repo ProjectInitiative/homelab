@@ -2,7 +2,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: main-postgres-cluster
+  name: postgres-cluster
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "40"
@@ -12,7 +12,7 @@ spec:
     repoURL: https://github.com/projectinitiative/homelab.git # Your repo
     targetRevision: HEAD
     # This application deploys a single manifest from within your Git repo
-    path: bootstrap/base/database
+    path: bootstrap/base/cnpg/database
   destination:
     server: https://kubernetes.default.svc
     namespace: postgres-db

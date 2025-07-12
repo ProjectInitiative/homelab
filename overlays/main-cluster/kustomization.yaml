@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# 1. "Pick" apps from BOTH catalogs.
+resources:
+  # --- Bootstrap Apps ---
+  - ../../bootstrap/base/local-path-provisioner
+  - ../../bootstrap/base/piraeus
+  - ../../bootstrap/base/openbao
+  - ../../bootstrap/base/cnpg
+
+  # --- Regular Apps ---
+  # - ../../apps/base/gitea
+
+# 2. Apply ONE common patch to ALL of them.
+patches:
+  - path: patches/set-destination.yaml
+    target:
+      group: argoproj.io
+      kind: Application
