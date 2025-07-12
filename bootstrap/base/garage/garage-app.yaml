@@ -12,7 +12,7 @@ spec:
   project: default
   sources:
     - repoURL: https://git.deuxfleurs.fr/Deuxfleurs/garage
-      path: script/helm
+      path: script/helm/garage
       helm:
         valueFiles:
           - $values/bootstrap/base/garage/garage-values.yaml # Relative path from the chart's root or the app's 'path' if using it
