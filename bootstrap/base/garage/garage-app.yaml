@@ -1,0 +1,34 @@
+# homelab.git/base/piraeus-operator-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: garage
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "100"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    - repoURL: https://git.deuxfleurs.fr/Deuxfleurs/garage
+      path: garage/scripts/helm
+      helm:
+        valueFiles:
+          - $values/bootstrap/base/garage/garage-values.yaml # Relative path from the chart's root or the app's 'path' if using it
+    - repoURL: https://github.com/projectinitiative/homelab.git
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: garage
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true # Namespace created by core-namespaces
+      # ServerSideApply is typically handled by Helm now.
+      # If you encounter issues with CRDs not applying, you might try:
+      - ServerSideApply=true
+      # But often, Helm manages CRD installation directly.

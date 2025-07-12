@@ -1,0 +1,97 @@
+---
+garage:
+  # Use only 3 replicas per object
+  replicationMode: "3"
+  s3:
+    api:
+      region: "us-east-1"
+      rootDomain: ".s3.moonwake.io"
+    web:
+      rootDomain: ".garage-web.moonwake.io"
+
+  # Template for the garage configuration
+  # Values can be templated
+  # ref: https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/
+  garage.toml: |-
+    metadata_dir = "/mnt/meta"
+    data_dir = "/mnt/data"
+    metadata_fsync = false
+    data_fsync = false
+
+    db_engine = "lmdb"
+
+    replication_mode = "{{ .Values.garage.replicationMode }}"
+  
+    # block_size = 20971520
+    block_size = "4M"
+  
+    rpc_bind_addr = "{{ .Values.garage.rpcBindAddr }}"
+    # rpc_secret will be populated by the init container from a k8s secret object
+    rpc_secret = "__RPC_SECRET_REPLACE__"
+
+    bootstrap_peers = {{ .Values.garage.bootstrapPeers }}
+
+    [kubernetes_discovery]
+    namespace = "{{ .Release.Namespace }}"
+    service_name = "{{ include "garage.fullname" . }}"
+    skip_crd = {{ .Values.garage.kubernetesSkipCrd }}
+
+    [s3_api]
+    s3_region = "{{ .Values.garage.s3.api.region }}"
+    api_bind_addr = "[::]:3900"
+    root_domain = "{{ .Values.garage.s3.api.rootDomain }}"
+
+    [s3_web]
+    bind_addr = "[::]:3902"
+    root_domain = "{{ .Values.garage.s3.web.rootDomain }}"
+    index = "{{ .Values.garage.s3.web.index }}"
+  
+    [admin]
+    api_bind_addr = "[::]:3903"
+    {{- if .Values.monitoring.tracing.sink }}
+    trace_sink = "{{ .Values.monitoring.tracing.sink }}"
+    {{- end }}    
+
+# Start 3 instances (StatefulSets) of garage
+deployment:
+  replicaCount: 3
+
+# image:
+#   repository: ghcr.io/projectinitiative/garage
+#   # please prefer using the chart version and not this tag
+#   tag: "v0.8.2"
+#   pullPolicy: IfNotPresent
+
+# Override default storage class and size
+persistence:
+  meta:
+    storageClass: "local-path-sticky"
+    size: 20Gi
+  data:
+    storageClass: "local-path-sticky"
+    size: 1024Gi
+
+# ingress:
+#   s3:
+#     api:
+#       enabled: true
+#       annotations:
+#         cert-manager.io/cluster-issuer: "prod-issuer"
+#         kubernetes.io/ingress.class: traefik
+#         # traefik.ingress.kubernetes.io/frontend-entry-points: http
+#         traefik.ingress.kubernetes.io/buffering: |
+#           maxRequestBodyBytes = 10485760  
+#           memRequestBodyBytes = 2097152  
+#           maxResponseBodyBytes = 10485760
+#           memResponseBodyBytes = 2097152
+#           retryExpression = "IsNetworkError() && Attempts() <= 2"
+#       hosts:
+#         - host: s3.moonwake.io
+#           paths:
+#             - path: /
+#               pathType: Prefix
+#       tls:
+#         - secretName: garage-ingress-cert
+#           hosts:
+#             - s3.moonwake.io
+
