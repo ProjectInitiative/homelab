@@ -3,7 +3,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: local-path-config
-  namespace: local-path-provisioner # <-- IMPORTANT: Match your live namespace
+  namespace: local-path-provisioner
 data:
   config.json: |-
     {
@@ -36,7 +36,7 @@ data:
           effect: NoSchedule
       containers:
         - name: helper-pod
-          image: busybox:latest # <-- Match your live image tag
+          image: busybox:latest
           imagePullPolicy: IfNotPresent
           resources:
             {}
