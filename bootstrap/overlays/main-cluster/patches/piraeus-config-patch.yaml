@@ -1,8 +1,0 @@
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: piraeus-datastore-config
-spec:
-  destination:
-    server: https://172.16.1.50:6443
-    namespace: piraeus-datastore

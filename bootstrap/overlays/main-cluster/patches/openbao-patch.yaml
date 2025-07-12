@@ -1,9 +1,0 @@
-# This patch changes the destination for the piraeus-operator app
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: openbao
-spec:
-  destination:
-    server: https://172.16.1.50:6443
-    namespace: openbao

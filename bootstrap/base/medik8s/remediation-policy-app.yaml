@@ -13,7 +13,7 @@ spec:
     path: .
     # This tells ArgoCD to only sync our policy file from this path
     directory:
-      include: remediation-policy.yaml
+      include: bootstrap/base/medik8s/remediation-policy.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: operators

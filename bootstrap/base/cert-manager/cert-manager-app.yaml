@@ -17,7 +17,7 @@ spec:
       targetRevision: v1.18.1 # SPECIFY A VERSION, e.g., v1.14.0 or latest stable
       helm:
         valueFiles:
-          - $values/bootstrap/base/helm-values/cert-manager-values.yaml # Path to your cert-manager values
+          - $values/bootstrap/base/cert-manager/cert-manager-values.yaml # Path to your cert-manager values
     - repoURL: https://github.com/projectinitiative/homelab.git
       targetRevision: HEAD
       ref: values
