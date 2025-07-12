@@ -16,3 +16,38 @@ spec:
     automated:
       prune: true
       selfHeal: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  # The name of the project. You will reference this in your Application manifests.
+  name: mc-bootstrap
+  # AppProject resources must be created in the Argo CD namespace
+  namespace: argocd
+  # Add a finalizer to prevent accidental deletion of the project while
+  # applications are still associated with it.
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  # A description for the project, visible in the Argo CD UI.
+  description: "A permissive project that allows deploying any resource from any source to any destination."
+
+  # Allow applications in this project to sync from any Git repository.
+  sourceRepos:
+  - '*'
+
+  # Allow applications to deploy to any destination cluster and namespace.
+  destinations:
+  - server: '*'
+    namespace: '*'
+
+  # Allow the project to deploy cluster-scoped resources of any kind.
+  # This is required for things like ClusterRoles, CRDs, etc.
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+
+  # Allow the project to deploy namespaced-scoped resources of any kind.
+  namespaceResourceWhitelist:
+  - group: '*'
+    kind: '*'
