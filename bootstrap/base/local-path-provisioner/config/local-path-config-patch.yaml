@@ -14,12 +14,6 @@ data:
             "/mnt/local-provisioner"
           ]
         }
-        # Add your custom node paths here if you want to modify them from default
-        # Example:
-        # {
-        #   "node": "your-specific-node-name",
-        #   "paths": ["/var/lib/local-storage"]
-        # }
       ]
     }
   helperPod.yaml: |-
