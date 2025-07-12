@@ -10,7 +10,7 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
-  source:
+  sources:
     - repoURL: https://git.deuxfleurs.fr/Deuxfleurs/garage
       path: garage/scripts/helm
       helm:
