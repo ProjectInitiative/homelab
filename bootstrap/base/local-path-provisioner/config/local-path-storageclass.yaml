@@ -8,7 +8,7 @@ metadata:
     storageclass.kubernetes.io/is-default-class: "false"
     # meta.helm.sh/release-name and meta.helm.sh/release-namespace are typically
     # added by Helm itself, so you might omit them if not using Helm directly.
-provisioner: cluster.local/local-path-provisioner # IMPORTANT: Must match the provisioner deployed by local-path-provisioner
+provisioner: rancher.io/local-path-provisioner # IMPORTANT: Must match the provisioner deployed by local-path-provisioner
 reclaimPolicy: Retain # From your example, note this is 'Retain'
 volumeBindingMode: WaitForFirstConsumer
 allowVolumeExpansion: True
