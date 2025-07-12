@@ -4,7 +4,7 @@ kind: Kustomization
 # 1. "Pick" apps from BOTH catalogs.
 resources:
   # --- Bootstrap Apps ---
-  - ../../bootstrap/base/local-path-provisioner
+  # - ../../bootstrap/base/local-path-provisioner
   - ../../bootstrap/base/piraeus
   - ../../bootstrap/base/openbao
   - ../../bootstrap/base/cnpg
