@@ -21,9 +21,9 @@ apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
   # The name of the project. You will reference this in your Application manifests.
-  name: cc-bootstrap
+  name: bootstrap
   # AppProject resources must be created in the Argo CD namespace
-  namespace: argocd
+  namespace: argocd-cc
   # Add a finalizer to prevent accidental deletion of the project while
   # applications are still associated with it.
   finalizers:
@@ -38,6 +38,7 @@ spec:
 
   sourceNamespaces:
   - '*'
+
   # Allow applications to deploy to any destination cluster and namespace.
   destinations:
   - server: '*'
