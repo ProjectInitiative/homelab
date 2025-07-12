@@ -10,43 +10,9 @@ resources:
 # Apply the patch to the ConfigMap
 patches:
     # 1. Rename the Namespace object itself
-  - patch: |-
-      - op: replace
-        path: /metadata/name
-        value: local-path-provisioner
-    target:
-      kind: Namespace
-      name: local-path-storage
-
-  # 2. Force the namespace for every other resource
-  - patch: |-
-      - op: replace
-        path: /metadata/namespace
-        value: local-path-provisioner
-    target:
-      kind: "(ServiceAccount|Role|RoleBinding|ConfigMap|Deployment)" # Use regex for all kinds
-      name: ".*" # Match any name
-
-  # 3. Update the subject reference in the RoleBinding
-  - patch: |-
-      - op: replace
-        path: /subjects/0/namespace
-        value: local-path-provisioner
-    target:
-      kind: RoleBinding
-      name: local-path-provisioner-bind
-
-  # 4. Update the subject reference in the ClusterRoleBinding
-  - patch: |-
-      - op: replace
-        path: /subjects/0/namespace
-        value: local-path-provisioner
-    target:
-      kind: ClusterRoleBinding
-      name: local-path-provisioner-bind
   
   - path: local-path-config-patch.yaml # Path to your patch file within this directory
     target:
       kind: ConfigMap
       name: local-path-config
-      namespace: local-path-provisioner # Ensure this matches the ConfigMap's namespace
+      namespace: local-path-storage

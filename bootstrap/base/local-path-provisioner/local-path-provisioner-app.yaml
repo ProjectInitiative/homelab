@@ -16,7 +16,7 @@ spec:
     path: bootstrap/base/local-path-provisioner/config
   destination:
     server: https://kubernetes.default.svc
-    namespace: local-path-provisioner # Ensure this namespace is created by core-namespaces.yaml
+    namespace: local-path-storage # Ensure this namespace is created by core-namespaces.yaml
   syncPolicy:
     automated:
       prune: true

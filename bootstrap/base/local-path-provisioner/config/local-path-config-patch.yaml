@@ -3,7 +3,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: local-path-config
-  namespace: local-path-provisioner
+  namespace: local-path-storage
 data:
   config.json: |-
     {
@@ -27,7 +27,7 @@ data:
     kind: Pod
     metadata:
       name: helper-pod
-      namespace: local-path-provisioner
+      namespace: local-path-storage
     spec:
       priorityClassName: system-node-critical
       tolerations:
