@@ -1,8 +1,6 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-nameSuffix: -cc
-
 # 1. "Pick" apps from BOTH catalogs.
 resources:
   # --- Bootstrap Apps ---
@@ -23,3 +21,12 @@ patches:
     target:
       group: argoproj.io
       kind: Application
+
+  # Patch 2: Set the SOURCE NAMESPACE for all child apps
+  - patch: |-
+      - op: add
+        path: /metadata/namespace
+        value: argocd-cc
+    target:
+      kind: Application
+

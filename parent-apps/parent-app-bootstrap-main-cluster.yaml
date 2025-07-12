@@ -36,6 +36,9 @@ spec:
   sourceRepos:
   - '*'
 
+  sourceNamespaces:
+  - '*'
+
   # Allow applications to deploy to any destination cluster and namespace.
   destinations:
   - server: '*'
