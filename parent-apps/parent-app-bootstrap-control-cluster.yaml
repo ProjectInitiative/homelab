@@ -4,7 +4,7 @@ metadata:
   name: bootstrap-dependencies
   namespace: argocd
 spec:
-  project: default
+  project: cc-bootstrap
   source:
     repoURL: https://github.com/projectinitiative/homelab.git
     targetRevision: HEAD

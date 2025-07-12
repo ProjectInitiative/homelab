@@ -4,7 +4,7 @@ metadata:
   name: bootstrap-main-cluster-dependencies
   namespace: argocd
 spec:
-  project: default
+  project: mc-bootstrap
   source:
     repoURL: https://github.com/projectinitiative/homelab.git
     targetRevision: HEAD
