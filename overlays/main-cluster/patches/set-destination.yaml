@@ -5,6 +5,7 @@ metadata:
   # The name here is ignored when patching
   name: not-important
 spec:
+  project: mc-bootstrap
   destination:
     # Set the correct destination for this specific cluster
     server: https://172.16.1.50:6443

@@ -5,6 +5,7 @@ metadata:
   # The name here is ignored when patching
   name: not-important
 spec:
+  project: cc-bootstrap
   destination:
     # Set the correct destination for this specific cluster
     server: https://kubernetes.default.svc

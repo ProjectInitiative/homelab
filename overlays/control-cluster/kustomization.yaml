@@ -16,8 +16,8 @@ resources:
   # - ../../apps/base/gitea
 
 # 2. Apply ONE common patch to ALL of them.
-# patches:
-#   - path: patches/set-destination.yaml
-#     target:
-#       group: argoproj.io
-#       kind: Application
+patches:
+  - path: patches/set-destination.yaml
+    target:
+      group: argoproj.io
+      kind: Application
