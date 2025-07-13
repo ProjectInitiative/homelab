@@ -10,6 +10,7 @@ resources:
   - ../../bootstrap/base/openbao
   - ../../bootstrap/base/cnpg
   - ../../bootstrap/base/garage
+  - ../../bootstrap/mc/garage-mc
 
   # --- Regular Apps ---
   # - ../../apps/base/gitea
