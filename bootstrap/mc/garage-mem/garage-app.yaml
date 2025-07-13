@@ -11,9 +11,9 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: https://git.deuxfleurs.fr/Deuxfleurs/garage
+    - repoURL: https://github.com/ProjectInitiative/garage
       path: script/helm/garage
-      targetRevision: v2.0.0
+      targetRevision: feature/in-memory-test 
       helm:
         valueFiles:
           - $values/bootstrap/mc/garage-mem/garage-values.yaml # Relative path from the chart's root or the app's 'path' if using it

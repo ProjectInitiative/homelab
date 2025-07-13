@@ -1,3 +1,4 @@
+---
 garage:
   # These values are referenced by the garageTomlString template below.
   replicationFactor: 3
@@ -73,13 +74,43 @@ deployment:
   podManagementPolicy: Parallel
   replicaCount: 3
 
-# Override default storage class and size for in-memory testing
+# image:
+#   repository: ghcr.io/projectinitiative/garage
+#   # please prefer using the chart version and not this tag
+#   tag: "v0.8.2"
+#   pullPolicy: IfNotPresent
+
+# Override default storage class and size
 persistence:
-  meta:
-    # Use an in-memory volume. The 'storageClass' and 'size' are replaced.
-    emptyDir:
-      medium: Memory
-  data:
-    # Use an in-memory volume. The 'storageClass' and 'size' are replaced.
-    emptyDir:
-      medium: Memory
+  inMemory: true
+  # meta:
+  #   storageClass: "local-path-sticky"
+  #   size: 20Gi
+  # data:
+  #   storageClass: "local-path-sticky"
+  #   size: 1024Gi
+
+# ingress:
+#   s3:
+#     api:
+#       enabled: true
+#       annotations:
+#         cert-manager.io/cluster-issuer: "prod-issuer"
+#         kubernetes.io/ingress.class: traefik
+#         # traefik.ingress.kubernetes.io/frontend-entry-points: http
+#         traefik.ingress.kubernetes.io/buffering: |
+#           maxRequestBodyBytes = 10485760  
+#           memRequestBodyBytes = 2097152  
+#           maxResponseBodyBytes = 10485760
+#           memResponseBodyBytes = 2097152
+#           retryExpression = "IsNetworkError() && Attempts() <= 2"
+#       hosts:
+#         - host: s3.moonwake.io
+#           paths:
+#             - path: /
+#               pathType: Prefix
+#       tls:
+#         - secretName: garage-ingress-cert
+#           hosts:
+#             - s3.moonwake.io
+
