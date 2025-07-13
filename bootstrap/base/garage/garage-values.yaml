@@ -1,30 +1,45 @@
 ---
 garage:
-  # Use only 3 replicas per object
-  replicationMode: "3"
+  # These values are referenced by the garageTomlString template below.
+  replicationFactor: 3
+  consistencyMode: "consistent"
+  metadataAutoSnapshotInterval: "24 hours"
+  dbEngine: "lmdb"
+  blockSize: "10M"
+  compressionLevel: 1
+  rpcBindAddr: "[::]:3901"
+  bootstrapPeers: []
+  kubernetesSkipCrd: false
   s3:
     api:
       region: "us-east-1"
       rootDomain: ".s3.moonwake.io"
     web:
       rootDomain: ".garage-web.moonwake.io"
+      index: "index.html"
 
-  # Template for the garage configuration
-  # Values can be templated
-  # ref: https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/
-  garage.toml: |-
+  # -- String Template for the garage configuration.
+  garageTomlString: |-
     metadata_dir = "/mnt/meta"
     data_dir = "/mnt/data"
+
+    # Your custom settings
     metadata_fsync = false
     data_fsync = false
+    
+    db_engine = "{{ .Values.garage.dbEngine }}"
 
-    db_engine = "lmdb"
+    block_size = {{ .Values.garage.blockSize }}
 
-    replication_mode = "{{ .Values.garage.replicationMode }}"
-  
-    # block_size = 20971520
-    block_size = "4M"
-  
+    replication_factor = {{ .Values.garage.replicationFactor }}
+    consistency_mode = "{{ .Values.garage.consistencyMode }}"
+
+    compression_level = {{ .Values.garage.compressionLevel }}
+
+    {{- if .Values.garage.metadataAutoSnapshotInterval }}
+    metadata_auto_snapshot_interval = {{ .Values.garage.metadataAutoSnapshotInterval | quote }}
+    {{- end }}
+
     rpc_bind_addr = "{{ .Values.garage.rpcBindAddr }}"
     # rpc_secret will be populated by the init container from a k8s secret object
     rpc_secret = "__RPC_SECRET_REPLACE__"
@@ -45,15 +60,17 @@ garage:
     bind_addr = "[::]:3902"
     root_domain = "{{ .Values.garage.s3.web.rootDomain }}"
     index = "{{ .Values.garage.s3.web.index }}"
-  
+
     [admin]
     api_bind_addr = "[::]:3903"
     {{- if .Values.monitoring.tracing.sink }}
     trace_sink = "{{ .Values.monitoring.tracing.sink }}"
-    {{- end }}    
+    {{- end }}
 
 # Start 3 instances (StatefulSets) of garage
 deployment:
+  kind: StatefulSet
+  podManagementPolicy: Parallel
   replicaCount: 3
 
 # image:

@@ -17,7 +17,7 @@ spec:
         valueFiles:
           - $values/bootstrap/base/garage/garage-values.yaml # Relative path from the chart's root or the app's 'path' if using it
     - repoURL: https://github.com/projectinitiative/homelab.git
-      targetRevision: HEAD
+      targetRevision: v2.0.0
       ref: values
   destination:
     server: https://kubernetes.default.svc
