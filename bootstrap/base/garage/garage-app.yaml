@@ -13,11 +13,12 @@ spec:
   sources:
     - repoURL: https://git.deuxfleurs.fr/Deuxfleurs/garage
       path: script/helm/garage
+      targetRevision: v2.0.0
       helm:
         valueFiles:
           - $values/bootstrap/base/garage/garage-values.yaml # Relative path from the chart's root or the app's 'path' if using it
     - repoURL: https://github.com/projectinitiative/homelab.git
-      targetRevision: v2.0.0
+      targetRevision: HEAD
       ref: values
   destination:
     server: https://kubernetes.default.svc
