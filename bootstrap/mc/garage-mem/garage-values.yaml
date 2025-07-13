@@ -83,6 +83,7 @@ deployment:
 # Override default storage class and size
 persistence:
   inMemory: true
+  enabled: false
   # meta:
   #   storageClass: "local-path-sticky"
   #   size: 20Gi
