@@ -6,7 +6,8 @@ garage:
   metadataAutoSnapshotInterval: "24 hours"
   dbEngine: "lmdb"
   blockSize: "2M"
-  compressionLevel: 1
+  # underlying storage handles this
+  compressionLevel: "none"
   rpcBindAddr: "[::]:3901"
   bootstrapPeers: []
   kubernetesSkipCrd: false
