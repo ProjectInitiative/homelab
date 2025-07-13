@@ -5,7 +5,7 @@ garage:
   consistencyMode: "consistent"
   metadataAutoSnapshotInterval: "24 hours"
   dbEngine: "lmdb"
-  blockSize: "10M"
+  blockSize: "4M"
   compressionLevel: 1
   rpcBindAddr: "[::]:3901"
   bootstrapPeers: []
