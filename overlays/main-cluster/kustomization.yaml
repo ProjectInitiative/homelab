@@ -11,7 +11,7 @@ resources:
   - ../../bootstrap/base/cnpg
   - ../../bootstrap/base/garage
   - ../../bootstrap/mc/garage-mem
-  - resources/local-path-nvme-sc.yaml
+  - ../../bootstrap/mc/lpp
 
   # --- Regular Apps ---
   # - ../../apps/base/gitea

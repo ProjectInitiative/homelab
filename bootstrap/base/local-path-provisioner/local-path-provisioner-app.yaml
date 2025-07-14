@@ -22,6 +22,7 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
+      - Replace=true
       - CreateNamespace=true
       # Crucial for adoption: only apply changes if out of sync, not on every reconcile.
       # Helps with initial adoption by telling Argo CD "don't force apply if already there."
