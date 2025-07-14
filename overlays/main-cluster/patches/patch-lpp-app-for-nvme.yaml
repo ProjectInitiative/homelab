@@ -22,7 +22,7 @@ spec:
                       "node": "DEFAULT_PATH_FOR_NON_LISTED_NODES",
                       "paths": [
                         "/mnt/local-provisioner",
-                        "/mnt/nvme-cache"
+                        "/mnt/local-provisioner/nvme-cache"
                       ]
                     }
                   ]
