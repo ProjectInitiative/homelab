@@ -1,0 +1,7 @@
+# bootstrap/base/local-path-provisioner/config/sc-add-nodepath-parameter.yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: not-important # Name is ignored when patching
+parameters:
+  nodePath: /mnt/local-provisioner

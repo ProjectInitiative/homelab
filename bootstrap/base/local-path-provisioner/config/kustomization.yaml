@@ -16,3 +16,14 @@ patches:
       kind: ConfigMap
       name: local-path-config
       namespace: local-path-storage
+
+    # --- Add these patches for the StorageClasses ---
+  - path: sc-add-nodepath-parameter.yaml
+    target:
+      kind: StorageClass
+      name: local-path # Targets the default SC from the upstream YAML
+
+  - path: sc-add-nodepath-parameter.yaml
+    target:
+      kind: StorageClass
+      name: local-path-sticky # Targets your custom SC

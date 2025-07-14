@@ -4,13 +4,14 @@ kind: Kustomization
 # 1. "Pick" apps from BOTH catalogs.
 resources:
   # --- Bootstrap Apps ---
-  - ../../bootstrap/mc/kube-vip
+  # - ../../bootstrap/mc/kube-vip
   - ../../bootstrap/base/local-path-provisioner
-  - ../../bootstrap/base/piraeus
-  - ../../bootstrap/base/openbao
-  - ../../bootstrap/base/cnpg
-  - ../../bootstrap/base/garage
-  - ../../bootstrap/mc/garage-mem
+  # - ../../bootstrap/base/piraeus
+  # - ../../bootstrap/base/openbao
+  # - ../../bootstrap/base/cnpg
+  # - ../../bootstrap/base/garage
+  # - ../../bootstrap/mc/garage-mem
+  - resources/local-path-nvme-sc.yaml
 
   # --- Regular Apps ---
   # - ../../apps/base/gitea
@@ -29,3 +30,9 @@ patches:
         value: argocd-mc
     target:
       kind: Application
+
+  - path: patches/patch-lpp-app-for-nvme.yaml
+    target:
+      kind: Application
+      name: local-path-provisioner
+

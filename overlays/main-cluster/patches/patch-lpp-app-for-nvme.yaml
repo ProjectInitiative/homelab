@@ -1,0 +1,32 @@
+# overlays/main-cluster/patches/patch-lpp-app-for-nvme.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: local-path-provisioner
+spec:
+  source:
+    kustomize:
+      # This 'patches' field is part of the Argo CD Application spec.
+      # It injects patches into the Kustomize build that Argo CD runs.
+      patches:
+        - patch: |-
+            apiVersion: v1
+            kind: ConfigMap
+            metadata:
+              name: local-path-config # This name is for matching, not creating
+            data:
+              config.json: |
+                {
+                  "nodePathMap": [
+                    {
+                      "node": "DEFAULT_PATH_FOR_NON_LISTED_NODES",
+                      "paths": [
+                        "/mnt/local-provisioner",
+                        "/mnt/nvme-cache"
+                      ]
+                    }
+                  ]
+                }
+          target:
+            kind: ConfigMap
+            name: local-path-config
