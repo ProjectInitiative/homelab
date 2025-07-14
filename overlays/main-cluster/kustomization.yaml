@@ -36,3 +36,9 @@ patches:
       kind: Application
       name: local-path-provisioner
 
+  - path: patches/patch-garage-app-for-nvme.yaml
+    target:
+      kind: Application
+      name: garage
+
+

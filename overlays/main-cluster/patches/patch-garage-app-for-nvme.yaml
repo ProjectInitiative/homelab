@@ -1,0 +1,11 @@
+# overlays/main-cluster/patches/patch-garage-app-add-nvme-values.yaml
+- op: add
+  path: /spec/sources/-
+  value:
+    repoURL: https://github.com/projectinitiative/homelab.git
+    targetRevision: HEAD
+    helm:
+      valueFiles:
+        # This '$values' reference tells Argo CD to look inside the SECOND source
+        # which is the main git repo itself.
+        - $values/overlays/main-cluster/resources/garage-nvme-values.yaml
