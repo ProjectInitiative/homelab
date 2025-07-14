@@ -24,5 +24,4 @@ spec:
       selfHeal: true
     syncOptions:
       # This is the key: Apply the replace option only to this resource
-      - Replace=true
       - CreateNamespace=true
