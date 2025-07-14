@@ -34,8 +34,8 @@ spec:
     - /spec/volumeClaimTemplates/1/metadata/creationTimestamp
   syncPolicy:
     automated:
-      prune: false
-      selfHeal: false
+      prune: true
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true # Namespace created by core-namespaces
       # ServerSideApply is typically handled by Helm now.
