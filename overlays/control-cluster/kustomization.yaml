@@ -8,7 +8,7 @@ resources:
   - ../../bootstrap/base/piraeus
   - ../../bootstrap/base/olm
   - ../../bootstrap/base/cnpg
-  - ../../bootstrap/base/openbao
+  # - ../../bootstrap/base/openbao
   - ../../bootstrap/base/cert-manager
   - ../../bootstrap/base/medik8s
 
