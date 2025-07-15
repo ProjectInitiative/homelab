@@ -28,8 +28,9 @@ server:
         }
 
         storage "raft" {
-          path = "/vault/data"
-        
+          # This path is now corrected to match the chart's default mountPath.
+          path = "/openbao/data"
+
           # Add retry_join blocks for robust peer discovery.
           # The chart creates a headless service 'openbao-internal' for the pods.
           retry_join {
@@ -50,21 +51,17 @@ server:
           key_label     = "openbao-unseal-key"
         }
 
-        service_registration "kubernetes" {}
-
   # Configure the persistent volume for the Raft data.
-  # Raft manages replication; this provides the underlying storage for each pod.
+  # This will inherit the correct mountPath: /openbao/data from the chart's defaults.
   dataStorage:
     enabled: true
     size: 10Gi
-    # Use 'local-path' for the Raft data logs.
     storageClass: "local-path-sticky"
 
   # Configure a separate persistent volume for audit logs.
   auditStorage:
     enabled: true
     size: 10Gi
-    # Use the 'piraeus' StorageClass for audit log persistence.
     storageClass: "local-path-sticky"
 
   # == TPM Configuration Starts Here ==
