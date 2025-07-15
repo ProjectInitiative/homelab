@@ -4,6 +4,9 @@
 # while audit logs are stored on 'piraeus'.
 
 server:
+  image:
+    repository: "quay.io/openbao/openbao-hsm"
+
   # Disable standalone mode to run in HA.
   standalone:
     enabled: false
