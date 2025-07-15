@@ -17,6 +17,41 @@ server:
     # The default HCL configuration under `raft.config` is used automatically.
     raft:
       enabled: true
+      # This HCL configures the storage, listener, and the PKCS#11 seal.
+      config: |
+        ui = true
+
+        listener "tcp" {
+          tls_disable     = true
+          address         = "[::]:8200"
+          cluster_address = "[::]:8201"
+        }
+
+        storage "raft" {
+          path = "/vault/data"
+        
+          # Add retry_join blocks for robust peer discovery.
+          # The chart creates a headless service 'openbao-internal' for the pods.
+          retry_join {
+            leader_api_addr = "http://openbao-0.openbao-internal:8200"
+          }
+          retry_join {
+            leader_api_addr = "http://openbao-1.openbao-internal:8200"
+          }
+          retry_join {
+            leader_api_addr = "http://openbao-2.openbao-internal:8200"
+          }
+        }
+
+        # Define the PKCS#11 seal for TPM-based auto-unseal.
+        seal "pkcs11" {
+          lib           = "/usr/lib/libtpm2_pkcs11.so"
+          token_label   = "openbao-token"
+          pin           = env("BAO_HSM_PIN")
+          key_label     = "openbao-unseal-key"
+        }
+
+        service_registration "kubernetes" {}
 
   # Configure the persistent volume for the Raft data.
   # Raft manages replication; this provides the underlying storage for each pod.
@@ -32,3 +67,36 @@ server:
     size: 10Gi
     # Use the 'piraeus' StorageClass for audit log persistence.
     storageClass: "local-path-sticky"
+
+  # == TPM Configuration Starts Here ==
+
+  # Inject environment variables needed for the PKCS#11 library.
+  extraEnvironmentVars:
+    # Tells the pkcs11 library how to connect to the TPM device.
+    TPM2_PKCS11_TCTI: "device:/dev/tpmrm0"
+
+  # Securely inject the HSM PIN from a Kubernetes secret.
+  # You must create this secret separately.
+  extraSecretEnvironmentVars:
+    - envName: BAO_HSM_PIN
+      secretName: openbao-unseal-pin
+      secretKey: pin
+
+  # Define the hostPath volumes needed to access TPM resources from the host.
+  volumes:
+    - name: tpm-device
+      hostPath:
+        path: /dev/tpmrm0
+        type: CharDevice
+    - name: pkcs11-lib
+      hostPath:
+        path: /run/current-system/sw/lib/libtpm2_pkcs11.so
+        type: File
+
+  # Mount the hostPath volumes into the OpenBao container.
+  volumeMounts:
+    - name: tpm-device
+      mountPath: /dev/tpmrm0
+    - name: pkcs11-lib
+      mountPath: /usr/lib/libtpm2_pkcs11.so
+      readOnly: true
