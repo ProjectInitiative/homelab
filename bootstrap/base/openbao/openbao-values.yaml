@@ -5,7 +5,9 @@
 
 server:
   image:
-    repository: "quay.io/openbao/openbao-hsm"
+    registry: "quay.io"
+    repository: "openbao/openbao-hsm"
+    tag: "2.3.1-amd64"
 
   # Disable standalone mode to run in HA.
   standalone:
