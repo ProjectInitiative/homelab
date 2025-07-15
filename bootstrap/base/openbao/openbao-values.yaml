@@ -47,7 +47,6 @@ server:
         seal "pkcs11" {
           lib           = "/usr/lib/libtpm2_pkcs11.so"
           token_label   = "openbao-token"
-          pin           = env("BAO_HSM_PIN")
           key_label     = "openbao-unseal-key"
         }
 
