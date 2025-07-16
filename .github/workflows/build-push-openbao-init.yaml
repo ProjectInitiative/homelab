@@ -10,6 +10,7 @@ on:
     # The 'paths' filter ensures this workflow only runs when one of
     # these specific files is changed in a push.
     paths:
+      - '.github/workflows/build-push-openbao-init.yaml'
       - 'bootstrap/base/openbao/docker/Dockerfile'
       - 'bootstrap/base/openbao/docker/init-tools.nix'
       - 'bootstrap/base/openbao/docker/init-script.sh'
@@ -47,6 +48,6 @@ jobs:
       - name: Build and push container image
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: bootstrap/base/openbao/docker
           push: true
           tags: ghcr.io/${{ steps.repo_name.outputs.name }}:latest
