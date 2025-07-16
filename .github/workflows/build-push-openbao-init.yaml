@@ -50,4 +50,4 @@ jobs:
         with:
           context: bootstrap/base/openbao/docker
           push: true
-          tags: ghcr.io/${{ steps.repo_name.outputs.name }}:latest
+          tags: ghcr.io/openbao-init:latest
