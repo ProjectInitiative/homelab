@@ -7,7 +7,7 @@ MODULE_PATH="@tpm_pkcs11_lib@"
 # Use environment variables for PINs for security
 SO_PIN="${SO_PIN:?SO_PIN environment variable not set}"
 USER_PIN="${USER_PIN:?USER_PIN environment variable not set}"
-
+TOKEN_NAME="${TOKEN_NAME:?TOKEN_NAME environment variable not set}"
 echo "Checking TPM token status..."
 echo "Using module at: ${MODULE_PATH}"
 
@@ -21,7 +21,7 @@ echo "⚠️ TPM token not initialized. Initializing now..."
 
 # 1. Create the token
 pkcs11-tool --module "${MODULE_PATH}" \
-  --init-token --so-pin="${SO_PIN}" --label="k8s-openbao-token"
+  --init-token --so-pin="${SO_PIN}" --label="${TOKEN_NAME}"
 
 # 2. Create the user PIN
 pkcs11-tool --module "${MODULE_PATH}" \
