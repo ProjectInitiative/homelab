@@ -14,6 +14,8 @@ pkgs.stdenv.mkDerivation rec {
     pkgs.tpm2-pkcs11
     pkgs.opensc
     pkgs.gnugrep
+    pkgs.coreutils
+    pkgs.findutils
   ];
 
   installPhase = ''

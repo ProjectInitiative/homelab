@@ -1,0 +1,10 @@
+{
+  "profile_name": "P_ECCP256SHA256",
+  "profile_dir": "/var/lib/openbao-tpm/fapi-profiles/",
+  "user_dir": "/var/lib/openbao-tpm/fapi/user",
+  "system_dir": "/var/lib/openbao-tpm/fapi/system",
+  "log_dir": "/var/lib/openbao-tpm/fapi/log",
+  "tcti": "",
+  "system_pcrs": [],
+  "ek_cert_less": "yes"
+}

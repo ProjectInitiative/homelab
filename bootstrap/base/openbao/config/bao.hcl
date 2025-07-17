@@ -13,5 +13,5 @@ seal "pkcs11" {
   token_label   = "openbao-token"
   key_label     = "openbao-token"
   # You need to provide the PIN for OpenBao to use.
-  pin           = "123456"
+  pin           = "1234"
 }
