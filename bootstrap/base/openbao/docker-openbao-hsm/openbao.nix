@@ -30,9 +30,16 @@ in pkgs.stdenv.mkDerivation rec {
 
   installPhase = ''
     runHook preInstall
-    mkdir -p $out/bin
+    mkdir -p $out/bin $out/usr/lib
     cp ${./entrypoint.sh} $out/bin/entrypoint.sh
     chmod +x $out/bin/entrypoint.sh
+
+    # Create a stable symlink for the PKCS#11 library
+    ln -s "${pkgs.tpm2-pkcs11}/lib/libtpm2_pkcs11.so" "$out/usr/lib/libtpm2_pkcs11.so"
+
+    substituteInPlace $out/bin/entrypoint.sh \
+      --replace '@dumb-init@' "${pkgs.dumb-init}/bin/dumb-init" \
+      --replace '@shell@' "${pkgs.bashInteractive}/bin/sh"
 
     wrapProgram $out/bin/entrypoint.sh \
       --prefix PATH : ${pkgs.lib.makeBinPath propagatedBuildInputs}

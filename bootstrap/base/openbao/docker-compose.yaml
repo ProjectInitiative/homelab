@@ -1,0 +1,50 @@
+services:
+  # The main OpenBao service that runs the server.
+  openbao:
+    build:
+      context: ./docker-openbao-hsm
+
+    ports:
+      - "8200:8200"
+    command: server -config=/openbao/config/bao.hcl
+
+    environment:
+      - TPM2_PKCS11_STORE=/var/lib/openbao-tpm
+
+    depends_on:
+      pkcs11-init:
+        condition: service_completed_successfully
+
+    volumes:
+      - ./config:/openbao/config
+      - openbao-data:/openbao/data
+      - tpm-data-store:/var/lib/openbao-tpm
+      # - tpm-data-store:/home/openbao/.local/share
+    devices:
+      - "/dev/tpmrm0:/dev/tpmrm0"
+      - "/dev/tpm0:/dev/tpm0"
+    security_opt:
+      - "seccomp=unconfined"
+
+  # This service runs ONCE to initialize the TPM token.
+  pkcs11-init:
+    build:
+      context: ./docker-pkcs11-init
+
+    environment:
+      - SO_PIN=1234
+      - USER_PIN=1234
+      - TOKEN_NAME=openbao-token
+    volumes:
+      # - tpm-data-store:/home/root/.local/share
+      - tpm-data-store:/home/openbao/.local/share
+    devices:
+      - "/dev/tpmrm0:/dev/tpmrm0"
+      - "/dev/tpm0:/dev/tpm0"
+    security_opt:
+      - "seccomp=unconfined"
+
+# Defines the named volumes to persist data.
+volumes:
+  tpm-data-store:
+  openbao-data:
