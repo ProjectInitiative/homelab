@@ -1,6 +1,8 @@
-#!@dumb-init@ @shell@
+#!/bin/bash
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: MPL-2.0
+#
+# Modifications made to integrate TPM-based auto-unsealing of a SoftHSM token.
 
 set -e
 
@@ -33,23 +35,45 @@ if [ -n "$BAO_LOCAL_CONFIG" ]; then
     echo "$BAO_LOCAL_CONFIG" > "$BAO_CONFIG_DIR/local.json"
 fi
 
+# --- Argument parsing to determine the command ---
 if [ "${1:0:1}" = '-' ]; then
     set -- bao "$@"
 fi
 
+# This is the command that will be executed in the final, clean environment
+EXEC_CMD=("$@")
+UNSEALED_PIN=""
+
+# --- Integration Point: TPM Unsealing Logic ---
+# This logic will only run if the command is "server".
 if [ "$1" = 'server' ]; then
+    echo "Unsealing SoftHSM PIN from TPM..."
+
+    # Configuration for our hybrid setup
+    STORE_DIR="/pkcs11-store"
+    SEALED_PIN_PATH="${STORE_DIR}/softhsm_pin.sealed"
+    PCR_SELECTION="sha256:0,1,2,3,4,5,6,7"
+
+    # Ensure /tmp exists
+    mkdir -p /tmp
+
+    # The TPM will only succeed if the PCR state matches.
+    UNSEALED_PIN=$(tpm2_unseal -c "${SEALED_PIN_PATH}" -p pcr:"${PCR_SELECTION}")
+
+    echo "PIN unsealed successfully."
+
+    # --- Construct the final 'bao server' command ---
     shift
-    set -- bao server \
-        -config="$BAO_CONFIG_DIR" \
-        -dev-root-token-id="$BAO_DEV_ROOT_TOKEN_ID" \
-        -dev-listen-address="${BAO_DEV_LISTEN_ADDRESS:-"0.0.0.0:8200"}" \
-        "$@"
+    EXEC_CMD=(bao server -config="$BAO_CONFIG_DIR" "$@")
+
 elif [ "$1" = 'version' ]; then
-    set -- bao "$@"
+    : # Do nothing for version command
 elif bao --help "$1" 2>&1 | grep -q "bao $1"; then
-    set -- bao "$@"
+    : # Do nothing for other valid bao commands
 fi
 
+
+# --- Original OpenBao chown logic ---
 if [ "$1" = 'bao' ]; then
     if [ -z "$SKIP_CHOWN" ]; then
         if [ -d "/openbao/config" ] && [ "$(stat -c %u /openbao/config)" != "$(id -u openbao)" ]; then
@@ -71,10 +95,25 @@ if [ "$1" = 'bao' ]; then
             chown -R openbao:openbao /pkcs11-store
         fi
     fi
-
-    if [ "$(id -u)" = '0' ] && [ -z "$BAO_SKIP_DROP_ROOT" ]; then
-      set -- su-exec openbao "$@"
-    fi
 fi
 
-exec "$@"
+# --- Final, Secure Execution ---
+echo "Starting OpenBao process with minimal environment..."
+
+if [ "$(id -u)" = '0' ] && [ -z "$BAO_SKIP_DROP_ROOT" ]; then
+    # Drop root privileges AND create a clean environment for the final command
+    if [ -n "${UNSEALED_PIN}" ]; then
+        # If we unsealed a PIN, run the server with it in the environment.
+        exec su-exec openbao env BAO_HSM_PIN="${UNSEALED_PIN}" "${EXEC_CMD[@]}"
+    else
+        # Otherwise, run the command without the PIN (e.g., 'bao operator init').
+        exec su-exec openbao "${EXEC_CMD[@]}"
+    fi
+else
+    # If not running as root, execute directly
+    if [ -n "${UNSEALED_PIN}" ]; then
+        exec env BAO_HSM_PIN="${UNSEALED_PIN}" "${EXEC_CMD[@]}"
+    else
+        exec "${EXEC_CMD[@]}"
+    fi
+fi

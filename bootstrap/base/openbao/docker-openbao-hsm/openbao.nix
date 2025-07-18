@@ -20,6 +20,7 @@ in pkgs.stdenv.mkDerivation rec {
     openbao
     pkgs.opensc # for pkcs11-tool
     pkgs.tpm2-pkcs11
+    pkgs.softhsm
     pkgs.dumb-init
     pkgs.su-exec
     pkgs.bashInteractive
@@ -36,6 +37,8 @@ in pkgs.stdenv.mkDerivation rec {
 
     # Create a stable symlink for the PKCS#11 library
     ln -s "${pkgs.tpm2-pkcs11}/lib/libtpm2_pkcs11.so" "$out/usr/lib/libtpm2_pkcs11.so"
+    ln -s "${pkgs.softhsm}/lib/libsofthsm2.so" "$out/usr/lib/libsofthsm2.so"
+
 
     substituteInPlace $out/bin/entrypoint.sh \
       --replace '@dumb-init@' "${pkgs.dumb-init}/bin/dumb-init" \

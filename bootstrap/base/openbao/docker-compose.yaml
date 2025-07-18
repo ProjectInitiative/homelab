@@ -37,6 +37,7 @@ services:
       - USER_PIN=1234
       - TOKEN_NAME=openbao-token
       - KEY_LABEL=openbao-unseal-key
+      - KEY_ID=6f70656e62616f2d756e7365616c
       - TPM2_PKCS11_TCTI=device:/dev/tpmrm0
     volumes:
       - tpm-data-store:/pkcs11-store

@@ -9,14 +9,22 @@ listener "tcp" {
 
 seal "pkcs11" {
   # This is the correct path inside the Ubuntu container.
-  lib           = "/usr/lib/libtpm2_pkcs11.so"
+  lib           = "/usr/lib/libsofthsm2.so"
+  # lib           = "/usr/lib/libtpm2_pkcs11.so"
   token_label   = "openbao-token"
   key_label     = "openbao-unseal-key"
+  key_id        = "6f70656e62616f2d756e7365616c"
   # You need to provide the PIN for OpenBao to use.
   pin           = "1234"
 
+  # Use the recommended OAEP padding with a modern hash.
+  # SoftHSM is fully compatible with this.
+  rsa_oaep_hash = "sha256"
+  # Explicitly set the mechanism to CKM_RSA_PKCS.
+  # This is the most basic RSA padding scheme.
+  mechanism     = "0x0001"
+  
+  # Use a more modern and robust hash algorithm.
+
   # rsa_oaep_hash = "sha1"
-  # CKM_AES_KEY_WRAP_PAD is a standard mechanism for wrapping keys with AES.
-  # This tells OpenBao how to use the secret key.
-  mechanism     = "0x210A"
 }
