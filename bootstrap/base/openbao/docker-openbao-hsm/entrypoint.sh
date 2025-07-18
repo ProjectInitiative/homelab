@@ -64,8 +64,8 @@ if [ "$1" = 'bao' ]; then
         if [ -d "/home/openbao" ] && [ "$(stat -c %u /home/openbao)" != "$(id -u openbao)" ]; then
             chown -R openbao:openbao /home/openbao
         fi
-        if [ -d "/var/lib/openbao-tpm" ] && [ "$(stat -c %u /var/lib/openbao-tpm)" != "$(id -u openbao)" ]; then
-            chown -R openbao:openbao /var/lib/openbao-tpm
+        if [ -d "/pkcs11-store" ] && [ "$(stat -c %u /pkcs11-store)" != "$(id -u openbao)" ]; then
+            chown -R openbao:openbao /pkcs11-store
         fi
     fi
 

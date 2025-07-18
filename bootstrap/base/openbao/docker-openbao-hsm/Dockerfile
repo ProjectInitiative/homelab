@@ -12,8 +12,8 @@ RUN echo "openbao:x:1000:" >> /etc/group && \
     echo "openbao:x:1000:1000::/home/openbao:/bin/sh" >> /etc/passwd
 
 # Create and set ownership for the required directories.
-RUN mkdir -p /home/openbao /var/lib/openbao-tpm && \
-    chown -R openbao:openbao /home/openbao /var/lib/openbao-tpm
+RUN mkdir -p /home/openbao /pkcs11-store && \
+    chown -R openbao:openbao /home/openbao /pkcs11-store
 
 RUN nix-build openbao.nix
 
@@ -38,12 +38,13 @@ COPY --from=build /etc/group /etc/group
 
 # Copy the created directories.
 COPY --from=build /home/openbao /home/openbao
-COPY --from=build /var/lib/openbao-tpm /var/lib/openbao-tpm
+COPY --from=build /pkcs11-store /pkcs11-store
 
 # Copy the openbao directories.
 COPY --from=build /build/output/openbao /openbao
 
 ENV PATH=/root/env/bin
-ENV TPM2_PKCS11_STORE=/home/openbao/.local/share
+ENV TPM2_PKCS11_STORE=/pkcs11-store
+ENV TSS2_FAPICONF=/config/fapi-config.json
 
 ENTRYPOINT ["entrypoint.sh"]

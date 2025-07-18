@@ -11,6 +11,7 @@ pkgs.stdenv.mkDerivation rec {
   nativeBuildInputs = [ pkgs.makeWrapper ];
   propagatedBuildInputs = [
     pkgs.bashInteractive
+    pkgs.tpm2-tools
     pkgs.tpm2-pkcs11
     pkgs.opensc
     pkgs.gnugrep

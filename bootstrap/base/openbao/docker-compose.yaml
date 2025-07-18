@@ -20,7 +20,7 @@ services:
       - ./config:/openbao/config
       - openbao-data:/openbao/data
       # - tpm-data-store:/var/lib/openbao-tpm
-      - tpm-data-store:/home/openbao/.local/share
+      - tpm-data-store:/pkcs11-store
     devices:
       - "/dev/tpmrm0:/dev/tpmrm0"
       - "/dev/tpm0:/dev/tpm0"
@@ -36,9 +36,10 @@ services:
       - SO_PIN=1234
       - USER_PIN=1234
       - TOKEN_NAME=openbao-token
+      - TPM2_PKCS11_TCTI=device:/dev/tpmrm0
     volumes:
       - tpm-data-store:/pkcs11-store
-      # - tpm-data-store:/home/openbao/.local/share
+      - ./config:/config
     devices:
       - "/dev/tpmrm0:/dev/tpmrm0"
       - "/dev/tpm0:/dev/tpm0"

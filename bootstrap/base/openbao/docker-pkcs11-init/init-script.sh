@@ -6,6 +6,9 @@ SO_PIN="${SO_PIN:?SO_PIN environment variable not set}"
 USER_PIN="${USER_PIN:?USER_PIN environment variable not set}"
 TOKEN_NAME="${TOKEN_NAME:?TOKEN_NAME environment variable not set}"
 
+FAPI_PROFILE_DIR="${FAPI_PROFILE_DIR:?FAPI_PROFILE_DIR environment variable not set}"
+# FAPI_SYSTEM_DIR="${FAPI_SYSTEM_DIR:?FAPI_SYSTEM_DIR environment variable not set}"
+
 echo "Checking TPM token status..."
 if pkcs11-tool --module "${MODULE_PATH}" --list-slots | grep -q 'token initialized'; then
   echo "✅ TPM token is already initialized."
@@ -16,28 +19,43 @@ else
   echo "✅ Initialization complete."
 fi
 
-# echo "Searching for FAPI profiles in /nix/store..."
-# PROFILE_SRC_DIR=$(find /nix/store -name "fapi-profiles" -type d | head -n 1)
+# --- FAPI Profile Handling ---
+if [ -d "$FAPI_PROFILE_DIR" ] && [ "$(ls -A $FAPI_PROFILE_DIR)" ]; then
+    echo "✅ FAPI profiles already exist in the shared volume."
+else
+    echo "Searching for FAPI profiles in /nix/store..."
+    PROFILE_SRC_DIR=$(find /nix/store -name "fapi-profiles" -type d | head -n 1)
 
-# if [ -z "$PROFILE_SRC_DIR" ]; then
-#   echo "❌ FAPI profiles directory not found. This is unexpected."
-#   exit 1
-# fi
+    if [ -z "$PROFILE_SRC_DIR" ]; then
+      echo "❌ FAPI profiles directory not found in Nix store. This is unexpected."
+      exit 1
+    fi
 
-# echo "Found FAPI profiles at: $PROFILE_SRC_DIR"
-# TARGET_DIR="/var/lib/openbao-tpm/fapi-profiles/"
-# echo "Copying profiles to shared volume at $TARGET_DIR..."
-# mkdir -p "$TARGET_DIR"
-# cp -rT "$PROFILE_SRC_DIR" "$TARGET_DIR"
-# echo "✅ Profiles copied successfully."
+    echo "Found FAPI profiles at: $PROFILE_SRC_DIR"
+    echo "Copying profiles to shared volume at $FAPI_PROFILE_DIR..."
+    mkdir -p "$FAPI_PROFILE_DIR"
+    cp -rT "$PROFILE_SRC_DIR" "$FAPI_PROFILE_DIR"
+    echo "✅ Profiles copied successfully."
+fi
 
-# echo "Changing ownership of shared volume to user 1000..."
-# chown -R 1000:1000 /var/lib/openbao-tpm
-# echo "✅ Ownership changed."
+# --- Provision FAPI ---
+echo "Checking FAPI provisioning status..."
+# Temporarily disable exit-on-error to inspect the command's output
+set +e
+provision_output=$(tss2_provision 2>&1)
+provision_exit_code=$?
+set -e # Re-enable exit-on-error
 
-# # Add read and execute permissions for all users.
-# echo "Setting read/execute permissions on shared volume..."
-# chmod -R a+rX /var/lib/openbao-tpm
-# echo "✅ Permissions set."
+if [ ${provision_exit_code} -eq 0 ]; then
+    echo "✅ FAPI provisioning successful."
+elif echo "${provision_output}" | grep -q "Already provisioned"; then
+    echo "✅ FAPI was already provisioned."
+else
+    # This is a real, unexpected error.
+    echo "❌ FAPI provisioning failed with a fatal error:"
+    echo "${provision_output}"
+    exit ${provision_exit_code}
+fi
+
 
 exit 0

@@ -31,6 +31,11 @@ COPY --from=build /build/pkcs11-store /pkcs11-store
 
 # Set environment variables.
 ENV TPM2_PKCS11_STORE=/pkcs11-store
+
+ENV FAPI_PROFILE_DIR=/pkcs11-store/fapi-profiles
+
+ENV TSS2_FAPICONF=/config/fapi-config.json
+
 ENV PATH=/bin
 
 # Set the entrypoint.
