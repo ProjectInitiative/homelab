@@ -12,7 +12,11 @@ seal "pkcs11" {
   lib           = "/usr/lib/libtpm2_pkcs11.so"
   token_label   = "openbao-token"
   key_label     = "openbao-unseal-key"
-  rsa_oaep_hash = "sha1"
   # You need to provide the PIN for OpenBao to use.
   pin           = "1234"
+
+  # rsa_oaep_hash = "sha1"
+  # CKM_AES_KEY_WRAP_PAD is a standard mechanism for wrapping keys with AES.
+  # This tells OpenBao how to use the secret key.
+  mechanism     = "0x210A"
 }

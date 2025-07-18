@@ -59,16 +59,32 @@ else
   echo "✅ Initialization complete."
 fi
 
-echo "Checking for the unseal key..."
-if pkcs11-tool --module "${MODULE_PATH}" --list-objects --login --pin "${USER_PIN}" | grep -q "label: ${KEY_LABEL}"; then
-    echo "✅ Unseal key already exists."
+echo "Checking for the AES unseal key..."
+if pkcs11-tool --module "${MODULE_PATH}" --list-objects --login --so-pin="${SO_PIN}" --pin "${USER_PIN}" | grep -q "label: ${KEY_LABEL}"; then
+    echo "✅ AES unseal key already exists."
 else
-    echo "⚠️ Unseal key not found. Generating a new 2048-bit RSA key pair..."
+    echo "⚠️ AES unseal key not found. Generating a new 32-byte AES secret key..."
 
-    pkcs11-tool --module "${MODULE_PATH}" --token-label "${TOKEN_NAME}" --so-pin "${SO_PIN}" --pin "${USER_PIN}" --keypairgen --key-type rsa:2048 --label "${KEY_LABEL}"
+    pkcs11-tool --module "${MODULE_PATH}" \
+      --login --pin "${USER_PIN}" \
+      --so-pin "${SO_PIN}" \
+      --keygen \
+      --key-type AES:32 \
+      --label "${KEY_LABEL}" \
+      --sensitive
 
-    echo "✅ Unseal key generated successfully."
+    echo "✅ AES unseal key generated successfully."
 fi
+# echo "Checking for the unseal key..."
+# if pkcs11-tool --module "${MODULE_PATH}" --list-objects --login --pin "${USER_PIN}" | grep -q "label: ${KEY_LABEL}"; then
+#     echo "✅ Unseal key already exists."
+# else
+#     echo "⚠️ Unseal key not found. Generating a new 2048-bit RSA key pair..."
+
+#     pkcs11-tool --module "${MODULE_PATH}" --token-label "${TOKEN_NAME}" --so-pin "${SO_PIN}" --pin "${USER_PIN}" --keypairgen --key-type rsa:2048 --label "${KEY_LABEL}"
+
+#     echo "✅ Unseal key generated successfully."
+# fi
 
 
 exit 0
