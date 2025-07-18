@@ -5,24 +5,16 @@ MODULE_PATH="@tpm_pkcs11_lib@"
 SO_PIN="${SO_PIN:?SO_PIN environment variable not set}"
 USER_PIN="${USER_PIN:?USER_PIN environment variable not set}"
 TOKEN_NAME="${TOKEN_NAME:?TOKEN_NAME environment variable not set}"
+KEY_LABEL="${KEY_LABEL:?KEY_LABEL environment variable not set}"
 
 FAPI_PROFILE_DIR="${FAPI_PROFILE_DIR:?FAPI_PROFILE_DIR environment variable not set}"
 # FAPI_SYSTEM_DIR="${FAPI_SYSTEM_DIR:?FAPI_SYSTEM_DIR environment variable not set}"
-
-echo "Checking TPM token status..."
-if pkcs11-tool --module "${MODULE_PATH}" --list-slots | grep -q 'token initialized'; then
-  echo "✅ TPM token is already initialized."
-else
-  echo "⚠️ TPM token not initialized. Initializing now..."
-  pkcs11-tool --module "${MODULE_PATH}" --init-token --so-pin="${SO_PIN}" --label="${TOKEN_NAME}"
-  pkcs11-tool --module "${MODULE_PATH}" --init-pin --so-pin="${SO_PIN}" --pin="${USER_PIN}"
-  echo "✅ Initialization complete."
-fi
-
+# 
 # --- FAPI Profile Handling ---
 if [ -d "$FAPI_PROFILE_DIR" ] && [ "$(ls -A $FAPI_PROFILE_DIR)" ]; then
     echo "✅ FAPI profiles already exist in the shared volume."
 else
+    echo "Creating FAPI profiles directory..."
     echo "Searching for FAPI profiles in /nix/store..."
     PROFILE_SRC_DIR=$(find /nix/store -name "fapi-profiles" -type d | head -n 1)
 
@@ -56,6 +48,27 @@ else
     echo "${provision_output}"
     exit ${provision_exit_code}
 fi
+
+echo "Checking TPM token status..."
+if pkcs11-tool --module "${MODULE_PATH}" --list-slots | grep -q 'token initialized'; then
+  echo "✅ TPM token is already initialized."
+else
+  echo "⚠️ TPM token not initialized. Initializing now..."
+  pkcs11-tool --module "${MODULE_PATH}" --init-token --so-pin="${SO_PIN}" --label="${TOKEN_NAME}"
+  pkcs11-tool --module "${MODULE_PATH}" --init-pin --so-pin="${SO_PIN}" --pin="${USER_PIN}"
+  echo "✅ Initialization complete."
+fi
+
+echo "Checking for the unseal key..."
+if pkcs11-tool --module "${MODULE_PATH}" --list-objects --login --pin "${USER_PIN}" | grep -q "label: ${KEY_LABEL}"; then
+    echo "✅ Unseal key already exists."
+else
+    echo "⚠️ Unseal key not found. Generating a new 2048-bit RSA key pair..."
+    pkcs11-tool --module "${MODULE_PATH}" --login --pin "${USER_PIN}" \
+      --key-type rsa:2048 --keypairgen --label "${KEY_LABEL}"
+    echo "✅ Unseal key generated successfully."
+fi
+
 
 
 exit 0

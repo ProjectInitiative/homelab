@@ -14,6 +14,7 @@ RUN cp -va $(nix-store -qR ./result) ./output/store/
 
 # Create any required directories in the builder stage.
 RUN mkdir ./pkcs11-store
+RUN mkdir ./pkcs11-store/fapi-profiles
 
 # # This stage assembles the minimal components into an empty image.
 FROM scratch

@@ -55,6 +55,9 @@ if [ "$1" = 'bao' ]; then
         if [ -d "/openbao/config" ] && [ "$(stat -c %u /openbao/config)" != "$(id -u openbao)" ]; then
             chown -R openbao:openbao /openbao/config || echo "Could not chown /openbao/config"
         fi
+        if [ -d "/openbao/data" ] && [ "$(stat -c %u /openbao/data)" != "$(id -u openbao)" ]; then
+            chown -R openbao:openbao /openbao/data
+        fi
         if [ -d "/openbao/logs" ] && [ "$(stat -c %u /openbao/logs)" != "$(id -u openbao)" ]; then
             chown -R openbao:openbao /openbao/logs
         fi
