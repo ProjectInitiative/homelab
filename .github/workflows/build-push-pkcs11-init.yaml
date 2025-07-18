@@ -51,3 +51,13 @@ jobs:
           context: bootstrap/base/openbao/docker-pkcs11-init
           push: true
           tags: ghcr.io/${{ steps.repo_owner.outputs.name }}/tpm2_pkcs11-init:latest
+
+      - name: Clean up old containers 
+        uses: quartx-analytics/ghcr-cleaner@v1
+        with:
+          owner-type: user # or org
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository_owner: ${{ github.repository_owner }}
+          repository-name: ${{ github.repository }}
+          delete-untagged: false
+          keep-at-most: 8
