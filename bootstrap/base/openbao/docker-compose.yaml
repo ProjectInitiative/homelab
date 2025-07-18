@@ -9,7 +9,7 @@ services:
     command: server -config=/openbao/config/bao.hcl
 
     environment:
-      - TPM2_PKCS11_STORE=/var/lib/openbao-tpm
+      # - TPM2_PKCS11_STORE=/var/lib/openbao-tpm
       - TSS2_FAPICONF=/openbao/config/fapi-config.json
 
     depends_on:
@@ -19,8 +19,8 @@ services:
     volumes:
       - ./config:/openbao/config
       - openbao-data:/openbao/data
-      - tpm-data-store:/var/lib/openbao-tpm
-      # - tpm-data-store:/home/openbao/.local/share
+      # - tpm-data-store:/var/lib/openbao-tpm
+      - tpm-data-store:/home/openbao/.local/share
     devices:
       - "/dev/tpmrm0:/dev/tpmrm0"
       - "/dev/tpm0:/dev/tpm0"
@@ -37,7 +37,7 @@ services:
       - USER_PIN=1234
       - TOKEN_NAME=openbao-token
     volumes:
-      - tpm-data-store:/root/.local/share
+      - tpm-data-store:/pkcs11-store
       # - tpm-data-store:/home/openbao/.local/share
     devices:
       - "/dev/tpmrm0:/dev/tpmrm0"

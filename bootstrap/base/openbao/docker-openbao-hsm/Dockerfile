@@ -44,5 +44,6 @@ COPY --from=build /var/lib/openbao-tpm /var/lib/openbao-tpm
 COPY --from=build /build/output/openbao /openbao
 
 ENV PATH=/root/env/bin
+ENV TPM2_PKCS11_STORE=/home/openbao/.local/share
 
 ENTRYPOINT ["entrypoint.sh"]

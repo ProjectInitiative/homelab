@@ -15,7 +15,7 @@ RUN cp -va $(nix-store -qR ./result) ./output/store/
 # Create any required directories in the builder stage.
 RUN mkdir ./pkcs11-store
 
-# This stage assembles the minimal components into an empty image.
+# # This stage assembles the minimal components into an empty image.
 FROM scratch
 
 # Copy the Nix closure and the profile.
