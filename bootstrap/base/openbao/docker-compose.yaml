@@ -36,8 +36,8 @@ services:
       - SO_PIN=1234
       - USER_PIN=1234
       - TOKEN_NAME=openbao-token
-      - TPM2_PKCS11_TCTI=device:/dev/tpmrm0
       - KEY_LABEL=openbao-unseal-key
+      - TPM2_PKCS11_TCTI=device:/dev/tpmrm0
     volumes:
       - tpm-data-store:/pkcs11-store
       - ./config:/config

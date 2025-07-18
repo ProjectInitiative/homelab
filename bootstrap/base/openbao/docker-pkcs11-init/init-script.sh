@@ -64,11 +64,11 @@ if pkcs11-tool --module "${MODULE_PATH}" --list-objects --login --pin "${USER_PI
     echo "✅ Unseal key already exists."
 else
     echo "⚠️ Unseal key not found. Generating a new 2048-bit RSA key pair..."
-    pkcs11-tool --module "${MODULE_PATH}" --login --pin "${USER_PIN}" \
-      --key-type rsa:2048 --keypairgen --label "${KEY_LABEL}"
+
+    pkcs11-tool --module "${MODULE_PATH}" --token-label "${TOKEN_NAME}" --so-pin "${SO_PIN}" --pin "${USER_PIN}" --keypairgen --key-type rsa:2048 --label "${KEY_LABEL}"
+
     echo "✅ Unseal key generated successfully."
 fi
-
 
 
 exit 0

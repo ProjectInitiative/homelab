@@ -12,6 +12,7 @@ seal "pkcs11" {
   lib           = "/usr/lib/libtpm2_pkcs11.so"
   token_label   = "openbao-token"
   key_label     = "openbao-unseal-key"
+  rsa_oaep_hash = "sha1"
   # You need to provide the PIN for OpenBao to use.
   pin           = "1234"
 }
