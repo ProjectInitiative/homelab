@@ -9,7 +9,9 @@ services:
     command: server -config=/openbao/config/bao.hcl
 
     environment:
-      # - TPM2_PKCS11_STORE=/var/lib/openbao-tpm
+      - TPM2_PKCS11_STORE=/pkcs11-store
+      - TSS2_TCTI=device:/dev/tpmrm0
+      - TPM2_PKCS11_TCTI=device:/dev/tpmrm0
       - TSS2_FAPICONF=/openbao/config/fapi-config.json
 
     depends_on:
@@ -37,7 +39,7 @@ services:
       - USER_PIN=1234
       - TOKEN_NAME=openbao-token
       - KEY_LABEL=openbao-unseal-key
-      - KEY_ID=6f70656e62616f2d756e7365616c
+      - TSS2_TCTI=device:/dev/tpmrm0
       - TPM2_PKCS11_TCTI=device:/dev/tpmrm0
     volumes:
       - tpm-data-store:/pkcs11-store

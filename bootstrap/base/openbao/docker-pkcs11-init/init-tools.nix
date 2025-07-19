@@ -17,6 +17,7 @@ pkgs.stdenv.mkDerivation rec {
     pkgs.softhsm
     pkgs.openssl
     pkgs.gnugrep
+    pkgs.gawk
     pkgs.coreutils
     pkgs.findutils
   ];
@@ -31,7 +32,7 @@ pkgs.stdenv.mkDerivation rec {
       --replace "@tpm_pkcs11_lib@" "${pkgs.tpm2-pkcs11}/lib/libtpm2_pkcs11.so"
 
     substituteInPlace $out/bin/init-script \
-      --replace "@softhsm2_lib@" "${pkgs.softhsm}/lib/libsofthsm2.so"
+      --replace "@softhsm2_lib@" "${pkgs.softhsm}/lib/softhsm/libsofthsm2.so"
 
     # The wrapProgram is still needed to find the 'pkcs11-tool' executable.
     wrapProgram $out/bin/init-script \

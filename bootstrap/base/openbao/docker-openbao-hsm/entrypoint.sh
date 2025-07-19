@@ -9,33 +9,30 @@ set -e
 # Prevent core dumps
 ulimit -c 0
 
-# Allow setting BAO_REDIRECT_ADDR and BAO_CLUSTER_ADDR using an interface
-# name instead of an IP address.
-get_addr () {
-    local if_name=$1
-    local uri_template=$2
-    ip addr show dev $if_name | awk -v uri=$uri_template '/\s*inet\s/ { \
-      ip=gensub(/(.+)\/.+/, "\\1", "g", $2); \
-      print gensub(/^(.+:\/\/).+(:.+)$/, "\\1" ip "\\2", "g", uri); \
-      exit}'
-}
+# Ensure TSS2_TCTI is set for all TPM commands
+TSS2_TCTI="${TSS2_TCTI:?TSS2_TCTI environment variable not set}"
+export TSS2_TCTI
 
-if [ -n "$BAO_REDIRECT_INTERFACE" ]; then
-    export BAO_REDIRECT_ADDR=$(get_addr $BAO_REDIRECT_INTERFACE ${BAO_REDIRECT_ADDR:-"http://0.0.0.0:8200"})
-    echo "Using $BAO_REDIRECT_INTERFACE for BAO_REDIRECT_ADDR: $BAO_REDIRECT_ADDR"
-fi
-if [ -n "$BAO_CLUSTER_INTERFACE" ]; then
-    export BAO_CLUSTER_ADDR=$(get_addr $BAO_CLUSTER_INTERFACE ${BAO_CLUSTER_ADDR:-"https://0.0.0.0:8201"})
-    echo "Using $BAO_CLUSTER_INTERFACE for BAO_CLUSTER_ADDR: $BAO_CLUSTER_ADDR"
-fi
+# --- FIX: Unconditional, Verbose Permission Fix ---
+# This block runs every time, as root, before anything else.
+# It guarantees that the 'openbao' user can read/write to all necessary
+# directories, especially the /pkcs11-store created by the other container.
+echo "--- Preparing Environment as root ---"
+echo "Fixing permissions for /openbao/config..."
+mkdir -p /openbao/config
+chown -R openbao:openbao /openbao/config
 
-BAO_CONFIG_DIR=/openbao/config
+echo "Fixing permissions for /openbao/data..."
+mkdir -p /openbao/data
+chown -R openbao:openbao /openbao/data
 
-if [ -n "$BAO_LOCAL_CONFIG" ]; then
-    echo "$BAO_LOCAL_CONFIG" > "$BAO_CONFIG_DIR/local.json"
-fi
+echo "Fixing permissions for /pkcs11-store..."
+mkdir -p /pkcs11-store
+chown -R openbao:openbao /pkcs11-store
+echo "--- Environment preparation complete ---"
 
-# --- Argument parsing to determine the command ---
+
+# Argument parsing to determine the command
 if [ "${1:0:1}" = '-' ]; then
     set -- bao "$@"
 fi
@@ -45,75 +42,68 @@ EXEC_CMD=("$@")
 UNSEALED_PIN=""
 
 # --- Integration Point: TPM Unsealing Logic ---
-# This logic will only run if the command is "server".
 if [ "$1" = 'server' ]; then
-    echo "Unsealing SoftHSM PIN from TPM..."
-
-    # Configuration for our hybrid setup
-    STORE_DIR="/pkcs11-store"
-    SEALED_PIN_PATH="${STORE_DIR}/softhsm_pin.sealed"
-    PCR_SELECTION="sha256:0,1,2,3,4,5,6,7"
-
-    # Ensure /tmp exists
+    echo "Attempting to unseal SoftHSM PIN from TPM..."
     mkdir -p /tmp
+    STORE_DIR="${TPM2_PKCS11_STORE:?TPM2_PKCS11_STORE variable not set}"
+    PRIMARY_CTX_PATH="${STORE_DIR}/primary.ctx"
+    SEALED_PIN_PUB_PATH="${STORE_DIR}/softhsm_pin.pub"
+    SEALED_PIN_PRIV_PATH="${STORE_DIR}/softhsm_pin.priv"
+    SEALED_CTX_PATH="/tmp/sealed.ctx"
+    trap 'rm -f "${SEALED_CTX_PATH}"' EXIT
 
-    # The TPM will only succeed if the PCR state matches.
-    UNSEALED_PIN=$(tpm2_unseal -c "${SEALED_PIN_PATH}" -p pcr:"${PCR_SELECTION}")
+    check_files_exist() {
+        for file in "$@"; do
+            if [ ! -f "$file" ]; then
+                echo "❌ ERROR: Required unseal file not found: $file" && exit 1
+            fi
+        done
+    }
+    check_files_exist "${PRIMARY_CTX_PATH}" "${SEALED_PIN_PUB_PATH}" "${SEALED_PIN_PRIV_PATH}"
+    echo "✅ Found all necessary TPM sealed object files."
 
-    echo "PIN unsealed successfully."
+    echo "Loading sealed object into TPM..."
+    tpm2_load -T "${TSS2_TCTI}" -C "${PRIMARY_CTX_PATH}" -u "${SEALED_PIN_PUB_PATH}" -r "${SEALED_PIN_PRIV_PATH}" -c "${SEALED_CTX_PATH}" \
+        || { echo "❌ ERROR: tpm2_load failed." && exit 1; }
+    echo "✅ Sealed object loaded."
 
-    # --- Construct the final 'bao server' command ---
+    echo "Unsealing PIN..."
+    UNSEALED_PIN=$(tpm2_unseal -T "${TSS2_TCTI}" -c "${SEALED_CTX_PATH}")
+
+    if [ -z "${UNSEALED_PIN}" ]; then echo "❌ ERROR: tpm2_unseal failed or produced empty PIN." && exit 1; fi
+    echo "✅ PIN unsealed successfully."
+
     shift
-    EXEC_CMD=(bao server -config="$BAO_CONFIG_DIR" "$@")
-
-elif [ "$1" = 'version' ]; then
-    : # Do nothing for version command
-elif bao --help "$1" 2>&1 | grep -q "bao $1"; then
-    : # Do nothing for other valid bao commands
+    EXEC_CMD=(bao server -config="/openbao/config" "$@")
+elif [ "$1" != "bao" ]; then
+    EXEC_CMD=(bao "$@")
 fi
 
-
-# --- Original OpenBao chown logic ---
-if [ "$1" = 'bao' ]; then
-    if [ -z "$SKIP_CHOWN" ]; then
-        if [ -d "/openbao/config" ] && [ "$(stat -c %u /openbao/config)" != "$(id -u openbao)" ]; then
-            chown -R openbao:openbao /openbao/config || echo "Could not chown /openbao/config"
-        fi
-        if [ -d "/openbao/data" ] && [ "$(stat -c %u /openbao/data)" != "$(id -u openbao)" ]; then
-            chown -R openbao:openbao /openbao/data
-        fi
-        if [ -d "/openbao/logs" ] && [ "$(stat -c %u /openbao/logs)" != "$(id -u openbao)" ]; then
-            chown -R openbao:openbao /openbao/logs
-        fi
-        if [ -d "/openbao/file" ] && [ "$(stat -c %u /openbao/file)" != "$(id -u openbao)" ]; then
-            chown -R openbao:openbao /openbao/file
-        fi
-        if [ -d "/home/openbao" ] && [ "$(stat -c %u /home/openbao)" != "$(id -u openbao)" ]; then
-            chown -R openbao:openbao /home/openbao
-        fi
-        if [ -d "/pkcs11-store" ] && [ "$(stat -c %u /pkcs11-store)" != "$(id -u openbao)" ]; then
-            chown -R openbao:openbao /pkcs11-store
-        fi
-    fi
-fi
 
 # --- Final, Secure Execution ---
-echo "Starting OpenBao process with minimal environment..."
+echo "Starting OpenBao process..."
+SOFTHSM2_CONF="/pkcs11-store/softhsm2.conf"
 
 if [ "$(id -u)" = '0' ] && [ -z "$BAO_SKIP_DROP_ROOT" ]; then
-    # Drop root privileges AND create a clean environment for the final command
     if [ -n "${UNSEALED_PIN}" ]; then
-        # If we unsealed a PIN, run the server with it in the environment.
-        exec su-exec openbao env BAO_HSM_PIN="${UNSEALED_PIN}" "${EXEC_CMD[@]}"
+        echo "Executing as 'openbao' user with the unsealed PIN."
+        exec su-exec openbao env \
+            SOFTHSM2_CONF="${SOFTHSM2_CONF}" \
+            BAO_HSM_PIN="${UNSEALED_PIN}" \
+            "${EXEC_CMD[@]}"
     else
-        # Otherwise, run the command without the PIN (e.g., 'bao operator init').
+        echo "Executing as 'openbao' user."
         exec su-exec openbao "${EXEC_CMD[@]}"
     fi
 else
-    # If not running as root, execute directly
     if [ -n "${UNSEALED_PIN}" ]; then
-        exec env BAO_HSM_PIN="${UNSEALED_PIN}" "${EXEC_CMD[@]}"
+        echo "Executing as current user with the unsealed PIN."
+        exec env \
+            SOFTHSM2_CONF="${SOFTHSM2_CONF}" \
+            BAO_HSM_PIN="${UNSEALED_PIN}" \
+            "${EXEC_CMD[@]}"
     else
+        echo "Executing as current user."
         exec "${EXEC_CMD[@]}"
     fi
 fi
