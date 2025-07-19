@@ -28,7 +28,7 @@ jobs:
           repository-owner: ${{ github.repository_owner }}
           # To clean a specific repository, uncomment the next line.
           # Otherwise, it will clean all repositories for the owner.
-          # repository-name: ${{ github.repository }}
+          repository-name: ${{ github.repository }}
           delete-untagged: true
           # Keep the 8 most recent tagged images.
           keep-at-most: 8
