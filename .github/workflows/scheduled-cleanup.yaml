@@ -1,0 +1,34 @@
+name: Scheduled GHCR Cleanup
+
+# This section defines the trigger for the workflow.
+on:
+  schedule:
+    # run weekly
+    - cron: '0 0 * * 0'
+  
+  # Allows you to run this workflow manually from the Actions tab.
+  workflow_dispatch:
+
+jobs:
+  cleanup-ghcr:
+    runs-on: ubuntu-latest
+    # Permissions are required to read and delete packages.
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Clean up old container images
+        uses: quartx-analytics/ghcr-cleaner@v1
+        with:
+          # The token requires 'read:packages' and 'delete:packages' scopes.
+          token: ${{ secrets.GHCR_CLEANER }}
+          # Set owner-type to 'user' or 'org'
+          owner-type: user 
+          repository-owner: ${{ github.repository_owner }}
+          # To clean a specific repository, uncomment the next line.
+          # Otherwise, it will clean all repositories for the owner.
+          # repository-name: ${{ github.repository }}
+          delete-untagged: true
+          # Keep the 8 most recent tagged images.
+          keep-at-most: 8
