@@ -7,6 +7,7 @@ let
     pkgs.bashInteractive
     pkgs.coreutils # for sleep
     pkgs.procps    # for kill, pidof
+    pkgs.gnused 
   ];
 in
 pkgs.stdenv.mkDerivation {
