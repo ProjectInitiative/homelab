@@ -94,6 +94,8 @@ server:
           value: "/pkcs11-store"
         - name: TSS2_TCTI
           value: "device:/dev/tpmrm0"
+        - name: TSS2_FAPICONF
+          value: "/config/fapi-config.json"
       volumeMounts:
         - name: pkcs11-store
           mountPath: /pkcs11-store
@@ -101,6 +103,10 @@ server:
           mountPath: /dev/tpmrm0
         - name: tpm-device
           mountPath: /dev/tpm0
+        - name: fapi-config-volume
+          mountPath: /config/fapi-config.json
+          subPath: fapi-config.json
+          readOnly: true
       securityContext:
         privileged: true
 
