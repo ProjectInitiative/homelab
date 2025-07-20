@@ -1,4 +1,3 @@
-# homelab.git/bootstrap/control-cluster/helm-values/openbao-values.yaml
 # Values for a HA OpenBao cluster with Raft storage and TPM-based auto-unseal.
 
 server:
@@ -34,11 +33,11 @@ server:
         seal "pkcs11" {
           # We are now using the SoftHSM library, not the TPM's direct PKCS11 lib.
           lib = "/usr/lib/libsofthsm2.so"
-          
+
           # These labels must match what pkcs11-init.sh creates.
           token_label = "openbao-token"
           key_label   = "openbao-unseal-key"
-          
+
           # Use the OAEP hash that we found to be compatible.
           rsa_oaep_hash = "sha1"
         }
@@ -48,7 +47,7 @@ server:
     enabled: true
     size: 10Gi
     storageClass: "local-path-sticky"
-    
+
   # --- NEW: Persistent Volume for the PKCS11 Store ---
   # This volume will hold the SoftHSM token DB and the TPM-sealed PIN.
   # We use the 'extraVolumes' and 'extraVolumeMounts' features of the Helm chart.
