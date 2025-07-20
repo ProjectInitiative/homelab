@@ -73,7 +73,6 @@ server:
     - name: pkcs11-init
       image: "ghcr.io/projectinitiative/tpm2_pkcs11-init:latest"
       imagePullPolicy: IfNotPresent
-      command: ["/bin/entrypoint.sh"]
       env:
         - name: SO_PIN
           valueFrom:
