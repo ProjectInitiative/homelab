@@ -21,6 +21,11 @@ spec:
     - repoURL: https://github.com/projectinitiative/homelab.git
       targetRevision: HEAD
       ref: values
+      # apply configs
+    - repoURL: https://github.com/projectinitiative/homelab.git
+      targetRevision: HEAD
+      # The 'path' points to the directory containing your kustomization.yaml
+      path: bootstrap/base/openbao/config
   destination:
     server: https://kubernetes.default.svc
     namespace: openbao # Ensure this namespace is created first!

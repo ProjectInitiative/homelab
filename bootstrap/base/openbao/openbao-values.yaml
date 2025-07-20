@@ -6,7 +6,6 @@ server:
     repository: "openbao-hsm"
     tag: "latest"
 
-  # --- High Availability and Raft Configuration ---
   standalone:
     enabled: false
   ha:
@@ -34,35 +33,42 @@ server:
           rsa_oaep_hash = "sha1"
         }
 
-  # --- Persistent Volumes Configuration ---
   dataStorage:
     enabled: true
     size: 10Gi
     storageClass: "local-path-sticky"
 
-  # --- CORRECTED: Volume and Mount Definitions for TPM and PKCS11 Store ---
-  # Define all volumes here as required by the chart's structure.
+  # Define all volumes required by the containers
   volumes:
     - name: pkcs11-store
       persistentVolumeClaim:
         claimName: pkcs11-store
-    - name: tpmrm0-device # <-- NEW: Define TPM device as a volume
+    - name: tpmrm0-device
       hostPath:
         path: /dev/tpmrm0
-    - name: tpm-device # <-- NEW: Define TPM device as a volume
+    - name: tpm-device
       hostPath:
         path: /dev/tpm0
+    # Add the fapi-config ConfigMap as a volume
+    - name: fapi-config-volume
+      configMap:
+        name: fapi-config
 
-  # Mount the shared volume into the main 'openbao' container
+  # Mount the volumes into the main 'openbao' container
   volumeMounts:
     - name: pkcs11-store
       mountPath: /pkcs11-store
-    - name: tpmrm0-device # <-- NEW: Mount TPM into the main container
+    - name: tpmrm0-device
       mountPath: /dev/tpmrm0
-    - name: tpm-device # <-- NEW: Mount TPM into the main container
+    - name: tpm-device
       mountPath: /dev/tpm0
+    # Mount the fapi-config.json file into the expected path
+    - name: fapi-config-volume
+      mountPath: /openbao/config/fapi-config.json
+      subPath: fapi-config.json
+      readOnly: true
 
-  # --- CORRECTED: Init Container now under 'extraInitContainers' ---
+  # This is the correct location for init containers
   extraInitContainers:
     - name: pkcs11-init
       image: "ghcr.io/projectinitiative/tpm2_pkcs11-init:latest"
@@ -90,19 +96,18 @@ server:
         - name: TSS2_TCTI
           value: "device:/dev/tpmrm0"
       volumeMounts:
-        # Mount the shared volume so the init container can create the files.
         - name: pkcs11-store
           mountPath: /pkcs11-store
-        # Mount the TPM devices from the volumes defined above.
         - name: tpmrm0-device
           mountPath: /dev/tpmrm0
         - name: tpm-device
           mountPath: /dev/tpm0
-      # The init container needs access to the host's TPM device.
       securityContext:
         privileged: true
 
-  # --- TPM Device Environment Variables ---
+  # Environment variables for the main container
   extraEnvironmentVars:
     TSS2_TCTI: "device:/dev/tpmrm0"
     TPM2_PKCS11_STORE: "/pkcs11-store"
+    # This tells OpenBao where to find the FAPI config file we just mounted
+    TSS2_FAPICONF: "/openbao/config/fapi-config.json"

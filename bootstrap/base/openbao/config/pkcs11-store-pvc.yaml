@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  # This name MUST match the claimName in your values.yaml
+  name: pkcs11-store
+  # This will be deployed into the namespace defined in your Argo CD App
+  namespace: openbao
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # Ensure this storage class exists in your cluster
+  storageClassName: local-path-sticky
+  resources:
+    requests:
+      # A small size is sufficient for the token store
+      storage: 1Gi

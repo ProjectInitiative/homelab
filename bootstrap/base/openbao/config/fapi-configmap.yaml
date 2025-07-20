@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fapi-config
+  namespace: openbao
+data:
+  fapi-config.json: |
+    {
+      "profile_name": "P_ECCP256SHA256",
+      "profile_dir": "/pkcs11-store/fapi-profiles/",
+      "user_dir": "/pkcs11-store/fapi/user",
+      "system_dir": "/pkcs11-store/fapi/system",
+      "log_dir": "/pkcs11-store/fapi/log",
+      "tcti": "device:/dev/tpmrm0",
+      "system_pcrs": [],
+      "ek_cert_less": "yes"
+    }
