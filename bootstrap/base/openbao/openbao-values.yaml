@@ -1,103 +1,130 @@
 # homelab.git/bootstrap/control-cluster/helm-values/openbao-values.yaml
-# These values configure a highly available OpenBao cluster using the
-# integrated Raft storage engine. Data is stored on 'local-path'
-# while audit logs are stored on 'piraeus'.
+# Values for a HA OpenBao cluster with Raft storage and TPM-based auto-unseal.
 
 server:
   image:
-    registry: "quay.io"
-    repository: "openbao/openbao-hsm"
-    tag: "2.3.1-amd64"
+    # IMPORTANT: Use the Nix-based image you built for the main container
+    # as it contains all necessary tools (softhsm, tpm2-tools, etc.)
+    registry: "ghcr.io/projectinitiative" # e.g., quay.io, docker.io/your-user
+    repository: "openbao-hsm"
+    tag: "latest"
 
-  # Disable standalone mode to run in HA.
+  # --- High Availability and Raft Configuration (Largely Unchanged) ---
   standalone:
     enabled: false
-
-  # Enable High Availability (HA) mode.
   ha:
     enabled: true
-    replicas: 3 # Set to 3 for a robust Raft quorum.
-
-    # Configure and enable the Raft integrated storage backend.
-    # The default HCL configuration under `raft.config` is used automatically.
+    replicas: 3 # Or 1 if you are just testing on a single node
     raft:
       enabled: true
-      # This HCL configures the storage, listener, and the PKCS#11 seal.
       config: |
         ui = true
-
         listener "tcp" {
           tls_disable     = true
           address         = "[::]:8200"
           cluster_address = "[::]:8201"
         }
-
         storage "raft" {
-          # This path is now corrected to match the chart's default mountPath.
           path = "/openbao/data"
-
-          # Add retry_join blocks for robust peer discovery.
-          # The chart creates a headless service 'openbao-internal' for the pods.
-          retry_join {
-            leader_api_addr = "http://openbao-0.openbao-internal:8200"
-          }
-          retry_join {
-            leader_api_addr = "http://openbao-1.openbao-internal:8200"
-          }
-          retry_join {
-            leader_api_addr = "http://openbao-2.openbao-internal:8200"
-          }
+          retry_join { leader_api_addr = "http://openbao-0.openbao-internal:8200" }
+          retry_join { leader_api_addr = "http://openbao-1.openbao-internal:8200" }
+          retry_join { leader_api_addr = "http://openbao-2.openbao-internal:8200" }
         }
-
-        # Define the PKCS#11 seal for TPM-based auto-unseal.
+        # --- FIX: Update the seal configuration ---
         seal "pkcs11" {
-          lib           = "/usr/lib/libtpm2_pkcs11.so"
-          token_label   = "openbao-token"
-          key_label     = "openbao-unseal-key"
+          # We are now using the SoftHSM library, not the TPM's direct PKCS11 lib.
+          lib = "/usr/lib/libsofthsm2.so"
+          
+          # These labels must match what pkcs11-init.sh creates.
+          token_label = "openbao-token"
+          key_label   = "openbao-unseal-key"
+          
+          # Use the OAEP hash that we found to be compatible.
+          rsa_oaep_hash = "sha1"
         }
 
-  # Configure the persistent volume for the Raft data.
-  # This will inherit the correct mountPath: /openbao/data from the chart's defaults.
-  dataStorage:
+  # --- Persistent Volumes Configuration ---
+  dataStorage: # For Raft data
     enabled: true
     size: 10Gi
     storageClass: "local-path-sticky"
+    
+  # --- NEW: Persistent Volume for the PKCS11 Store ---
+  # This volume will hold the SoftHSM token DB and the TPM-sealed PIN.
+  # We use the 'extraVolumes' and 'extraVolumeMounts' features of the Helm chart.
+  extraVolumes:
+    - name: pkcs11-store
+      persistentVolumeClaim:
+        claimName: pkcs11-store # This will be templated by the chart
 
-  # Configure a separate persistent volume for audit logs.
-  auditStorage:
-    enabled: true
-    size: 10Gi
-    storageClass: "local-path-sticky"
+  # Mount this volume into the main 'openbao' container
+  extraVolumeMounts:
+    - name: pkcs11-store
+      mountPath: /pkcs11-store
 
-  # == TPM Configuration Starts Here ==
+  # --- NEW: Init Container for PKCS#11 Setup ---
+  # This replaces the `pkcs11-init` service from docker-compose.
+  initContainers:
+    - name: pkcs11-init
+      # IMPORTANT: Use the Nix-based image you built for the init container.
+      image: "ghcr.io/projectinitiative/tpm2_pkcs11-init:latest"
+      imagePullPolicy: IfNotPresent
+      # The command is the entrypoint script we perfected.
+      command: ["/bin/entrypoint.sh"]
+      env:
+        # Pass all necessary variables to the init script.
+        - name: SO_PIN
+          valueFrom:
+            secretKeyRef:
+              # The name of the Secret object
+              name: openbao-unseal-pin
+              # The key within the Secret to use
+              key: pin
+        - name: USER_PIN
+          valueFrom:
+            secretKeyRef:
+              # The name of the Secret object
+              name: openbao-unseal-pin
+              # The key within the Secret to use
+              key: pin
+        - name: TOKEN_NAME
+          value: "openbao-token"
+        - name: KEY_LABEL
+          value: "openbao-unseal-key"
+        - name: FAPI_PROFILE_DIR
+          value: "/pkcs11-store/fapi-profiles"
+        - name: TPM2_PKCS11_STORE
+          value: "/pkcs11-store"
+        - name: TSS2_TCTI
+          value: "device:/dev/tpmrm0"
+      volumeMounts:
+        # Mount the shared volume so the init container can create the files.
+        - name: pkcs11-store
+          mountPath: /pkcs11-store
+        # Mount the TPM device so the init container can seal the PIN.
+        - name: tpm-device
+          mountPath: /dev/tpmrm0
+      # The init container needs access to the host's TPM device.
+      securityContext:
+        privileged: true # Simplest way to ensure access.
 
-  # Inject environment variables needed for the PKCS#11 library.
+  # --- TPM Device Configuration (for both init and main containers) ---
   extraEnvironmentVars:
-    # Tells the pkcs11 library how to connect to the TPM device.
-    TPM2_PKCS11_TCTI: "device:/dev/tpmrm0"
+    # Tells the openbao entrypoint how to connect to the TPM.
+    - name: TSS2_TCTI
+      value: "device:/dev/tpmrm0"
+    # Tells the openbao entrypoint where the shared store is.
+    - name: TPM2_PKCS11_STORE
+      value: "/pkcs11-store"
 
-  # Securely inject the HSM PIN from a Kubernetes secret.
-  # You must create this secret separately.
-  extraSecretEnvironmentVars:
-    - envName: BAO_HSM_PIN
-      secretName: openbao-unseal-pin
-      secretKey: pin
+  # --- FIX: This is no longer needed. The PIN is unsealed automatically. ---
+  # extraSecretEnvironmentVars:
+  #   - envName: BAO_HSM_PIN
+  #     secretName: openbao-unseal-pin
+  #     secretKey: pin
 
-  # Define the hostPath volumes needed to access TPM resources from the host.
-  volumes:
+  # We still need to mount the TPM device from the host into the Pod.
+  # This 'tpm-device' volume will be used by both the init and main containers.
+  hostDevices:
     - name: tpm-device
-      hostPath:
-        path: /dev/tpmrm0
-        type: CharDevice
-    - name: pkcs11-lib
-      hostPath:
-        path: /run/current-system/sw/lib/libtpm2_pkcs11.so
-        type: File
-
-  # Mount the hostPath volumes into the OpenBao container.
-  volumeMounts:
-    - name: tpm-device
-      mountPath: /dev/tpmrm0
-    - name: pkcs11-lib
-      mountPath: /usr/lib/libtpm2_pkcs11.so
-      readOnly: true
+      devicePath: /dev/tpmrm0

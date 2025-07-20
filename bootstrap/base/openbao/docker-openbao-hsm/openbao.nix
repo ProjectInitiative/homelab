@@ -18,9 +18,9 @@ in pkgs.stdenv.mkDerivation rec {
 
   propagatedBuildInputs = [
     openbao
-    pkgs.tpm2-tools
     pkgs.opensc # for pkcs11-tool
     pkgs.tpm2-pkcs11
+    pkgs.tpm2-tools
     pkgs.softhsm
     pkgs.dumb-init
     pkgs.su-exec
