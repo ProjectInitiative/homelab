@@ -6,6 +6,13 @@ server:
     repository: "openbao-hsm"
     tag: "latest"
 
+  # The openbao container requests the TPM device as a resource
+  resources:
+    limits:
+      squat.io/tpm: 1
+    requests:
+      squat.io/tpm: 1
+
   standalone:
     enabled: false
   ha:
@@ -58,10 +65,6 @@ server:
   volumeMounts:
     - name: pkcs11-store
       mountPath: /pkcs11-store
-    - name: tpmrm0-device
-      mountPath: /dev/tpmrm0
-    - name: tpm-device
-      mountPath: /dev/tpm0
     # Mount the fapi-config.json file into the expected path
     - name: fapi-config-volume
       mountPath: /openbao/config/fapi-config.json
@@ -107,8 +110,12 @@ server:
           mountPath: /config/fapi-config.json
           subPath: fapi-config.json
           readOnly: true
-      securityContext:
-        privileged: true
+      # The init container now requests the TPM device as a resource
+      resources:
+        limits:
+          squat.io/tpm: 1
+        requests:
+          squat.io/tpm: 1
 
   # Environment variables for the main container
   extraEnvironmentVars:
