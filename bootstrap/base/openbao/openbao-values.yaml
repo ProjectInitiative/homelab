@@ -50,12 +50,6 @@ server:
     - name: pkcs11-store
       persistentVolumeClaim:
         claimName: pkcs11-store
-    - name: tpmrm0-device
-      hostPath:
-        path: /dev/tpmrm0
-    - name: tpm-device
-      hostPath:
-        path: /dev/tpm0
     # Add the fapi-config ConfigMap as a volume
     - name: fapi-config-volume
       configMap:
@@ -102,10 +96,6 @@ server:
       volumeMounts:
         - name: pkcs11-store
           mountPath: /pkcs11-store
-        - name: tpmrm0-device
-          mountPath: /dev/tpmrm0
-        - name: tpm-device
-          mountPath: /dev/tpm0
         - name: fapi-config-volume
           mountPath: /config/fapi-config.json
           subPath: fapi-config.json
