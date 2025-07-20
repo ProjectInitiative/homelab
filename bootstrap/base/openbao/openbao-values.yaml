@@ -102,8 +102,10 @@ server:
         - name: pkcs11-store
           mountPath: /pkcs11-store
         # Mount the TPM device so the init container can seal the PIN.
-        - name: tpm-device
+        - name: tpmrm0-device
           mountPath: /dev/tpmrm0
+        - name: tpm-device
+          mountPath: /dev/tpm0
       # The init container needs access to the host's TPM device.
       securityContext:
         privileged: true # Simplest way to ensure access.
@@ -126,5 +128,7 @@ server:
   # We still need to mount the TPM device from the host into the Pod.
   # This 'tpm-device' volume will be used by both the init and main containers.
   hostDevices:
-    - name: tpm-device
+    - name: tpmrm0-device
       devicePath: /dev/tpmrm0
+    - name: tpm-device
+      devicePath: /dev/tpm0
