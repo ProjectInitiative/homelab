@@ -13,6 +13,12 @@ server:
     requests:
       squat.ai/tpm: 1
 
+    statefulSet:
+      securityContext:
+        pod:
+          # group ID on host for tss
+          supplementalGroups: [959]
+
   standalone:
     enabled: false
   ha:
