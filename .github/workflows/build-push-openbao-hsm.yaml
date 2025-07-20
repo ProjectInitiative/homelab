@@ -9,9 +9,7 @@ on:
     # these specific files is changed in a push.
     paths:
       - '.github/workflows/build-push-openbao-hsm.yaml'
-      - 'bootstrap/base/openbao/docker-openbao-hsm/Dockerfile'
-      - 'bootstrap/base/openbao/docker-openbao-hsm/init-tools.nix'
-      - 'bootstrap/base/openbao/docker-openbao-hsm/init-script.sh'
+      - 'bootstrap/base/openbao/docker-openbao-hsm/**'
   
   # Allows you to run this workflow manually from the Actions tab.
   workflow_dispatch:
