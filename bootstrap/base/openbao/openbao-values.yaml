@@ -111,13 +111,12 @@ server:
         privileged: true # Simplest way to ensure access.
 
   # --- TPM Device Configuration (for both init and main containers) ---
+  # The required format for the Helm chart
   extraEnvironmentVars:
     # Tells the openbao entrypoint how to connect to the TPM.
-    - name: TSS2_TCTI
-      value: "device:/dev/tpmrm0"
+    TSS2_TCTI: "device:/dev/tpmrm0"
     # Tells the openbao entrypoint where the shared store is.
-    - name: TPM2_PKCS11_STORE
-      value: "/pkcs11-store"
+    TPM2_PKCS11_STORE: "/pkcs11-store"
 
   # --- FIX: This is no longer needed. The PIN is unsealed automatically. ---
   # extraSecretEnvironmentVars:
