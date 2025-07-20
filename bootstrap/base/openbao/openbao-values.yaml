@@ -5,6 +5,7 @@ server:
     registry: "ghcr.io/projectinitiative"
     repository: "openbao-hsm"
     tag: "latest"
+    pullPolicy: Always
 
   # The openbao container requests the TPM device as a resource
   resources:
