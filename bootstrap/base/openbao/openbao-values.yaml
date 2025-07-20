@@ -2,18 +2,16 @@
 
 server:
   image:
-    # IMPORTANT: Use the Nix-based image you built for the main container
-    # as it contains all necessary tools (softhsm, tpm2-tools, etc.)
-    registry: "ghcr.io/projectinitiative" # e.g., quay.io, docker.io/your-user
+    registry: "ghcr.io/projectinitiative"
     repository: "openbao-hsm"
     tag: "latest"
 
-  # --- High Availability and Raft Configuration (Largely Unchanged) ---
+  # --- High Availability and Raft Configuration ---
   standalone:
     enabled: false
   ha:
     enabled: true
-    replicas: 3 # Or 1 if you are just testing on a single node
+    replicas: 3
     raft:
       enabled: true
       config: |
@@ -29,62 +27,57 @@ server:
           retry_join { leader_api_addr = "http://openbao-1.openbao-internal:8200" }
           retry_join { leader_api_addr = "http://openbao-2.openbao-internal:8200" }
         }
-        # --- FIX: Update the seal configuration ---
         seal "pkcs11" {
-          # We are now using the SoftHSM library, not the TPM's direct PKCS11 lib.
           lib = "/usr/lib/libsofthsm2.so"
-
-          # These labels must match what pkcs11-init.sh creates.
           token_label = "openbao-token"
           key_label   = "openbao-unseal-key"
-
-          # Use the OAEP hash that we found to be compatible.
           rsa_oaep_hash = "sha1"
         }
 
   # --- Persistent Volumes Configuration ---
-  dataStorage: # For Raft data
+  dataStorage:
     enabled: true
     size: 10Gi
     storageClass: "local-path-sticky"
 
-  # --- NEW: Persistent Volume for the PKCS11 Store ---
-  # This volume will hold the SoftHSM token DB and the TPM-sealed PIN.
-  # We use the 'extraVolumes' and 'extraVolumeMounts' features of the Helm chart.
-  extraVolumes:
+  # --- CORRECTED: Volume and Mount Definitions for TPM and PKCS11 Store ---
+  # Define all volumes here as required by the chart's structure.
+  volumes:
     - name: pkcs11-store
       persistentVolumeClaim:
-        claimName: pkcs11-store # This will be templated by the chart
+        claimName: pkcs11-store
+    - name: tpmrm0-device # <-- NEW: Define TPM device as a volume
+      hostPath:
+        path: /dev/tpmrm0
+    - name: tpm-device # <-- NEW: Define TPM device as a volume
+      hostPath:
+        path: /dev/tpm0
 
-  # Mount this volume into the main 'openbao' container
-  extraVolumeMounts:
+  # Mount the shared volume into the main 'openbao' container
+  volumeMounts:
     - name: pkcs11-store
       mountPath: /pkcs11-store
+    - name: tpmrm0-device # <-- NEW: Mount TPM into the main container
+      mountPath: /dev/tpmrm0
+    - name: tpm-device # <-- NEW: Mount TPM into the main container
+      mountPath: /dev/tpm0
 
-  # --- NEW: Init Container for PKCS#11 Setup ---
-  # This replaces the `pkcs11-init` service from docker-compose.
-  initContainers:
+  # --- CORRECTED: Init Container now under 'extraInitContainers' ---
+  extraInitContainers:
     - name: pkcs11-init
-      # IMPORTANT: Use the Nix-based image you built for the init container.
       image: "ghcr.io/projectinitiative/tpm2_pkcs11-init:latest"
       imagePullPolicy: IfNotPresent
-      # The command is the entrypoint script we perfected.
       command: ["/bin/entrypoint.sh"]
       env:
-        # Pass all necessary variables to the init script.
         - name: SO_PIN
           valueFrom:
             secretKeyRef:
-              # The name of the Secret object
               name: openbao-unseal-pin
-              # The key within the Secret to use
               key: pin
         - name: USER_PIN
           valueFrom:
             secretKeyRef:
-              # The name of the Secret object
               name: openbao-unseal-pin
-              # The key within the Secret to use
               key: pin
         - name: TOKEN_NAME
           value: "openbao-token"
@@ -100,33 +93,16 @@ server:
         # Mount the shared volume so the init container can create the files.
         - name: pkcs11-store
           mountPath: /pkcs11-store
-        # Mount the TPM device so the init container can seal the PIN.
+        # Mount the TPM devices from the volumes defined above.
         - name: tpmrm0-device
           mountPath: /dev/tpmrm0
         - name: tpm-device
           mountPath: /dev/tpm0
       # The init container needs access to the host's TPM device.
       securityContext:
-        privileged: true # Simplest way to ensure access.
+        privileged: true
 
-  # --- TPM Device Configuration (for both init and main containers) ---
-  # The required format for the Helm chart
+  # --- TPM Device Environment Variables ---
   extraEnvironmentVars:
-    # Tells the openbao entrypoint how to connect to the TPM.
     TSS2_TCTI: "device:/dev/tpmrm0"
-    # Tells the openbao entrypoint where the shared store is.
     TPM2_PKCS11_STORE: "/pkcs11-store"
-
-  # --- FIX: This is no longer needed. The PIN is unsealed automatically. ---
-  # extraSecretEnvironmentVars:
-  #   - envName: BAO_HSM_PIN
-  #     secretName: openbao-unseal-pin
-  #     secretKey: pin
-
-  # We still need to mount the TPM device from the host into the Pod.
-  # This 'tpm-device' volume will be used by both the init and main containers.
-  hostDevices:
-    - name: tpmrm0-device
-      devicePath: /dev/tpmrm0
-    - name: tpm-device
-      devicePath: /dev/tpm0
