@@ -27,3 +27,13 @@ patches:
     target:
       kind: StorageClass
       name: local-path-sticky # Targets your custom SC
+
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+    target:
+      kind: Deployment
+      name: local-path-provisioner
+      namespace: local-path-storage
+
