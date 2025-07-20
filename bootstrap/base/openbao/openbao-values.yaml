@@ -9,9 +9,9 @@ server:
   # The openbao container requests the TPM device as a resource
   resources:
     limits:
-      squat.io/tpm: 1
+      squat.ai/tpm: 1
     requests:
-      squat.io/tpm: 1
+      squat.ai/tpm: 1
 
   standalone:
     enabled: false
@@ -103,9 +103,9 @@ server:
       # The init container now requests the TPM device as a resource
       resources:
         limits:
-          squat.io/tpm: 1
+          squat.ai/tpm: 1
         requests:
-          squat.io/tpm: 1
+          squat.ai/tpm: 1
 
   # Environment variables for the main container
   extraEnvironmentVars:
