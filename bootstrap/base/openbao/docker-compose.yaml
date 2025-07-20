@@ -6,7 +6,8 @@ services:
 
     ports:
       - "8200:8200"
-    command: server -config=/openbao/config/bao.hcl
+    entrypoint: /bin/sh
+    command: -ec "openbao server -config=/openbao/config/bao.hcl"
 
     environment:
       - TPM2_PKCS11_STORE=/pkcs11-store
