@@ -6,9 +6,9 @@ COPY openbao.nix entrypoint.sh ./
 
 # Create the openbao group, and the tss group with the openbao user.
 # Then create the openbao user with its primary group set to openbao.
-# YOU MUST REPLACE 985 WITH THE GID FROM YOUR HOST SYSTEM.
+# YOU MUST REPLACE 995 WITH THE GID FROM YOUR HOST SYSTEM.
 RUN echo "openbao:x:1000:" >> /etc/group && \
-    echo "tss:x:985:openbao" >> /etc/group && \
+    echo "tss:x:995:openbao" >> /etc/group && \
     echo "openbao:x:1000:1000::/home/openbao:/bin/sh" >> /etc/passwd
 
 # Create and set ownership for the required directories.

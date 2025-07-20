@@ -67,7 +67,7 @@ server:
       mountPath: /pkcs11-store
     # Mount the fapi-config.json file into the expected path
     - name: fapi-config-volume
-      mountPath: /openbao/config/fapi-config.json
+      mountPath: /config/fapi-config.json
       subPath: fapi-config.json
       readOnly: true
 
@@ -118,4 +118,4 @@ server:
     TSS2_TCTI: "device:/dev/tpmrm0"
     TPM2_PKCS11_STORE: "/pkcs11-store"
     # This tells OpenBao where to find the FAPI config file we just mounted
-    TSS2_FAPICONF: "/openbao/config/fapi-config.json"
+    TSS2_FAPICONF: "/config/fapi-config.json"
