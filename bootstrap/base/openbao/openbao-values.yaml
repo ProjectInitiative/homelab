@@ -17,7 +17,7 @@ server:
       securityContext:
         pod:
           # group ID on host for tss
-          supplementalGroups: [959]
+          supplementalGroups: [995]
 
   standalone:
     enabled: false
