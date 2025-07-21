@@ -32,6 +32,11 @@ server:
       enabled: true
       config: |
         ui = true
+
+        # This allows a single node to elect itself as leader
+        # without waiting for others, breaking the deadlock.
+        bootstrap_expect = 1 
+
         listener "tcp" {
           tls_disable     = true
           address         = "[::]:8200"
@@ -39,9 +44,9 @@ server:
         }
         storage "raft" {
           path = "/openbao/data"
-          # retry_join { leader_api_addr = "http://openbao-0.openbao-internal:8200" }
-          # retry_join { leader_api_addr = "http://openbao-1.openbao-internal:8200" }
-          # retry_join { leader_api_addr = "http://openbao-2.openbao-internal:8200" }
+          retry_join { leader_api_addr = "http://openbao-0.openbao-internal:8200" }
+          retry_join { leader_api_addr = "http://openbao-1.openbao-internal:8200" }
+          retry_join { leader_api_addr = "http://openbao-2.openbao-internal:8200" }
         }
         seal "pkcs11" {
           lib = "/usr/lib/libsofthsm2.so"
