@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: dnsutils-daemonset
-  namespace: default
+  namespace: dnsutils
 spec:
   selector:
     matchLabels:
