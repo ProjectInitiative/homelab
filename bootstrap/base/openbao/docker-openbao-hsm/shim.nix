@@ -8,6 +8,7 @@ let
     pkgs.coreutils # for sleep
     pkgs.procps    # for kill, pidof
     pkgs.gnused 
+    pkgs.curl
   ];
 in
 pkgs.stdenv.mkDerivation {
