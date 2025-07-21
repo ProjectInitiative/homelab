@@ -16,6 +16,7 @@ resources:
 
   # --- Regular Apps ---
   # - ../../apps/base/gitea
+  - ../../apps/base/dnsutils
 
 # 2. Apply ONE common patch to ALL of them.
 patches:
