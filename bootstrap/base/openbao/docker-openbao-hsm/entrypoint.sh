@@ -2,12 +2,13 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: MPL-2.0
 #
-# Modifications made to integrate TPM-based auto-unsealing of a SoftHSM token.
+# Modifications made to integrate TPM-based auto-unsealing of a SoftHSM token
+# and to allow for executing ad-hoc 'bao' commands.
 
 set -e
 
 # --- [ENTRYPOINT DEBUG] ---
-echo "--- [ENTRYPOINT DEBUG] Received arguments: [$1] [$2] [$3] ---" >&2
+echo "--- [ENTRYPOINT DEBUG] Received arguments: [$*] ---" >&2
 # --- END DEBUG ---
 
 # Prevent core dumps
@@ -18,8 +19,11 @@ TSS2_TCTI="${TSS2_TCTI:?TSS2_TCTI environment variable not set}"
 export TSS2_TCTI
 
 echo "--- Preparing Environment as root ---"
-echo "Changing ownership of writeable data directories..."
-chown -R openbao:openbao /openbao/data /openbao/logs /pkcs11-store
+# Only run chown if we are root
+if [ "$(id -u)" = '0' ]; then
+    echo "Changing ownership of writeable data directories..."
+    chown -R openbao:openbao /openbao/data /openbao/logs /pkcs11-store
+fi
 echo "--- Environment preparation complete ---"
 
 
@@ -27,11 +31,11 @@ echo "--- Environment preparation complete ---"
 EXEC_CMD=("$@")
 UNSEALED_PIN=""
 
-# --- Integration Point: TPM Unsealing Logic ---
-if [ "$1" = 'bao' ] && [ "$2" = 'server' ]; then
-    echo "--- [UNSEAL LOGIC] Condition met. Attempting to unseal SoftHSM PIN from TPM... ---"
+# --- Integration Point: Always attempt TPM Unsealing Logic ---
+# This logic now runs for any 'bao' command, not just 'bao server'.
+if [ "$1" = 'bao' ]; then
+    echo "--- [UNSEAL LOGIC] 'bao' command detected. Attempting to unseal SoftHSM PIN from TPM... ---"
     
-    # THE FIX: Re-added the missing command to ensure /tmp exists.
     mkdir -p /tmp
     
     STORE_DIR="${TPM2_PKCS11_STORE:?TPM2_PKCS11_STORE variable not set}"
@@ -66,26 +70,19 @@ fi
 echo "Starting OpenBao process..."
 SOFTHSM2_CONF="/pkcs11-store/softhsm2.conf"
 
+# Prepare the environment with the unsealed PIN if available
+if [ -n "${UNSEALED_PIN}" ]; then
+    echo "✅ Exporting BAO_HSM_PIN for the upcoming command."
+    export BAO_HSM_PIN="${UNSEALED_PIN}"
+    export SOFTHSM2_CONF
+fi
+
 if [ "$(id -u)" = '0' ] && [ -z "$BAO_SKIP_DROP_ROOT" ]; then
-    if [ -n "${UNSEALED_PIN}" ]; then
-        echo "✅ Executing as 'openbao' user with the unsealed PIN."
-        exec su-exec openbao env \
-            SOFTHSM2_CONF="${SOFTHSM2_CONF}" \
-            BAO_HSM_PIN="${UNSEALED_PIN}" \
-            "${EXEC_CMD[@]}"
-    else
-        echo "❌ Executing as 'openbao' user WITHOUT the unsealed PIN. This will fail if seal is pkcs11."
-        exec su-exec openbao "${EXEC_CMD[@]}"
-    fi
+    # We are root, drop to the 'openbao' user
+    echo "✅ Executing as 'openbao' user."
+    exec su-exec openbao "${EXEC_CMD[@]}"
 else
-    if [ -n "${UNSEALED_PIN}" ]; then
-        echo "✅ Executing as current user with the unsealed PIN."
-        exec env \
-            SOFTHSM2_CONF="${SOFTHSM2_CONF}" \
-            BAO_HSM_PIN="${UNSEALED_PIN}" \
-            "${EXEC_CMD[@]}"
-    else
-        echo "❌ Executing as current user WITHOUT the unsealed PIN. This will fail if seal is pkcs11."
-        exec "${EXEC_CMD[@]}"
-    fi
+    # We are not root, execute as the current user
+    echo "✅ Executing as current user."
+    exec "${EXEC_CMD[@]}"
 fi
