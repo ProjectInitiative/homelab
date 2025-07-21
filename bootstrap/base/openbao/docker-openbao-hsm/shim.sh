@@ -25,6 +25,8 @@ if [ "$1" = "-ec" ]; then
     # Create the necessary directory and the symbolic link.
     # mkdir -p is already idempotent (it does nothing if the dir exists).
     mkdir -p /usr/local/bin
+
+    mkdir -p /tmp
     
     # -s for symbolic, -f for force (overwrite if exists).
     echo "INFO: [shim.sh] Creating/updating symlink from $EXPECTED_PATH -> $REAL_ENTRYPOINT_PATH"
