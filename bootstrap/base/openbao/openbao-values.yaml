@@ -21,7 +21,7 @@ server:
         supplementalGroups: [995]
 
   readinessProbe:
-    enabled: false
+    enabled: true
 
   standalone:
     enabled: false
@@ -39,9 +39,9 @@ server:
         }
         storage "raft" {
           path = "/openbao/data"
-          # retry_join { leader_api_addr = "http://openbao-0.openbao-internal:8200" }
-          # retry_join { leader_api_addr = "http://openbao-1.openbao-internal:8200" }
-          # retry_join { leader_api_addr = "http://openbao-2.openbao-internal:8200" }
+          retry_join { leader_api_addr = "http://openbao-0.openbao-internal:8200" }
+          retry_join { leader_api_addr = "http://openbao-1.openbao-internal:8200" }
+          retry_join { leader_api_addr = "http://openbao-2.openbao-internal:8200" }
         }
         seal "pkcs11" {
           lib = "/usr/lib/libsofthsm2.so"
@@ -57,9 +57,6 @@ server:
 
   # Define all volumes required by the containers
   volumes:
-    - name: pkcs11-store
-      persistentVolumeClaim:
-        claimName: pkcs11-store
     # Add the fapi-config ConfigMap as a volume
     - name: fapi-config-volume
       configMap:
@@ -67,8 +64,10 @@ server:
 
   # Mount the volumes into the main 'openbao' container
   volumeMounts:
-    - name: pkcs11-store
+    - name: data
       mountPath: /pkcs11-store
+      subPath: pkcs11-data 
+
     # Mount the fapi-config.json file into the expected path
     - name: fapi-config-volume
       mountPath: /config/fapi-config.json
@@ -104,8 +103,9 @@ server:
         - name: TSS2_FAPICONF
           value: "/config/fapi-config.json"
       volumeMounts:
-        - name: pkcs11-store
+        - name: data
           mountPath: /pkcs11-store
+          subPath: pkcs11-data 
         - name: fapi-config-volume
           mountPath: /config/fapi-config.json
           subPath: fapi-config.json
