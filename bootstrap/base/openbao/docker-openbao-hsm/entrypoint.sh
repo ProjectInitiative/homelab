@@ -17,9 +17,9 @@ ulimit -c 0
 TSS2_TCTI="${TSS2_TCTI:?TSS2_TCTI environment variable not set}"
 export TSS2_TCTI
 
-# --- FIX: Unconditional, Verbose Permission Fix ---
 echo "--- Preparing Environment as root ---"
-chown -R openbao:openbao /openbao /pkcs11-store
+echo "Changing ownership of writeable data directories..."
+chown -R openbao:openbao /openbao/data /openbao/logs /pkcs11-store
 echo "--- Environment preparation complete ---"
 
 
