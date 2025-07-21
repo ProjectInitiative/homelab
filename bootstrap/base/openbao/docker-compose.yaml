@@ -7,7 +7,7 @@ services:
     ports:
       - "8200:8200"
     entrypoint: /bin/sh
-    command: -ec "openbao server -config=/openbao/config/bao.hcl"
+    command: -ec "/usr/local/bin/docker-entrypoint.sh bao server -config=/openbao/config/bao.hcl"
 
     environment:
       - TPM2_PKCS11_STORE=/pkcs11-store
