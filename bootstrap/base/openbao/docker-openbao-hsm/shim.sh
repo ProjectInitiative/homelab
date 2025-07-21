@@ -23,10 +23,12 @@ if [ "$1" = "-ec" ]; then
     fi
 
     # Create the necessary directory and the symbolic link.
-    # This makes the absolute path call succeed by redirecting it to our script.
-    echo "INFO: [shim.sh] Creating symlink from $EXPECTED_PATH -> $REAL_ENTRYPOINT_PATH"
+    # mkdir -p is already idempotent (it does nothing if the dir exists).
     mkdir -p /usr/local/bin
-    ln -s "$REAL_ENTRYPOINT_PATH" "$EXPECTED_PATH"
+    
+    # -s for symbolic, -f for force (overwrite if exists).
+    echo "INFO: [shim.sh] Creating/updating symlink from $EXPECTED_PATH -> $REAL_ENTRYPOINT_PATH"
+    ln -sf "$REAL_ENTRYPOINT_PATH" "$EXPECTED_PATH"
 
     # Execute the original, unmodified command string.
     echo "INFO: [shim.sh] Setup complete. Executing original command string..."
