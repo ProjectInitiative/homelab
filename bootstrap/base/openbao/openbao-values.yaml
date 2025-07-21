@@ -20,6 +20,9 @@ server:
         # group ID on host for tss
         supplementalGroups: [995]
 
+  readinessProbe:
+    enabled: false
+
   standalone:
     enabled: false
   ha:
