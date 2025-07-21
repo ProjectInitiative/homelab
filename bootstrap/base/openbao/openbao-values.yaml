@@ -20,27 +20,6 @@ server:
         # group ID on host for tss
         supplementalGroups: [995]
 
-  readinessProbe:
-    enabled: true
-    # command:
-    #   - /bin/sh
-    #   - -ec
-    #   - 'RESULT=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8200/v1/sys/health); [ "$RESULT" = "501" ] || [ "$RESULT" = "429" ] || [ "$RESULT" = "200" ]'
-    command:
-      - /bin/sh
-      - -ec
-      - |
-        # Use curl to check the health endpoint.
-        # The '-f' flag makes curl exit with an error on server errors (5xx).
-        # This probe will SUCCEED for an uninitialized node (which returns 501)
-        # or a standby node (which returns 429), allowing the StatefulSet to proceed.
-        curl -sf http://127.0.0.1:8200/v1/sys/health
-
-  # Disable the liveness and startup probes during bootstrap
-  livenessProbe:
-    enabled: false
-  startupProbe:
-    enabled: false
 
   standalone:
     enabled: false
@@ -58,9 +37,6 @@ server:
         }
         storage "raft" {
           path = "/openbao/data"
-          retry_join { leader_api_addr = "http://openbao-0.openbao-internal.openbao.svc.cluster.local:8200" }
-          retry_join { leader_api_addr = "http://openbao-1.openbao-internal.openbao.svc.cluster.local:8200" }
-          retry_join { leader_api_addr = "http://openbao-2.openbao-internal.openbao.svc.cluster.local:8200" }
         }
         seal "pkcs11" {
           lib = "/usr/lib/libsofthsm2.so"
