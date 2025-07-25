@@ -1,4 +1,4 @@
 # overlays/main-cluster/resources/garage-nvme-values.yaml
 persistence:
   meta:
-    storageClass: "local-path-nvme-sticky"
+    storageClass: "host-local-path-nvme-sticky"

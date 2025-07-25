@@ -23,6 +23,7 @@ spec:
                       "paths": [
                         "/mnt/local-provisioner",
                         "/mnt/local-provisioner/nvme-cache"
+                        "/opt/local-provisioner/"
                       ]
                     }
                   ]
