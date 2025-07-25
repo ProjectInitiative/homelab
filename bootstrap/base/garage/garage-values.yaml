@@ -32,7 +32,7 @@ garage:
 
     block_size = "{{ .Values.garage.blockSize }}"
 
-    block_ram_buffer_max = "5120"
+    block_ram_buffer_max = "5120MiB"
 
     replication_factor = {{ .Values.garage.replicationFactor }}
     consistency_mode = "{{ .Values.garage.consistencyMode }}"
