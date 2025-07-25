@@ -3,7 +3,7 @@ garage:
   # These values are referenced by the garageTomlString template below.
   replicationFactor: 3
   consistencyMode: "consistent"
-  metadataAutoSnapshotInterval: "24 hours"
+  # metadataAutoSnapshotInterval: "24 hours"
   dbEngine: "lmdb"
   blockSize: "2M"
   # underlying storage handles this
