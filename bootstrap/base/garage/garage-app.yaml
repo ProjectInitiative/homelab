@@ -35,7 +35,7 @@ spec:
   syncPolicy:
     automated:
       prune: true
-      selfHeal: false
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true # Namespace created by core-namespaces
       # ServerSideApply is typically handled by Helm now.
