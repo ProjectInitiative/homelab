@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dnsutils-tailscale
+  namespace: dnsutils
+  annotations:
+    tailscale.com/expose: "true"
+    tailscale.com/hostname: "dnsutils"
+spec:
+  type: LoadBalancer
+  selector:
+    app: dnsutils
+  ports:
+    - protocol: TCP
+      port: 5201
+      targetPort: 5201
+      name: iperf3
