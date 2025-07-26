@@ -3,4 +3,4 @@ kind: Kustomization
 resources:
   - dnsutils-daemonset.yaml
   - nodeport-service.yaml
-  - tailscale-loadbalancer.yaml
+  # - tailscale-loadbalancer.yaml
