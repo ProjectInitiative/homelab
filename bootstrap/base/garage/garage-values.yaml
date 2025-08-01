@@ -91,6 +91,12 @@ persistence:
     storageClass: "local-path-sticky"
     size: 1024Gi
 
+monitoring:
+  metrics:
+    enabled: true
+    serviceMonitor: # for prometheus operator
+      enabled: true 
+
 # ingress:
 #   s3:
 #     api:
