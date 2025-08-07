@@ -26,3 +26,20 @@ spec:
       #   - mountPath: /usr/src/linux-headers-6.1.84-6-rk2410
       #     name: kbuild-tools
       #     readOnly: true
+      volumes:
+        - name: drbd-from-host
+          hostPath:
+            # This path points to the NixOS system's software directory
+            path: /run/current-system/sw
+            type: Directory
+      containers:
+        - name: piraeus-satellite
+          volumeMounts:
+            - name: drbd-from-host
+              mountPath: /nix-host-sw
+              readOnly: true
+          env:
+            - name: PATH
+              # Prepend the host's binary paths to the container's PATH
+              value: /nix-host-sw/bin:/nix-host-sw/sbin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
