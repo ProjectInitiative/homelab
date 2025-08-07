@@ -6,3 +6,10 @@ resources:
   - linstor-cluster.yaml
   - linstor-satellite-config.yaml
   - piraeus-storageclass.yaml
+
+patches:
+  - path: ha-controller-patch.yaml
+    target:
+      kind: DaemonSet
+      name: ha-controller
+      namespace: piraeus-datastore

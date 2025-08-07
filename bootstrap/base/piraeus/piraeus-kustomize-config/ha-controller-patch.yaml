@@ -1,0 +1,23 @@
+# bootstrap/base/piraeus/piraeus-kustomize-config/ha-controller-patch.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: ha-controller
+  namespace: piraeus-datastore
+spec:
+  template:
+    spec:
+      volumes:
+        - name: drbd-from-host
+          hostPath:
+            path: /run/current-system/sw
+            type: Directory
+      containers:
+        - name: ha-controller
+          volumeMounts:
+            - name: drbd-from-host
+              mountPath: /nix-host-sw
+              readOnly: true
+          env:
+            - name: PATH
+              value: /nix-host-sw/bin:/nix-host-sw/sbin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
