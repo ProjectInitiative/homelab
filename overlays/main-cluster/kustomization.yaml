@@ -11,7 +11,7 @@ resources:
   - ../../bootstrap/base/openbao
   - ../../bootstrap/base/cnpg
   - ../../bootstrap/base/garage
-  - ../../bootstrap/mc/garage-mem
+  # - ../../bootstrap/mc/garage-mem
   - ../../bootstrap/mc/lpp
 
   # --- Regular Apps ---
