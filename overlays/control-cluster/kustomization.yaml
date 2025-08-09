@@ -5,7 +5,7 @@ kind: Kustomization
 resources:
   # --- Bootstrap Apps ---
   - ../../bootstrap/base/local-path-provisioner
-  - ../../bootstrap/base/piraeus
+  # - ../../bootstrap/base/piraeus
   - ../../bootstrap/base/olm
   - ../../bootstrap/base/cnpg
   # - ../../bootstrap/base/openbao

@@ -7,7 +7,7 @@ resources:
   - ../../bootstrap/mc/kube-vip
   - ../../bootstrap/base/local-path-provisioner
   - ../../bootstrap/base/tpm-device-plugin
-  - ../../bootstrap/base/piraeus
+  # - ../../bootstrap/base/piraeus
   - ../../bootstrap/base/openbao
   - ../../bootstrap/base/cnpg
   - ../../bootstrap/base/garage
