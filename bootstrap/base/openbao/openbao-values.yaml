@@ -8,7 +8,7 @@ server:
   # the entrypoint script for sourcing the unseal key from the sidecar.
   image:
     registry: "ghcr.io/projectinitiative"
-    repository: "openbao-main"
+    repository: "openbao-with-seal-support"
     tag: "latest" # Or a specific version tag
     pullPolicy: Always
 
