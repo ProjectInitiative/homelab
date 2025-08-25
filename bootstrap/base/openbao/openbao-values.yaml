@@ -16,6 +16,13 @@ server:
   # as the sidecar handles all TPM operations.
   resources: {}
 
+  # Add a security context to the pod to grant access to the TPM device.
+  # The `tss` group (often GID 995) typically owns the /dev/tpmrm0 device.
+  statefulSet:
+    securityContext:
+      pod:
+        supplementalGroups: [995]
+
   # HA is required for this setup.
   standalone:
     enabled: false
