@@ -1,26 +1,22 @@
 # Values for a HA OpenBao cluster with Raft storage and TPM-based auto-unseal.
+# This file is designed to be used with the official OpenBao Helm chart.
+# It replaces the default container images and adds the necessary init and sidecar
+# containers to enable TPM-based auto-unsealing using the bootstrap + sidecar pattern.
 
 server:
+  # Replace the default OpenBao image with our custom-built image that includes
+  # the entrypoint script for sourcing the unseal key from the sidecar.
   image:
     registry: "ghcr.io/projectinitiative"
-    repository: "openbao-hsm"
-    tag: "latest"
+    repository: "openbao-main"
+    tag: "latest" # Or a specific version tag
     pullPolicy: Always
 
-  # The openbao container requests the TPM device as a resource
-  resources:
-    limits:
-      squat.ai/tpm: 1
-    requests:
-      squat.ai/tpm: 1
+  # The main openbao container does NOT need direct access to the TPM device,
+  # as the sidecar handles all TPM operations.
+  resources: {}
 
-  statefulSet:
-    securityContext:
-      pod:
-        # group ID on host for tss
-        supplementalGroups: [995]
-
-
+  # HA is required for this setup.
   standalone:
     enabled: false
   ha:
@@ -28,93 +24,127 @@ server:
     replicas: 3
     raft:
       enabled: true
+      # This configuration is loaded by the main OpenBao container.
+      # The `seal "aes-gcm"` block is activated by the BAO_SEAL_KEY environment
+      # variable, which is injected by the sidecar via the shared /shared/openbao.env file.
       config: |
         ui = true
+        
         listener "tcp" {
           tls_disable     = true
           address         = "[::]:8200"
           cluster_address = "[::]:8201"
         }
+        
         storage "raft" {
           path = "/openbao/data"
+          retry_join {
+            leader_api_addr = "http://openbao-0.openbao-internal:8200"
+          }
+          retry_join {
+            leader_api_addr = "http://openbao-1.openbao-internal:8200"
+          }
+          retry_join {
+            leader_api_addr = "http://openbao-2.openbao-internal:8200"
+          }
         }
-        seal "pkcs11" {
-          lib = "/usr/lib/libsofthsm2.so"
-          token_label = "openbao-token"
-          key_label   = "openbao-unseal-key"
-          rsa_oaep_hash = "sha1"
+        
+        # This seal is activated by the `BAO_SEAL_KEY` environment variable,
+        # which is provided by the unsealer-sidecar.
+        seal "aes-gcm" {
+          # Key is provided by the sidecar via an environment variable
         }
 
+  # A persistent volume is required to store the TPM-encrypted seal key.
   dataStorage:
     enabled: true
-    size: 10Gi
+    size: 1Gi
+    # Use a storage class that ensures pod-to-volume affinity, as the
+    # encrypted key is tied to a specific node's TPM.
     storageClass: "local-path-sticky"
 
-  # Define all volumes required by the containers
+  # Define all volumes required by the containers.
   volumes:
-    # Add the fapi-config ConfigMap as a volume
-    - name: fapi-config-volume
-      configMap:
-        name: fapi-config
+    # This volume stores the TPM-encrypted key and metadata.
+    # It is shared between the init container and the sidecar.
+    - name: pkcs11-store
+      persistentVolumeClaim:
+        claimName: data-openbao-server-0 # This will need to be adapted for a statefulset
+    
+    # This volume holds the initial bootstrap seal key, mounted from a Kubernetes secret.
+    # It is only used by the bootstrap-init container.
+    - name: bootstrap-secret-volume
+      secret:
+        secretName: openbao-bootstrap-seal-key
+        optional: true # Set to optional so the pod can start after the secret is deleted.
 
-  # Mount the volumes into the main 'openbao' container
+    # This is an in-memory volume used for the sidecar to communicate the
+    # decrypted seal key to the main OpenBao container.
+    - name: shared-env
+      emptyDir: {}
+
+  # Mount the necessary volumes into the main 'openbao' container.
   volumeMounts:
-    - name: data
-      mountPath: /pkcs11-store
-      subPath: pkcs11-data 
+    # The main container needs access to the shared environment file
+    # written by the sidecar.
+    - name: shared-env
+      mountPath: /shared
 
-    # Mount the fapi-config.json file into the expected path
-    - name: fapi-config-volume
-      mountPath: /config/fapi-config.json
-      subPath: fapi-config.json
-      readOnly: true
+  # No extra environment variables are needed for the main container.
+  # The custom entrypoint handles sourcing the /shared/openbao.env file.
+  extraEnvironmentVars: {}
 
-  # This is the correct location for init containers
+  # The bootstrap-init container runs once per node to encrypt and store the seal key.
   extraInitContainers:
-    - name: pkcs11-init
-      image: "ghcr.io/projectinitiative/tpm2_pkcs11-init:latest"
-      imagePullPolicy: IfNotPresent
+    - name: bootstrap-init
+      image: "ghcr.io/projectinitiative/openbao-bootstrap-init:latest"
+      imagePullPolicy: Always
       env:
-        - name: SO_PIN
-          valueFrom:
-            secretKeyRef:
-              name: openbao-unseal-pin
-              key: pin
-        - name: USER_PIN
-          valueFrom:
-            secretKeyRef:
-              name: openbao-unseal-pin
-              key: pin
-        - name: TOKEN_NAME
-          value: "openbao-token"
-        - name: KEY_LABEL
-          value: "openbao-unseal-key"
-        - name: FAPI_PROFILE_DIR
-          value: "/pkcs11-store/fapi-profiles"
         - name: TPM2_PKCS11_STORE
           value: "/pkcs11-store"
         - name: TSS2_TCTI
           value: "device:/dev/tpmrm0"
-        - name: TSS2_FAPICONF
-          value: "/config/fapi-config.json"
       volumeMounts:
-        - name: data
+        - name: pkcs11-store
           mountPath: /pkcs11-store
-          subPath: pkcs11-data 
-        - name: fapi-config-volume
-          mountPath: /config/fapi-config.json
-          subPath: fapi-config.json
+        - name: bootstrap-secret-volume
+          mountPath: /bootstrap-secret
           readOnly: true
-      # The init container now requests the TPM device as a resource
+      # The init container requires access to the TPM device.
       resources:
         limits:
           squat.ai/tpm: 1
         requests:
           squat.ai/tpm: 1
 
-  # Environment variables for the main container
-  extraEnvironmentVars:
-    TSS2_TCTI: "device:/dev/tpmrm0"
-    TPM2_PKCS11_STORE: "/pkcs11-store"
-    # This tells OpenBao where to find the FAPI config file we just mounted
-    TSS2_FAPICONF: "/config/fapi-config.json"
+  # The unsealer-sidecar runs alongside OpenBao to decrypt the key and monitor health.
+  extraContainers:
+    - name: unsealer-sidecar
+      image: "ghcr.io/projectinitiative/openbao-unsealer-sidecar:latest"
+      imagePullPolicy: Always
+      env:
+        - name: VAULT_ADDR
+          value: "http://localhost:8200"
+        - name: TPM2_PKCS11_STORE
+          value: "/pkcs11-store"
+        - name: TSS2_TCTI
+          value: "device:/dev/tpmrm0"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+      volumeMounts:
+        - name: pkcs11-store
+          mountPath: /pkcs11-store
+        - name: shared-env
+          mountPath: /shared
+      # The sidecar requires access to the TPM device.
+      resources:
+        limits:
+          squat.ai/tpm: 1
+        requests:
+          squat.ai/tpm: 1
