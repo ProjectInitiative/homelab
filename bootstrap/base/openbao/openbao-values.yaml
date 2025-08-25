@@ -65,11 +65,8 @@ server:
 
   # Define all volumes required by the containers.
   volumes:
-    # This volume stores the TPM-encrypted key and metadata.
-    # It is shared between the init container and the sidecar.
-    - name: pkcs11-store
-      persistentVolumeClaim:
-        claimName: data-openbao-server-0 # This will need to be adapted for a statefulset
+    # --- REMOVED THE STATIC pkcs11-store VOLUME DEFINITION ---
+    # We will now use a subPath on the main 'data' volume.
     
     # This volume holds the initial bootstrap seal key, mounted from a Kubernetes secret.
     # It is only used by the bootstrap-init container.
@@ -105,8 +102,11 @@ server:
         - name: TSS2_TCTI
           value: "device:/dev/tpmrm0"
       volumeMounts:
-        - name: pkcs11-store
+        # --- CHANGED ---
+        # Mount a subPath from the main 'data' PVC created by the StatefulSet
+        - name: data
           mountPath: /pkcs11-store
+          subPath: pkcs11-store
         - name: bootstrap-secret-volume
           mountPath: /bootstrap-secret
           readOnly: true
@@ -138,8 +138,10 @@ server:
             fieldRef:
               fieldPath: metadata.namespace
       volumeMounts:
-        - name: pkcs11-store
+        # Mount a subPath from the main 'data' PVC created by the StatefulSet
+        - name: data
           mountPath: /pkcs11-store
+          subPath: pkcs11-store
         - name: shared-env
           mountPath: /shared
       # The sidecar requires access to the TPM device.
