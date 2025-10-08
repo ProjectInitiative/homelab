@@ -17,7 +17,7 @@ data:
       s3:
         region: garage
         regionendpoint: http://garage.garage.svc.cluster.local:3900
-        bucket: docker
+        bucket: docker-dev
         secure: false
         v4auth: true
         rootdirectory: /
