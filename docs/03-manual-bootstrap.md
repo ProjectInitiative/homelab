@@ -4,6 +4,54 @@ This is the most critical phase for the security and recoverability of your PKI.
 
 ## Steps
 
+
+
+```bash
+mkdir -p $HOME/.step
+openssl rand -base64 32 > $HOME/.step/root-ca-password.txt
+openssl rand -base64 32 > $HOME/.step/intermediate-ca-password.txt
+
+step ca init --name="moonwake" --dns="moonwake.io,step-certificates.default.svc.cluster.local" \
+  --address=":9000" --provisioner="admin" \
+  --password-file=$HOME/.step/root-ca-password.txt \
+  --provisioner-password-file=$HOME/.step/intermediate-ca-password.txt
+```
+
+```bash
+kubectl create secret generic step-certificates-secrets -n step-ca --from-file=intermediate_ca_key=$HOME/.step/secrets/intermediate_ca_key 
+
+kubectl create secret generic step-certificates-ca-password -n step-ca --type=smallstep.com/ca-password --from-file=password=$HOME/.step/secrets/intermediate-ca-password.txt
+```
+
+TODO: create certs as secret config
+
+
+make these changes to CA
+```json
+      "logger": { "format": "json" },
+      "db": {
+        "type": "postgresql",
+        "datasource": "postgresql://stepca_user@main-postgres-cluster-rw.postgres-db.svc.cluster.local:5432/",
+        "database": "stepca"
+      },
+
+```
+
+TODO: create secret config
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 1.  **Generate Passwords:**
     Generate strong, random passwords for the root key and the intermediate key. Store these securely in a password manager.
 

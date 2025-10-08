@@ -17,6 +17,7 @@ resources:
   # --- Regular Apps ---
   # - ../../apps/base/gitea
   - ../../apps/base/dnsutils
+  - ../../apps/base/docker-registry
 
 # 2. Apply ONE common patch to ALL of them.
 patches:

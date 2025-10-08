@@ -74,20 +74,20 @@ Create a single file named `openbao-unseal-cluster.yaml` containing all the nece
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: openbao-unseal-config
+  name: openbao-config
 data:
   bao.hcl: |
     storage "raft" {
       path = "/bao/data"
-      retry_join { leader_api_addr = "http://openbao-unseal-0.openbao-unseal-headless:8200" }
-      retry_join { leader_api_addr = "http://openbao-unseal-1.openbao-unseal-headless:8200" }
-      retry_join { leader_api_addr = "http://openbao-unseal-2.openbao-unseal-headless:8200" }
+      retry_join { leader_api_addr = "http://openbao-0.openbao-headless:8200" }
+      retry_join { leader_api_addr = "http://openbao-1.openbao-headless:8200" }
+      retry_join { leader_api_addr = "http://openbao-2.openbao-headless:8200" }
     }
     seal "pkcs11" {
-      lib           = "/usr/lib/libtpm2_pkcs11.so"
-      token_label   = "openbao-unseal-token"
-      pin           = env("BAO_PKCS11_PIN") # Use environment variable for the PIN
-      key_label     = "openbao-unseal-cluster-key"
+      lib         = "/usr/lib/libtpm2_pkcs11.so"
+      token_label = "openbao-token"
+      pin         = env("BAO_HSM_PIN")
+      key_label   = "openbao-unseal-key"
     }
     listener "tcp" {
       address         = "0.0.0.0:8200"
@@ -100,24 +100,24 @@ data:
 apiVersion: v1
 kind: Service
 metadata:
-  name: openbao-unseal-headless
+  name: openbao-headless
 spec:
   clusterIP: None
   selector:
-    app: openbao-unseal
+    app: openbao
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: openbao-unseal
+  name: openbao
 spec:
   selector:
     matchLabels:
-      app: openbao-unseal
+      app: openbao
   template:
     metadata:
       labels:
-        app: openbao-unseal
+        app: openbao
     spec:
       containers:
       - name: openbao
@@ -126,24 +126,45 @@ spec:
         ports:
         - containerPort: 8200
         env:
-        - name: BAO_PKCS11_PIN # Inject the PIN from the k8s secret
+        - name: BAO_HSM_PIN
           valueFrom:
             secretKeyRef:
               name: openbao-unseal-pin
               key: pin
+        # This variable tells the pkcs11 library how to connect to the TPM device
+        - name: TPM2_PKCS11_TCTI
+          value: "device:/dev/tpmrm0"
         volumeMounts:
         - name: config
           mountPath: /bao/config
-        - name: tpm-socket
-          mountPath: /var/run/tpm2-abrmd/tpm2-abrmd.sock
+        - name: data
+          mountPath: /bao/data
+        # Mount the TPM device directly into the container
+        - name: tpm-device
+          mountPath: /dev/tpmrm0
+        # Mount the pkcs11 library from the NixOS host
+        - name: pkcs11-lib
+          mountPath: /usr/lib/libtpm2_pkcs11.so
+          readOnly: true
       volumes:
       - name: config
         configMap:
-          name: openbao-unseal-config
-      - name: tpm-socket
+          name: openbao-config
+      - name: data
         hostPath:
-          path: /var/run/tpm2-abrmd/tpm2-abrmd.sock
-          type: Socket
+          path: /var/lib/openbao
+          type: DirectoryOrCreate
+      # Define the hostPath for the TPM device
+      - name: tpm-device
+        hostPath:
+          path: /dev/tpmrm0
+          type: CharDevice
+      # Define the hostPath for the pkcs11 library
+      - name: pkcs11-lib
+        hostPath:
+          path: /run/current-system/sw/lib/libtpm2_pkcs11.so
+          type: File
+
 ```
 
 Once both the encrypted secret and this deployment file are in Git, Argo CD will sync them. The cluster will start, and the pods will auto-unseal using their local TPMs. You can then run `kubectl exec -ti <pod-name> -- bao operator init` to perform the one-time initialization of the Raft cluster.
