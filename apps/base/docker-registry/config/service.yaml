@@ -12,3 +12,18 @@ spec:
     protocol: TCP
     name: http
   type: ClusterIP
+---
+apiVersion: v1
+kind: service
+metadata:
+  name: local-registry-nodeport
+  namespace: registry
+spec:
+  selector:
+    app: local-registry
+  type: NodePort
+  ports:
+  - name: docker registry
+    port: 5000
+    targetPort: 5000
+
