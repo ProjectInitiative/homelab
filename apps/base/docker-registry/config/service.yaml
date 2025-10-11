@@ -14,7 +14,7 @@ spec:
   type: ClusterIP
 ---
 apiVersion: v1
-kind: service
+kind: Service
 metadata:
   name: local-registry-nodeport
   namespace: registry
