@@ -23,7 +23,7 @@ spec:
     app: local-registry
   type: NodePort
   ports:
-  - name: docker registry
+  - name: docker-registry
     port: 5000
     targetPort: 5000
 
