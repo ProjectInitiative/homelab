@@ -15,7 +15,7 @@ data:
         X-Content-Type-Options: [nosniff]
     storage:
       s3:
-        region: garage
+        region: us-east-1
         regionendpoint: http://garage.garage.svc.cluster.local:3900
         bucket: docker-dev
         secure: false
