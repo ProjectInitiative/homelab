@@ -7,7 +7,8 @@ server:
   # Replace the default OpenBao image with our custom-built image that includes
   # the entrypoint script for sourcing the unseal key from the sidecar.
   image:
-    registry: "ghcr.io/projectinitiative"
+    # registry: "ghcr.io/projectinitiative"
+    registry: "172.16.1.50:31872"
     repository: "openbao-with-seal-support"
     tag: "latest" # Or a specific version tag
     pullPolicy: Always
