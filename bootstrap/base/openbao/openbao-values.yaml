@@ -103,7 +103,8 @@ server:
   # The bootstrap-init container runs once per node to encrypt and store the seal key.
   extraInitContainers:
     - name: bootstrap-init
-      image: "ghcr.io/projectinitiative/openbao-bootstrap-init:latest"
+      # image: "ghcr.io/projectinitiative/openbao-bootstrap-init:latest"
+      image: "172.16.1.50:31872/openbao-bootstrap-init:latest"
       imagePullPolicy: Always
       env:
         - name: TPM2_PKCS11_STORE
@@ -129,7 +130,8 @@ server:
   # The unsealer-sidecar runs alongside OpenBao to decrypt the key and monitor health.
   extraContainers:
     - name: unsealer-sidecar
-      image: "ghcr.io/projectinitiative/openbao-unsealer-sidecar:latest"
+      # image: "ghcr.io/projectinitiative/openbao-unsealer-sidecar:latest"
+      image: "172.16.1.50:31872/openbao-unsealer-sidecar:latest"
       imagePullPolicy: Always
       env:
         - name: VAULT_ADDR
