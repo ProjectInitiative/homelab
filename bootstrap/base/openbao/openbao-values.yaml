@@ -61,7 +61,8 @@ server:
         # which is provided by the unsealer-sidecar.
         seal "static" {
           current_key_id = "tpm-seal-key-1"
-          current_key = "env://BAO_SEAL_KEY?encoding=base64"
+          current_key = "file:///tmp/bao_seal_key"
+          # current_key = "env://BAO_SEAL_KEY?encoding=base64"
         }
 
   # A persistent volume is required to store the TPM-encrypted seal key.
