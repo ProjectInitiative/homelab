@@ -6,11 +6,23 @@ resources:
   # --- Bootstrap Apps ---
   - ../../bootstrap/base/local-path-provisioner
   # - ../../bootstrap/base/piraeus
-  - ../../bootstrap/base/olm
+  # - ../../bootstrap/base/olm
   - ../../bootstrap/base/cnpg
   # - ../../bootstrap/base/openbao
   - ../../bootstrap/base/cert-manager
-  - ../../bootstrap/base/medik8s
+  # - ../../bootstrap/base/vault-secrets-operator
+  # - ../../bootstrap/base/step-ca
+  # - ../../bootstrap/base/istio-cluster-b
+  # - ../../bootstrap/base/istio-remote-secret-for-b
+  # - ../../bootstrap/base/istio-install
+
+# patches:
+#   - path: patches/patch-istiod-app-for-cluster-b.yaml
+#     target:
+#       kind: Application
+#       name: istiod
+
+  # - ../../bootstrap/base/medik8s
 
   # --- Regular Apps ---
   # - ../../apps/base/gitea
