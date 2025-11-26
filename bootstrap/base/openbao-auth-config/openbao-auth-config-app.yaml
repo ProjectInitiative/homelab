@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/kylepzak/homelab.git
+    repoURL: https://github.com/projectinitiative/homelab.git
     targetRevision: HEAD
     path: bootstrap/base/openbao-auth-config/config
   destination:
