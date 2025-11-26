@@ -10,7 +10,8 @@ resources:
   # - ../../bootstrap/base/cnpg
   # - ../../bootstrap/base/openbao
   - ../../bootstrap/base/cert-manager
-  # - ../../bootstrap/base/vault-secrets-operator
+  - ../../bootstrap/base/openbao-auth-config
+  - ../../bootstrap/base/openbao-secrets-operator
   # - ../../bootstrap/base/step-ca
   # - ../../bootstrap/base/istio-cluster-b
   # - ../../bootstrap/base/istio-remote-secret-for-b
@@ -27,9 +28,14 @@ resources:
   # --- Regular Apps ---
   # - ../../apps/base/gitea
   - ../../apps/base/dnsutils
+  - ../../apps/base/privateer
 
 # 2. Apply ONE common patch to ALL of them.
 patches:
+  - path: patches/patch-bso-for-cluster-cc.yaml
+    target:
+      kind: Application
+      name: openbao-secrets-operator
   - path: patches/set-destination.yaml
     target:
       group: argoproj.io

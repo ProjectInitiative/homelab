@@ -7,8 +7,14 @@ resources:
   - ../../bootstrap/mc/kube-vip
   - ../../bootstrap/base/local-path-provisioner
   - ../../bootstrap/base/tpm-device-plugin
+  # - ../../bootstrap/base/istio
+  # - ../../bootstrap/base/istio-remote-secret-for-a
+  # - ../../bootstrap/base/istio-install
+  # 
   # - ../../bootstrap/base/piraeus
   - ../../bootstrap/base/openbao
+  - ../../bootstrap/base/openbao-auth-config
+  - ../../bootstrap/base/openbao-secrets-operator
   - ../../bootstrap/base/cnpg
   - ../../bootstrap/base/garage
   # - ../../bootstrap/mc/garage-mem
@@ -44,4 +50,12 @@ patches:
       kind: Application
       name: garage
 
+  - path: patches/patch-bso-for-cluster-mc.yaml
+    target:
+      kind: Application
+      name: openbao-secrets-operator
 
+  # - path: patches/patch-istiod-app-for-cluster-a.yaml
+  #   target:
+  #     kind: Application
+  #     name: istiod

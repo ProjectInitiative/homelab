@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: garage-funnel
+  namespace: garage
+  annotations:
+    # 🌟 Enable Tailscale Funnel for public internet access
+    tailscale.com/funnel: "true" 
+spec:
+  ingressClassName: tailscale 
+  tls:
+    # This host will be used to generate the public Funnel URL (e.g., https://my-app.tailnet-name.ts.net)
+    - hosts:
+        - s3
+  rules:
+    - host: s3
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: garage # Your target Kubernetes Service
+                port:
+                  number: 3900 # The service port

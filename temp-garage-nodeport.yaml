@@ -1,0 +1,81 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: garage-s3-nodeport
+  namespace: garage
+spec:
+  # This is the important part
+  type: NodePort
+  ports:
+  - name: s3
+    # The port your new service will have inside the cluster
+    port: 3900
+    # The port on the Garage pod that traffic should be sent to
+    targetPort: 3900
+
+  - name: website
+    # The port your new service will have inside the cluster
+    port: 3902
+    # The port on the Garage pod that traffic should be sent to
+    targetPort: 3902
+    # You can optionally specify a nodePort here (e.g., nodePort: 30900)
+    # If you omit it, Kubernetes will assign a random one.
+  - name: metrics
+    # The port your new service will have inside the cluster
+    port: 3903
+    # The port on the Garage pod that traffic should be sent to
+    targetPort: 3903
+    # You can optionally specify a nodePort here (e.g., nodePort: 30900)
+    # If you omit it, Kubernetes will assign a random one.
+  #
+  # IMPORTANT: This must match the selector of your existing 'garage' service
+  # Find it by running: kubectl get svc garage -o yaml
+  #
+  selector:
+    # Replace this with the correct selector from your service
+    app.kubernetes.io/name: garage
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: garage-s3-tailscale
+  namespace: garage
+spec:
+  selector:
+    app.kubernetes.io/name: garage
+  ports:
+    - name: s3
+      protocol: TCP
+      port: 3900
+      targetPort: 3900
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: garage-s3-nodeport
+  namespace: garage-mem
+spec:
+  # This is the important part
+  type: NodePort
+  ports:
+  - name: s3
+    # The port your new service will have inside the cluster
+    port: 3900
+    # The port on the Garage pod that traffic should be sent to
+    targetPort: 3900
+  - name: website
+    # The port your new service will have inside the cluster
+    port: 3902
+    # The port on the Garage pod that traffic should be sent to
+    targetPort: 3902
+    # You can optionally specify a nodePort here (e.g., nodePort: 30900)
+    # If you omit it, Kubernetes will assign a random one.
+  #
+  # IMPORTANT: This must match the selector of your existing 'garage' service
+  # Find it by running: kubectl get svc garage -o yaml
+  #
+  selector:
+    # Replace this with the correct selector from your service
+    app.kubernetes.io/name: garage-mem

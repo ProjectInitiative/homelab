@@ -1,0 +1,10 @@
+- op: add
+  path: /spec/source/helm
+  value:
+    values: |
+      vault:
+        address: http://openbao.openbao:8200
+        auth:
+          method: kubernetes
+          path: kubernetes_cluster_mc
+          role: openbao-secrets-operator
