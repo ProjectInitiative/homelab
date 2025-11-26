@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/kylepzak/homelab.git
     targetRevision: HEAD
-    path: bootstrap/base/openbao-auth-config
+    path: bootstrap/base/openbao-auth-config/config
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system
