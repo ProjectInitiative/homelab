@@ -6,7 +6,7 @@ metadata:
   namespace: kube-system
 data:
   # This pool will be used for services in the "mgmnt-services" namespace
-  range-global=172.16.1.60-172.16.1.70
+  range-global: "172.16.1.60-172.16.1.70"
   # range-mgmnt-services: "172.16.1.50/32"
 
   # # This pool will be used for services in the "bond0-services" namespace
