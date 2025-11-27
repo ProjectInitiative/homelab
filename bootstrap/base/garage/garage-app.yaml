@@ -24,6 +24,12 @@ spec:
     server: https://kubernetes.default.svc
     namespace: garage
   ignoreDifferences:
+  - group: ""
+    kind: Secret
+    name: garage-rpc-secret
+    jsonPointers:
+    - /data/rpcSecret
+  ignoreDifferences:
   - group: apps
     kind: StatefulSet
     # Add jsonPointers to ignore status and timestamp for each PVC template

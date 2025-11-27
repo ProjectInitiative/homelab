@@ -28,7 +28,13 @@ spec:
       path: bootstrap/base/openbao/config
   destination:
     server: https://kubernetes.default.svc
-    namespace: openbao # Ensure this namespace is created first!
+    namespace: openbao
+  ignoreDifferences:
+  - group: admissionregistration.k8s.io
+    kind: MutatingWebhookConfiguration
+    name: openbao-agent-injector-cfg
+    jsonPointers:
+    - /webhooks/0/clientConfig/caBundle # Ensure this namespace is created first!
   syncPolicy:
     automated:
       prune: true
