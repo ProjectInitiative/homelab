@@ -19,12 +19,12 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: operator-oauth
-                  key: clientId
+                  key: client_id
             clientSecret:
               valueFrom:
                 secretKeyRef:
                   name: operator-oauth
-                  key: clientSecret
+                  key: client_secret
   destination:
     server: https://kubernetes.default.svc
     namespace: tailscale
