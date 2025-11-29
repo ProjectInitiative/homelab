@@ -8,7 +8,7 @@ spec:
   sources:
     - repoURL: https://pkgs.tailscale.com/helmcharts
       chart: tailscale-operator
-      targetRevision: 1.68.0
+      targetRevision: 1.90.9
       helm:
         values: |
           oauth:
