@@ -23,6 +23,7 @@ resources:
 
   # --- Regular Apps ---
   # - ../../apps/base/gitea
+  - ../../apps/base/tailscale-proxy-groups
   - ../../apps/base/temp-egress
   - ../../apps/base/dnsutils
   - ../../apps/base/docker-registry
@@ -56,6 +57,10 @@ patches:
     target:
       kind: Application
       name: openbao-secrets-operator
+  - path: patches/patch-tailscale-proxy-groups-path-mc.yaml
+    target:
+      kind: Application
+      name: tailscale-proxy-groups
 
   # - path: patches/patch-istiod-app-for-cluster-a.yaml
   #   target:

@@ -11,6 +11,8 @@ spec:
       targetRevision: 1.90.9
       helm:
         values: |
+          apiServerProxyConfig:
+            allowImpersonation: true
           oauth:
             clientId:
               valueFrom:
