@@ -9,6 +9,7 @@ resources:
   # - ../../bootstrap/base/olm
   # - ../../bootstrap/base/cnpg
   # - ../../bootstrap/base/openbao
+  - ../../bootstrap/base/tailscale-operator
   - ../../bootstrap/base/cert-manager
   - ../../bootstrap/base/openbao-auth-config
   - ../../bootstrap/base/openbao-secrets-operator

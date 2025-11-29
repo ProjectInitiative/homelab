@@ -12,6 +12,7 @@ resources:
   # - ../../bootstrap/base/istio-install
   # 
   # - ../../bootstrap/base/piraeus
+  - ../../bootstrap/base/tailscale-operator
   - ../../bootstrap/base/openbao
   - ../../bootstrap/base/openbao-auth-config
   - ../../bootstrap/base/openbao-secrets-operator
@@ -22,6 +23,7 @@ resources:
 
   # --- Regular Apps ---
   # - ../../apps/base/gitea
+  - ../../apps/base/temp-egress
   - ../../apps/base/dnsutils
   - ../../apps/base/docker-registry
 

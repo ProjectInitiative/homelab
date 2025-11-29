@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tailscale-operator
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://pkgs.tailscale.com/helmcharts
+      chart: tailscale-operator
+      targetRevision: 1.68.0
+      helm:
+        values: |
+          oauth:
+            clientId:
+              valueFrom:
+                secretKeyRef:
+                  name: tailscale-oauth
+                  key: clientId
+            clientSecret:
+              valueFrom:
+                secretKeyRef:
+                  name: tailscale-oauth
+                  key: clientSecret
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tailscale
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
