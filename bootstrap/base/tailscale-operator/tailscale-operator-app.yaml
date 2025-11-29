@@ -12,8 +12,8 @@ spec:
       helm:
         values: |
           apiServerProxyConfig:
-            mode: auth
-            allowImpersonation: true
+            mode: "auth"
+            allowImpersonation: "true"
           oauth:
             clientId:
               valueFrom:
