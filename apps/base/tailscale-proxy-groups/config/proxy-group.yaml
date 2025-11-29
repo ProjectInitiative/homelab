@@ -1,0 +1,10 @@
+apiVersion: tailscale.com/v1alpha1
+kind: ProxyGroup
+metadata:
+  name: placeholder-name
+spec:
+  type: kube-apiserver
+  replicas: 2
+  tags: ["placeholder-tag"]
+  kubeAPIServer:
+    mode: auth

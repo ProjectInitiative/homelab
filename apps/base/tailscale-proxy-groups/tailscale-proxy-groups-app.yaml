@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tailscale-proxy-groups
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/projectinitiative/homelab.git
+    targetRevision: HEAD
+    path: apps/base/tailscale-proxy-groups/config
+  destination:
+    server: https://kubernetes.default.svc
+    # The namespace will be set in the overlay
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
