@@ -6,6 +6,7 @@ metadata:
   namespace: openbao-secrets-operator
 spec:
   method: kubernetes
+  vaultConnectionRef: default
   # The mount path will be provided by a patch from the overlay
   mount: placeholder-mount-path
   kubernetes:
