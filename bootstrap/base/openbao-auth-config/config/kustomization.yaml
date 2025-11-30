@@ -3,5 +3,4 @@ kind: Kustomization
 resources:
   - clusterrolebinding.yaml
   - serviceaccount.yaml
-  - operator-auth.yaml
   - vault-connection.yaml

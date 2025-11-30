@@ -1,0 +1,12 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: vault-auth
+  namespace: tailscale
+spec:
+  method: kubernetes
+  vaultConnectionRef: default
+  mount: placeholder-mount-path
+  kubernetes:
+    role: placeholder-role
+    serviceAccount: operator

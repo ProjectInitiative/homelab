@@ -67,6 +67,10 @@ patches:
       kind: Application
       name: openbao-auth-config
 
+  - path: patches/patch-all-vaultauths.yaml
+    target:
+      kind: Application
+
   # - path: patches/patch-istiod-app-for-cluster-a.yaml
   #   target:
   #     kind: Application
