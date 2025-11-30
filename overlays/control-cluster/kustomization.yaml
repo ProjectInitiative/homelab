@@ -42,6 +42,10 @@ patches:
     target:
       kind: Application
       name: tailscale-proxy-groups
+  - path: patches/patch-auth-config-app-for-cc.yaml
+    target:
+      kind: Application
+      name: openbao-auth-config
   - path: patches/set-destination.yaml
     target:
       group: argoproj.io
@@ -54,4 +58,3 @@ patches:
         value: argocd-cc
     target:
       kind: Application
-

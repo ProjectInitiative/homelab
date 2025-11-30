@@ -62,6 +62,11 @@ patches:
       kind: Application
       name: tailscale-proxy-groups
 
+  - path: patches/patch-auth-config-app-for-mc.yaml
+    target:
+      kind: Application
+      name: openbao-auth-config
+
   # - path: patches/patch-istiod-app-for-cluster-a.yaml
   #   target:
   #     kind: Application

@@ -1,0 +1,11 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: operator-auth
+  namespace: openbao-secrets-operator # Deployed in the operator's namespace
+spec:
+  method: kubernetes
+  mount: kubernetes_cluster_mc # Matches the mount path in OpenBao
+  kubernetes:
+    role: openbao-secrets-operator # Matches the role created in OpenBao
+    serviceAccount: operator # The service account used by the Vault Secrets Operator deployment
