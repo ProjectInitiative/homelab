@@ -4,5 +4,5 @@ metadata:
   name: default
   namespace: openbao-secrets-operator
 spec:
-  address: http://openbao-ts.taildeab2.ts.net
+  address: http://100.122.64.114:8200
   skipTLSVerify: true # This should be set to false in a production environment
