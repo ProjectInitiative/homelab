@@ -14,6 +14,9 @@ spec:
           apiServerProxyConfig:
             mode: "true"
             allowImpersonation: "true"
+    - repoURL: https://github.com/projectinitiative/homelab.git
+      targetRevision: HEAD
+      path: bootstrap/base/tailscale-operator/config
   destination:
     server: https://kubernetes.default.svc
     namespace: tailscale
