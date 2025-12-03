@@ -1,0 +1,38 @@
+diff --git a/src/import/helm.ts b/src/import/helm.ts
+index c0666a02..52af578c 100644
+--- a/src/import/helm.ts
++++ b/src/import/helm.ts
+@@ -1,4 +1,4 @@
+-import { spawnSync } from 'child_process';
++import { spawnSync, execSync } from 'child_process';
+ import * as fs from 'fs';
+ import * as os from 'os';
+ import * as path from 'path';
+@@ -234,5 +234,7 @@ function pullHelmRepo(chartUrl: string, chartName: string, chartVersion: string)
+  * @param tmpDir Temporary directory path
+  */
+ function cleanup(tmpDir: string) {
++  console.log(`Helm: Attempting to chmod and remove ${tmpDir}`);
++  execSync(`chmod -R u+w ${tmpDir}`);
+   fs.rmSync(tmpDir, { recursive: true });
+ }
+\ No newline at end of file
+diff --git a/src/util.ts b/src/util.ts
+index 4db0a457..fb9ba7a3 100644
+--- a/src/util.ts
++++ b/src/util.ts
+@@ -1,4 +1,4 @@
+-import { spawn, SpawnOptions } from 'child_process';
++import { spawn, SpawnOptions, execSync } from 'child_process';
+ import { BinaryToTextEncoding, createHash } from 'crypto';
+ import { existsSync, promises } from 'fs';
+ import * as http from 'http';
+@@ -39,6 +39,8 @@ export async function mkdtemp(closure: (dir: string) => Promise<void>) {
+   try {
+     await closure(workdir);
+   } finally {
++    console.log(`Utils: Attempting to chmod and remove ${workdir}`);
++    execSync(`chmod -R u+w ${workdir} && rm -rf ${workdir}`, { stdio: 'inherit' });
+     await fs.remove(workdir);
+   }
+ }

@@ -1,0 +1,8 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: operator-auth
+spec:
+  mount: kubernetes_cluster_mc
+  kubernetes:
+    role: openbao-secrets-operator

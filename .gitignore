@@ -1,2 +1,32 @@
 .env
 secrets/
+
+.direnv
+
+# cdk8s
+.venv
+cdk8s/.venv
+cdk8s/dist
+# cdk8s/imports
+# cdk8s/help
+# cdk8s/uv.lock
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.mypy_cache/
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+
+# cdk8s-specific ignores
+cdk.out/

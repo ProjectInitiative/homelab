@@ -1,0 +1,15 @@
+--- a/src/import/helm.ts
++++ b/src/import/helm.ts
+@@ -1,4 +1,4 @@
+-import { spawnSync } from 'child_process';
++import { spawnSync, execSync } from 'child_process';
+ import * as fs from 'fs';
+ import * as os from 'os';
+ import * as path from 'path';
+@@ -242,5 +242,6 @@
+  * @param tmpDir Temporary directory path
+  */
+ function cleanup(tmpDir: string) {
++  execSync(`chmod -R 777 ${tmpDir}`);
+   fs.rmSync(tmpDir, { recursive: true });
+ }

@@ -1,0 +1,4 @@
+language: python
+app: uv run python main.py
+imports:
+  - k8s
