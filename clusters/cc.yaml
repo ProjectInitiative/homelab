@@ -1,0 +1,54 @@
+# clusters/cc.yaml
+name: cc
+server: https://kubernetes.default.svc
+project: cc-bootstrap
+argoNamespace: argocd-cc
+apps:
+  - name: local-path-provisioner
+    namespace: local-path-storage
+    patch: ""
+    patchTarget: {}
+  - name: tailscale-operator
+    namespace: tailscale
+    patch: |-
+      apiVersion: secrets.hashicorp.com/v1beta1
+      kind: VaultAuth
+      metadata:
+        name: operator-auth
+      spec:
+        mount: kubernetes_cluster_cc
+        kubernetes:
+          role: openbao-secrets-operator
+    patchTarget:
+      kind: VaultAuth
+      name: operator-auth
+  - name: cert-manager
+    namespace: cert-manager
+  - name: openbao-auth-config
+    namespace: kube-system
+    patch: |-
+      apiVersion: secrets.hashicorp.com/v1beta1
+      kind: VaultAuth
+      metadata:
+        name: operator-auth
+      spec:
+        mount: kubernetes_cluster_cc
+        kubernetes:
+          role: openbao-secrets-operator
+    patchTarget:
+      kind: VaultAuth
+      name: operator-auth
+  - name: openbao-secrets-operator
+    namespace: openbao-secrets-operator
+    helm_values: |
+      vault:
+        address: http://openbao.openbao:8200
+        auth:
+          method: kubernetes
+          path: kubernetes_cluster_cc
+          role: openbao-secrets-operator
+  - name: tailscale-proxy-groups
+    namespace: tailscale
+    source_path: overlays/control-cluster/tailscale-proxy-group
+  - name: dnsutils
+    namespace: dnsutils

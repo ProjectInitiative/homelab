@@ -1,72 +1,67 @@
 { pkgs, pythonEnv }:
 
 let
+  # We reference the store paths directly in the scripts.
+  # Note: Pulumi needs 'python3' in the PATH to launch the language host.
+  
   pulumiInit = pkgs.writeShellScriptBin "pulumi-init" ''
     export HOME=/home/argocd
-    pulumi login --local
+    
+    # Add python to PATH for this script execution
+    export PATH=${pythonEnv}/bin:$PATH
+
+    ${pkgs.pulumi}/bin/pulumi login --local
     # Create stack if not exists (ignoring error if it exists)
-    pulumi stack select dev --create || true
+    ${pkgs.pulumi}/bin/pulumi stack select dev --create || true
     # Ensure kubernetes plugin is installed
-    pulumi plugin install resource kubernetes
+    ${pkgs.pulumi}/bin/pulumi plugin install resource kubernetes
   '';
 
   pulumiGenerate = pkgs.writeShellScriptBin "pulumi-generate" ''
     export HOME=/home/argocd
     export PYTHONPATH=$PYTHONPATH:$(pwd)/crds
-    # Run pulumi up, redirecting output to stderr so it doesn't pollute the manifest stream
-    pulumi up --yes --skip-preview 1>&2
+    
+    # Add python to PATH so Pulumi can find the python3 executable
+    export PATH=${pythonEnv}/bin:$PATH
+
+    # Run pulumi up, redirecting output to stderr
+    ${pkgs.pulumi}/bin/pulumi up --yes --skip-preview 1>&2
+    
     # Concatenate all generated YAML files to stdout
-    awk 'FNR==1 && NR!=1 {print "---"} {print}' ./manifests/1-manifest/*.yaml
+    ${pkgs.gawk}/bin/awk 'FNR==1 && NR!=1 {print "---"} {print}' ./manifests/1-manifest/*.yaml
   '';
 in pkgs.dockerTools.buildImage {
   name = "pulumi-cmp-plugin";
   tag = "latest";
   
   config = {
-    # Set environment variables
+    # Argo CD typically executes commands via /bin/sh or /bin/bash.
+    # We set PATH to /bin so it finds sh, bash, and our scripts.
     Env = [
-      "PATH=${pkgs.lib.makeBinPath [
-        pythonEnv
-        pkgs.pulumi
-        pkgs.bash
-        pkgs.coreutils
-        pkgs.findutils
-        pkgs.gawk
-        pkgs.git
-        pkgs.grep
-        pkgs.sed
-      ]}:${pulumiInit}/bin:${pulumiGenerate}/bin"
+      "PATH=/bin"
       "HOME=/home/argocd"
       "PULUMI_HOME=/home/argocd/.pulumi"
     ];
     
-    # Argo CD typically uses user 999
     User = "999";
-    
-    # Working directory (will be overridden by Argo CD, but good default)
     WorkingDir = "/home/argocd";
   };
   
   copyToRoot = pkgs.buildEnv {
     name = "image-root";
     paths = [
-      pythonEnv
-      pkgs.pulumi
+      # Essential shell environment
       pkgs.bash
       pkgs.coreutils
-      pkgs.findutils
-      pkgs.gawk
-      pkgs.git
-      pkgs.grep
-      pkgs.sed
       pkgs.fakeNss
+      
+      # Our custom scripts
       pulumiInit
       pulumiGenerate
     ];
     pathsToLink = [ "/bin" "/etc" "/var" "/tmp" ];
   };
   
-  # Create necessary directories with correct permissions
   runAsRoot = ''
     mkdir -p /home/argocd/.pulumi
     mkdir -p /tmp

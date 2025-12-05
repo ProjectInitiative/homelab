@@ -3,6 +3,12 @@ secrets/
 
 .direnv
 
+# Pulumi
+pulumi/manifests/
+pulumi/.pulumi/
+pulumi/Pulumi.*.yaml
+!pulumi/Pulumi.yaml
+
 # cdk8s
 .venv
 cdk8s/.venv

@@ -1,0 +1,92 @@
+# clusters/mc.yaml
+name: mc
+server: https://172.16.1.50:6443
+project: mc-bootstrap
+argoNamespace: argocd-mc
+apps:
+  - name: kube-vip-app
+    namespace: kube-system
+  - name: local-path-provisioner
+    namespace: local-path-storage
+    patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: local-path-config
+      data:
+        config.json: |
+          {
+            "nodePathMap": [
+              {
+                "node": "DEFAULT_PATH_FOR_NON_LISTED_NODES",
+                "paths": [
+                  "/mnt/local-provisioner",
+                  "/mnt/local-provisioner/nvme-cache",
+                  "/mnt/local-provisioner/host"
+                ]
+              }
+            ]
+          }
+    patchTarget:
+      kind: ConfigMap
+      name: local-path-config
+  - name: tpm-device-plugin
+    namespace: kube-system
+  - name: tailscale-operator
+    namespace: tailscale
+    # patch: |-
+    #   apiVersion: secrets.hashicorp.com/v1beta1
+    #   kind: VaultAuth
+    #   metadata:
+    #     name: operator-auth
+    #   spec:
+    #     mount: kubernetes_cluster_mc
+    #     kubernetes:
+    #       role: openbao-secrets-operator
+    # patchTarget:
+    #   kind: VaultAuth
+    #   name: operator-auth
+  - name: openbao
+    namespace: openbao
+  - name: openbao-auth-config
+    namespace: kube-system
+    patch: |-
+      apiVersion: secrets.hashicorp.com/v1beta1
+      kind: VaultAuth
+      metadata:
+        name: operator-auth
+      spec:
+        mount: kubernetes_cluster_mc
+        kubernetes:
+          role: openbao-secrets-operator
+    patchTarget:
+      kind: VaultAuth
+      name: operator-auth
+  - name: openbao-secrets-operator
+    namespace: openbao-secrets-operator
+    helm_values: |
+      vault:
+        address: http://openbao.openbao:8200
+        auth:
+          method: kubernetes
+          path: kubernetes_cluster_mc
+          role: openbao-secrets-operator
+  - name: cnpg-operator
+    namespace: cnpg-system
+  - name: postgres-cluster
+    namespace: postgres-db
+  - name: garage
+    namespace: garage
+    value_files:
+      - $values/overlays/main-cluster/resources/garage-nvme-values.yaml
+  - name: sc-local-path-nvme
+    namespace: default
+  - name: tailscale-proxy-groups
+    namespace: tailscale
+    source_path: overlays/main-cluster/tailscale-proxy-group
+  - name: temp-egress
+    namespace: default
+  - name: dnsutils
+    namespace: dnsutils
+  - name: docker-registry
+    namespace: registry
