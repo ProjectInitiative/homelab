@@ -28,21 +28,21 @@ jobs:
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v10
       
-      - name: Setup Tailscale
-        if: ${{ secrets.TS_OAUTH_CLIENT_ID != '' }}
-        uses: tailscale/github-action@v2
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ci
+      # - name: Setup Tailscale
+      #   if: ${{ secrets.TS_OAUTH_CLIENT_ID != '' }}
+      #   uses: tailscale/github-action@v2
+      #   with:
+      #     oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      #     oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+      #     tags: tag:ci
       
-      - name: Setup Attic
-        if: ${{ secrets.ATTIC_TOKEN != '' }}
-        run: |
-          nix profile install nixpkgs#attic-client
-          export ATTIC_ENDPOINT=http://100.98.169.57:8080/github-ci
-          export ATTIC_TOKEN='${{ secrets.ATTIC_TOKEN }}'
-          attic login github-ci $ATTIC_ENDPOINT $ATTIC_TOKEN || echo "Failed to connect to Attic cache, continuing without cache"
+      # - name: Setup Attic
+      #   if: ${{ secrets.ATTIC_TOKEN != '' }}
+      #   run: |
+      #     nix profile install nixpkgs#attic-client
+      #     export ATTIC_ENDPOINT=http://100.98.169.57:8080/github-ci
+      #     export ATTIC_TOKEN='${{ secrets.ATTIC_TOKEN }}'
+      #     attic login github-ci $ATTIC_ENDPOINT $ATTIC_TOKEN || echo "Failed to connect to Attic cache, continuing without cache"
       
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
