@@ -82,7 +82,7 @@
           echo "Running crd2pulumi..."
           # Generate Python types for the CRDs
           # shellcheck disable=SC2086
-          ${pkgs.crd2pulumi}/bin/crd2pulumi --pythonOut ./pulumi/crds "$1" --force
+          ${pkgs.crd2pulumi}/bin/crd2pulumi --pythonPath ./pulumi/crds $CRD_ARGS --force
         '';
 
         build-image = pkgs.writeShellScriptBin "build-image" ''
@@ -162,6 +162,24 @@
         push-multi-arch = {
           type = "app";
           program = "${self.packages.${system}.push-multi-arch}/bin/push-multi-arch";
+        };
+
+        generate-manifests = {
+          type = "app";
+          program = toString (pkgs.writeShellScript "generate-manifests" ''
+            set -e
+            # Navigate to pulumi directory as expected by the project structure
+            cd pulumi
+            
+            # Set output directory to .direnv/manifests in the project root
+            # (one level up from pulumi dir)
+            export PULUMI_MANIFEST_OUTPUT_DIR=$(pwd)/../.direnv/manifests
+            mkdir -p "$PULUMI_MANIFEST_OUTPUT_DIR"
+            
+            echo "Generating manifests to $PULUMI_MANIFEST_OUTPUT_DIR..."
+            ${pkgs.pulumi}/bin/pulumi up --yes --skip-preview
+            echo "✅ Manifests generated in $PULUMI_MANIFEST_OUTPUT_DIR"
+          '');
         };
       });
 

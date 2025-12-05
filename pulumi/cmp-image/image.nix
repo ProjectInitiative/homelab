@@ -19,7 +19,7 @@ let
 
   pulumiGenerate = pkgs.writeShellScriptBin "pulumi-generate" ''
     export HOME=/home/argocd
-    export PYTHONPATH=$PYTHONPATH:$(pwd)/crds
+    export PYTHONPATH=$PYTHONPATH:/app/pulumi/crds
     
     # Add python to PATH so Pulumi can find the python3 executable
     export PATH=${pythonEnv}/bin:$PATH
@@ -28,7 +28,7 @@ let
     ${pkgs.pulumi}/bin/pulumi up --yes --skip-preview 1>&2
     
     # Concatenate all generated YAML files to stdout
-    ${pkgs.gawk}/bin/awk 'FNR==1 && NR!=1 {print "---"} {print}' ./manifests/1-manifest/*.yaml
+    ${pkgs.gawk}/bin/awk 'FNR==1 && NR!=1 {print "---"} {print}' /tmp/manifests/1-manifest/*.yaml
   '';
 in pkgs.dockerTools.buildImage {
   name = "pulumi-cmp-plugin";
@@ -41,31 +41,39 @@ in pkgs.dockerTools.buildImage {
       "PATH=/bin"
       "HOME=/home/argocd"
       "PULUMI_HOME=/home/argocd/.pulumi"
+      "PULUMI_CONFIG_PASSPHRASE="
+      "PULUMI_MANIFEST_OUTPUT_DIR=/tmp/manifests"
     ];
     
     User = "999";
-    WorkingDir = "/home/argocd";
+    WorkingDir = "/app/pulumi";
   };
   
-  copyToRoot = pkgs.buildEnv {
-    name = "image-root";
-    paths = [
-      # Essential shell environment
-      pkgs.bash
-      pkgs.coreutils
-      pkgs.fakeNss
-      
-      # Our custom scripts
-      pulumiInit
-      pulumiGenerate
-    ];
-    pathsToLink = [ "/bin" "/etc" "/var" "/tmp" ];
-  };
+    
   
-  runAsRoot = ''
-    mkdir -p /home/argocd/.pulumi
-    mkdir -p /tmp
-    chmod 1777 /tmp
-    chown -R 999:999 /home/argocd
-  '';
-}
+    copyToRoot = pkgs.buildEnv {
+          name = "image-root";
+              paths = [
+                pkgs.cacert
+                pkgs.pulumiPackages.pulumi-python # Add pulumi python language host
+                # Essential shell environment
+                pkgs.bash
+                pkgs.coreutils
+                pkgs.fakeNss
+        # Our custom scripts  
+        pulumiInit
+        pulumiGenerate
+      ];
+      pathsToLink = [ "/bin" "/etc" "/var" "/tmp" ];
+    };
+  
+    runAsRoot = ''
+      mkdir -p /home/argocd/.pulumi
+      mkdir -p /tmp
+      chmod 1777 /tmp
+      chown -R 999:999 /home/argocd
+    '';
+  
+  }
+  
+  

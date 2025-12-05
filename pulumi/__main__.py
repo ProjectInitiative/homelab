@@ -35,7 +35,7 @@ defaults = apps_catalog.get('defaults', {})
 catalog = apps_catalog.get('catalog', {})
 
 # Configure the provider to render YAML to a local directory
-render_dir = os.path.join(os.getcwd(), "manifests")
+render_dir = os.environ.get("PULUMI_MANIFEST_OUTPUT_DIR", os.path.join(os.getcwd(), "manifests"))
 k8s_provider = k8s.Provider("k8s-yaml-renderer", 
     render_yaml_to_directory=render_dir
 )
