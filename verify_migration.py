@@ -51,13 +51,13 @@ def normalize_app(app):
     
     normalized = app.copy()
     if 'metadata' in normalized:
-        for key in ['creationTimestamp', 'generation', 'uid', 'resourceVersion', 'managedFields', 'labels', 'finalizers']:
+        for key in ['creationTimestamp', 'generation', 'uid', 'resourceVersion', 'managedFields', 'labels']:
             normalized['metadata'].pop(key, None)
-    
-    # We specifically want to ignore 'labels' in metadata generally 
-    # unless they are critical, because Pulumi might add its own tracking labels.
-    # Annotations are important for ArgoCD (sync-waves, etc), so we keep them.
-    
+        
+        # We specifically want to ignore 'labels' in metadata generally 
+        # unless they are critical, because Pulumi might add its own tracking labels.
+        # Annotations are important for ArgoCD (sync-waves, etc), so we keep them.
+        # Finalizers are also important for ArgoCD (cascade deletion), so we keep them.    
     if 'status' in normalized:
         del normalized['status']
         

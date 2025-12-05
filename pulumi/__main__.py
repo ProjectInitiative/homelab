@@ -154,7 +154,24 @@ def process_cluster(cluster_file):
         }
 
         # 3. Sync Policy
-        sync_policy = app_def.get('syncPolicy', defaults.get('syncPolicy', {}))
+        # Defaults
+        default_automated = {'prune': True, 'selfHeal': True}
+        default_sync_options = ['CreateNamespace=true']
+
+        # Get app-specific overrides
+        app_sync_policy = app_def.get('syncPolicy', {})
+        
+        # Determine final values (App overrides default)
+        final_automated = app_sync_policy.get('automated', default_automated)
+        final_sync_options = app_sync_policy.get('syncOptions', default_sync_options)
+
+        sync_policy = {}
+        if final_automated:
+            sync_policy['automated'] = final_automated
+        
+        # Only include syncOptions if it's a non-empty list or explicitly not None
+        if final_sync_options is not None and final_sync_options: # Added 'and final_sync_options'
+            sync_policy['syncOptions'] = final_sync_options
 
         # Construct the Application CR dict
         app_manifest = {
@@ -162,7 +179,8 @@ def process_cluster(cluster_file):
             'kind': 'Application',
             'metadata': {
                 'name': app_name, 
-                'namespace': argo_namespace
+                'namespace': argo_namespace,
+                'finalizers': ['resources-finalizer.argocd.argoproj.io']
             },
             'spec': {
                 'project': cluster_config.get('project', 'default'),

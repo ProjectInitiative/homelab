@@ -1,0 +1,190 @@
+defaults:
+  repoURL: https://github.com/projectinitiative/homelab.git
+  targetRevision: HEAD
+  # syncPolicy defaults are now handled in the Pulumi code
+
+catalog:
+  # Bootstrap / Infrastructure
+  kube-vip-app:
+    path: bootstrap/mc/kube-vip/config
+    annotations:
+      argocd.argoproj.io/sync-wave: "0"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=false
+        - ServerSideApply=true
+  
+  local-path-provisioner:
+    path: bootstrap/base/local-path-provisioner/config
+    annotations:
+      argocd.argoproj.io/sync-wave: "0"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+        - ApplyOutOfSyncOnly=true
+        - RespectIgnoreDifferences=true
+  
+  sc-local-path-nvme:
+    path: bootstrap/mc/lpp 
+    directory:
+      include: 'local-path-nvme-sc.yaml'
+  
+  tpm-device-plugin:
+    path: bootstrap/base/tpm-device-plugin/plugin
+    annotations:
+      argocd.argoproj.io/sync-wave: "10"
+    syncPolicy:
+      syncOptions: []
+  
+  cert-manager:
+    annotations:
+      argocd.argoproj.io/sync-wave: "50"
+    sources:
+      - repoURL: https://charts.jetstack.io
+        chart: cert-manager
+        targetRevision: v1.18.1
+        helm:
+          valueFiles:
+            - $values/bootstrap/base/cert-manager/cert-manager-values.yaml
+      - repoURL: https://github.com/projectinitiative/homelab.git
+        targetRevision: HEAD
+        ref: values
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+        - ApplyOutOfSyncOnly=true
+        - RespectIgnoreDifferences=true
+  
+  openbao:
+    annotations:
+      argocd.argoproj.io/sync-wave: "90"
+    sources:
+      - repoURL: https://openbao.github.io/openbao-helm
+        chart: openbao
+        targetRevision: 0.16.1
+        helm:
+          valueFiles:
+            - $values/bootstrap/base/openbao/openbao-values.yaml
+      - repoURL: https://github.com/projectinitiative/homelab.git
+        targetRevision: HEAD
+        ref: values
+      - repoURL: https://github.com/projectinitiative/homelab.git
+        targetRevision: HEAD
+        path: bootstrap/base/openbao/config
+    ignoreDifferences:
+      - group: admissionregistration.k8s.io
+        jsonPointers:
+        - /webhooks/0/clientConfig/caBundle
+        kind: MutatingWebhookConfiguration
+        name: openbao-agent-injector-cfg
+  
+  openbao-auth-config:
+    path: bootstrap/base/openbao-auth-config/config
+    syncPolicy:
+      syncOptions: []
+  
+  openbao-secrets-operator:
+    repoURL: https://github.com/openbao/openbao-secrets-operator.git
+    path: chart
+    targetRevision: main
+    helm:
+      values: |
+        controller:
+          manager:
+            args: ["-v=4"]
+        defaultVaultConnection:
+          enabled: false
+  
+  cnpg-operator:
+    annotations:
+      argocd.argoproj.io/sync-wave: "30"
+    sources:
+      - repoURL: https://cloudnative-pg.github.io/charts
+        chart: cloudnative-pg
+        targetRevision: 0.21.1
+        helm:
+          values: |
+            crds.create: true
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+  
+  postgres-cluster:
+    path: bootstrap/base/cnpg/database
+    annotations:
+      argocd.argoproj.io/sync-wave: "40"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+    
+  garage:
+    annotations:
+      argocd.argoproj.io/sync-wave: "100"
+    sources:
+      - repoURL: https://git.deuxfleurs.fr/Deuxfleurs/garage
+        path: script/helm/garage
+        targetRevision: v2.0.0
+        helm:
+          valueFiles:
+            - $values/bootstrap/base/garage/garage-values.yaml
+      - repoURL: https://github.com/projectinitiative/homelab.git
+        targetRevision: HEAD
+        ref: values
+    ignoreDifferences:
+      - group: ""
+        jsonPointers:
+        - /data/rpcSecret
+        kind: Secret
+        name: garage-rpc-secret
+      - group: apps
+        jsonPointers:
+        - /spec/volumeClaimTemplates/0/status
+        - /spec/volumeClaimTemplates/0/metadata/creationTimestamp
+        - /spec/volumeClaimTemplates/1/status
+        - /spec/volumeClaimTemplates/1/metadata/creationTimestamp
+        kind: StatefulSet
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+  
+  tailscale-operator:
+    sources:
+      - repoURL: https://pkgs.tailscale.com/helmcharts
+        chart: tailscale-operator
+        targetRevision: 1.90.9
+        helm:
+          values: |
+            apiServerProxyConfig:
+              mode: "true"
+              allowImpersonation: "true"
+      - repoURL: https://github.com/projectinitiative/homelab.git
+        targetRevision: HEAD
+        path: bootstrap/base/tailscale-operator/config
+  
+  garage-mem:
+    path: bootstrap/mc/garage-mem
+
+  # Apps
+  tailscale-proxy-groups:
+    path: apps/base/tailscale-proxy-groups/config
+    syncPolicy:
+      syncOptions: []
+  
+  temp-egress:
+    path: apps/base/temp-egress/config
+    syncPolicy:
+      syncOptions: []
+  
+  dnsutils:
+    path: apps/base/dnsutils/config
+  
+  docker-registry:
+    path: apps/base/docker-registry/config
+  
+  privateer:
+    path: apps/base/privateer/config
