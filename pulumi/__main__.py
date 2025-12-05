@@ -189,6 +189,33 @@ def process_cluster(cluster_file):
             opts=pulumi.ResourceOptions(provider=k8s_provider, protect=False) 
         )
 
+# Design Note on Type Usage:
+# This program generates Argo CD 'Application' custom resources from declarative YAML configurations.
+# While 'crd2pulumi' generates strongly-typed Python classes (e.g., Application, ApplicationSpecArgs),
+# we opt for a flexible dictionary-based approach combined with 'recursive_transform' for the following reasons:
+#
+# 1. Flexibility with Configuration: Our 'apps.yaml' and 'clusters/*.yaml' define applications
+#    dynamically. Constructing Python objects from these arbitrary dictionaries would require
+#    extensive, verbose, and error-prone manual mapping code for every nested field (spec, source,
+#    destination, syncPolicy, etc.). The dictionary-based approach allows direct translation.
+#
+# 2. Generator Pattern: This Pulumi program acts as a *generator* of Argo CD Applications. Its
+#    primary function is to interpret high-level configuration and produce the corresponding
+#    Application YAML. Using dictionaries simplifies this "template engine" role.
+#
+# 3. Custom App Development: Strongly-typed CRD classes are highly beneficial when developing a
+#    custom Pulumi program to define a *specific* application from scratch (e.g., writing Python
+#    code to create a custom database deployment). In such cases, direct instantiation (e.g.,
+#    Application(spec=ApplicationSpecArgs(...))) offers full IDE support and compile-time validation.
+#
+# 4. Runtime Validation: By unpacking the transformed dictionary (**app_args) into the Application
+#    constructor, Pulumi's SDK still performs runtime validation against the generated schema. This
+#    catches structural errors that might arise from misconfigurations in 'apps.yaml' or 'clusters/*.yaml'.
+#
+# In essence, this approach prioritizes configurability and brevity for a generic application
+# generator, while still leveraging Pulumi's type-aware resource creation for validation.
+
+
 # Main
 clusters_files = ['clusters/mc.yaml', 'clusters/cc.yaml']
 

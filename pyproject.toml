@@ -1,8 +1,12 @@
 [project]
-name = "homelab-cdk8s"
+name = "homelab-pulumi"
 version = "0.1.0"
 dependencies = [
-    "cdk8s",
-    "constructs",
-    "pyyaml"
+    "pulumi>=3.0.0",
+    "pulumi-kubernetes>=4.0.0",
+    "parver",
+    "semver",
+    "pyyaml",
+    "requests",
+    "typing-extensions"
 ]
