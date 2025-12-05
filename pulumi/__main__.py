@@ -171,6 +171,9 @@ def process_cluster(cluster_file):
                 'syncPolicy': sync_policy
             }
         }
+
+        if 'annotations' in app_def:
+            app_manifest['metadata']['annotations'] = app_def['annotations']
         
         if 'ignoreDifferences' in app_def:
             app_manifest['spec']['ignoreDifferences'] = app_def['ignoreDifferences']

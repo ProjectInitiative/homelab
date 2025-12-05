@@ -51,11 +51,12 @@ def normalize_app(app):
     
     normalized = app.copy()
     if 'metadata' in normalized:
-        for key in ['creationTimestamp', 'generation', 'uid', 'resourceVersion', 'managedFields', 'annotations', 'labels', 'finalizers']:
+        for key in ['creationTimestamp', 'generation', 'uid', 'resourceVersion', 'managedFields', 'labels', 'finalizers']:
             normalized['metadata'].pop(key, None)
     
-    # We specifically want to ignore 'labels' and 'annotations' in metadata generally 
+    # We specifically want to ignore 'labels' in metadata generally 
     # unless they are critical, because Pulumi might add its own tracking labels.
+    # Annotations are important for ArgoCD (sync-waves, etc), so we keep them.
     
     if 'status' in normalized:
         del normalized['status']
@@ -126,7 +127,7 @@ def main():
 
     # 2. Load New State (Pulumi Generated)
     new_apps = {}
-    manifest_dir = "pulumi/manifests/1-manifest"
+    manifest_dir = ".direnv/manifests/1-manifest"
     if not os.path.exists(manifest_dir):
         print(f"Error: Manifest directory {manifest_dir} does not exist. Run 'pulumi up' first.", file=sys.stderr)
         sys.exit(1)

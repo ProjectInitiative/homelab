@@ -142,6 +142,21 @@
 
           echo "✅ Successfully pushed multi-arch image $MANIFEST_TAG"
         '';
+
+        generate-manifests = pkgs.writeShellScriptBin "generate-manifests" ''
+          set -e
+          # Navigate to pulumi directory as expected by the project structure
+          cd pulumi
+          
+          # Set output directory to .direnv/manifests in the project root
+          # (one level up from pulumi dir)
+          export PULUMI_MANIFEST_OUTPUT_DIR=$(pwd)/../.direnv/manifests
+          mkdir -p "$PULUMI_MANIFEST_OUTPUT_DIR"
+          
+          echo "Generating manifests to $PULUMI_MANIFEST_OUTPUT_DIR..."
+          ${pkgs.pulumi}/bin/pulumi up --yes --skip-preview
+          echo "✅ Manifests generated in $PULUMI_MANIFEST_OUTPUT_DIR"
+        '';
       });
 
     apps = forAllSystems (system: 
@@ -166,20 +181,7 @@
 
         generate-manifests = {
           type = "app";
-          program = toString (pkgs.writeShellScript "generate-manifests" ''
-            set -e
-            # Navigate to pulumi directory as expected by the project structure
-            cd pulumi
-            
-            # Set output directory to .direnv/manifests in the project root
-            # (one level up from pulumi dir)
-            export PULUMI_MANIFEST_OUTPUT_DIR=$(pwd)/../.direnv/manifests
-            mkdir -p "$PULUMI_MANIFEST_OUTPUT_DIR"
-            
-            echo "Generating manifests to $PULUMI_MANIFEST_OUTPUT_DIR..."
-            ${pkgs.pulumi}/bin/pulumi up --yes --skip-preview
-            echo "✅ Manifests generated in $PULUMI_MANIFEST_OUTPUT_DIR"
-          '');
+          program = "${self.packages.${system}.generate-manifests}/bin/generate-manifests";
         };
       });
 
@@ -199,6 +201,7 @@
             pkgs.uv
             pkgs.python3Packages.deepdiff
             self.packages.${system}.import-crds
+            self.packages.${system}.generate-manifests
             self.packages.${system}.build-image
             self.packages.${system}.push-multi-arch
           ];
@@ -207,7 +210,8 @@
             echo "Entering Pulumi development shell"
             echo "Run 'direnv allow' to automatically load the environment."
             echo "Run 'pulumi new kubernetes-python' to start a new project."
-            echo "Use 'import-crds <crd-url>' to generate Python classes for CRDs."
+            echo "Run 'import-crds <crd-url>' to generate Python classes for CRDs."
+            echo "Run 'generate-manifests' to generate the pulumi k8s manifests."
           '';
           
           PULUMI_CONFIG_PASSPHRASE = "";
