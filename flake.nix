@@ -99,12 +99,13 @@
           set -e
           set -o pipefail
 
-          IMAGE_NAME=$1
-          OWNER=$2
-          TAG=''${3:-latest}
+          PACKAGE_NAME=$1
+          IMAGE_NAME=$2
+          OWNER=$3
+          TAG=''${4:-latest}
 
-          if [ -z "$IMAGE_NAME" ] || [ -z "$OWNER" ]; then
-            echo "Usage: $0 <image-name> <owner> [tag]"
+          if [ -z "$PACKAGE_NAME" ] || [ -z "$IMAGE_NAME" ] || [ -z "$OWNER" ]; then
+            echo "Usage: $0 <package-name> <image-name> <owner> [tag]"
             exit 1
           fi
 
@@ -117,7 +118,7 @@
             ARCH=$(echo "$ARCH_SYSTEM" | sed 's/-linux//' | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
             
             echo "--- Building for $ARCH_SYSTEM ($ARCH) ---"
-            nix build ".#packages.$ARCH_SYSTEM.pulumi-cmp-image" -o "result-$ARCH"
+            nix build ".#packages.$ARCH_SYSTEM.$PACKAGE_NAME" -o "result-$ARCH"
             
             LOADED_IMAGE=$(docker load < "result-$ARCH" | grep "Loaded image" | sed 's/Loaded image: //')
             echo "Loaded image: $LOADED_IMAGE"
