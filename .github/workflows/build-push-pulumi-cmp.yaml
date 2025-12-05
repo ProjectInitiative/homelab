@@ -25,33 +25,15 @@ jobs:
       - name: Install QEMU
         run: sudo apt-get update && sudo apt-get install -y qemu-user-static
       
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v10
-      
-      # - name: Setup Tailscale
-      #   if: ${{ secrets.TS_OAUTH_CLIENT_ID != '' }}
-      #   uses: tailscale/github-action@v2
-      #   with:
-      #     oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-      #     oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-      #     tags: tag:ci
-      
-      # - name: Setup Attic
-      #   if: ${{ secrets.ATTIC_TOKEN != '' }}
-      #   run: |
-      #     nix profile install nixpkgs#attic-client
-      #     export ATTIC_ENDPOINT=http://100.98.169.57:8080/github-ci
-      #     export ATTIC_TOKEN='${{ secrets.ATTIC_TOKEN }}'
-      #     attic login github-ci $ATTIC_ENDPOINT $ATTIC_TOKEN || echo "Failed to connect to Attic cache, continuing without cache"
-      
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       
-      - name: Configure Nix for QEMU
-        run: |
-          echo "extra-platforms = aarch64-linux" | sudo tee -a /etc/nix/nix.conf
-          echo "extra-sandbox-paths = /usr/bin/qemu-aarch64-static" | sudo tee -a /etc/nix/nix.conf
-          sudo systemctl restart nix-daemon
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10
+        with:
+          extra-conf: |
+            extra-platforms = aarch64-linux
+            extra-sandbox-paths = /usr/bin/qemu-aarch64-static
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
