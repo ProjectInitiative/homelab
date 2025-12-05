@@ -1,0 +1,197 @@
+import pulumi
+import pulumi_kubernetes as k8s
+import yaml
+import os
+import sys
+
+# Add the generated CRDs to the python path
+sys.path.append(os.path.join(os.getcwd(), 'crds'))
+
+try:
+    from pulumi_crds.argoproj.v1alpha1 import Application
+except ImportError as e:
+    print(f"Error importing generated CRDs: {e}", file=sys.stderr)
+    print("Make sure you have run 'import-crds pulumi/crd-imports.json' and the 'crds' directory exists.", file=sys.stderr)
+    sys.exit(1)
+
+from utils import recursive_transform
+
+def load_yaml(path):
+    if not os.path.exists(path):
+        return None
+    with open(path, 'r') as f:
+        return yaml.safe_load(f)
+
+# Config paths
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+apps_catalog_file = os.path.join(root_dir, "apps.yaml")
+apps_catalog = load_yaml(apps_catalog_file)
+
+if not apps_catalog:
+    print(f"Error: apps.yaml not found at {apps_catalog_file}", file=sys.stderr)
+    sys.exit(1)
+
+defaults = apps_catalog.get('defaults', {})
+catalog = apps_catalog.get('catalog', {})
+
+# Configure the provider to render YAML to a local directory
+render_dir = os.path.join(os.getcwd(), "manifests")
+k8s_provider = k8s.Provider("k8s-yaml-renderer", 
+    render_yaml_to_directory=render_dir
+)
+
+def process_cluster(cluster_file):
+    cluster_config = load_yaml(cluster_file)
+    if not cluster_config:
+        return
+
+    cluster_name = cluster_config['name']
+    server_url = cluster_config['server']
+    argo_namespace = cluster_config['argoNamespace']
+    
+    print(f"Processing cluster: {cluster_name} ({server_url})", file=sys.stderr)
+
+    apps = cluster_config.get('apps', [])
+    for app_deployment in apps:
+        app_name = app_deployment['name']
+        
+        # Lookup app in catalog
+        app_def = catalog.get(app_name)
+        if not app_def:
+            print(f"  [WARN] App '{app_name}' not found in apps.yaml catalog. Skipping.", file=sys.stderr)
+            continue
+
+        target_ns = app_deployment.get('namespace')
+        if not target_ns:
+             print(f"  [WARN] Namespace not specified for '{app_name}' in {cluster_name}. Skipping.", file=sys.stderr)
+             continue
+
+        print(f"  Generating '{app_name}' for '{target_ns}'", file=sys.stderr)
+
+        # Build Application Spec
+        # 1. Source(s)
+        sources = []
+        if 'sources' in app_def:
+            sources = app_def['sources']
+        else:
+            # Legacy single source construction
+            source = {
+                'repoURL': app_def.get('repoURL', defaults.get('repoURL')),
+                'targetRevision': app_def.get('targetRevision', defaults.get('targetRevision')),
+                'path': app_def.get('path'),
+                'chart': app_def.get('chart')
+            }
+            if 'directory' in app_def:
+                source['directory'] = app_def['directory']
+            
+            # Remove None values
+            source = {k: v for k, v in source.items() if v is not None}
+            sources = [source]
+
+        # Overrides from Deployment (e.g. patches, Helm values)
+        # We apply these to the FIRST source in the list by default,
+        # or the one that makes sense (e.g. helm values apply to the helm source).
+        
+        # Find the source to apply overrides to.
+        # For patches, we look for a Kustomize source.
+        # For helm values, we look for a Helm source.
+        # If not found, fall back to the primary source (sources[0])
+
+        target_source_for_patches = None
+        target_source_for_helm_values = None
+
+        for src_idx, src in enumerate(sources):
+            if 'path' in src and (src.get('path', '').endswith('config') or 'kustomize' in src):
+                target_source_for_patches = src
+            if 'chart' in src and 'helm' in src: # A Helm source
+                target_source_for_helm_values = src
+            
+        # Fallback to primary if specific source not found
+        if target_source_for_patches is None:
+            target_source_for_patches = sources[0]
+        if target_source_for_helm_values is None:
+            target_source_for_helm_values = sources[0]
+
+        # Handle Kustomize patches
+        if 'patch' in app_deployment or 'source_path' in app_deployment:
+            if 'kustomize' not in target_source_for_patches:
+                target_source_for_patches['kustomize'] = {}
+            
+            if 'source_path' in app_deployment:
+                # Override path if source_path is specified (e.g. for overlays)
+                target_source_for_patches['path'] = app_deployment['source_path']
+
+            if 'patch' in app_deployment and app_deployment['patch']:
+                patch_entry = {
+                    'patch': app_deployment['patch'],
+                    'target': app_deployment.get('patchTarget', {})
+                }
+                # Append or create list
+                if 'patches' not in target_source_for_patches['kustomize']:
+                    target_source_for_patches['kustomize']['patches'] = []
+                target_source_for_patches['kustomize']['patches'].append(patch_entry)
+
+        # Handle Helm
+        if 'helm_values' in app_deployment or 'value_files' in app_deployment:
+            if 'helm' not in target_source_for_helm_values:
+                target_source_for_helm_values['helm'] = {}
+            
+            if 'helm_values' in app_deployment:
+                target_source_for_helm_values['helm']['values'] = app_deployment['helm_values']
+            if 'value_files' in app_deployment:
+                existing_value_files = target_source_for_helm_values['helm'].get('valueFiles', [])
+                if not isinstance(existing_value_files, list):
+                    existing_value_files = [existing_value_files] # Ensure it's a list
+                new_value_files = app_deployment['value_files']
+                if not isinstance(new_value_files, list):
+                    new_value_files = [new_value_files]
+                target_source_for_helm_values['helm']['valueFiles'] = existing_value_files + new_value_files
+
+        # 2. Destination
+        destination = {
+            'server': server_url,
+            'namespace': target_ns
+        }
+
+        # 3. Sync Policy
+        sync_policy = app_def.get('syncPolicy', defaults.get('syncPolicy', {}))
+
+        # Construct the Application CR dict
+        app_manifest = {
+            'apiVersion': 'argoproj.io/v1alpha1',
+            'kind': 'Application',
+            'metadata': {
+                'name': app_name, 
+                'namespace': argo_namespace
+            },
+            'spec': {
+                'project': cluster_config.get('project', 'default'),
+                'sources': sources,
+                'destination': destination,
+                'syncPolicy': sync_policy
+            }
+        }
+        
+        if 'ignoreDifferences' in app_def:
+            app_manifest['spec']['ignoreDifferences'] = app_def['ignoreDifferences']
+
+        # Transform to Python Inputs (snake_case)
+        app_args = recursive_transform(app_manifest)
+
+
+        # Create Resource
+        # Resource name in Pulumi state must be unique
+        resource_name = f"{cluster_name}-{app_name}"
+        
+        Application(
+            resource_name,
+            **app_args,
+            opts=pulumi.ResourceOptions(provider=k8s_provider, protect=False) 
+        )
+
+# Main
+clusters_files = ['clusters/mc.yaml', 'clusters/cc.yaml']
+
+for cf in clusters_files:
+    full_path = os.path.join(root_dir, cf)
+    process_cluster(full_path)

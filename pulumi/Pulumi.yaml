@@ -1,0 +1,3 @@
+name: homelab-pulumi
+runtime: python
+description: A Pulumi project to deploy homelab applications

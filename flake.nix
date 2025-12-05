@@ -25,15 +25,35 @@
   {
     packages = forAllSystems (system:
       let
-        pkgs = pkgsForSystem system; # Use the new pkgs variable
-        import-crds-script = self + "/cdk8s/import-crds.py";
+        pkgs = pkgsForSystem system;
       in
       {
         import-crds = pkgs.writeShellScriptBin "import-crds" ''
           #!${pkgs.stdenv.shell}
-          export TMPDIR=/tmp
-          export PATH=${pkgs.lib.makeBinPath [ pkgs.python3 pkgs.cdk8s-cli pkgs.nodejs ]}:$PATH
-          ${import-crds-script} "$@"
+          # Usage: import-crds <path-to-json-file>
+          # Example: import-crds cdk8s/crd-imports.json
+          
+          if [ -z "$1" ]; then
+            echo "Usage: import-crds <path-to-json-file>"
+            exit 1
+          fi
+
+          JSON_FILE="$1"
+          
+          if [ ! -f "$JSON_FILE" ]; then
+             echo "Error: File $JSON_FILE not found."
+             exit 1
+          fi
+
+          echo "Reading CRDs from $JSON_FILE..."
+          
+          # Extract CRDs from JSON using Python
+          CRD_ARGS=$(${pkgs.python3}/bin/python3 -c "import json, sys; print(' '.join(json.load(open('$JSON_FILE'))))")
+          
+          echo "Running crd2pulumi..."
+          # Generate Python types for the CRDs
+          # shellcheck disable=SC2086
+          ${pkgs.crd2pulumi}/bin/crd2pulumi --pythonOut ./pulumi/crds "$1" --force
         '';
       });
 
@@ -44,10 +64,10 @@
       };
     });
 
-        devShells = forAllSystems (system:
-          let
-            pkgs = pkgsForSystem system; # Use the new pkgs variable
-            python = pkgs.python3;
+    devShells = forAllSystems (system:
+      let
+        pkgs = pkgsForSystem system;
+        python = pkgs.python3;
         pyproject = pyproject-nix.lib.project.loadPyproject {
           projectRoot = self;
         };
@@ -58,20 +78,23 @@
         default = pkgs.mkShell {
           packages = [
             pythonEnv
-            pkgs.cdk8s-cli
+            pkgs.pulumi
+            pkgs.crd2pulumi
+            pkgs.pulumiPackages.pulumi-python
             pkgs.direnv
             pkgs.nix-direnv
             pkgs.uv
-            pkgs.nodejs
             self.packages.${system}.import-crds
           ];
           
           shellHook = ''
-            echo "Entering CDK8s development shell"
+            echo "Entering Pulumi development shell"
             echo "Run 'direnv allow' to automatically load the environment."
-            echo "Then run 'cdk8s init python-app' to start your project."
-            echo "To import CRDs, run 'import-crds'."
+            echo "Run 'pulumi new kubernetes-python' to start a new project."
+            echo "Use 'import-crds <crd-url>' to generate Python classes for CRDs."
           '';
+          
+          PULUMI_CONFIG_PASSPHRASE = "";
         };
       }
     );
