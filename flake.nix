@@ -52,7 +52,7 @@
         pkgs = pkgsForSystem system;
       in
       {
-        pulumi-cmp-image = import ./pulumi/cmp-image/image.nix { 
+        pulumi-cmp-plugin = import ./pulumi/cmp-image/image.nix { 
           inherit pkgs;
           pythonEnv = pythonEnvs.${system};
         };
@@ -88,7 +88,7 @@
         build-image = pkgs.writeShellScriptBin "build-image" ''
           set -e
           echo "Building Pulumi CMP image for ${system}..."
-          nix build ".#packages.${system}.pulumi-cmp-image" -o result-image
+          nix build ".#packages.${system}.pulumi-cmp-plugin" -o result-image
           echo "Loading into Docker..."
           docker load < result-image
           rm result-image
@@ -118,9 +118,9 @@
             ARCH=$(echo "$ARCH_SYSTEM" | sed 's/-linux//' | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
             
             echo "--- Building for $ARCH_SYSTEM ($ARCH) ---"
-            nix build ".#packages.$ARCH_SYSTEM.$PACKAGE_NAME" -o "result-$ARCH"
+            nix build ".#packages.$ARCH_SYSTEM.$PACKAGE_NAME" -o "result-$PACKAGE_NAME-$ARCH"
             
-            LOADED_IMAGE=$(docker load < "result-$ARCH" | grep "Loaded image" | sed 's/Loaded image: //')
+            LOADED_IMAGE=$(docker load < "result-$PACKAGE_NAME-$ARCH" | grep "Loaded image" | sed 's/Loaded image: //')
             echo "Loaded image: $LOADED_IMAGE"
 
             TARGET_TAG="ghcr.io/$OWNER/$IMAGE_NAME:$TAG-$ARCH"
@@ -132,7 +132,7 @@
 
             MANIFEST_LIST+=("$TARGET_TAG")
             
-            rm "result-$ARCH"
+            rm "result-$PACKAGE_NAME-$ARCH"
           done
 
           MANIFEST_TAG="ghcr.io/$OWNER/$IMAGE_NAME:$TAG"
