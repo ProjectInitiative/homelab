@@ -27,31 +27,31 @@ jobs:
             extra-platforms = aarch64-linux
             extra-sandbox-paths = /usr/bin/qemu-aarch64-static
 
-      # 1. Generate Baseline (Main)
+      # 1. Checkout Code
       - name: Checkout Main
         uses: actions/checkout@v4
         with:
           ref: main
           path: main-branch
 
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          path: pr-branch
+
+      # 2. Generate Manifests
       - name: Generate Main Manifests
         working-directory: main-branch
         env:
           PULUMI_CONFIG_PASSPHRASE: ""
-          PULUMI_BACKEND_URL: "file://${{ github.workspace }}/.pulumi"
-          PULUMI_HOME: "${{ github.workspace }}/.pulumi"
+          # PULUMI_BACKEND_URL: "file://${{ github.workspace }}/.pulumi"
+          # PULUMI_HOME: "${{ github.workspace }}/.pulumi"
         run: |
           nix run ../pr-branch#setup-pulumi
           nix run ../pr-branch#generate-manifests
           # Move result to a safe place outside the repo dir
           mkdir -p ../manifests-main
           cp -r .direnv/manifests/* ../manifests-main/
-
-      # 2. Generate PR (Current)
-      - name: Checkout PR
-        uses: actions/checkout@v4
-        with:
-          path: pr-branch
 
       - name: Generate PR Manifests
         working-directory: pr-branch
