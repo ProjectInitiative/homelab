@@ -56,7 +56,8 @@ spec:
     targetRevision: HEAD
     path: pulumi
     plugin:
-      name: pulumi-python
+      # name: pulumi-python
+      name: pulumi-python-v1.0
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
