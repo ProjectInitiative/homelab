@@ -149,13 +149,27 @@
           cd pulumi
           
           # Set output directory to .direnv/manifests in the project root
-          # (one level up from pulumi dir)
-          export PULUMI_MANIFEST_OUTPUT_DIR=$(pwd)/../.direnv/manifests
+          # (one level up from pulumi dir) if not already set
+          if [ -z "$PULUMI_MANIFEST_OUTPUT_DIR" ]; then
+            export PULUMI_MANIFEST_OUTPUT_DIR=$(pwd)/../.direnv/manifests
+          fi
           mkdir -p "$PULUMI_MANIFEST_OUTPUT_DIR"
           
           echo "Generating manifests to $PULUMI_MANIFEST_OUTPUT_DIR..."
           ${pkgs.pulumi}/bin/pulumi up --yes --skip-preview
           echo "✅ Manifests generated in $PULUMI_MANIFEST_OUTPUT_DIR"
+        '';
+
+        setup-pulumi = pkgs.writeShellScriptBin "setup-pulumi" ''
+          set -e
+          echo "Setting up Pulumi..."
+          cd pulumi
+          ${pkgs.pulumi}/bin/pulumi login --local
+          # Create stack if not exists (ignoring error if it exists)
+          ${pkgs.pulumi}/bin/pulumi stack select dev --create || true
+          # Ensure kubernetes plugin is installed
+          ${pkgs.pulumi}/bin/pulumi plugin install resource kubernetes
+          echo "✅ Pulumi setup complete."
         '';
 
         push-insecure = pkgs.writeShellScriptBin "push-insecure" ''
@@ -231,6 +245,11 @@
           program = "${self.packages.${system}.generate-manifests}/bin/generate-manifests";
         };
 
+        setup-pulumi = {
+          type = "app";
+          program = "${self.packages.${system}.setup-pulumi}/bin/setup-pulumi";
+        };
+
         push-insecure = {
           type = "app";
           program = "${self.packages.${system}.push-insecure}/bin/push-insecure";
@@ -259,6 +278,7 @@
             pkgs.python3Packages.deepdiff
             self.packages.${system}.import-crds
             self.packages.${system}.generate-manifests
+            self.packages.${system}.setup-pulumi
             self.packages.${system}.build-image
             self.packages.${system}.push-multi-arch
             self.packages.${system}.push-insecure
@@ -266,6 +286,7 @@
           ];
           
           shellHook = ''
+            export PULUMI_MANIFEST_OUTPUT_DIR=$(pwd)/.direnv/manifests
             echo "Entering Pulumi development shell"
             echo "Run 'direnv allow' to automatically load the environment."
             echo "Run 'pulumi new kubernetes-python' to start a new project."
