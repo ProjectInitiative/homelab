@@ -41,6 +41,7 @@ jobs:
           # PULUMI_BACKEND_URL: "file://${{ github.workspace }}/.pulumi"
           # PULUMI_HOME: "${{ github.workspace }}/.pulumi"
         run: |
+          nix run .#setup-pulumi
           nix run .#generate-manifests
           # Move result to a safe place outside the repo dir
           mkdir -p ../manifests-main
