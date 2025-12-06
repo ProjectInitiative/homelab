@@ -182,6 +182,59 @@ def process_cluster(cluster_file):
                     new_value_files = [new_value_files]
                 target_source_for_helm_values['helm']['valueFiles'] = existing_value_files + new_value_files
 
+        # Handle Vault Secrets (Auto-Injection)
+        if 'vaultSecrets' in app_def:
+            vs_config = app_def['vaultSecrets']
+            secrets_list = vs_config.get('secrets', [])
+            
+            # Default Auth Method (can be overridden per app)
+            default_auth = vs_config.get('auth', 'operator-auth')
+
+            for secret_item in secrets_list:
+                # Construct VaultStaticSecret manifest
+                vss_manifest = {
+                    'apiVersion': 'secrets.hashicorp.com/v1beta1',
+                    'kind': 'VaultStaticSecret',
+                    'metadata': {
+                        'name': secret_item['name'],
+                        'namespace': target_ns 
+                    },
+                    'spec': {
+                        'vaultAuthRef': secret_item.get('auth', default_auth),
+                        'mount': secret_item.get('mount', 'secret'), # Default mount point
+                        'type': secret_item.get('type', 'Opaque'),
+                        'path': secret_item['path'],
+                        'destination': {
+                            'name': secret_item['destination'],
+                            'create': True
+                        }
+                    }
+                }
+                
+                # Optional: Refresh Interval
+                if 'refreshInterval' in secret_item:
+                    vss_manifest['spec']['refreshInterval'] = secret_item['refreshInterval']
+
+                # Generate YAML string for the patch
+                vss_patch_str = yaml.safe_dump(vss_manifest)
+
+                # Determine target source for injection.
+                # We typically inject into the primary config source.
+                # Re-using the logic for 'legacy_target_source' heuristic.
+                target_src_for_secret = None
+                for src in sources:
+                    if 'path' in src and (src.get('path', '').endswith('config') or 'kustomize' in src):
+                        target_src_for_secret = src
+                        break
+                
+                if target_src_for_secret is None:
+                    target_src_for_secret = sources[0]
+
+                # Apply the patch
+                # Note: We don't need a 'target' for the patch because we are creating a NEW resource,
+                # not patching an existing one. Kustomize patches can add resources.
+                apply_patch_to_source(target_src_for_secret, vss_patch_str)
+
         # 2. Destination
         destination = {
             'server': server_url,
