@@ -57,230 +57,26 @@
           pythonEnv = pythonEnvs.${system};
         };
 
-        import-crds = pkgs.writeShellScriptBin "import-crds" ''
-          #!${pkgs.stdenv.shell}
-          # Usage: import-crds <path-to-json-file>
-          # Example: import-crds cdk8s/crd-imports.json
-          
-          if [ -z "$1" ]; then
-            echo "Usage: import-crds <path-to-json-file>"
-            exit 1
-          fi
+        import-crds = import ./nix/scripts/import-crds.nix { inherit pkgs; };
 
-          JSON_FILE="$1"
-          
-          if [ ! -f "$JSON_FILE" ]; then
-             echo "Error: File $JSON_FILE not found."
-             exit 1
-          fi
+        build-image = import ./nix/scripts/build-image.nix { inherit pkgs system; };
 
-          echo "Reading CRDs from $JSON_FILE..."
-          
-          # Extract CRDs from JSON using Python
-          CRD_ARGS=$(${pkgs.python3}/bin/python3 -c "import json, sys; print(' '.join(json.load(open('$JSON_FILE'))))")
-          
-          echo "Running crd2pulumi..."
-          # Generate Python types for the CRDs
-          # shellcheck disable=SC2086
-          ${pkgs.crd2pulumi}/bin/crd2pulumi --pythonPath ./pulumi/crds $CRD_ARGS --force
-        '';
+        push-multi-arch = import ./nix/scripts/push-multi-arch.nix { 
+          inherit pkgs supportedSystems; 
+        };
 
-        build-image = pkgs.writeShellScriptBin "build-image" ''
-          set -e
-          echo "Building Pulumi CMP image for ${system}..."
-          nix build ".#packages.${system}.pulumi-cmp-plugin" -o result-image
-          echo "Loading into Docker..."
-          docker load < result-image
-          rm result-image
-          echo "✅ Pulumi CMP image for ${system} ready!"
-        '';
+        generate-manifests = import ./nix/scripts/generate-manifests.nix { 
+          inherit pkgs system; 
+          pythonEnv = pythonEnvs.${system};
+        };
 
-        push-multi-arch = pkgs.writeShellScriptBin "push-multi-arch" ''
-          set -e
-          set -o pipefail
+        setup-pulumi = import ./nix/scripts/setup-pulumi.nix { inherit pkgs; };
 
-          PACKAGE_NAME=$1
-          IMAGE_NAME=$2
-          OWNER=$3
-          TAG=''${4:-latest}
+        push-insecure = import ./nix/scripts/push-insecure.nix { inherit pkgs system; };
 
-          if [ -z "$PACKAGE_NAME" ] || [ -z "$IMAGE_NAME" ] || [ -z "$OWNER" ]; then
-            echo "Usage: $0 <package-name> <image-name> <owner> [tag]"
-            exit 1
-          fi
+        dev-push = import ./nix/scripts/dev-push.nix { inherit pkgs; };
 
-          # Define systems to build for
-          SYSTEMS=(${builtins.toString supportedSystems})
-          MANIFEST_LIST=()
-
-          for ARCH_SYSTEM in "''${SYSTEMS[@]}"; do
-            # Derive arch from system string
-            ARCH=$(echo "$ARCH_SYSTEM" | sed 's/-linux//' | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
-            
-            echo "--- Building for $ARCH_SYSTEM ($ARCH) ---"
-            nix build ".#packages.$ARCH_SYSTEM.$PACKAGE_NAME" -o "result-$PACKAGE_NAME-$ARCH"
-            
-            LOADED_IMAGE=$(docker load < "result-$PACKAGE_NAME-$ARCH" | grep "Loaded image" | sed 's/Loaded image: //')
-            echo "Loaded image: $LOADED_IMAGE"
-
-            TARGET_TAG="ghcr.io/$OWNER/$IMAGE_NAME:$TAG-$ARCH"
-            echo "Tagging $LOADED_IMAGE as $TARGET_TAG"
-            docker tag "$LOADED_IMAGE" "$TARGET_TAG"
-            
-            echo "Pushing $TARGET_TAG"
-            docker push "$TARGET_TAG"
-
-            MANIFEST_LIST+=("$TARGET_TAG")
-            
-            rm "result-$PACKAGE_NAME-$ARCH"
-          done
-
-          MANIFEST_TAG="ghcr.io/$OWNER/$IMAGE_NAME:$TAG"
-          echo "--- Creating and pushing manifest for $MANIFEST_TAG ---"
-          docker manifest create "$MANIFEST_TAG" "''${MANIFEST_LIST[@]}"
-          docker manifest push "$MANIFEST_TAG"
-
-          echo "✅ Successfully pushed multi-arch image $MANIFEST_TAG"
-        '';
-
-        generate-manifests = pkgs.writeShellScriptBin "generate-manifests" ''
-          set -e
-          # Add python environment to PATH so Pulumi can find dependencies
-          export PATH="${pythonEnvs.${system}}/bin:$PATH"
-
-          # Navigate to pulumi directory as expected by the project structure
-          cd pulumi
-          
-          # Set output directory to .direnv/manifests in the project root
-          # (one level up from pulumi dir) if not already set
-          if [ -z "$PULUMI_MANIFEST_OUTPUT_DIR" ]; then
-            export PULUMI_MANIFEST_OUTPUT_DIR=$(pwd)/../.direnv/manifests
-          fi
-          mkdir -p "$PULUMI_MANIFEST_OUTPUT_DIR"
-          
-          echo "Generating manifests to $PULUMI_MANIFEST_OUTPUT_DIR..."
-          ${pkgs.pulumi}/bin/pulumi up --yes --skip-preview
-          echo "✅ Manifests generated in $PULUMI_MANIFEST_OUTPUT_DIR"
-        '';
-
-        setup-pulumi = pkgs.writeShellScriptBin "setup-pulumi" ''
-          set -e
-          echo "Setting up Pulumi..."
-          cd pulumi
-          ${pkgs.pulumi}/bin/pulumi login --local
-          # Create stack if not exists (ignoring error if it exists)
-          ${pkgs.pulumi}/bin/pulumi stack select dev --create || true
-          # Ensure kubernetes plugin is installed
-          ${pkgs.pulumi}/bin/pulumi plugin install resource kubernetes
-          echo "✅ Pulumi setup complete."
-        '';
-
-        push-insecure = pkgs.writeShellScriptBin "push-insecure" ''
-          set -e
-          set -o pipefail
-
-          PACKAGE_NAME=$1
-          IMAGE_NAME=$2
-          INSECURE_REGISTRY=$3
-          TAG=''${4:-latest}
-
-          if [ -z "$PACKAGE_NAME" ] || [ -z "$IMAGE_NAME" ] || [ -z "$INSECURE_REGISTRY" ]; then
-            echo "Usage: $0 <package-name> <image-name> <insecure-registry> [tag]"
-            exit 1
-          fi
-
-          # Assume current system for dev push
-          SYSTEM="${system}"
-          # Derive arch from system string
-          ARCH=$(echo "$SYSTEM" | sed 's/-linux//' | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
-
-          echo "--- Building $PACKAGE_NAME for $SYSTEM ($ARCH) ---"
-          nix build ".#packages.$SYSTEM.$PACKAGE_NAME" -o "result-$PACKAGE_NAME-$ARCH"
-          
-          LOADED_IMAGE=$(docker load < "result-$PACKAGE_NAME-$ARCH" | grep "Loaded image" | sed 's/Loaded image: //')
-          echo "Loaded image: $LOADED_IMAGE"
-
-          TARGET_TAG="$INSECURE_REGISTRY/$IMAGE_NAME:$TAG"
-          echo "Tagging $LOADED_IMAGE as $TARGET_TAG"
-          docker tag "$LOADED_IMAGE" "$TARGET_TAG"
-          
-          echo "Pushing $TARGET_TAG"
-          docker push "$TARGET_TAG"
-
-          rm "result-$PACKAGE_NAME-$ARCH"
-
-          echo "✅ Successfully pushed image $TARGET_TAG"
-        '';
-
-        dev-push = pkgs.writeShellScriptBin "dev-push" ''
-          set -e
-          INSECURE_REGISTRY=$1
-          if [ -z "$INSECURE_REGISTRY" ]; then
-            echo "Usage: $0 <insecure-registry>"
-            exit 1
-          fi
-          nix run .#push-insecure -- pulumi-cmp-plugin pulumi-cmp-plugin $INSECURE_REGISTRY
-        '';
-
-        diff-manifests = pkgs.writeShellScriptBin "diff-manifests" ''
-          set -e
-          
-          # Paths
-          PROJECT_ROOT=$(git rev-parse --show-toplevel)
-          COMPARE_DIR="$PROJECT_ROOT/.direnv/compare"
-          WORKTREE_DIR="$COMPARE_DIR/main"
-          MANIFESTS_MAIN="$COMPARE_DIR/manifests-main"
-          MANIFESTS_CURRENT="$COMPARE_DIR/manifests-current"
-
-          # Cleanup function
-          cleanup() {
-            echo "Cleaning up..."
-            if [ -d "$WORKTREE_DIR" ]; then
-              git worktree remove --force "$WORKTREE_DIR" || true
-            fi
-          }
-          trap cleanup EXIT
-
-          echo "Preparing comparison environment..."
-          rm -rf "$COMPARE_DIR"
-          mkdir -p "$COMPARE_DIR"
-
-          # 1. Checkout Main to Worktree
-          echo "Checking out 'main' branch to $WORKTREE_DIR..."
-          git worktree add --force --detach "$WORKTREE_DIR" main
-
-          # 2. Setup Pulumi (once)
-          echo "Setting up Pulumi..."
-          nix run .#setup-pulumi
-
-          # 3. Generate Main Manifests
-          # We run the CURRENT generation code (nix run .#generate-manifests)
-          # but we execute it inside the main worktree directory so it reads main's configs.
-          echo "Generating manifests for MAIN..."
-          export PULUMI_MANIFEST_OUTPUT_DIR="$MANIFESTS_MAIN"
-          
-          # We need to call the generate-manifests script from the current flake,
-          # but ensure it runs inside the worktree.
-          # We use a subshell to change directory without affecting the script.
-          (
-            cd "$WORKTREE_DIR"
-            # We reference the flake in the original project root to use current tools
-            nix run "$PROJECT_ROOT#generate-manifests"
-          )
-
-          # 4. Generate Current Manifests
-          echo "Generating manifests for CURRENT..."
-          export PULUMI_MANIFEST_OUTPUT_DIR="$MANIFESTS_CURRENT"
-          nix run .#generate-manifests
-
-          # 5. Diff
-          echo "Diffing manifests..."
-          echo "----------------------------------------------------------------"
-          # Use 'diff' and allow exit code 1 (which means differences found)
-          diff -r -u "$MANIFESTS_MAIN" "$MANIFESTS_CURRENT" --color=auto || true
-          echo "----------------------------------------------------------------"
-          echo "Diff complete."
-        '';
+        diff-manifests = import ./nix/scripts/diff-manifests.nix { inherit pkgs; };
       });
 
     apps = forAllSystems (system: 
