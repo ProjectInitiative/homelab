@@ -10,9 +10,9 @@ let
     # Add python to PATH for this script execution
     export PATH=${pythonEnv}/bin:$PATH
 
-    # ${pkgs.pulumi}/bin/pulumi login --local
+    ${pkgs.pulumi}/bin/pulumi login --local
     # Create stack if not exists (ignoring error if it exists)
-    # ${pkgs.pulumi}/bin/pulumi stack select dev --create || true
+    ${pkgs.pulumi}/bin/pulumi stack select dev --create || true
     # Ensure kubernetes plugin is installed
     ${pkgs.pulumi}/bin/pulumi plugin install resource kubernetes
   '';
