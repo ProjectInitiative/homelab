@@ -98,10 +98,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
-                body: `### Manifest Changes Detected\n\n<details>\n<summary>Click to expand diff</summary>\n\n\
-```diff\n${displayDiff}\n\
-\
-```\n</details>`
+                body: '### Manifest Changes Detected\n\n<details>\n<summary>Click to expand diff</summary>\n\n```diff\n' + displayDiff + '\n```\n</details>'
               });
             } catch (error) {
               console.error("Error reading diff file or posting comment:", error);
