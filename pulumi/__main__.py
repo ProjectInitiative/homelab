@@ -92,46 +92,81 @@ def process_cluster(cluster_file):
         # We apply these to the FIRST source in the list by default,
         # or the one that makes sense (e.g. helm values apply to the helm source).
         
-        # Find the source to apply overrides to.
-        # For patches, we look for a Kustomize source.
-        # For helm values, we look for a Helm source.
-        # If not found, fall back to the primary source (sources[0])
-
-        target_source_for_patches = None
-        target_source_for_helm_values = None
-
-        for src_idx, src in enumerate(sources):
-            if 'path' in src and (src.get('path', '').endswith('config') or 'kustomize' in src):
-                target_source_for_patches = src
-            if 'chart' in src and 'helm' in src: # A Helm source
-                target_source_for_helm_values = src
+        # Handle Kustomize patches
+        
+        # Helper function to apply a patch to a specific source
+        def apply_patch_to_source(src_obj, patch_content, patch_target=None):
+            if 'kustomize' not in src_obj:
+                src_obj['kustomize'] = {}
             
-        # Fallback to primary if specific source not found
-        if target_source_for_patches is None:
-            target_source_for_patches = sources[0]
+            patch_entry = {'patch': patch_content}
+            if patch_target:
+                patch_entry['target'] = patch_target
+            
+            if 'patches' not in src_obj['kustomize']:
+                src_obj['kustomize']['patches'] = []
+            src_obj['kustomize']['patches'].append(patch_entry)
+
+        # 1. Legacy/Single Patch Support (top-level 'patch' field)
+        if 'patch' in app_deployment and app_deployment['patch']:
+            # Determine target source for this legacy patch
+            legacy_target_source = None
+            
+            if 'patchSourceIndex' in app_deployment:
+                idx = app_deployment['patchSourceIndex']
+                if 0 <= idx < len(sources):
+                    legacy_target_source = sources[idx]
+                else:
+                    print(f"  [WARN] patchSourceIndex {idx} out of bounds for '{app_name}'.", file=sys.stderr)
+            
+            # Fallback heuristic if not set by index
+            if legacy_target_source is None:
+                for src in sources:
+                    if 'path' in src and (src.get('path', '').endswith('config') or 'kustomize' in src):
+                        legacy_target_source = src
+                        break # Use the first matching config source
+                
+                if legacy_target_source is None:
+                    legacy_target_source = sources[0]
+
+            apply_patch_to_source(legacy_target_source, app_deployment['patch'], app_deployment.get('patchTarget'))
+
+        # 2. Multi-Patch Support (new 'patches' list)
+        if 'patches' in app_deployment and isinstance(app_deployment['patches'], list):
+            for p in app_deployment['patches']:
+                if 'patch' not in p: 
+                    continue
+                
+                patch_src_idx = p.get('sourceIndex', 0) # Default to 0 if not specified
+                target_src = None
+                
+                if 0 <= patch_src_idx < len(sources):
+                    target_src = sources[patch_src_idx]
+                else:
+                    print(f"  [WARN] patches sourceIndex {patch_src_idx} out of bounds for '{app_name}'.", file=sys.stderr)
+                    continue # Skip this patch
+                
+                apply_patch_to_source(target_src, p['patch'], p.get('target'))
+
+
+        # Handle Helm (Values)
+        # Similar logic could be applied here if we needed multi-source Helm values, 
+        # but for now we keep the single target logic for Helm values.
+        
+        target_source_for_helm_values = None
+        if 'helmValuesSourceIndex' in app_deployment:
+             idx = app_deployment['helmValuesSourceIndex']
+             if 0 <= idx < len(sources):
+                 target_source_for_helm_values = sources[idx]
+        
+        if target_source_for_helm_values is None:
+             for src in sources:
+                if 'chart' in src and 'helm' in src:
+                    target_source_for_helm_values = src
+        
         if target_source_for_helm_values is None:
             target_source_for_helm_values = sources[0]
 
-        # Handle Kustomize patches
-        if 'patch' in app_deployment or 'source_path' in app_deployment:
-            if 'kustomize' not in target_source_for_patches:
-                target_source_for_patches['kustomize'] = {}
-            
-            if 'source_path' in app_deployment:
-                # Override path if source_path is specified (e.g. for overlays)
-                target_source_for_patches['path'] = app_deployment['source_path']
-
-            if 'patch' in app_deployment and app_deployment['patch']:
-                patch_entry = {
-                    'patch': app_deployment['patch'],
-                    'target': app_deployment.get('patchTarget', {})
-                }
-                # Append or create list
-                if 'patches' not in target_source_for_patches['kustomize']:
-                    target_source_for_patches['kustomize']['patches'] = []
-                target_source_for_patches['kustomize']['patches'].append(patch_entry)
-
-        # Handle Helm
         if 'helm_values' in app_deployment or 'value_files' in app_deployment:
             if 'helm' not in target_source_for_helm_values:
                 target_source_for_helm_values['helm'] = {}
