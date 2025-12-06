@@ -38,11 +38,11 @@ jobs:
         working-directory: main-branch
         env:
           PULUMI_CONFIG_PASSPHRASE: ""
-          # PULUMI_BACKEND_URL: "file://${{ github.workspace }}/.pulumi"
-          # PULUMI_HOME: "${{ github.workspace }}/.pulumi"
+          PULUMI_BACKEND_URL: "file://${{ github.workspace }}/.pulumi"
+          PULUMI_HOME: "${{ github.workspace }}/.pulumi"
         run: |
-          nix run .#setup-pulumi
-          nix run .#generate-manifests
+          nix run ../pr-branch#setup-pulumi
+          nix run ../pr-branch#generate-manifests
           # Move result to a safe place outside the repo dir
           mkdir -p ../manifests-main
           cp -r .direnv/manifests/* ../manifests-main/
