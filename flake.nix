@@ -37,7 +37,7 @@
         pyproject = pyproject-nix.lib.project.loadPyproject {
           # Read & unmarshal pyproject.toml relative to this project root.
           # projectRoot is also used to set `src` for renderers such as buildPythonPackage.
-          projectRoot = ./.;
+          projectRoot = ./pulumi;
         };
         # Returns a function that can be passed to `python.withPackages`
         arg = pyproject.renderers.withPackages { inherit python; };
