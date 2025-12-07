@@ -51,6 +51,8 @@ def process_cluster(cluster_file):
     
     print(f"Processing cluster: {cluster_name} ({server_url})", file=sys.stderr)
 
+    vault_mount = cluster_config.get('vaultMount')
+
     apps = cluster_config.get('apps', [])
     for app_deployment in apps:
         app_name = app_deployment['name']
@@ -181,6 +183,83 @@ def process_cluster(cluster_file):
                 if not isinstance(new_value_files, list):
                     new_value_files = [new_value_files]
                 target_source_for_helm_values['helm']['valueFiles'] = existing_value_files + new_value_files
+
+        # Handle Vault Secrets (Auto-Injection)
+        if 'vaultSecrets' in app_def:
+            vs_config = app_def['vaultSecrets']
+            secrets_list = vs_config.get('secrets', [])
+            
+            # Default Auth Method name
+            default_auth_name = vs_config.get('auth', 'operator-auth')
+            
+            # Source for our common vault resources (auto-injected)
+            common_vault_resources_repo = {
+                'repoURL': 'https://github.com/projectinitiative/homelab.git', # Self-reference
+                'targetRevision': 'HEAD',
+            }
+
+            # 1. Auto-Create VaultAuth
+            if vs_config.get('createAuth', False):
+                 if not vault_mount:
+                     print(f"  [WARN] 'createAuth' is True for '{app_name}' but 'vaultMount' is not defined in cluster '{cluster_name}'. Skipping VaultAuth generation.", file=sys.stderr)
+                 else:
+                     vault_role = vs_config.get('role', 'openbao-secrets-operator')
+                     
+                     vault_auth_manifest = {
+                        'apiVersion': 'secrets.hashicorp.com/v1beta1',
+                        'kind': 'VaultAuth',
+                        'metadata': {
+                            'name': default_auth_name,
+                            'namespace': target_ns
+                        },
+                        'spec': {
+                            'method': 'kubernetes',
+                            'mount': vault_mount,
+                            'kubernetes': {
+                                'role': vault_role
+                            }
+                        }
+                     }
+                     
+                     va_patch_str = yaml.safe_dump(vault_auth_manifest)
+                     
+                     # Add a source for the VaultAuth resource and patch it
+                     auth_source = common_vault_resources_repo.copy()
+                     auth_source['path'] = 'bootstrap/base/common/vault-resources/auth'
+                     apply_patch_to_source(auth_source, va_patch_str, {'kind': 'VaultAuth', 'name': 'placeholder-auth'})
+                     sources.append(auth_source)
+
+            # 2. Create VaultStaticSecrets (one source per secret)
+            for secret_item in secrets_list:
+                vss_manifest = {
+                    'apiVersion': 'secrets.hashicorp.com/v1beta1',
+                    'kind': 'VaultStaticSecret',
+                    'metadata': {
+                        'name': secret_item['name'],
+                        'namespace': target_ns 
+                    },
+                    'spec': {
+                        'vaultAuthRef': secret_item.get('auth', default_auth_name),
+                        'mount': secret_item.get('mount', 'secret'), # Default mount point
+                        'type': secret_item.get('type', 'Opaque'),
+                        'path': secret_item['path'],
+                        'destination': {
+                            'name': secret_item['destination'],
+                            'create': True
+                        }
+                    }
+                }
+                
+                if 'refreshInterval' in secret_item:
+                    vss_manifest['spec']['refreshInterval'] = secret_item['refreshInterval']
+
+                vss_patch_str = yaml.safe_dump(vss_manifest)
+
+                # Add a source for each VaultStaticSecret resource and patch it
+                secret_source = common_vault_resources_repo.copy()
+                secret_source['path'] = 'bootstrap/base/common/vault-resources/secret'
+                apply_patch_to_source(secret_source, vss_patch_str, {'kind': 'VaultStaticSecret', 'name': 'placeholder-secret'})
+                sources.append(secret_source)
 
         # 2. Destination
         destination = {

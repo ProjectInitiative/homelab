@@ -162,9 +162,12 @@ catalog:
             apiServerProxyConfig:
               mode: "true"
               allowImpersonation: "true"
-      - repoURL: https://github.com/projectinitiative/homelab.git
-        targetRevision: HEAD
-        path: bootstrap/base/tailscale-operator/config
+    vaultSecrets:
+      createAuth: true
+      secrets:
+        - name: tailscale-auth
+          path: "secret/data/tailscale/auth"
+          destination: "tailscale-auth"
   
   garage-mem:
     path: bootstrap/mc/garage-mem

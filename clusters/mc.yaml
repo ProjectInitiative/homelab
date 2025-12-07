@@ -3,6 +3,7 @@ name: mc
 server: https://172.16.1.50:6443
 project: mc-bootstrap
 argoNamespace: argocd-mc
+vaultMount: kubernetes_cluster_mc
 apps:
   - name: kube-vip-app
     namespace: kube-system
@@ -34,18 +35,6 @@ apps:
     namespace: kube-system
   - name: tailscale-operator
     namespace: tailscale
-    # patch: |-
-    #   apiVersion: secrets.hashicorp.com/v1beta1
-    #   kind: VaultAuth
-    #   metadata:
-    #     name: operator-auth
-    #   spec:
-    #     mount: kubernetes_cluster_mc
-    #     kubernetes:
-    #       role: openbao-secrets-operator
-    # patchTarget:
-    #   kind: VaultAuth
-    #   name: operator-auth
   - name: openbao
     namespace: openbao
   - name: openbao-auth-config

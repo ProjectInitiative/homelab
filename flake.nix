@@ -7,9 +7,10 @@
       url = "github:pyproject-nix/pyproject.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    ops-utils.url = "github:projectinitiative/ops-utils";
   };
 
-  outputs = { self, nixpkgs, pyproject-nix, ... }@inputs:
+  outputs = { self, nixpkgs, pyproject-nix, ops-utils, ... }@inputs:
   let
     supportedSystems = [ "x86_64-linux" "aarch64-linux" ];
     forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
@@ -50,6 +51,12 @@
     packages = forAllSystems (system:
       let
         pkgs = pkgsForSystem system;
+        # Instantiate all tools
+        ops = ops-utils.lib.mkUtils {
+          inherit pkgs;
+          # supportedSystems defaults to [ "x86_64-linux" "aarch64-linux" ] if omitted
+        };
+
       in
       {
         pulumi-cmp-plugin = import ./pulumi/cmp-image/image.nix { 
@@ -57,111 +64,25 @@
           pythonEnv = pythonEnvs.${system};
         };
 
-        import-crds = pkgs.writeShellScriptBin "import-crds" ''
-          #!${pkgs.stdenv.shell}
-          # Usage: import-crds <path-to-json-file>
-          # Example: import-crds cdk8s/crd-imports.json
-          
-          if [ -z "$1" ]; then
-            echo "Usage: import-crds <path-to-json-file>"
-            exit 1
-          fi
+        import-crds = import ./nix/scripts/import-crds.nix { inherit pkgs; };
 
-          JSON_FILE="$1"
-          
-          if [ ! -f "$JSON_FILE" ]; then
-             echo "Error: File $JSON_FILE not found."
-             exit 1
-          fi
+        generate-manifests = import ./nix/scripts/generate-manifests.nix { 
+          inherit pkgs system; 
+          pythonEnv = pythonEnvs.${system};
+        };
 
-          echo "Reading CRDs from $JSON_FILE..."
-          
-          # Extract CRDs from JSON using Python
-          CRD_ARGS=$(${pkgs.python3}/bin/python3 -c "import json, sys; print(' '.join(json.load(open('$JSON_FILE'))))")
-          
-          echo "Running crd2pulumi..."
-          # Generate Python types for the CRDs
-          # shellcheck disable=SC2086
-          ${pkgs.crd2pulumi}/bin/crd2pulumi --pythonPath ./pulumi/crds $CRD_ARGS --force
-        '';
+        setup-pulumi = import ./nix/scripts/setup-pulumi.nix { inherit pkgs; };
 
-        build-image = pkgs.writeShellScriptBin "build-image" ''
-          set -e
-          echo "Building Pulumi CMP image for ${system}..."
-          nix build ".#packages.${system}.pulumi-cmp-plugin" -o result-image
-          echo "Loading into Docker..."
-          docker load < result-image
-          rm result-image
-          echo "✅ Pulumi CMP image for ${system} ready!"
-        '';
-
-        push-multi-arch = pkgs.writeShellScriptBin "push-multi-arch" ''
-          set -e
-          set -o pipefail
-
-          PACKAGE_NAME=$1
-          IMAGE_NAME=$2
-          OWNER=$3
-          TAG=''${4:-latest}
-
-          if [ -z "$PACKAGE_NAME" ] || [ -z "$IMAGE_NAME" ] || [ -z "$OWNER" ]; then
-            echo "Usage: $0 <package-name> <image-name> <owner> [tag]"
-            exit 1
-          fi
-
-          # Define systems to build for
-          SYSTEMS=(${builtins.toString supportedSystems})
-          MANIFEST_LIST=()
-
-          for ARCH_SYSTEM in "''${SYSTEMS[@]}"; do
-            # Derive arch from system string
-            ARCH=$(echo "$ARCH_SYSTEM" | sed 's/-linux//' | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
-            
-            echo "--- Building for $ARCH_SYSTEM ($ARCH) ---"
-            nix build ".#packages.$ARCH_SYSTEM.$PACKAGE_NAME" -o "result-$PACKAGE_NAME-$ARCH"
-            
-            LOADED_IMAGE=$(docker load < "result-$PACKAGE_NAME-$ARCH" | grep "Loaded image" | sed 's/Loaded image: //')
-            echo "Loaded image: $LOADED_IMAGE"
-
-            TARGET_TAG="ghcr.io/$OWNER/$IMAGE_NAME:$TAG-$ARCH"
-            echo "Tagging $LOADED_IMAGE as $TARGET_TAG"
-            docker tag "$LOADED_IMAGE" "$TARGET_TAG"
-            
-            echo "Pushing $TARGET_TAG"
-            docker push "$TARGET_TAG"
-
-            MANIFEST_LIST+=("$TARGET_TAG")
-            
-            rm "result-$PACKAGE_NAME-$ARCH"
-          done
-
-          MANIFEST_TAG="ghcr.io/$OWNER/$IMAGE_NAME:$TAG"
-          echo "--- Creating and pushing manifest for $MANIFEST_TAG ---"
-          docker manifest create "$MANIFEST_TAG" "''${MANIFEST_LIST[@]}"
-          docker manifest push "$MANIFEST_TAG"
-
-          echo "✅ Successfully pushed multi-arch image $MANIFEST_TAG"
-        '';
-
-        generate-manifests = pkgs.writeShellScriptBin "generate-manifests" ''
-          set -e
-          # Navigate to pulumi directory as expected by the project structure
-          cd pulumi
-          
-          # Set output directory to .direnv/manifests in the project root
-          # (one level up from pulumi dir)
-          export PULUMI_MANIFEST_OUTPUT_DIR=$(pwd)/../.direnv/manifests
-          mkdir -p "$PULUMI_MANIFEST_OUTPUT_DIR"
-          
-          echo "Generating manifests to $PULUMI_MANIFEST_OUTPUT_DIR..."
-          ${pkgs.pulumi}/bin/pulumi up --yes --skip-preview
-          echo "✅ Manifests generated in $PULUMI_MANIFEST_OUTPUT_DIR"
-        '';
-      });
+        diff-manifests = import ./nix/scripts/diff-manifests.nix { inherit pkgs; };
+      } // ops);
 
     apps = forAllSystems (system: 
       let
         pkgs = pkgsForSystem system;
+        ops = ops-utils.lib.mkUtils { inherit pkgs; };
+        
+        # Generate apps for all ops tools automatically
+        opsApps = ops-utils.lib.mkApps { inherit pkgs; } ops;
       in
       {
         import-crds = {
@@ -169,21 +90,21 @@
           program = "${self.packages.${system}.import-crds}/bin/import-crds";
         };
 
-        build-image = {
-          type = "app";
-          program = "${self.packages.${system}.build-image}/bin/build-image";
-        };
-
-        push-multi-arch = {
-          type = "app";
-          program = "${self.packages.${system}.push-multi-arch}/bin/push-multi-arch";
-        };
-
         generate-manifests = {
           type = "app";
           program = "${self.packages.${system}.generate-manifests}/bin/generate-manifests";
         };
-      });
+
+        setup-pulumi = {
+          type = "app";
+          program = "${self.packages.${system}.setup-pulumi}/bin/setup-pulumi";
+        };
+       
+        diff-manifests = {
+          type = "app";
+          program = "${self.packages.${system}.diff-manifests}/bin/diff-manifests";
+        };
+      } // opsApps);
 
     devShells = forAllSystems (system:
       let
@@ -202,11 +123,16 @@
             pkgs.python3Packages.deepdiff
             self.packages.${system}.import-crds
             self.packages.${system}.generate-manifests
+            self.packages.${system}.setup-pulumi
             self.packages.${system}.build-image
             self.packages.${system}.push-multi-arch
+            self.packages.${system}.push-insecure
+            self.packages.${system}.dev-push
+            self.packages.${system}.diff-manifests
           ];
           
           shellHook = ''
+            export PULUMI_MANIFEST_OUTPUT_DIR=$(pwd)/.direnv/manifests
             echo "Entering Pulumi development shell"
             echo "Run 'direnv allow' to automatically load the environment."
             echo "Run 'pulumi new kubernetes-python' to start a new project."

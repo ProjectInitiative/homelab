@@ -1,0 +1,118 @@
+name: Manifest Diff
+
+on:
+  pull_request:
+    paths:
+      - 'pulumi/**'
+      - 'apps.yaml'
+      - 'clusters/**'
+      - 'flake.nix'
+      - 'flake.lock'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install QEMU
+        run: sudo apt-get update && sudo apt-get install -y qemu-user-static
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10
+        with:
+          extra-conf: |
+            extra-platforms = aarch64-linux
+            extra-sandbox-paths = /usr/bin/qemu-aarch64-static
+
+      # 1. Checkout Code
+      - name: Checkout Main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main-branch
+
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          path: pr-branch
+
+      # 2. Generate Manifests
+      - name: Generate Main Manifests
+        working-directory: main-branch
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ""
+          # PULUMI_BACKEND_URL: "file://${{ github.workspace }}/.pulumi"
+          # PULUMI_HOME: "${{ github.workspace }}/.pulumi"
+        run: |
+          nix run ../pr-branch#setup-pulumi
+          nix run ../pr-branch#generate-manifests
+          # Move result to a safe place outside the repo dir
+          mkdir -p ../manifests-main
+          cp -r .direnv/manifests/* ../manifests-main/
+
+      - name: Generate PR Manifests
+        working-directory: pr-branch
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ""
+          # PULUMI_BACKEND_URL: "file://${{ github.workspace }}/.pulumi"
+          # PULUMI_HOME: "${{ github.workspace }}/.pulumi"
+        run: |
+          nix run .#setup-pulumi
+          nix run .#generate-manifests
+          mkdir -p ../manifests-pr
+          cp -r .direnv/manifests/* ../manifests-pr/
+
+      # 3. Diff
+      - name: Compare Manifests
+        id: diff
+        shell: bash
+        run: |
+          echo "Generating Diff..."
+          
+          set +e
+          # Use diff -r -u for recursive unified diff
+          OUTPUT=$(diff -r -u manifests-main manifests-pr)
+          EXIT_CODE=$?
+          set -e
+          
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "No changes detected."
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "Changes detected!"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            
+            # Write output to file for commenting
+            # Escape potentially problematic characters for script reading
+            echo "$OUTPUT" > diff.txt
+          fi
+
+      # 4. Comment
+      - name: Comment PR
+        if: steps.diff.outputs.has_changes == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            try {
+              const diff = fs.readFileSync('diff.txt', 'utf8');
+              
+              // Truncate if too long (GitHub comment limit is ~65k)
+              const maxLen = 60000;
+              let displayDiff = diff;
+              if (diff.length > maxLen) {
+                displayDiff = diff.substring(0, maxLen) + "\n... (Diff truncated)";
+              }
+
+              github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: '### Manifest Changes Detected\n\n<details>\n<summary>Click to expand diff</summary>\n\n```diff\n' + displayDiff + '\n```\n</details>'
+              });
+            } catch (error) {
+              console.error("Error reading diff file or posting comment:", error);
+            }
