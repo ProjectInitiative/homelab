@@ -167,7 +167,8 @@ catalog:
       serviceAccount: default
       secrets:
         - name: tailscale-auth
-          path: "k8s/data/tailscale/auth"
+          mount: k8s
+          path: "data/tailscale/auth"
           destination: "tailscale-auth"
   
   garage-mem:
