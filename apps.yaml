@@ -164,6 +164,7 @@ catalog:
               allowImpersonation: "true"
     vaultSecrets:
       createAuth: true
+      serviceAccount: default
       secrets:
         - name: tailscale-auth
           path: "secret/data/tailscale/auth"

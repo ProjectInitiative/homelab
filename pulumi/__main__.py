@@ -205,6 +205,7 @@ def process_cluster(cluster_file):
                      print(f"  [WARN] 'createAuth' is True for '{app_name}' but 'vaultMount' is not defined in cluster '{cluster_name}'. Skipping VaultAuth generation.", file=sys.stderr)
                  else:
                      vault_role = vs_config.get('role', 'openbao-secrets-operator')
+                     service_account = vs_config.get('serviceAccount', 'default')
                      
                      vault_auth_manifest = {
                         'apiVersion': 'secrets.hashicorp.com/v1beta1',
@@ -217,7 +218,8 @@ def process_cluster(cluster_file):
                             'method': 'kubernetes',
                             'mount': vault_mount,
                             'kubernetes': {
-                                'role': vault_role
+                                'role': vault_role,
+                                'serviceAccount': service_account
                             }
                         }
                      }
@@ -242,6 +244,7 @@ def process_cluster(cluster_file):
 
             # 2. Create VaultStaticSecrets (one source per secret)
             for secret_item in secrets_list:
+                # YAML Patch for Spec and Namespace
                 vss_manifest = {
                     'apiVersion': 'secrets.hashicorp.com/v1beta1',
                     'kind': 'VaultStaticSecret',
@@ -252,7 +255,7 @@ def process_cluster(cluster_file):
                     'spec': {
                         'vaultAuthRef': secret_item.get('auth', default_auth_name),
                         'mount': secret_item.get('mount', 'secret'), # Default mount point
-                        'type': secret_item.get('type', 'Opaque'),
+                        'type': secret_item.get('type', 'kv-v2'), # Vault Secret Type
                         'path': secret_item['path'],
                         'destination': {
                             'name': secret_item['destination'],
