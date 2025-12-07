@@ -1,0 +1,9 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: placeholder-auth
+spec:
+  method: kubernetes
+  mount: placeholder-mount
+  kubernetes:
+    role: placeholder-role

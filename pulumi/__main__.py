@@ -191,17 +191,12 @@ def process_cluster(cluster_file):
             
             # Default Auth Method name
             default_auth_name = vs_config.get('auth', 'operator-auth')
-
-            # Determine target source for injection.
-            # We typically inject into the primary config source.
-            target_src_for_secret = None
-            for src in sources:
-                if 'path' in src and (src.get('path', '').endswith('config') or 'kustomize' in src):
-                    target_src_for_secret = src
-                    break
             
-            if target_src_for_secret is None:
-                target_src_for_secret = sources[0]
+            # Source for our common vault resources (auto-injected)
+            common_vault_resources_repo = {
+                'repoURL': 'https://github.com/projectinitiative/homelab.git', # Self-reference
+                'targetRevision': 'HEAD',
+            }
 
             # 1. Auto-Create VaultAuth
             if vs_config.get('createAuth', False):
@@ -226,13 +221,16 @@ def process_cluster(cluster_file):
                         }
                      }
                      
-                     # Generate Patch
                      va_patch_str = yaml.safe_dump(vault_auth_manifest)
-                     apply_patch_to_source(target_src_for_secret, va_patch_str)
+                     
+                     # Add a source for the VaultAuth resource and patch it
+                     auth_source = common_vault_resources_repo.copy()
+                     auth_source['path'] = 'bootstrap/base/common/vault-resources/auth'
+                     apply_patch_to_source(auth_source, va_patch_str, {'kind': 'VaultAuth', 'name': 'placeholder-auth'})
+                     sources.append(auth_source)
 
-            # 2. Create Secrets
+            # 2. Create VaultStaticSecrets (one source per secret)
             for secret_item in secrets_list:
-                # Construct VaultStaticSecret manifest
                 vss_manifest = {
                     'apiVersion': 'secrets.hashicorp.com/v1beta1',
                     'kind': 'VaultStaticSecret',
@@ -252,17 +250,16 @@ def process_cluster(cluster_file):
                     }
                 }
                 
-                # Optional: Refresh Interval
                 if 'refreshInterval' in secret_item:
                     vss_manifest['spec']['refreshInterval'] = secret_item['refreshInterval']
 
-                # Generate YAML string for the patch
                 vss_patch_str = yaml.safe_dump(vss_manifest)
 
-                # Apply the patch
-                # Note: We don't need a 'target' for the patch because we are creating a NEW resource,
-                # not patching an existing one. Kustomize patches can add resources.
-                apply_patch_to_source(target_src_for_secret, vss_patch_str)
+                # Add a source for each VaultStaticSecret resource and patch it
+                secret_source = common_vault_resources_repo.copy()
+                secret_source['path'] = 'bootstrap/base/common/vault-resources/secret'
+                apply_patch_to_source(secret_source, vss_patch_str, {'kind': 'VaultStaticSecret', 'name': 'placeholder-secret'})
+                sources.append(secret_source)
 
         # 2. Destination
         destination = {
