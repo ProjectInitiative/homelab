@@ -3,6 +3,7 @@ name: cc
 server: https://kubernetes.default.svc
 project: cc-bootstrap
 argoNamespace: argocd-cc
+vaultMount: kubernetes_cluster_cc
 apps:
   - name: local-path-provisioner
     namespace: local-path-storage
@@ -10,18 +11,7 @@ apps:
     patchTarget: {}
   - name: tailscale-operator
     namespace: tailscale
-    patch: |-
-      apiVersion: secrets.hashicorp.com/v1beta1
-      kind: VaultAuth
-      metadata:
-        name: operator-auth
-      spec:
-        mount: kubernetes_cluster_cc
-        kubernetes:
-          role: openbao-secrets-operator
-    patchTarget:
-      kind: VaultAuth
-      name: operator-auth
+    patchTarget: {}
   - name: cert-manager
     namespace: cert-manager
   - name: openbao-auth-config

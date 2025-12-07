@@ -7,9 +7,10 @@
       url = "github:pyproject-nix/pyproject.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    ops-utils.url = "github:projectinitiative/ops-utils";
   };
 
-  outputs = { self, nixpkgs, pyproject-nix, ... }@inputs:
+  outputs = { self, nixpkgs, pyproject-nix, ops-utils, ... }@inputs:
   let
     supportedSystems = [ "x86_64-linux" "aarch64-linux" ];
     forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
@@ -50,6 +51,12 @@
     packages = forAllSystems (system:
       let
         pkgs = pkgsForSystem system;
+        # Instantiate all tools
+        ops = ops-utils.lib.mkUtils {
+          inherit pkgs;
+          # supportedSystems defaults to [ "x86_64-linux" "aarch64-linux" ] if omitted
+        };
+
       in
       {
         pulumi-cmp-plugin = import ./pulumi/cmp-image/image.nix { 
@@ -59,12 +66,6 @@
 
         import-crds = import ./nix/scripts/import-crds.nix { inherit pkgs; };
 
-        build-image = import ./nix/scripts/build-image.nix { inherit pkgs system; };
-
-        push-multi-arch = import ./nix/scripts/push-multi-arch.nix { 
-          inherit pkgs supportedSystems; 
-        };
-
         generate-manifests = import ./nix/scripts/generate-manifests.nix { 
           inherit pkgs system; 
           pythonEnv = pythonEnvs.${system};
@@ -72,31 +73,21 @@
 
         setup-pulumi = import ./nix/scripts/setup-pulumi.nix { inherit pkgs; };
 
-        push-insecure = import ./nix/scripts/push-insecure.nix { inherit pkgs system; };
-
-        dev-push = import ./nix/scripts/dev-push.nix { inherit pkgs; };
-
         diff-manifests = import ./nix/scripts/diff-manifests.nix { inherit pkgs; };
-      });
+      } // ops);
 
     apps = forAllSystems (system: 
       let
         pkgs = pkgsForSystem system;
+        ops = ops-utils.lib.mkUtils { inherit pkgs; };
+        
+        # Generate apps for all ops tools automatically
+        opsApps = ops-utils.lib.mkApps { inherit pkgs; } ops;
       in
       {
         import-crds = {
           type = "app";
           program = "${self.packages.${system}.import-crds}/bin/import-crds";
-        };
-
-        build-image = {
-          type = "app";
-          program = "${self.packages.${system}.build-image}/bin/build-image";
-        };
-
-        push-multi-arch = {
-          type = "app";
-          program = "${self.packages.${system}.push-multi-arch}/bin/push-multi-arch";
         };
 
         generate-manifests = {
@@ -108,22 +99,12 @@
           type = "app";
           program = "${self.packages.${system}.setup-pulumi}/bin/setup-pulumi";
         };
-
-        push-insecure = {
-          type = "app";
-          program = "${self.packages.${system}.push-insecure}/bin/push-insecure";
-        };
-
-        dev-push = {
-          type = "app";
-          program = "${self.packages.${system}.dev-push}/bin/dev-push";
-        };
-        
+       
         diff-manifests = {
           type = "app";
           program = "${self.packages.${system}.diff-manifests}/bin/diff-manifests";
         };
-      });
+      } // opsApps);
 
     devShells = forAllSystems (system:
       let

@@ -166,6 +166,7 @@ catalog:
         targetRevision: HEAD
         path: bootstrap/base/tailscale-operator/config
     vaultSecrets:
+      createAuth: true
       secrets:
         - name: tailscale-auth
           path: "secret/data/tailscale/auth"

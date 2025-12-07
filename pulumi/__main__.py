@@ -51,6 +51,8 @@ def process_cluster(cluster_file):
     
     print(f"Processing cluster: {cluster_name} ({server_url})", file=sys.stderr)
 
+    vault_mount = cluster_config.get('vaultMount')
+
     apps = cluster_config.get('apps', [])
     for app_deployment in apps:
         app_name = app_deployment['name']
@@ -187,9 +189,48 @@ def process_cluster(cluster_file):
             vs_config = app_def['vaultSecrets']
             secrets_list = vs_config.get('secrets', [])
             
-            # Default Auth Method (can be overridden per app)
-            default_auth = vs_config.get('auth', 'operator-auth')
+            # Default Auth Method name
+            default_auth_name = vs_config.get('auth', 'operator-auth')
 
+            # Determine target source for injection.
+            # We typically inject into the primary config source.
+            target_src_for_secret = None
+            for src in sources:
+                if 'path' in src and (src.get('path', '').endswith('config') or 'kustomize' in src):
+                    target_src_for_secret = src
+                    break
+            
+            if target_src_for_secret is None:
+                target_src_for_secret = sources[0]
+
+            # 1. Auto-Create VaultAuth
+            if vs_config.get('createAuth', False):
+                 if not vault_mount:
+                     print(f"  [WARN] 'createAuth' is True for '{app_name}' but 'vaultMount' is not defined in cluster '{cluster_name}'. Skipping VaultAuth generation.", file=sys.stderr)
+                 else:
+                     vault_role = vs_config.get('role', 'openbao-secrets-operator')
+                     
+                     vault_auth_manifest = {
+                        'apiVersion': 'secrets.hashicorp.com/v1beta1',
+                        'kind': 'VaultAuth',
+                        'metadata': {
+                            'name': default_auth_name,
+                            'namespace': target_ns
+                        },
+                        'spec': {
+                            'method': 'kubernetes',
+                            'mount': vault_mount,
+                            'kubernetes': {
+                                'role': vault_role
+                            }
+                        }
+                     }
+                     
+                     # Generate Patch
+                     va_patch_str = yaml.safe_dump(vault_auth_manifest)
+                     apply_patch_to_source(target_src_for_secret, va_patch_str)
+
+            # 2. Create Secrets
             for secret_item in secrets_list:
                 # Construct VaultStaticSecret manifest
                 vss_manifest = {
@@ -200,7 +241,7 @@ def process_cluster(cluster_file):
                         'namespace': target_ns 
                     },
                     'spec': {
-                        'vaultAuthRef': secret_item.get('auth', default_auth),
+                        'vaultAuthRef': secret_item.get('auth', default_auth_name),
                         'mount': secret_item.get('mount', 'secret'), # Default mount point
                         'type': secret_item.get('type', 'Opaque'),
                         'path': secret_item['path'],
@@ -217,18 +258,6 @@ def process_cluster(cluster_file):
 
                 # Generate YAML string for the patch
                 vss_patch_str = yaml.safe_dump(vss_manifest)
-
-                # Determine target source for injection.
-                # We typically inject into the primary config source.
-                # Re-using the logic for 'legacy_target_source' heuristic.
-                target_src_for_secret = None
-                for src in sources:
-                    if 'path' in src and (src.get('path', '').endswith('config') or 'kustomize' in src):
-                        target_src_for_secret = src
-                        break
-                
-                if target_src_for_secret is None:
-                    target_src_for_secret = sources[0]
 
                 # Apply the patch
                 # Note: We don't need a 'target' for the patch because we are creating a NEW resource,
