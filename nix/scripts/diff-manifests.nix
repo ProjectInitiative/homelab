@@ -26,69 +26,78 @@ pkgs.writeShellScriptBin "diff-manifests" ''
   echo "Checking out 'main' branch to $WORKTREE_DIR..."
   git worktree add --force --detach "$WORKTREE_DIR" main
 
-            # 2. Setup Pulumi (once)
-            echo "Setting up Pulumi..."
-            nix run .#setup-pulumi
-  
-            # 3. Generate Main Manifests
-            echo "Generating manifests for MAIN..."
-            
-            # We use a subshell to change directory without affecting the script.
-            (
-              cd "$WORKTREE_DIR"
-              
-              # Create a temporary stack for comparison to avoid locking/dirtying the 'dev' stack
-              # if the main branch uses a different state structure.
-              # We assume the user has credentials configured.
-              echo "Creating ephemeral stack 'diff-main'..."
-              ${pkgs.pulumi}/bin/pulumi login --local
-              ${pkgs.pulumi}/bin/pulumi stack select diff-main --create || true
-              
-                          # Set the env var (for code that supports it)
-                          export PULUMI_MANIFEST_OUTPUT_DIR="$MANIFESTS_MAIN"
-                          export PULUMI_STACK="diff-main"
-                          
-                          # We reference the flake in the original project root to use current tools
-                          # Note: We rely on the tools to respect PULUMI_MANIFEST_OUTPUT_DIR, 
-                          # OR the code to output to 'manifests'.
-                          # We suppress the "nix run" output slightly to reduce noise, but keep pulumi output
-                          nix run "$PROJECT_ROOT#generate-manifests"
-                          
-                          # Collect outputs:
-                          # 1. If code respected PULUMI_MANIFEST_OUTPUT_DIR, they are already in $MANIFESTS_MAIN.
-                          # 2. If code used default 'manifests' dir (legacy), move them.
-                          
-                          echo "Debug: Listing contents of pulumi directory in worktree..."
-                          ls -la "$WORKTREE_DIR/pulumi"
-                          if [ -d "$WORKTREE_DIR/pulumi/manifests" ]; then
-                               echo "Debug: contents of legacy manifests dir:"
-                               ls -la "$WORKTREE_DIR/pulumi/manifests"
-                          fi
-              
-                          LEGACY_OUTPUT_DIR="manifests" # Relative to where pulumi runs (inside pulumi dir usually, but generate-manifests cd's to pulumi)
-                          # The generate-manifests script cd's into 'pulumi'. 
-                          # So if legacy code writes to 'manifests', it ends up in '$WORKTREE_DIR/pulumi/manifests'.
-                          
-                          FULL_LEGACY_PATH="$WORKTREE_DIR/pulumi/manifests"
-                          
-                          if [ -d "$FULL_LEGACY_PATH" ] && [ -n "$(ls -A "$FULL_LEGACY_PATH")" ]; then
-                            echo "  Found manifests in legacy path ($FULL_LEGACY_PATH). Moving to collection dir..."
-                            mkdir -p "$MANIFESTS_MAIN"
-                            cp -r "$FULL_LEGACY_PATH"/* "$MANIFESTS_MAIN/"
-                          fi              
-              # Clean up the stack
-              echo "Removing ephemeral stack..."
-              ${pkgs.pulumi}/bin/pulumi stack rm diff-main --yes --force || true
-            )
-  
-            # 4. Generate Current Manifests  echo "Generating manifests for CURRENT..."
-  export PULUMI_MANIFEST_OUTPUT_DIR="$MANIFESTS_CURRENT"
-  nix run .#generate-manifests
+  # 2. Setup Pulumi (once for both generations, if needed)
+  echo "Setting up Pulumi for local environment..."
+  nix run .#setup-pulumi
+
+  # 3. Generate Main Manifests (using current tools against main's code)
+  echo "Generating manifests for MAIN..."
+  (
+    cd "$WORKTREE_DIR/pulumi"
+    
+    # Create a temporary stack for comparison
+    echo "Creating ephemeral stack 'diff-main'..."
+    ${pkgs.pulumi}/bin/pulumi login --local
+    ${pkgs.pulumi}/bin/pulumi stack select diff-main --create || true
+    
+    # Set the env var (for code that supports it)
+    export PULUMI_MANIFEST_OUTPUT_DIR="$MANIFESTS_MAIN"
+    export PULUMI_STACK="diff-main" # Ensure explicit stack usage for 'pulumi up'
+    
+    # Run generate-manifests from the main project root, but targeted at this worktree's config
+    # The generate-manifests script does its own `cd pulumi` internally.
+    # So we need to ensure it runs from the $WORKTREE_DIR to pick up main's `Pulumi.yaml`
+    cd .. # Go back to worktree root
+    nix run "$PROJECT_ROOT#generate-manifests"
+    
+    # Collect outputs:
+    # 1. If code respected PULUMI_MANIFEST_OUTPUT_DIR, they are already in $MANIFESTS_MAIN.
+    # 2. If code used default 'manifests' dir (legacy), move them.
+    FULL_LEGACY_PATH="$WORKTREE_DIR/pulumi/manifests"
+    
+    if [ -d "$FULL_LEGACY_PATH" ] && [ -n "$(ls -A "$FULL_LEGACY_PATH")" ]; then
+      echo "  Found manifests in legacy path ($FULL_LEGACY_PATH). Moving to collection dir..."
+      mkdir -p "$MANIFESTS_MAIN"
+      cp -r "$FULL_LEGACY_PATH"/* "$MANIFESTS_MAIN/"
+    fi
+    
+    # Clean up the ephemeral stack
+    echo "Removing ephemeral stack..."
+    cd "$WORKTREE_DIR/pulumi" # Change back to pulumi dir to remove stack
+    ${pkgs.pulumi}/bin/pulumi stack rm diff-main --yes --force || true
+  )
+
+  # 4. Generate Current Manifests
+  echo "Generating manifests for CURRENT..."
+  (
+    # We need to be in the pulumi directory to select/create a stack
+    cd pulumi
+    
+    echo "Creating ephemeral stack 'diff-current'..."
+    ${pkgs.pulumi}/bin/pulumi login --local
+    ${pkgs.pulumi}/bin/pulumi stack select diff-current --create || true
+    
+    export PULUMI_MANIFEST_OUTPUT_DIR="$MANIFESTS_CURRENT"
+    export PULUMI_STACK="diff-current"
+    
+    # We can run the generate-manifests script from the project root.
+    # It will cd into pulumi, but we want it to use our stack.
+    # Since we set PULUMI_STACK env var, it should respect it if we modify generate-manifests to respect it?
+    # Actually, generate-manifests just runs `pulumi up`.
+    # `pulumi up` respects PULUMI_STACK.
+    
+    cd ..
+    nix run .#generate-manifests
+    
+    # Clean up
+    echo "Removing ephemeral stack..."
+    cd pulumi
+    ${pkgs.pulumi}/bin/pulumi stack rm diff-current --yes --force || true
+  )
 
   # 5. Diff
   echo "Diffing manifests..."
   echo "----------------------------------------------------------------"
-  # Use 'diff' and allow exit code 1 (which means differences found)
   diff -r -u "$MANIFESTS_MAIN" "$MANIFESTS_CURRENT" --color=auto || true
   echo "----------------------------------------------------------------"
   echo "Diff complete."
