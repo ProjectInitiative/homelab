@@ -44,30 +44,38 @@ pkgs.writeShellScriptBin "diff-manifests" ''
               ${pkgs.pulumi}/bin/pulumi login --local
               ${pkgs.pulumi}/bin/pulumi stack select diff-main --create || true
               
-              # Set the env var (for code that supports it)
-              export PULUMI_MANIFEST_OUTPUT_DIR="$MANIFESTS_MAIN"
+                          # Set the env var (for code that supports it)
+                          export PULUMI_MANIFEST_OUTPUT_DIR="$MANIFESTS_MAIN"
+                          export PULUMI_STACK="diff-main"
+                          
+                          # We reference the flake in the original project root to use current tools
+                          # Note: We rely on the tools to respect PULUMI_MANIFEST_OUTPUT_DIR, 
+                          # OR the code to output to 'manifests'.
+                          # We suppress the "nix run" output slightly to reduce noise, but keep pulumi output
+                          nix run "$PROJECT_ROOT#generate-manifests"
+                          
+                          # Collect outputs:
+                          # 1. If code respected PULUMI_MANIFEST_OUTPUT_DIR, they are already in $MANIFESTS_MAIN.
+                          # 2. If code used default 'manifests' dir (legacy), move them.
+                          
+                          echo "Debug: Listing contents of pulumi directory in worktree..."
+                          ls -la "$WORKTREE_DIR/pulumi"
+                          if [ -d "$WORKTREE_DIR/pulumi/manifests" ]; then
+                               echo "Debug: contents of legacy manifests dir:"
+                               ls -la "$WORKTREE_DIR/pulumi/manifests"
+                          fi
               
-              # We reference the flake in the original project root to use current tools
-              # Note: We rely on the tools to respect PULUMI_MANIFEST_OUTPUT_DIR, 
-              # OR the code to output to 'manifests'.
-              # We suppress the "nix run" output slightly to reduce noise, but keep pulumi output
-              nix run "$PROJECT_ROOT#generate-manifests"
-              
-              # Collect outputs:
-              # 1. If code respected PULUMI_MANIFEST_OUTPUT_DIR, they are already in $MANIFESTS_MAIN.
-              # 2. If code used default 'manifests' dir (legacy), move them.
-              LEGACY_OUTPUT_DIR="manifests" # Relative to where pulumi runs (inside pulumi dir usually, but generate-manifests cd's to pulumi)
-              # The generate-manifests script cd's into 'pulumi'. 
-              # So if legacy code writes to 'manifests', it ends up in '$WORKTREE_DIR/pulumi/manifests'.
-              
-              FULL_LEGACY_PATH="$WORKTREE_DIR/pulumi/manifests"
-              
-              if [ -d "$FULL_LEGACY_PATH" ] && [ -n "$(ls -A "$FULL_LEGACY_PATH")" ]; then
-                echo "  Found manifests in legacy path ($FULL_LEGACY_PATH). Moving to collection dir..."
-                mkdir -p "$MANIFESTS_MAIN"
-                cp -r "$FULL_LEGACY_PATH"/* "$MANIFESTS_MAIN/"
-              fi
-              
+                          LEGACY_OUTPUT_DIR="manifests" # Relative to where pulumi runs (inside pulumi dir usually, but generate-manifests cd's to pulumi)
+                          # The generate-manifests script cd's into 'pulumi'. 
+                          # So if legacy code writes to 'manifests', it ends up in '$WORKTREE_DIR/pulumi/manifests'.
+                          
+                          FULL_LEGACY_PATH="$WORKTREE_DIR/pulumi/manifests"
+                          
+                          if [ -d "$FULL_LEGACY_PATH" ] && [ -n "$(ls -A "$FULL_LEGACY_PATH")" ]; then
+                            echo "  Found manifests in legacy path ($FULL_LEGACY_PATH). Moving to collection dir..."
+                            mkdir -p "$MANIFESTS_MAIN"
+                            cp -r "$FULL_LEGACY_PATH"/* "$MANIFESTS_MAIN/"
+                          fi              
               # Clean up the stack
               echo "Removing ephemeral stack..."
               ${pkgs.pulumi}/bin/pulumi stack rm diff-main --yes --force || true
