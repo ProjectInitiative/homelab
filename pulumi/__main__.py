@@ -210,7 +210,7 @@ def process_cluster(cluster_file):
                         'apiVersion': 'secrets.hashicorp.com/v1beta1',
                         'kind': 'VaultAuth',
                         'metadata': {
-                            # 'name': default_auth_name, # Renaming via YAML patch is unreliable
+                            'name': 'placeholder-auth', # Must match target for valid patch parsing
                             'namespace': target_ns
                         },
                         'spec': {
@@ -246,7 +246,7 @@ def process_cluster(cluster_file):
                     'apiVersion': 'secrets.hashicorp.com/v1beta1',
                     'kind': 'VaultStaticSecret',
                     'metadata': {
-                        # 'name': secret_item['name'], # Renaming via YAML patch is unreliable
+                        'name': 'placeholder-secret', # Must match target for valid patch parsing
                         'namespace': target_ns 
                     },
                     'spec': {
