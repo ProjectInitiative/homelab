@@ -1,6 +1,7 @@
 import pulumi
 import pulumi_kubernetes as k8s
 import yaml
+import json
 import os
 import sys
 
@@ -209,7 +210,7 @@ def process_cluster(cluster_file):
                         'apiVersion': 'secrets.hashicorp.com/v1beta1',
                         'kind': 'VaultAuth',
                         'metadata': {
-                            'name': default_auth_name,
+                            # 'name': default_auth_name, # Renaming via YAML patch is unreliable
                             'namespace': target_ns
                         },
                         'spec': {
@@ -223,10 +224,20 @@ def process_cluster(cluster_file):
                      
                      va_patch_str = yaml.safe_dump(vault_auth_manifest)
                      
+                     # JSON Patch for Renaming
+                     va_rename_patch = json.dumps([
+                         {"op": "replace", "path": "/metadata/name", "value": default_auth_name}
+                     ])
+                     
                      # Add a source for the VaultAuth resource and patch it
                      auth_source = common_vault_resources_repo.copy()
                      auth_source['path'] = 'bootstrap/base/common/vault-resources/auth'
+                     
+                     # Apply Spec Patch
                      apply_patch_to_source(auth_source, va_patch_str, {'kind': 'VaultAuth', 'name': 'placeholder-auth'})
+                     # Apply Rename Patch
+                     apply_patch_to_source(auth_source, va_rename_patch, {'kind': 'VaultAuth', 'name': 'placeholder-auth'})
+                     
                      sources.append(auth_source)
 
             # 2. Create VaultStaticSecrets (one source per secret)
@@ -235,7 +246,7 @@ def process_cluster(cluster_file):
                     'apiVersion': 'secrets.hashicorp.com/v1beta1',
                     'kind': 'VaultStaticSecret',
                     'metadata': {
-                        'name': secret_item['name'],
+                        # 'name': secret_item['name'], # Renaming via YAML patch is unreliable
                         'namespace': target_ns 
                     },
                     'spec': {
@@ -254,11 +265,21 @@ def process_cluster(cluster_file):
                     vss_manifest['spec']['refreshInterval'] = secret_item['refreshInterval']
 
                 vss_patch_str = yaml.safe_dump(vss_manifest)
+                
+                # JSON Patch for Renaming
+                vss_rename_patch = json.dumps([
+                    {"op": "replace", "path": "/metadata/name", "value": secret_item['name']}
+                ])
 
                 # Add a source for each VaultStaticSecret resource and patch it
                 secret_source = common_vault_resources_repo.copy()
                 secret_source['path'] = 'bootstrap/base/common/vault-resources/secret'
+                
+                # Apply Spec Patch
                 apply_patch_to_source(secret_source, vss_patch_str, {'kind': 'VaultStaticSecret', 'name': 'placeholder-secret'})
+                # Apply Rename Patch
+                apply_patch_to_source(secret_source, vss_rename_patch, {'kind': 'VaultStaticSecret', 'name': 'placeholder-secret'})
+
                 sources.append(secret_source)
 
         # 2. Destination
