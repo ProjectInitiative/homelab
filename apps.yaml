@@ -165,6 +165,8 @@ catalog:
     vaultSecrets:
       createAuth: true
       serviceAccount: default
+      audiences:
+        - vault
       secrets:
         - name: tailscale-auth
           mount: k8s

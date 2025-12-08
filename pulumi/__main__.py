@@ -206,6 +206,7 @@ def process_cluster(cluster_file):
                  else:
                      vault_role = vs_config.get('role', 'openbao-secrets-operator')
                      service_account = vs_config.get('serviceAccount', 'default')
+                     audiences = vs_config.get('audiences', [])
                      
                      vault_auth_manifest = {
                         'apiVersion': 'secrets.hashicorp.com/v1beta1',
@@ -223,6 +224,9 @@ def process_cluster(cluster_file):
                             }
                         }
                      }
+                     
+                     if audiences:
+                         vault_auth_manifest['spec']['kubernetes']['audiences'] = audiences
                      
                      va_patch_str = yaml.safe_dump(vault_auth_manifest)
                      
