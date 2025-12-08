@@ -164,7 +164,6 @@ catalog:
               allowImpersonation: "true"
     vaultSecrets:
       createAuth: true
-      serviceAccount: default
       audiences:
         - vault
       secrets:

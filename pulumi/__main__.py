@@ -205,14 +205,16 @@ def process_cluster(cluster_file):
                      print(f"  [WARN] 'createAuth' is True for '{app_name}' but 'vaultMount' is not defined in cluster '{cluster_name}'. Skipping VaultAuth generation.", file=sys.stderr)
                  else:
                      vault_role = vs_config.get('role', 'openbao-secrets-operator')
-                     service_account = vs_config.get('serviceAccount', 'default')
+                     # We generate a dedicated SA: {auth_name}-sa
+                     generated_sa_name = f"{default_auth_name}-sa"
                      audiences = vs_config.get('audiences', [])
                      
+                     # 1. VaultAuth Spec Patch
                      vault_auth_manifest = {
                         'apiVersion': 'secrets.hashicorp.com/v1beta1',
                         'kind': 'VaultAuth',
                         'metadata': {
-                            'name': 'placeholder-auth', # Must match target for valid patch parsing
+                            'name': 'placeholder-auth', 
                             'namespace': target_ns
                         },
                         'spec': {
@@ -220,7 +222,7 @@ def process_cluster(cluster_file):
                             'mount': vault_mount,
                             'kubernetes': {
                                 'role': vault_role,
-                                'serviceAccount': service_account
+                                'serviceAccount': generated_sa_name
                             }
                         }
                      }
@@ -230,19 +232,25 @@ def process_cluster(cluster_file):
                      
                      va_patch_str = yaml.safe_dump(vault_auth_manifest)
                      
-                     # JSON Patch for Renaming
+                     # 2. VaultAuth Rename Patch
                      va_rename_patch = json.dumps([
                          {"op": "replace", "path": "/metadata/name", "value": default_auth_name}
                      ])
+
+                     # 3. ServiceAccount Rename Patch
+                     # We rename 'placeholder-sa' to 'operator-auth-sa'
+                     sa_rename_patch = json.dumps([
+                         {"op": "replace", "path": "/metadata/name", "value": generated_sa_name}
+                     ])
                      
-                     # Add a source for the VaultAuth resource and patch it
+                     # Add Source
                      auth_source = common_vault_resources_repo.copy()
                      auth_source['path'] = 'bootstrap/base/common/vault-resources/auth'
                      
-                     # Apply Spec Patch
+                     # Apply Patches
                      apply_patch_to_source(auth_source, va_patch_str, {'kind': 'VaultAuth', 'name': 'placeholder-auth'})
-                     # Apply Rename Patch
                      apply_patch_to_source(auth_source, va_rename_patch, {'kind': 'VaultAuth', 'name': 'placeholder-auth'})
+                     apply_patch_to_source(auth_source, sa_rename_patch, {'kind': 'ServiceAccount', 'name': 'placeholder-sa'})
                      
                      sources.append(auth_source)
 
