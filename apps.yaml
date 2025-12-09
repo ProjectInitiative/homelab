@@ -170,8 +170,8 @@ catalog:
       secrets:
         - name: tailscale-auth
           mount: k8s
-          path: "data/tailscale/auth"
-          destination: "tailscale-auth"
+          path: "data/tailscale-operator"
+          destination: "operator-oauth"
   
   garage-mem:
     path: bootstrap/mc/garage-mem
