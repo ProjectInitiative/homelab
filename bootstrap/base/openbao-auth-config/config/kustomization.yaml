@@ -5,3 +5,4 @@ resources:
   - serviceaccount.yaml
   - operator-auth.yaml
   - vault-connection.yaml
+  - vault-reviewer.yaml
