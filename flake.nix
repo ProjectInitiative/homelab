@@ -138,6 +138,7 @@
             echo "Run 'pulumi new kubernetes-python' to start a new project."
             echo "Run 'import-crds <crd-url>' to generate Python classes for CRDs."
             echo "Run 'generate-manifests' to generate the pulumi k8s manifests."
+            echo "Run 'diff-manifests' to generate the diff between main and the current working tree (mimic the CI)."
           '';
           
           PULUMI_CONFIG_PASSPHRASE = "";

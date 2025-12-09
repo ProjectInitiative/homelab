@@ -226,6 +226,9 @@ def process_cluster(cluster_file):
                             }
                         }
                      }
+
+                     if 'namespace' in vs_config:
+                         vault_auth_manifest['spec']['namespace'] = vs_config['namespace']
                      
                      if audiences:
                          vault_auth_manifest['spec']['kubernetes']['audiences'] = audiences

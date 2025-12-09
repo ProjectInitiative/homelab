@@ -24,7 +24,8 @@ pkgs.writeShellScriptBin "diff-manifests" ''
 
   # 1. Checkout Main to Worktree
   echo "Checking out 'main' branch to $WORKTREE_DIR..."
-  git worktree add --force --detach "$WORKTREE_DIR" main
+  git fetch origin main
+  git worktree add --force --detach "$WORKTREE_DIR" origin/main
 
   # 2. Setup Pulumi (once for both generations, if needed)
   echo "Setting up Pulumi for local environment..."
