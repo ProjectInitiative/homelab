@@ -282,6 +282,9 @@ def process_cluster(cluster_file):
                 if 'refreshInterval' in secret_item:
                     vss_manifest['spec']['refreshInterval'] = secret_item['refreshInterval']
 
+                if 'namespace' in vs_config:
+                    vss_manifest['spec']['namespace'] = vs_config['namespace']
+
                 vss_patch_str = yaml.safe_dump(vss_manifest)
                 
                 # JSON Patch for Renaming
