@@ -164,6 +164,7 @@ catalog:
               allowImpersonation: "true"
     vaultSecrets:
       createAuth: true
+      namespace: production
       audiences:
         - vault
       secrets:
