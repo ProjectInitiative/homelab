@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - clusterrolebinding.yaml
   - serviceaccount.yaml
-  - operator-auth.yaml
+  # cluster wide auth not needed at this time
+  # - operator-auth.yaml
   - vault-connection.yaml
   - vault-reviewer.yaml
