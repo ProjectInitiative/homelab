@@ -8,6 +8,9 @@ spec:
   # Creates a 3-node HA cluster
   instances: 3
 
+  # Delay liveliness probe by 1 hour
+  startDelay: 3600
+
   # Basic PostgreSQL configuration
   postgresql:
     parameters:
