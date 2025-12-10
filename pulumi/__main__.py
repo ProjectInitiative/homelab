@@ -4,6 +4,7 @@ import yaml
 import json
 import os
 import sys
+import copy
 
 # Add the generated CRDs to the python path
 sys.path.append(os.path.join(os.getcwd(), 'crds'))
@@ -75,7 +76,7 @@ def process_cluster(cluster_file):
         # 1. Source(s)
         sources = []
         if 'sources' in app_def:
-            sources = app_def['sources']
+            sources = copy.deepcopy(app_def['sources'])
         else:
             # Legacy single source construction
             source = {
@@ -226,7 +227,7 @@ def process_cluster(cluster_file):
                             }
                         }
                      }
-
+                     
                      if 'namespace' in vs_config:
                          vault_auth_manifest['spec']['namespace'] = vs_config['namespace']
                      
@@ -302,7 +303,6 @@ def process_cluster(cluster_file):
                 apply_patch_to_source(secret_source, vss_rename_patch, {'kind': 'VaultStaticSecret', 'name': 'placeholder-secret'})
 
                 sources.append(secret_source)
-
         # 2. Destination
         destination = {
             'server': server_url,
