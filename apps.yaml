@@ -196,6 +196,10 @@ catalog:
         helm:
           values: |
             alloy:
+              clustering:
+                enabled: true
+                name: "homelab-alloy-cluster"
+                portName: "http"
               configMap:
                 content: |
                   logging {
@@ -220,10 +224,16 @@ catalog:
 
                   // Prometheus Operator Support
                   prometheus.operator.servicemonitors "primary_sm" {
+                    clustering {
+                        enabled = true
+                    }
                     forward_to = [prometheus.remote_write.default.receiver]
                   }
 
                   prometheus.operator.podmonitors "primary_pm" {
+                    clustering {
+                        enabled = true
+                    }
                     forward_to = [prometheus.remote_write.default.receiver]
                   }
 
