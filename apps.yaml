@@ -219,21 +219,19 @@ catalog:
                   }
 
                   // Prometheus Operator Support
-                  prometheus.operator.servicemonitors "primary" {
-                    forward_to = [prometheus.scrape.servicemonitors.receiver]
+                  prometheus.operator.servicemonitors "primary_sm" {
                   }
 
-                  prometheus.operator.podmonitors "primary" {
-                    forward_to = [prometheus.scrape.podmonitors.receiver]
+                  prometheus.operator.podmonitors "primary_pm" {
                   }
 
-                  prometheus.scrape "servicemonitors" {
-                    targets = prometheus.operator.servicemonitors.primary.targets
+                  prometheus.scrape "servicemonitor_scrape" {
+                    targets    = prometheus.operator.servicemonitors.primary_sm.targets
                     forward_to = [prometheus.remote_write.default.receiver]
                   }
 
-                  prometheus.scrape "podmonitors" {
-                    targets = prometheus.operator.podmonitors.primary.targets
+                  prometheus.scrape "podmonitor_scrape" {
+                    targets    = prometheus.operator.podmonitors.primary_pm.targets
                     forward_to = [prometheus.remote_write.default.receiver]
                   }
 
