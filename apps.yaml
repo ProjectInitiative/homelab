@@ -145,6 +145,8 @@ catalog:
         jqPathExpressions:
         - .spec.volumeClaimTemplates[].status
         - .spec.volumeClaimTemplates[].metadata.creationTimestamp
+        - .spec.volumeClaimTemplates[].apiVersion
+        - .spec.volumeClaimTemplates[].kind
     syncPolicy:
       syncOptions:
         - CreateNamespace=true
