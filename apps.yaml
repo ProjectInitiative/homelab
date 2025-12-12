@@ -220,18 +220,18 @@ catalog:
 
                   // Prometheus Operator Support
                   prometheus.operator.servicemonitors "primary_sm" {
+                    forward_to = [prometheus.scrape.servicemonitor_scrape.receiver]
                   }
 
                   prometheus.operator.podmonitors "primary_pm" {
+                    forward_to = [prometheus.scrape.podmonitor_scrape.receiver]
                   }
 
                   prometheus.scrape "servicemonitor_scrape" {
-                    targets    = prometheus.operator.servicemonitors.primary_sm.targets
                     forward_to = [prometheus.remote_write.default.receiver]
                   }
 
                   prometheus.scrape "podmonitor_scrape" {
-                    targets    = prometheus.operator.podmonitors.primary_pm.targets
                     forward_to = [prometheus.remote_write.default.receiver]
                   }
 
