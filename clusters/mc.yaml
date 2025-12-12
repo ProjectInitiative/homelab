@@ -79,3 +79,5 @@ apps:
     namespace: dnsutils
   - name: docker-registry
     namespace: registry
+  - name: grafana-alloy
+    namespace: monitoring
