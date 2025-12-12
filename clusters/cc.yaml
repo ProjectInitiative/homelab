@@ -42,5 +42,7 @@ apps:
     source_path: overlays/control-cluster/tailscale-proxy-group
   - name: dnsutils
     namespace: dnsutils
+  - name: prometheus-operator-crds
+    namespace: monitoring
   - name: grafana-alloy
     namespace: monitoring

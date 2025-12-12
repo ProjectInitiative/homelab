@@ -79,5 +79,7 @@ apps:
     namespace: dnsutils
   - name: docker-registry
     namespace: registry
+  - name: prometheus-operator-crds
+    namespace: monitoring
   - name: grafana-alloy
     namespace: monitoring
