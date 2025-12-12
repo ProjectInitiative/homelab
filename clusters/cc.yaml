@@ -42,3 +42,5 @@ apps:
     source_path: overlays/control-cluster/tailscale-proxy-group
   - name: dnsutils
     namespace: dnsutils
+  - name: grafana-alloy
+    namespace: monitoring
