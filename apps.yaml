@@ -141,12 +141,10 @@ catalog:
         kind: Secret
         name: garage-rpc-secret
       - group: apps
-        jsonPointers:
-        - /spec/volumeClaimTemplates/0/status
-        - /spec/volumeClaimTemplates/0/metadata/creationTimestamp
-        - /spec/volumeClaimTemplates/1/status
-        - /spec/volumeClaimTemplates/1/metadata/creationTimestamp
         kind: StatefulSet
+        jqPathExpressions:
+        - .spec.volumeClaimTemplates[].status
+        - .spec.volumeClaimTemplates[].metadata.creationTimestamp
     syncPolicy:
       syncOptions:
         - CreateNamespace=true
