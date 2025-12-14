@@ -119,6 +119,11 @@ catalog:
       - repoURL: https://charts.pingcap.org/
         chart: tidb-operator
         targetRevision: v1.6.3
+      - repoURL: https://github.com/pingcap/tidb-operator.git
+        targetRevision: v1.6.3
+        path: manifests
+        directory:
+            include: 'crd.yaml'
     syncPolicy:
       syncOptions:
         - CreateNamespace=true
