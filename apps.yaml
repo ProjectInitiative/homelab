@@ -151,6 +151,7 @@ catalog:
       argocd.argoproj.io/sync-wave: "50"
     vaultSecrets:
       createAuth: true
+      namespace: production
       role: openbao-secrets-operator
       audiences:
         - vault
