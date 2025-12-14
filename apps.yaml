@@ -112,6 +112,58 @@ catalog:
         - CreateNamespace=true
         - ServerSideApply=true
   
+  tidb-operator:
+    annotations:
+      argocd.argoproj.io/sync-wave: "30"
+    sources:
+      - repoURL: https://charts.pingcap.org/
+        chart: tidb-operator
+        targetRevision: v1.6.3
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
+  tikv-cluster:
+    path: bootstrap/base/tikv-cluster
+    annotations:
+      argocd.argoproj.io/sync-wave: "40"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
+  juicefs-csi-driver:
+    annotations:
+      argocd.argoproj.io/sync-wave: "30"
+    sources:
+      - repoURL: https://juicedata.github.io/charts/
+        chart: juicefs-csi-driver
+        targetRevision: 0.20.1
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
+  juicefs-platform:
+    path: bootstrap/base/juicefs-platform
+    annotations:
+      argocd.argoproj.io/sync-wave: "50"
+    vaultSecrets:
+      createAuth: true
+      role: juicefs-csi
+      audiences:
+        - vault
+      secrets:
+        - name: juicefs-creds
+          mount: k8s
+          path: "juicefs/config"
+          destination: "juicefs-creds"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
   postgres-cluster:
     path: bootstrap/base/cnpg/database
     annotations:

@@ -62,6 +62,14 @@ apps:
           role: openbao-secrets-operator
   - name: cnpg-operator
     namespace: cnpg-system
+  - name: tidb-operator
+    namespace: tikv-operator
+  - name: tikv-cluster
+    namespace: tikv-cluster
+  - name: juicefs-csi-driver
+    namespace: kube-system
+  - name: juicefs-platform
+    namespace: juicefs-platform
   - name: postgres-cluster
     namespace: postgres-db
   - name: garage
