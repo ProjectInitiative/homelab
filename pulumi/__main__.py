@@ -326,8 +326,17 @@ def process_cluster(cluster_file):
             sync_policy['automated'] = final_automated
         
         # Only include syncOptions if it's a non-empty list or explicitly not None
-        if final_sync_options is not None and final_sync_options: # Added 'and final_sync_options'
+        if final_sync_options is not None and final_sync_options:
             sync_policy['syncOptions'] = final_sync_options
+
+        # Manage Namespace Metadata for Vault Auth
+        # If the app uses Vault Secrets, automatically label the namespace
+        if 'vaultSecrets' in app_def:
+             sync_policy['managedNamespaceMetadata'] = {
+                 'labels': {
+                     'vault-auth': 'enabled'
+                 }
+             }
 
         # Construct the Application CR dict
         app_manifest = {
