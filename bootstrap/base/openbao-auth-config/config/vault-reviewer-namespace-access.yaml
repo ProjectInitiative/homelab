@@ -1,0 +1,21 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: vault-reviewer-namespace-access
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vault-reviewer-namespace-access
+subjects:
+  - kind: ServiceAccount
+    name: vault-reviewer
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: vault-reviewer-namespace-access
+  apiGroup: rbac.authorization.k8s.io
