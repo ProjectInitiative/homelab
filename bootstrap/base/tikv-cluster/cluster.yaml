@@ -1,0 +1,26 @@
+apiVersion: pingcap.com/v1alpha1
+kind: TidbCluster
+metadata:
+  name: juicefs-meta
+  namespace: tikv-cluster
+spec:
+  version: v6.5.0
+  timezone: UTC
+  pvReclaimPolicy: Retain
+  discovery: {}
+  pd:
+    baseImage: pingcap/pd
+    maxFailoverCount: 0
+    replicas: 3
+    requests:
+      storage: "1Gi"
+    storageClassName: "local-path-nvme-sticky"
+    config: {}
+  tikv:
+    baseImage: pingcap/tikv
+    maxFailoverCount: 0
+    replicas: 3
+    requests:
+      storage: "10Gi"
+    storageClassName: "local-path-nvme-sticky"
+    config: {}

@@ -1,0 +1,26 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+reclaimPolicy: Retain
+volumeBindingMode: Immediate
+parameters:
+  # The secret "juicefs-creds" must exist in the namespace where the PVC is created
+  # OR we can specify a global secret (node-publish-secret-name/namespace)
+  # But JuiceFS CSI often requires the secret to be in the PVC's namespace for dynamic provisioning
+  # UNLESS we use 'csi.storage.k8s.io/node-publish-secret-name' etc.
+  
+  # For dynamic provisioning with a global secret:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-creds
+  csi.storage.k8s.io/provisioner-secret-namespace: juicefs-platform
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-creds
+  csi.storage.k8s.io/node-publish-secret-namespace: juicefs-platform
+  
+  # Metadata engine (TiKV)
+  # metaurl is usually provided in the Secret, not here, to avoid exposing it.
+  # But we can refer to it here if we want.
+  # Better to put 'metaurl' in the secret.
+
+mountOptions:
+  - debug
