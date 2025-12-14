@@ -26,7 +26,7 @@ spec:
               echo "Formatting JuiceFS filesystem '$name'..."
               
               # Construct format command
-              CMD="juicefs format --storage $storage --bucket $bucket --access-key $access_key --secret-key $secret_key --yes"
+              CMD="juicefs format --storage $storage --bucket $bucket --access-key $access_key --secret-key $secret_key"
               
               if [ -f "/etc/juicefs/private.pem" ]; then
                 echo "Using RSA Key for encryption."
