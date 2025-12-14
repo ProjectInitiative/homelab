@@ -160,6 +160,10 @@ catalog:
           mount: k8s
           path: "juicefs/config"
           destination: "juicefs-creds"
+        - name: juicefs-key
+          mount: k8s
+          path: "juicefs/pem"
+          destination: "juicefs-key"
     syncPolicy:
       syncOptions:
         - CreateNamespace=true

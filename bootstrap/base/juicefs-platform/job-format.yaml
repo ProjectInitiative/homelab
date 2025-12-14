@@ -28,24 +28,30 @@ spec:
               # Construct format command
               CMD="juicefs format --storage $storage --bucket $bucket --access-key $access_key --secret-key $secret_key --yes"
               
-              if [ -n "$passphrase" ]; then
-                echo "Using passphrase for encryption."
-                CMD="$CMD --encrypt-key"
-                # The passphrase is read from JFS_RSA_PASSPHRASE env var by default if using RSA, 
-                # but for symmetric 'encrypt-key' it reads from stdin or JFS_RSA_PASSPHRASE? 
-                # Actually for symmetric, it asks for input.
-                # However, JuiceFS CSI driver sets JFS_RSA_PASSPHRASE or JFS_NO_UPDATE_DIR_STAT envs.
-                # For automation, we can pass it via env JFS_RSA_PASSPHRASE (works for symmetric too in newer versions)
-                # OR pipe it.
+              if [ -f "/etc/juicefs/private.pem" ]; then
+                echo "Using RSA Key for encryption."
+                CMD="$CMD --encrypt-rsa-key /etc/juicefs/private.pem"
+              elif [ -n "$passphrase" ]; then
+                 # Fallback to symmetric if no key file but passphrase exists
+                 echo "Using passphrase for encryption (symmetric)."
+                 echo "$passphrase" | $CMD --encrypt-key "$metaurl" "$name"
+                 exit $?
               fi
               
               # Execute format
-              # We use the env vars directly where possible to avoid logging secrets
-              # 'metaurl' and 'name' are positional arguments
-              
               $CMD "$metaurl" "$name"
+          volumeMounts:
+            - name: rsa-key
+              mountPath: "/etc/juicefs"
+              readOnly: true
           env:
             - name: JFS_RSA_PASSPHRASE
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-creds
+                  key: passphrase
+                  optional: true
+            - name: passphrase
               valueFrom:
                 secretKeyRef:
                   name: juicefs-creds
@@ -81,3 +87,11 @@ spec:
                 secretKeyRef:
                   name: juicefs-creds
                   key: name
+      volumes:
+        - name: rsa-key
+          secret:
+            secretName: juicefs-key
+            optional: true
+            items:
+              - key: cert
+                path: private.pem
