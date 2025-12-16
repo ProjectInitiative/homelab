@@ -210,6 +210,9 @@ catalog:
         - .spec.volumeClaimTemplates[].apiVersion
         - .spec.volumeClaimTemplates[].kind
     syncPolicy:
+      automated:
+        prune: false
+        selfHeal: false
       syncOptions:
         - CreateNamespace=true
         - ServerSideApply=true

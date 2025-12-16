@@ -74,6 +74,8 @@
         setup-pulumi = import ./nix/scripts/setup-pulumi.nix { inherit pkgs; };
 
         diff-manifests = import ./nix/scripts/diff-manifests.nix { inherit pkgs; };
+        
+        korb = pkgs.callPackage ./nix/pkgs/korb.nix { inherit (pkgs) fetchFromGitHub; };
       } // ops);
 
     apps = forAllSystems (system: 
@@ -129,6 +131,7 @@
             self.packages.${system}.push-insecure
             self.packages.${system}.dev-push
             self.packages.${system}.diff-manifests
+            self.packages.${system}.korb
           ];
           
           shellHook = ''
