@@ -9,9 +9,6 @@ spec:
       - name: kustomized-helm-cmp
         image: quay.io/argoproj/argocd
         command: ["/var/run/argocd/argocd-cmp-server"]
-        env:
-          - name: ARGOCD_PLUGIN_SERVER_LISTEN_SOCKET
-            value: /tmp/kustomized-helm.sock
         securityContext:
           runAsNonRoot: true
           runAsUser: 999
@@ -25,13 +22,11 @@ spec:
             mountPath: /tmp
           - name: home
             mountPath: /home/argocd
-          - name: kustomized-helm-cmp-home
-            mountPath: /home/argocd/cmp-server/plugins/kustomized-helm
+          - name: plugins
+            mountPath: /home/argocd/cmp-server/plugins
       volumes:
       - name: kustomized-helm-plugin-config
         configMap:
           name: kustomized-helm-cmp-plugin
       - name: helm-cmp-tmp
-        emptyDir: {}
-      - name: kustomized-helm-cmp-home
         emptyDir: {}
