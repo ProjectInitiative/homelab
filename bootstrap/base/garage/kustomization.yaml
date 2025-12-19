@@ -1,4 +1,22 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+
 resources:
-  - garage-pvc-patch.yaml
+  - all.yaml
+
+patches:
+  - target:
+      kind: StatefulSet
+      name: garage
+    patch: |-
+      - op: add
+        path: /spec/volumeClaimTemplates/-
+        value:
+          metadata:
+            name: snapshots
+          spec:
+            accessModes: [ "ReadWriteOnce" ]
+            storageClassName: "local-path-hdd-sticky"
+            resources:
+              requests:
+                storage: "20Gi"
