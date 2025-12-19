@@ -25,6 +25,6 @@ spec:
       volumes:
       - name: kustomized-helm-plugin-config
         configMap:
-          name: kustomized-helm-plugin-config
+          name: kustomized-helm-cmp-plugin
       - name: helm-cmp-tmp
         emptyDir: {}
