@@ -29,9 +29,13 @@ spec:
           mountPath: /tmp
         - name: home
           mountPath: /home/argocd
+        - name: pulumi-cmp-home
+          mountPath: /home/argocd/cmp-server/plugins/pulumi
       volumes:
       - name: pulumi-plugin-config
         configMap:
           name: pulumi-cmp-plugin
       - name: pulumi-cmp-tmp
+        emptyDir: {}
+      - name: pulumi-cmp-home
         emptyDir: {}

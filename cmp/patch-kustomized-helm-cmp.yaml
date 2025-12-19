@@ -22,9 +22,13 @@ spec:
             mountPath: /tmp
           - name: home
             mountPath: /home/argocd
+          - name: kustomized-helm-cmp-home
+            mountPath: /home/argocd/cmp-server/plugins/kustomized-helm
       volumes:
       - name: kustomized-helm-plugin-config
         configMap:
           name: kustomized-helm-cmp-plugin
       - name: helm-cmp-tmp
+        emptyDir: {}
+      - name: kustomized-helm-cmp-home
         emptyDir: {}
