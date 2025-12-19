@@ -6,7 +6,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "-1" # High priority to manage core Argo CD components
 spec:
-  project: default # Assuming 'default' project is used for core Argo CD components
+  project: default
   source:
     repoURL: https://github.com/projectinitiative/homelab.git
     targetRevision: HEAD
@@ -16,8 +16,8 @@ spec:
     namespace: argocd # Assuming Argo CD itself runs in the 'argocd' namespace
   syncPolicy:
     automated:
-      prune: true
+      prune: false
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true # Ensure the argocd namespace exists, though it should already
+      - CreateNamespace=true
       - ServerSideApply=true # Use server-side apply for patches and updates
