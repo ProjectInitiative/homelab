@@ -7,11 +7,11 @@ buildGoModule {
   src = fetchFromGitHub {
     owner = "BeryJu";
     repo = "korb";
-    rev = "a1b862567f07e638d9f9dc9e646ef58ac80fbfce";
-    hash = "sha256-jznXK+YlPjglafrTA1jlCuxKkZSetgk9GeY0FWxnHy4=";
+    rev = "6b2f2ad63a9e02d78ffbebccc8a3f3fd6ac09346";
+    hash = "sha256-E+5QbDinmxydspwYKhr5ufBf53cb8W1Q2Dlq0MujNH4=";
   };
 
-  vendorHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; # Placeholder, will be replaced by the correct hash after first build
+  vendorHash = "sha256-Qo+YRHe58bJvPTSlZkUS09neNmj+ucDMoJQsYCdqQbE=";
 
   subPackages = [ "." ]; # Assuming main.go is in root
 

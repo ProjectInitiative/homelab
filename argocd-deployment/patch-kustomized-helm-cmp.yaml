@@ -24,9 +24,30 @@ spec:
             mountPath: /home/argocd
           - name: plugins
             mountPath: /home/argocd/cmp-server/plugins
+      - name: kustomized-git-helm-cmp
+        image: quay.io/argoproj/argocd
+        command: ["/var/run/argocd/argocd-cmp-server"]
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 999
+        volumeMounts:
+          - name: var-files
+            mountPath: /var/run/argocd
+          - name: kustomized-git-helm-plugin-config
+            mountPath: /home/argocd/cmp-server/config/plugin.yaml
+            subPath: plugin.yaml
+          - name: helm-cmp-tmp
+            mountPath: /tmp
+          - name: home
+            mountPath: /home/argocd
+          - name: plugins
+            mountPath: /home/argocd/cmp-server/plugins
       volumes:
       - name: kustomized-helm-plugin-config
         configMap:
           name: kustomized-helm-cmp-plugin
+      - name: kustomized-git-helm-plugin-config
+        configMap:
+          name: kustomized-git-helm-plugin
       - name: helm-cmp-tmp
         emptyDir: {}

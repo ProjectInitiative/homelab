@@ -184,21 +184,11 @@ catalog:
         - ServerSideApply=true
     
   garage:
+    path: bootstrap/base/garage
+    plugin:
+      name: kustomized-git-helm
     annotations:
       argocd.argoproj.io/sync-wave: "100"
-    sources:
-      - repoURL: https://git.deuxfleurs.fr/Deuxfleurs/garage
-        path: script/helm/garage
-        targetRevision: v2.0.0
-        helm:
-          valueFiles:
-            - $values/bootstrap/base/garage/garage-values.yaml
-      - repoURL: https://github.com/projectinitiative/homelab.git
-        targetRevision: HEAD
-        ref: values
-      - repoURL: https://github.com/projectinitiative/homelab.git
-        targetRevision: HEAD
-        path: bootstrap/base/garage
     ignoreDifferences:
       - group: ""
         jsonPointers:
