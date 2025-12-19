@@ -90,7 +90,7 @@ deployment:
 persistence:
   meta:
     storageClass: "host-local-path-sticky"
-    size: 20Gi
+    size: 50Gi
   data:
     storageClass: "host-local-path-sticky"
     size: 1024Gi
