@@ -3,7 +3,8 @@ garage:
   # These values are referenced by the garageTomlString template below.
   replicationFactor: 3
   consistencyMode: "consistent"
-  # metadataAutoSnapshotInterval: "24 hours"
+  metadataAutoSnapshotInterval: "2 hours"
+  metadataSnapshotDir: /snapshots
   dbEngine: "lmdb"
   blockSize: "10M"
   # underlying storage handles this
@@ -41,6 +42,9 @@ garage:
 
     {{- if .Values.garage.metadataAutoSnapshotInterval }}
     metadata_auto_snapshot_interval = {{ .Values.garage.metadataAutoSnapshotInterval | quote }}
+    {{- end }}
+    {{- if .Values.garage.metadataSnapshotDir }}
+    metadata_snapshot_dir = {{ .Values.garage.metadataSnapshotDir }}
     {{- end }}
 
     rpc_bind_addr = "{{ .Values.garage.rpcBindAddr }}"
@@ -85,11 +89,15 @@ deployment:
 # Override default storage class and size
 persistence:
   meta:
-    storageClass: "local-path-sticky"
+    storageClass: "host-local-path-sticky"
     size: 20Gi
   data:
-    storageClass: "local-path-sticky"
+    storageClass: "host-local-path-sticky"
     size: 1024Gi
+
+extraVolumeMounts:
+  - name: snapshots
+    mountPath: /snapshots
 
 monitoring:
   metrics:

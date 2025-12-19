@@ -28,7 +28,7 @@ catalog:
   sc-local-path-nvme:
     path: bootstrap/mc/lpp 
     directory:
-      include: 'local-path-nvme-sc.yaml'
+      include: '*.yaml'
   
   tpm-device-plugin:
     path: bootstrap/base/tpm-device-plugin/plugin
