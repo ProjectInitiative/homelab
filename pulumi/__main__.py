@@ -88,6 +88,10 @@ def process_cluster(cluster_file):
             if 'directory' in app_def:
                 source['directory'] = app_def['directory']
             
+            # Add plugin field if present in app_def
+            if 'plugin' in app_def:
+                source['plugin'] = app_def['plugin']
+            
             # Remove None values
             source = {k: v for k, v in source.items() if v is not None}
             sources = [source]
