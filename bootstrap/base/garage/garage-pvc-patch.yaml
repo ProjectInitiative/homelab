@@ -1,0 +1,14 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: garage
+spec:
+  volumeClaimTemplates:
+    - metadata:
+        name: snapshots
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: "local-path-hdd-sticky"
+        resources:
+          requests:
+            storage: "20Gi"

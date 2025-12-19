@@ -77,26 +77,6 @@ apps:
     namespace: garage
     value_files:
       - $values/overlays/main-cluster/resources/garage-nvme-values.yaml
-    patches:
-      - sourceIndex: 0
-        target:
-          kind: StatefulSet
-          name: garage
-        patch: |-
-          apiVersion: apps/v1
-          kind: StatefulSet
-          metadata:
-            name: garage
-          spec:
-            volumeClaimTemplates:
-              - metadata:
-                  name: snapshots
-                spec:
-                  accessModes: [ "ReadWriteOnce" ]
-                  storageClassName: "local-path-hdd-sticky"
-                  resources:
-                    requests:
-                      storage: "20Gi"
   - name: sc-local-path-nvme
     namespace: default
   - name: tailscale-proxy-groups
