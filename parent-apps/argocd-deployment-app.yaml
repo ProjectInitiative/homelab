@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd-deployment-manager
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1" # High priority to manage core Argo CD components
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/projectinitiative/homelab.git
+    targetRevision: HEAD
+    path: argocd-deployment
+  destination:
+    server: https://kubernetes.default.svc # Deploy to the local (control) cluster
+    namespace: argocd # Assuming Argo CD itself runs in the 'argocd' namespace
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true # Use server-side apply for patches and updates

@@ -39,8 +39,6 @@ data:
       generate:
         command: ["/bin/sh", "-c"]
         args: ["helm template . --name-template $ARGOCD_APP_NAME --namespace $ARGOCD_APP_NAMESPACE --include-crds > all.yaml && kustomize build"]
-      discover:
-        fileName: "kustomization.yaml"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -90,5 +88,3 @@ data:
             fi
             
             kustomize build
-      discover:
-        fileName: "git-chart.yaml"

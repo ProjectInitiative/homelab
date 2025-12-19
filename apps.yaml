@@ -186,7 +186,7 @@ catalog:
   garage:
     path: bootstrap/base/garage
     plugin:
-      name: kustomized-git-helm
+      name: kustomized-git-helm-v1.0
     annotations:
       argocd.argoproj.io/sync-wave: "100"
     ignoreDifferences:

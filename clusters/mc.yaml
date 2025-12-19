@@ -76,7 +76,7 @@ apps:
   - name: garage
     namespace: garage
     plugin:
-      name: kustomized-git-helm
+      name: kustomized-git-helm-v1.0
       env:
         - name: HELM_VALUES
           value: |
