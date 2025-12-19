@@ -57,34 +57,48 @@ data:
         command: ["/bin/sh", "-c"]
         args:
           - |
+            set -e
+            echo "Starting Init..." >&2
+            
             # Parse git-chart.yaml for repo, ref, and chart_path
             REPO=$(grep 'repo:' git-chart.yaml | awk '{print $2}')
             REF=$(grep 'ref:' git-chart.yaml | awk '{print $2}')
             CHART_PATH=$(grep 'path:' git-chart.yaml | awk '{print $2}')
             
+            echo "Repo: $REPO, Ref: $REF, Path: $CHART_PATH" >&2
+            
             # Clone to a temporary directory inside the app source
             rm -rf .chart-cache
             git clone --depth 1 --branch $REF $REPO .chart-cache
+            echo "Init Complete." >&2
       generate:
         command: ["/bin/sh", "-c"]
         args:
           - |
+            set -e
+            echo "Starting Generate..." >&2
+            
             CHART_PATH=$(grep 'path:' git-chart.yaml | awk '{print $2}')
+            echo "Chart Path: $CHART_PATH" >&2
             
             # Handle Extra Helm Values
             HELM_ARGS=""
             if [ -n "$HELM_VALUES" ]; then
+              echo "Found HELM_VALUES env var" >&2
               echo "$HELM_VALUES" > extra-values.yaml
               HELM_ARGS="-f extra-values.yaml"
             fi
             
             # Run helm template against the cloned chart
+            echo "Running Helm Template..." >&2
             helm template .chart-cache/$CHART_PATH --name-template $ARGOCD_APP_NAME --namespace $ARGOCD_APP_NAMESPACE --include-crds --values values.yaml $HELM_ARGS > all.yaml
             
             # Handle Extra Kustomize Patch
             if [ -n "$KUSTOMIZE_PATCH" ]; then
+               echo "Found KUSTOMIZE_PATCH env var" >&2
                echo "$KUSTOMIZE_PATCH" > extra-patch.yaml
                kustomize edit add patch --path extra-patch.yaml
             fi
             
+            echo "Running Kustomize Build..." >&2
             kustomize build
