@@ -25,7 +25,7 @@ catalog:
         - ApplyOutOfSyncOnly=true
         - RespectIgnoreDifferences=true
   
-  sc-local-path-nvme:
+  sc-local-path:
     path: bootstrap/mc/lpp 
     directory:
       include: '*.yaml'
@@ -196,6 +196,9 @@ catalog:
       - repoURL: https://github.com/projectinitiative/homelab.git
         targetRevision: HEAD
         ref: values
+      - repoURL: https://github.com/projectinitiative/homelab.git
+        targetRevision: HEAD
+        path: bootstrap/base/garage
     ignoreDifferences:
       - group: ""
         jsonPointers:
