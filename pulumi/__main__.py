@@ -315,7 +315,7 @@ def process_cluster(cluster_file):
 
         # 3. Sync Policy
         # Defaults
-        default_automated = {'prune': 'confirm', 'selfHeal': True}
+        default_automated = {'prune': True, 'selfHeal': True}
         default_sync_options = ['CreateNamespace=true']
 
         # Get app-specific overrides
