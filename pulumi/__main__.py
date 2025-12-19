@@ -88,8 +88,10 @@ def process_cluster(cluster_file):
             if 'directory' in app_def:
                 source['directory'] = app_def['directory']
             
-            # Add plugin field if present in app_def
-            if 'plugin' in app_def:
+            # Add plugin field if present
+            if 'plugin' in app_deployment:
+                source['plugin'] = app_deployment['plugin']
+            elif 'plugin' in app_def:
                 source['plugin'] = app_def['plugin']
             
             # Remove None values

@@ -72,8 +72,23 @@ data:
         args:
           - |
             PATH=$(grep 'path:' git-chart.yaml | awk '{print $2}')
+            
+            # Handle Extra Helm Values
+            HELM_ARGS=""
+            if [ -n "$HELM_VALUES" ]; then
+              echo "$HELM_VALUES" > extra-values.yaml
+              HELM_ARGS="-f extra-values.yaml"
+            fi
+            
             # Run helm template against the cloned chart
-            helm template .chart-cache/$PATH --name-template $ARGOCD_APP_NAME --namespace $ARGOCD_APP_NAMESPACE --include-crds --values values.yaml > all.yaml
+            helm template .chart-cache/$PATH --name-template $ARGOCD_APP_NAME --namespace $ARGOCD_APP_NAMESPACE --include-crds --values values.yaml $HELM_ARGS > all.yaml
+            
+            # Handle Extra Kustomize Patch
+            if [ -n "$KUSTOMIZE_PATCH" ]; then
+               echo "$KUSTOMIZE_PATCH" > extra-patch.yaml
+               kustomize edit add patch --path extra-patch.yaml
+            fi
+            
             kustomize build
       discover:
         fileName: "git-chart.yaml"
