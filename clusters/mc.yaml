@@ -75,8 +75,37 @@ apps:
     namespace: postgres-db
   - name: garage
     namespace: garage
-    value_files:
-      - $values/overlays/main-cluster/resources/garage-nvme-values.yaml
+    plugin:
+      name: kustomized-git-helm
+      env:
+        - name: HELM_VALUES
+          value: |
+            garage:
+              garage:
+                metadataAutoSnapshotInterval: "2 hours"
+                metadataSnapshotDir: /snapshots
+              persistence:
+                meta:
+                  storageClass: "host-local-path-nvme-sticky"
+              extraVolumeMounts:
+                - name: snapshots
+                  mountPath: /snapshots
+        - name: KUSTOMIZE_PATCH
+          value: |
+            apiVersion: apps/v1
+            kind: StatefulSet
+            metadata:
+              name: garage
+            spec:
+              volumeClaimTemplates:
+                - metadata:
+                    name: snapshots
+                  spec:
+                    accessModes: [ "ReadWriteOnce" ]
+                    storageClassName: "local-path-hdd-sticky"
+                    resources:
+                      requests:
+                        storage: "20Gi"
   - name: sc-local-path-nvme
     namespace: default
   - name: tailscale-proxy-groups
