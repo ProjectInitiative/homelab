@@ -10,7 +10,7 @@ resources:
 patches:
 - path: patch-kustomized-helm-cmp.yaml
 - path: patch-pulumi-cmp.yaml
-- path: patch-fsgroup.yaml
+# - path: patch-fsgroup.yaml
 
 images:
   - name: quay.io/argoproj/argocd
