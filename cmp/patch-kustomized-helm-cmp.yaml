@@ -9,6 +9,9 @@ spec:
       - name: kustomized-helm-cmp
         image: quay.io/argoproj/argocd
         command: ["/var/run/argocd/argocd-cmp-server"]
+        env:
+          - name: ARGOCD_PLUGIN_SERVER_LISTEN_SOCKET
+            value: /tmp/kustomized-helm.sock
         securityContext:
           runAsNonRoot: true
           runAsUser: 999
