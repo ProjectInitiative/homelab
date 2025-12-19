@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-repo-server
+spec:
+  template:
+    spec:
+      containers:
+      - name: pulumi-cmp
+        image: ghcr.io/projectinitiative/pulumi-cmp-plugin:latest
+        command: ["/var/run/argocd/argocd-cmp-server"]
+        env:
+        - name: HOME
+          value: /home/argocd
+        - name: PULUMI_HOME
+          value: /home/argocd/.pulumi
+        - name: USER
+          value: argocd
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 999
+        volumeMounts:
+        - name: var-files
+          mountPath: /var/run/argocd
+        - name: pulumi-plugin-config
+          mountPath: /home/argocd/cmp-server/config/plugin.yaml
+          subPath: plugin.yaml
+        - name: pulumi-cmp-tmp
+          mountPath: /tmp
+        - name: home
+          mountPath: /home/argocd
+      volumes:
+      - name: pulumi-plugin-config
+        configMap:
+          name: pulumi-cmp-plugin
+      - name: pulumi-cmp-tmp
+        emptyDir: {}
