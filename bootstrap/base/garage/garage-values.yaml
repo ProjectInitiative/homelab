@@ -1,6 +1,7 @@
 ---
 garage:
   # These values are referenced by the garageTomlString template below.
+  existingRpcSecret: "garage-rpc-secret"
   replicationFactor: 3
   consistencyMode: "consistent"
   dbEngine: "lmdb"

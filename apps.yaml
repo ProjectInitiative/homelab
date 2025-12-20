@@ -189,6 +189,17 @@ catalog:
       name: kustomized-git-helm-v1.0
     annotations:
       argocd.argoproj.io/sync-wave: "100"
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      namespace: production
+      audiences:
+        - vault
+      secrets:
+        - name: garage-rpc-secret
+          mount: k8s
+          path: "garage/rpc"
+          destination: "garage-rpc-secret"
     ignoreDifferences:
       - group: ""
         jsonPointers:
