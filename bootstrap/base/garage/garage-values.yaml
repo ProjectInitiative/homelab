@@ -27,25 +27,25 @@ garage:
     metadata_fsync = false
     data_fsync = false
     
-    db_engine = "{{ .Values.garage.dbEngine }}"
+    db_engine = {{ .Values.garage.dbEngine | quote }}
 
-    block_size = "{{ .Values.garage.blockSize }}"
+    block_size = {{ .Values.garage.blockSize | quote }}
 
     block_ram_buffer_max = "5120MiB"
 
     replication_factor = {{ .Values.garage.replicationFactor }}
-    consistency_mode = "{{ .Values.garage.consistencyMode }}"
+    consistency_mode = {{ .Values.garage.consistencyMode | quote }}
 
     compression_level = {{ .Values.garage.compressionLevel }}
 
     {{- if .Values.garage.metadataAutoSnapshotInterval }}
-    metadata_auto_snapshot_interval = "{{ .Values.garage.metadataAutoSnapshotInterval | quote }}"
+    metadata_auto_snapshot_interval = {{ .Values.garage.metadataAutoSnapshotInterval | quote }}
     {{- end }}
     {{- if .Values.garage.metadataSnapshotDir }}
-    metadata_snapshot_dir = "{{ .Values.garage.metadataSnapshotDir }}"
+    metadata_snapshot_dir = {{ .Values.garage.metadataSnapshotDir | quote }}
     {{- end }}
 
-    rpc_bind_addr = "{{ .Values.garage.rpcBindAddr }}"
+    rpc_bind_addr = {{ .Values.garage.rpcBindAddr | quote }}
     # rpc_secret will be populated by the init container from a k8s secret object
     rpc_secret = "__RPC_SECRET_REPLACE__"
 
@@ -57,19 +57,19 @@ garage:
     skip_crd = {{ .Values.garage.kubernetesSkipCrd }}
 
     [s3_api]
-    s3_region = "{{ .Values.garage.s3.api.region }}"
+    s3_region = {{ .Values.garage.s3.api.region | quote }}
     api_bind_addr = "[::]:3900"
-    root_domain = "{{ .Values.garage.s3.api.rootDomain }}"
+    root_domain = {{ .Values.garage.s3.api.rootDomain | quote }}
 
     [s3_web]
     bind_addr = "[::]:3902"
-    root_domain = "{{ .Values.garage.s3.web.rootDomain }}"
-    index = "{{ .Values.garage.s3.web.index }}"
+    root_domain = {{ .Values.garage.s3.web.rootDomain | quote }}
+    index = {{ .Values.garage.s3.web.index | quote }}
 
     [admin]
     api_bind_addr = "[::]:3903"
     {{- if .Values.monitoring.tracing.sink }}
-    trace_sink = "{{ .Values.monitoring.tracing.sink }}"
+    trace_sink = {{ .Values.monitoring.tracing.sink | quote }}
     {{- end }}
 
 # Start 3 instances (StatefulSets) of garage
