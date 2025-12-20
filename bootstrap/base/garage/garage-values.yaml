@@ -3,8 +3,8 @@ garage:
   # These values are referenced by the garageTomlString template below.
   replicationFactor: 3
   consistencyMode: "consistent"
-  metadataAutoSnapshotInterval: "2 hours"
-  metadataSnapshotDir: /snapshots
+  # metadataAutoSnapshotInterval: "2 hours"
+  # metadataSnapshotDir: /snapshots
   dbEngine: "lmdb"
   blockSize: "10M"
   # underlying storage handles this
@@ -95,9 +95,9 @@ persistence:
     storageClass: "host-local-path-sticky"
     size: 1024Gi
 
-extraVolumeMounts:
-  - name: snapshots
-    mountPath: /snapshots
+# extraVolumeMounts:
+#   - name: snapshots
+#     mountPath: /snapshots
 
 monitoring:
   metrics:
