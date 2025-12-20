@@ -91,19 +91,19 @@ apps:
             extraVolumeMounts:
               - name: snapshots
                 mountPath: /snapshots
-        - name: KUSTOMIZE_PATCH
-          value: |
-            - op: add
-              path: /spec/volumeClaimTemplates/-
-              value:
-                metadata:
-                  name: snapshots
-                spec:
-                  accessModes: [ "ReadWriteOnce" ]
-                  storageClassName: "local-path-hdd-sticky"
-                  resources:
-                    requests:
-                      storage: "20Gi"
+        # - name: KUSTOMIZE_PATCH
+        #   value: |
+        #     - op: add
+        #       path: /spec/volumeClaimTemplates/-
+        #       value:
+        #         metadata:
+        #           name: snapshots
+        #         spec:
+        #           accessModes: [ "ReadWriteOnce" ]
+        #           storageClassName: "local-path-hdd-sticky"
+        #           resources:
+        #             requests:
+        #               storage: "20Gi"
   - name: sc-local-path-nvme
     namespace: default
   - name: tailscale-proxy-groups
