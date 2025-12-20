@@ -39,10 +39,10 @@ garage:
     compression_level = {{ .Values.garage.compressionLevel }}
 
     {{- if .Values.garage.metadataAutoSnapshotInterval }}
-    metadata_auto_snapshot_interval = {{ .Values.garage.metadataAutoSnapshotInterval | quote }}
+    metadata_auto_snapshot_interval = "{{ .Values.garage.metadataAutoSnapshotInterval | quote }}"
     {{- end }}
     {{- if .Values.garage.metadataSnapshotDir }}
-    metadata_snapshot_dir = {{ .Values.garage.metadataSnapshotDir }}
+    metadata_snapshot_dir = "{{ .Values.garage.metadataSnapshotDir }}"
     {{- end }}
 
     rpc_bind_addr = "{{ .Values.garage.rpcBindAddr }}"
