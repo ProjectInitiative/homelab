@@ -38,7 +38,13 @@ data:
         args: ["helm dependency build"]
       generate:
         command: ["/bin/sh", "-c"]
-        args: ["helm template . --name-template $ARGOCD_APP_NAME --namespace $ARGOCD_APP_NAMESPACE --include-crds > all.yaml && kustomize build"]
+        args:
+          - |
+            set -e
+            # Argo CD passes "namespace_name" as ARGOCD_APP_NAME. We need to extract the name.
+            RELEASE_NAME=$(echo $ARGOCD_APP_NAME | awk -F_ '{print $NF}')
+            
+            helm template . --name-template $RELEASE_NAME --namespace $ARGOCD_APP_NAMESPACE --include-crds > all.yaml && kustomize build
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -81,6 +87,10 @@ data:
             CHART_PATH=$(grep 'path:' git-chart.yaml | awk '{print $2}')
             echo "Chart Path: $CHART_PATH" >&2
             
+            # Argo CD passes "namespace_name" as ARGOCD_APP_NAME. We need to extract the name.
+            RELEASE_NAME=$(echo $ARGOCD_APP_NAME | awk -F_ '{print $NF}')
+            echo "Release Name: $RELEASE_NAME" >&2
+            
             # Handle Extra Helm Values
             HELM_ARGS=""
             if [ -n "$HELM_VALUES" ]; then
@@ -91,7 +101,7 @@ data:
             
             # Run helm template against the cloned chart
             echo "Running Helm Template..." >&2
-            helm template .chart-cache/$CHART_PATH --name-template $ARGOCD_APP_NAME --namespace $ARGOCD_APP_NAMESPACE --include-crds --values values.yaml $HELM_ARGS > all.yaml
+            helm template .chart-cache/$CHART_PATH --name-template $RELEASE_NAME --namespace $ARGOCD_APP_NAMESPACE --include-crds --values values.yaml $HELM_ARGS > all.yaml
             
             # Handle Extra Kustomize Patch
             if [ -n "$KUSTOMIZE_PATCH" ]; then
