@@ -75,7 +75,10 @@ data:
             
             # Clone to a temporary directory inside the app source
             rm -rf .chart-cache
-            git clone --depth 1 --branch $REF $REPO .chart-cache
+            # Support commit hashes by cloning and checking out explicitly
+            git clone $REPO .chart-cache
+            cd .chart-cache
+            git checkout $REF
             echo "Init Complete." >&2
       generate:
         command: ["/bin/sh", "-c"]
@@ -123,7 +126,11 @@ data:
             echo "resources:" >> kustomization.yaml
             echo "  - all.yaml" >> kustomization.yaml
 
-            if [ -n "$ARGOCD_ENV_KUSTOMIZE_PATCH" ]; then
+            if [ -n "$ARGOCD_ENV_KUSTOMIZE_PATCHES" ]; then
+               echo "Found KUSTOMIZE_PATCHES env var." >&2
+               echo "patches:" >> kustomization.yaml
+               echo "$ARGOCD_ENV_KUSTOMIZE_PATCHES" | sed 's/^/  /' >> kustomization.yaml
+            elif [ -n "$ARGOCD_ENV_KUSTOMIZE_PATCH" ]; then
                echo "Found KUSTOMIZE_PATCH env var. Adding patch to kustomization.yaml..." >&2
                echo "patches:" >> kustomization.yaml
                echo "  - target:" >> kustomization.yaml
