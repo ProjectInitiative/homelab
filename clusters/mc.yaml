@@ -78,6 +78,8 @@ apps:
     plugin:
       name: kustomized-git-helm-v1.0
       env:
+        - name: VALUES_FILE
+          value: garage-values.yaml
         - name: HELM_VALUES
           value: |
             garage:
@@ -91,20 +93,17 @@ apps:
                 mountPath: /snapshots
         - name: KUSTOMIZE_PATCH
           value: |
-            apiVersion: apps/v1
-            kind: StatefulSet
-            metadata:
-              name: garage
-            spec:
-              volumeClaimTemplates:
-                - metadata:
-                    name: snapshots
-                  spec:
-                    accessModes: [ "ReadWriteOnce" ]
-                    storageClassName: "local-path-hdd-sticky"
-                    resources:
-                      requests:
-                        storage: "20Gi"
+            - op: add
+              path: /spec/volumeClaimTemplates/-
+              value:
+                metadata:
+                  name: snapshots
+                spec:
+                  accessModes: [ "ReadWriteOnce" ]
+                  storageClassName: "local-path-hdd-sticky"
+                  resources:
+                    requests:
+                      storage: "20Gi"
   - name: sc-local-path-nvme
     namespace: default
   - name: tailscale-proxy-groups

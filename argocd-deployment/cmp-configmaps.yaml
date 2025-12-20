@@ -100,9 +100,17 @@ data:
               echo "$ARGOCD_ENV_HELM_VALUES" > extra-values.yaml
               HELM_ARGS="-f extra-values.yaml"
             fi
+
+            VALUES_FILE=${ARGOCD_ENV_VALUES_FILE:-values.yaml}
+            if [ -f "$VALUES_FILE" ]; then
+               echo "Using values file: $VALUES_FILE" >&2
+               HELM_ARGS="-f $VALUES_FILE $HELM_ARGS"
+            else
+               echo "Values file $VALUES_FILE not found, skipping." >&2
+            fi
             
             echo "Running Helm Template..." >&2
-            helm template .chart-cache/$CHART_PATH --name-template $RELEASE_NAME --namespace $ARGOCD_APP_NAMESPACE --include-crds --values values.yaml $HELM_ARGS > all.yaml
+            helm template .chart-cache/$CHART_PATH --name-template $RELEASE_NAME --namespace $ARGOCD_APP_NAMESPACE --include-crds $HELM_ARGS > all.yaml
             
             echo "--- Content of all.yaml (Helm output) ---" >&2
             cat all.yaml >&2
