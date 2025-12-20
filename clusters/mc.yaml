@@ -104,7 +104,7 @@ apps:
                   resources:
                     requests:
                       storage: "20Gi"
-  - name: sc-local-path-nvme
+  - name: sc-local-path
     namespace: default
   - name: tailscale-proxy-groups
     namespace: tailscale
