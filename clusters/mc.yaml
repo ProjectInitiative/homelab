@@ -82,28 +82,28 @@ apps:
           value: garage-values.yaml
         - name: HELM_VALUES
           value: |
-            # garage:
-            #   metadataAutoSnapshotInterval: "2 hours"
-            #   metadataSnapshotDir: /snapshots
+            garage:
+              metadataAutoSnapshotInterval: "2 hours"
+              metadataSnapshotDir: /snapshots
             persistence:
               meta:
                 storageClass: "host-local-path-nvme-sticky"
-            # extraVolumeMounts:
-            #   - name: snapshots
-            #     mountPath: /snapshots
-        # - name: KUSTOMIZE_PATCH
-        #   value: |
-        #     - op: add
-        #       path: /spec/volumeClaimTemplates/-
-        #       value:
-        #         metadata:
-        #           name: snapshots
-        #         spec:
-        #           accessModes: [ "ReadWriteOnce" ]
-        #           storageClassName: "local-path-hdd-sticky"
-        #           resources:
-        #             requests:
-        #               storage: "20Gi"
+            extraVolumeMounts:
+              - name: snapshots
+                mountPath: /snapshots
+        - name: KUSTOMIZE_PATCH
+          value: |
+            - op: add
+              path: /spec/volumeClaimTemplates/-
+              value:
+                metadata:
+                  name: snapshots
+                spec:
+                  accessModes: [ "ReadWriteOnce" ]
+                  storageClassName: "local-path-hdd-sticky"
+                  resources:
+                    requests:
+                      storage: "20Gi"
   - name: sc-local-path-nvme
     namespace: default
   - name: tailscale-proxy-groups
