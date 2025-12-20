@@ -83,6 +83,9 @@ data:
           - |
             set -e
             echo "Starting Generate..." >&2
+            echo "--- Environment Variables ---" >&2
+            env >&2
+            echo "-----------------------------" >&2
             
             CHART_PATH=$(grep 'path:' git-chart.yaml | awk '{print $2}')
             echo "Chart Path: $CHART_PATH" >&2
