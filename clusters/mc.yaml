@@ -81,15 +81,14 @@ apps:
         - name: HELM_VALUES
           value: |
             garage:
-              garage:
-                metadataAutoSnapshotInterval: "2 hours"
-                metadataSnapshotDir: /snapshots
-              persistence:
-                meta:
-                  storageClass: "host-local-path-nvme-sticky"
-              extraVolumeMounts:
-                - name: snapshots
-                  mountPath: /snapshots
+              metadataAutoSnapshotInterval: "2 hours"
+              metadataSnapshotDir: /snapshots
+            persistence:
+              meta:
+                storageClass: "host-local-path-nvme-sticky"
+            extraVolumeMounts:
+              - name: snapshots
+                mountPath: /snapshots
         - name: KUSTOMIZE_PATCH
           value: |
             apiVersion: apps/v1
