@@ -103,12 +103,30 @@ data:
             echo "Running Helm Template..." >&2
             helm template .chart-cache/$CHART_PATH --name-template $RELEASE_NAME --namespace $ARGOCD_APP_NAMESPACE --include-crds --values values.yaml $HELM_ARGS > all.yaml
             
-            # Handle Extra Kustomize Patch
+            echo "--- Content of all.yaml (Helm output) ---" >&2
+            cat all.yaml >&2
+            echo "------------------------------------------" >&2
+
+            # Dynamically construct kustomization.yaml
+            echo "Constructing temporary kustomization.yaml..." >&2
+            echo "apiVersion: kustomize.config.k8s.io/v1beta1" > tmp-kustomization.yaml
+            echo "kind: Kustomization" >> tmp-kustomization.yaml
+            echo "resources:" >> tmp-kustomization.yaml
+            echo "  - all.yaml" >> tmp-kustomization.yaml
+
             if [ -n "$KUSTOMIZE_PATCH" ]; then
-               echo "Found KUSTOMIZE_PATCH env var" >&2
-               echo "$KUSTOMIZE_PATCH" > extra-patch.yaml
-               kustomize edit add patch --path extra-patch.yaml
+               echo "Found KUSTOMIZE_PATCH env var. Adding patch to temporary kustomization.yaml..." >&2
+               echo "patches:" >> tmp-kustomization.yaml
+               echo "  - target:" >> tmp-kustomization.yaml
+               echo "      kind: StatefulSet" >> tmp-kustomization.yaml
+               echo "      name: garage" >> tmp-kustomization.yaml
+               echo "    patch: |-" >> tmp-kustomization.yaml
+               echo "$KUSTOMIZE_PATCH" | sed 's/^/      /' >> tmp-kustomization.yaml # Indent the patch value
             fi
             
+            echo "--- Content of tmp-kustomization.yaml ---" >&2
+            cat tmp-kustomization.yaml >&2
+            echo "------------------------------------------" >&2
+
             echo "Running Kustomize Build..." >&2
-            kustomize build
+            kustomize build -k tmp-kustomization.yaml
