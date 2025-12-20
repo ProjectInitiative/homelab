@@ -94,15 +94,13 @@ data:
             RELEASE_NAME=$(echo $ARGOCD_APP_NAME | awk -F_ '{print $NF}')
             echo "Release Name: $RELEASE_NAME" >&2
             
-            # Handle Extra Helm Values
             HELM_ARGS=""
-            if [ -n "$HELM_VALUES" ]; then
+            if [ -n "$ARGOCD_ENV_HELM_VALUES" ]; then
               echo "Found HELM_VALUES env var" >&2
-              echo "$HELM_VALUES" > extra-values.yaml
+              echo "$ARGOCD_ENV_HELM_VALUES" > extra-values.yaml
               HELM_ARGS="-f extra-values.yaml"
             fi
             
-            # Run helm template against the cloned chart
             echo "Running Helm Template..." >&2
             helm template .chart-cache/$CHART_PATH --name-template $RELEASE_NAME --namespace $ARGOCD_APP_NAMESPACE --include-crds --values values.yaml $HELM_ARGS > all.yaml
             
@@ -117,14 +115,14 @@ data:
             echo "resources:" >> tmp-kustomization.yaml
             echo "  - all.yaml" >> tmp-kustomization.yaml
 
-            if [ -n "$KUSTOMIZE_PATCH" ]; then
+            if [ -n "$ARGOCD_ENV_KUSTOMIZE_PATCH" ]; then
                echo "Found KUSTOMIZE_PATCH env var. Adding patch to temporary kustomization.yaml..." >&2
                echo "patches:" >> tmp-kustomization.yaml
                echo "  - target:" >> tmp-kustomization.yaml
                echo "      kind: StatefulSet" >> tmp-kustomization.yaml
                echo "      name: garage" >> tmp-kustomization.yaml
                echo "    patch: |-" >> tmp-kustomization.yaml
-               echo "$KUSTOMIZE_PATCH" | sed 's/^/      /' >> tmp-kustomization.yaml # Indent the patch value
+               echo "$ARGOCD_ENV_KUSTOMIZE_PATCH" | sed 's/^/      /' >> tmp-kustomization.yaml # Indent the patch value
             fi
             
             echo "--- Content of tmp-kustomization.yaml ---" >&2
@@ -132,4 +130,4 @@ data:
             echo "------------------------------------------" >&2
 
             echo "Running Kustomize Build..." >&2
-            kustomize build -k tmp-kustomization.yaml
+            kustomize build --kustomization tmp-kustomization.yaml
