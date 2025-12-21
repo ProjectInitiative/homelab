@@ -87,7 +87,7 @@ apps:
           value: |
             garage:
               metadataAutoSnapshotInterval: "2 hours"
-              metadataSnapshotDir: "/snapshots"
+              metadataSnapshotsDir: "/snapshots"
             persistence:
               meta:
                 storageClass: "host-local-path-nvme-sticky"
