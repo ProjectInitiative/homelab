@@ -25,6 +25,17 @@ catalog:
         - ApplyOutOfSyncOnly=true
         - RespectIgnoreDifferences=true
   
+  policies:
+    path: bootstrap/base/policies
+    annotations:
+      argocd.argoproj.io/sync-wave: "0"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=false # Policies usually don't need their own namespace
+        - ServerSideApply=true
+        - ApplyOutOfSyncOnly=true
+        - RespectIgnoreDifferences=true
+  
   sc-local-path:
     path: bootstrap/mc/lpp 
     directory:

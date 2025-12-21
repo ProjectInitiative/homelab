@@ -32,6 +32,9 @@ apps:
     patchTarget:
       kind: ConfigMap
       name: local-path-config
+  - name: policies
+    namespace: kube-system # VAPs are cluster-wide, but resource lives in a namespace
+
   - name: tpm-device-plugin
     namespace: kube-system
   - name: tailscale-operator
@@ -84,7 +87,7 @@ apps:
           value: |
             garage:
               metadataAutoSnapshotInterval: "2 hours"
-              metadataSnapshotDir: "/snapshots"
+              metadataSnapshotsDir: "/snapshots"
             persistence:
               meta:
                 storageClass: "host-local-path-nvme-sticky"
