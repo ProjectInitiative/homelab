@@ -196,6 +196,7 @@ catalog:
     
   garage:
     path: bootstrap/base/garage
+    critical: true
     plugin:
       name: kustomized-git-helm-v1.0
     annotations:
