@@ -1,0 +1,27 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: deletion-protection-policy
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups:   ["*"]
+        apiVersions: ["*"]
+        operations:  ["DELETE"]
+        resources:   ["deployments", "statefulsets", "daemonsets", "services", "ingresses", "persistentvolumeclaims", "secrets", "configmaps", "namespaces", "serviceaccounts", "roles", "rolebindings"]
+  validations:
+    - expression: "false"
+      message: "Operation denied: This resource is marked as critical infrastructure and is protected from deletion."
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: deletion-protection-binding
+spec:
+  policyName: deletion-protection-policy
+  validationActions: [Deny]
+  matchResources:
+    objectSelector:
+      matchLabels:
+        policy.homelab.io/protected: "true"
