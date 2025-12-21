@@ -309,6 +309,43 @@ def process_cluster(cluster_file):
                 apply_patch_to_source(secret_source, vss_rename_patch, {'kind': 'VaultStaticSecret', 'name': 'placeholder-secret'})
 
                 sources.append(secret_source)
+
+        # Handle Critical Apps (Deletion Protection & PDB)
+        if app_def.get('critical', False):
+            # 1. Inject Protection Label into ALL resources via Kustomize commonLabels
+            # We apply this to the primary source (sources[0]), assuming it's Kustomize-capable or Helm.
+            # If we apply it to sources[0], it affects that source. Kustomize merges commonLabels.
+            # For Helm, we might need a post-renderer or Kustomize wrapper.
+            # Since our architecture wraps Helm in Kustomize (via the plugin), adding a Kustomize patch to kustomization.yaml works!
+            # Our 'apply_patch_to_source' adds to 'kustomize.patches'.
+            # To add commonLabels, we need to modify 'kustomization.yaml' directly?
+            # No, Argo CD source 'kustomize' field allows 'commonLabels'.
+            
+            # Let's add commonLabels to the FIRST source
+            if sources:
+                primary_src = sources[0]
+                if 'kustomize' not in primary_src:
+                    primary_src['kustomize'] = {}
+                if 'commonLabels' not in primary_src['kustomize']:
+                    primary_src['kustomize']['commonLabels'] = {}
+                
+                primary_src['kustomize']['commonLabels']['policy.homelab.io/protected'] = 'true'
+
+            # 2. Inject Generic PDB
+            pdb_source = {
+                'repoURL': 'https://github.com/projectinitiative/homelab.git',
+                'targetRevision': 'HEAD',
+                'path': 'bootstrap/base/common/pdb'
+            }
+            
+            # Rename PDB to match app name
+            pdb_rename_patch = json.dumps([
+                {"op": "replace", "path": "/metadata/name", "value": f"{app_name}-pdb"}
+            ])
+            
+            apply_patch_to_source(pdb_source, pdb_rename_patch, {'kind': 'PodDisruptionBudget', 'name': 'critical-pdb-placeholder'})
+            sources.append(pdb_source)
+
         # 2. Destination
         destination = {
             'server': server_url,
