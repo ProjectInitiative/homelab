@@ -1,0 +1,11 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: critical-pdb-placeholder
+  labels:
+    policy.homelab.io/generated: "true"
+spec:
+  maxUnavailable: 1 # Ensures at least 2 pods are available for a 3-replica StatefulSet
+  selector:
+    matchLabels:
+      policy.homelab.io/protected: "true"

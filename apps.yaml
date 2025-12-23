@@ -189,6 +189,17 @@ catalog:
     path: bootstrap/base/cnpg/database
     annotations:
       argocd.argoproj.io/sync-wave: "40"
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      namespace: production
+      audiences:
+        - vault
+      secrets:
+        - name: postgres-cluster-s3
+          mount: k8s
+          path: "cnpg/s3"
+          destination: "postgres-cluster-s3"
     syncPolicy:
       syncOptions:
         - CreateNamespace=true

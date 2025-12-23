@@ -126,6 +126,12 @@ data:
             echo "resources:" >> kustomization.yaml
             echo "  - all.yaml" >> kustomization.yaml
 
+            if [ -n "$ARGOCD_ENV_ADD_PROTECTED_LABEL" ] && [ "$ARGOCD_ENV_ADD_PROTECTED_LABEL" = "true" ]; then
+               echo "Found ADD_PROTECTED_LABEL env var. Adding commonLabels to kustomization.yaml..." >&2
+               echo "commonLabels:" >> kustomization.yaml
+               echo "  policy.homelab.io/protected: \"true\"" >> kustomization.yaml
+            fi
+
             if [ -n "$ARGOCD_ENV_KUSTOMIZE_PATCHES" ]; then
                echo "Found KUSTOMIZE_PATCHES env var." >&2
                echo "patches:" >> kustomization.yaml

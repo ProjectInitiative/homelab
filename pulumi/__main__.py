@@ -321,15 +321,17 @@ def process_cluster(cluster_file):
             # To add commonLabels, we need to modify 'kustomization.yaml' directly?
             # No, Argo CD source 'kustomize' field allows 'commonLabels'.
             
-            # Let's add commonLabels to the FIRST source
+            # Since custom CMPs don't process source.kustomize.commonLabels automatically,
+            # we inject an env var that the plugin script can read.
             if sources:
                 primary_src = sources[0]
-                if 'kustomize' not in primary_src:
-                    primary_src['kustomize'] = {}
-                if 'commonLabels' not in primary_src['kustomize']:
-                    primary_src['kustomize']['commonLabels'] = {}
+                if 'plugin' not in primary_src:
+                    primary_src['plugin'] = {}
+                if 'env' not in primary_src['plugin']:
+                    primary_src['plugin']['env'] = []
                 
-                primary_src['kustomize']['commonLabels']['policy.homelab.io/protected'] = 'true'
+                primary_src['plugin']['env'].append({'name': 'ADD_PROTECTED_LABEL', 'value': 'true'})
+
 
             # 2. Inject Generic PDB
             pdb_source = {
