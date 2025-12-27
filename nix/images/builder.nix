@@ -90,7 +90,7 @@ in pkgs.dockerTools.buildImage {
       pkgs.iana-etc # /etc/protocols etc.
       
       (pkgs.runCommand "etc-setup" {} ''
-        mkdir -p $out/etc/nix $out/etc/ssh $out/run $out/tmp $out/home/${builderUser}
+        mkdir -p $out/etc/nix $out/etc/ssh $out/run $out/tmp
         ln -s ${nixConf} $out/etc/nix/nix.conf
         echo "root:x:0:0::/root:/bin/bash" > $out/etc/passwd
         echo "${builderUser}:x:${toString builderUid}:${toString builderUid}::${builderHome}:/bin/bash" >> $out/etc/passwd
@@ -98,7 +98,7 @@ in pkgs.dockerTools.buildImage {
         echo "${builderUser}:x:${toString builderUid}:" >> $out/etc/group
       '')
     ];
-    pathsToLink = [ "/bin" "/etc" "/var" "/tmp" "/run" "/home" ];
+    pathsToLink = [ "/bin" "/etc" "/var" "/tmp" "/run" ];
   };
 
   runAsRoot = ''

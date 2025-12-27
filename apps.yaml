@@ -354,3 +354,24 @@ catalog:
   
   privateer:
     path: apps/base/privateer/config
+
+  nixos-remote-builder:
+    path: apps/base/nixos-remote-builder/config
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      audiences:
+        - vault
+      secrets:
+        - name: nixos-builder-host-key
+          mount: k8s
+          path: "data/nixos-builder/host-key"
+          destination: "host-key"
+        - name: nixos-builder-authorized-keys
+          mount: k8s
+          path: "data/nixos-builder/authorized-keys"
+          destination: "authorized-keys"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
