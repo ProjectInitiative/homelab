@@ -59,6 +59,7 @@ let
     trusted-users = root ${builderUser}
     experimental-features = nix-command flakes
     build-users-group = 
+    extra-platforms = aarch64-linux
   '';
 
 in pkgs.dockerTools.buildImage {

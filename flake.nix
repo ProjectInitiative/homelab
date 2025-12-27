@@ -75,6 +75,8 @@
 
         diff-manifests = import ./nix/scripts/diff-manifests.nix { inherit pkgs; };
         
+        nixos-remote-builder = import ./nix/images/builder.nix { inherit pkgs; };
+
         korb = pkgs.callPackage ./nix/pkgs/korb.nix { inherit (pkgs) fetchFromGitHub; };
       } // ops);
 
