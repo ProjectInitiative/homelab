@@ -122,3 +122,5 @@ apps:
     namespace: monitoring
   - name: grafana-alloy
     namespace: monitoring
+  - name: nixos-remote-builder
+    namespace: nixos-builder
