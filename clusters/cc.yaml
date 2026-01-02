@@ -69,4 +69,4 @@ apps:
         clusterCIDR: "10.42.0.0/16"
         serviceCIDR: "10.43.0.0/16"
         brokerK8sSecret: "submariner-broker-info"
-        brokerK8sApiServer: "https://100.95.205.21:443"
+        brokerK8sApiServer: "https://kubernetes.default.svc:443"
