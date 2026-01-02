@@ -111,7 +111,16 @@ apps:
     namespace: default
   - name: tailscale-proxy-groups
     namespace: tailscale
-    source_path: overlays/main-cluster/tailscale-proxy-group
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: main-cluster-proxy
+      - op: replace
+        path: /spec/tags/0
+        value: tag:k8s
+    patchTarget:
+      kind: ProxyGroup
+      name: placeholder-name
   - name: temp-egress
     namespace: default
   - name: dnsutils
@@ -124,3 +133,14 @@ apps:
     namespace: monitoring
   - name: nixos-remote-builder
     namespace: nixos-builder
+  - name: karmada-agent
+    namespace: karmada-system
+  - name: submariner-operator
+    namespace: submariner-operator
+    helm_values: |
+      submariner:
+        clusterID: "mc"
+        clusterCIDR: "10.42.0.0/16"
+        serviceCIDR: "10.43.0.0/16"
+        brokerK8sSecret: "submariner-broker-info"
+        # brokerK8sApiServer: "https://<CC_EXTERNAL_API_IP>:6443" # Update this!
