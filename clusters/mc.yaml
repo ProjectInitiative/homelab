@@ -145,4 +145,4 @@ apps:
         clusterCIDR: "10.42.0.0/16"
         serviceCIDR: "10.43.0.0/16"
         brokerK8sSecret: "submariner-broker-info"
-        # brokerK8sApiServer: "https://<CC_EXTERNAL_API_IP>:6443" # Update this!
+        brokerK8sApiServer: "https://100.95.205.21:443"
