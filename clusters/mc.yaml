@@ -7,6 +7,8 @@ vaultMount: kubernetes_cluster_mc
 apps:
   - name: kube-vip-app
     namespace: kube-system
+  - name: admin-access
+    namespace: kube-system
   - name: local-path-provisioner
     namespace: local-path-storage
     patch: |-

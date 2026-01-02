@@ -5,6 +5,6 @@ metadata:
 spec:
   type: kube-apiserver
   replicas: 2
-  tags: ["placeholder-tag"]
+  tags: ["tag:placeholder"]
   kubeAPIServer:
-    mode: auth
+    mode: noauth
