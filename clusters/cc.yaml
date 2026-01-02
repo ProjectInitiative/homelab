@@ -9,6 +9,8 @@ apps:
     namespace: local-path-storage
     patch: ""
     patchTarget: {}
+  - name: admin-access
+    namespace: kube-system
   - name: tailscale-operator
     namespace: tailscale
     patchTarget: {}
