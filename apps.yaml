@@ -278,6 +278,15 @@ catalog:
   garage-mem:
     path: bootstrap/mc/garage-mem
 
+  karmada-member:
+    path: bootstrap/mc/karmada-member
+    annotations:
+      argocd.argoproj.io/sync-wave: "0"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=false
+        - ServerSideApply=true
+
   prometheus-operator-crds:
     annotations:
       argocd.argoproj.io/sync-wave: "10"

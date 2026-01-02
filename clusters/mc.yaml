@@ -9,6 +9,8 @@ apps:
     namespace: kube-system
   - name: admin-access
     namespace: kube-system
+  - name: karmada-member
+    namespace: kube-system
   - name: local-path-provisioner
     namespace: local-path-storage
     patch: |-
