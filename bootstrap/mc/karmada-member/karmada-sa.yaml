@@ -16,3 +16,12 @@ roleRef:
   kind: ClusterRole
   name: cluster-admin
   apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: karmada-member-token # Name of the secret
+  namespace: kube-system
+  annotations:
+    kubernetes.io/service-account.name: karmada-member
+type: kubernetes.io/service-account-token
