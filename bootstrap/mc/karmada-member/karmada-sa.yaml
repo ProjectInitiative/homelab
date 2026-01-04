@@ -1,16 +1,16 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: kylepzak-admin
+  name: karmada-member
   namespace: kube-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: kylepzak-admin-binding
+  name: karmada-member-binding
 subjects:
 - kind: ServiceAccount
-  name: kylepzak-admin
+  name: karmada-member
   namespace: kube-system
 roleRef:
   kind: ClusterRole
@@ -20,8 +20,8 @@ roleRef:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: kylepzak-admin-token # Name of the secret
+  name: karmada-member-token # Name of the secret
   namespace: kube-system
   annotations:
-    kubernetes.io/service-account.name: kylepzak-admin
+    kubernetes.io/service-account.name: karmada-member
 type: kubernetes.io/service-account-token

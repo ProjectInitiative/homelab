@@ -344,92 +344,101 @@ catalog:
                     }
                   }
 
-  # karmada:
-  #   annotations:
-  #     argocd.argoproj.io/sync-wave: "50"
-  #   sources:
-  #     - repoURL: https://github.com/karmada-io/karmada.git
-  #       targetRevision: v1.11.9
-  #       path: charts/karmada
-  #   syncPolicy:
-  #     syncOptions:
-  #       - CreateNamespace=true
-  #       - ServerSideApply=true
+  karmada-member:
+    path: bootstrap/mc/karmada-member
+    annotations:
+      argocd.argoproj.io/sync-wave: "0"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=false
+        - ServerSideApply=true
 
-  # karmada-agent:
-  #   annotations:
-  #     argocd.argoproj.io/sync-wave: "50"
-  #   sources:
-  #     - repoURL: https://github.com/karmada-io/karmada.git
-  #       targetRevision: v1.11.9
-  #       path: charts/karmada-agent
-  #   vaultSecrets:
-  #     createAuth: true
-  #     role: openbao-secrets-operator
-  #     audiences:
-  #       - vault
-  #     secrets:
-  #       - name: karmada-agent-kubeconfig
-  #         mount: k8s
-  #         path: "karmada/agent-kubeconfig"
-  #         destination: "karmada-agent-kubeconfig"
-  #   helm:
-  #     values: |
-  #       # These values will be manually updated by the user after Karmada is deployed
-  #       kubeconfigSecret:
-  #         name: karmada-agent-kubeconfig
-  #         key: kubeconfig
-  #         mountPath: /etc/karmada/kubeconfig
-  #       clusterName: mc
-  #       karmadaAPIServer: "https://<KARMADA_API_SERVER_IP_OR_DNS>:5443"
-  #       kubeconfig:
-  #         caBundle: ""
-  #         token: ""
-  #   syncPolicy:
-  #     syncOptions:
-  #       - CreateNamespace=true
-  #       - ServerSideApply=true
+  karmada:
+    annotations:
+      argocd.argoproj.io/sync-wave: "50"
+    sources:
+      - repoURL: https://github.com/karmada-io/karmada.git
+        targetRevision: v1.11.9
+        path: charts/karmada
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
 
-  # submariner-k8s-broker:
-  #   annotations:
-  #     argocd.argoproj.io/sync-wave: "40"
-  #   sources:
-  #     - repoURL: https://github.com/ProjectInitiative/submariner-charts
-  #       chart: submariner-k8s-broker
-  #       targetRevision: v0.19.4
-  #   syncPolicy:
-  #     syncOptions:
-  #       - CreateNamespace=true
-  #       - ServerSideApply=true
+  karmada-agent:
+    annotations:
+      argocd.argoproj.io/sync-wave: "50"
+    sources:
+      - repoURL: https://github.com/karmada-io/karmada.git
+        targetRevision: v1.11.9
+        path: charts/karmada-agent
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      audiences:
+        - vault
+      secrets:
+        - name: karmada-agent-kubeconfig
+          mount: k8s
+          path: "karmada/agent-kubeconfig"
+          destination: "karmada-agent-kubeconfig"
+    helm:
+      values: |
+        # These values will be manually updated by the user after Karmada is deployed
+        kubeconfigSecret:
+          name: karmada-agent-kubeconfig
+          key: kubeconfig
+          mountPath: /etc/karmada/kubeconfig
+        clusterName: mc
+        karmadaAPIServer: "https://<KARMADA_API_SERVER_IP_OR_DNS>:5443"
+        kubeconfig:
+          caBundle: ""
+          token: ""
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
 
-  # submariner-operator:
-  #   annotations:
-  #     argocd.argoproj.io/sync-wave: "50"
-  #   sources:
-  #     - repoURL: https://github.com/ProjectInitiative/submariner-charts
-  #       targetRevision: v0.19.4
-  #       path: charts/submariner-operator
-  #   helm:
-  #     values: |
-  #       submariner:
-  #         brokerK8sSecret: "submariner-broker-info"
-  #         brokerK8sRemoteNamespace: "submariner-k8s-broker"
-  #         natEnabled: true
-  #         globalnetEnabled: true
-  #   vaultSecrets:
-  #     createAuth: true
-  #     role: openbao-secrets-operator
-  #     audiences:
-  #       - vault
-  #     secrets:
-  #       - name: submariner-broker-info
-  #         mount: k8s
-  #         path: "submariner/broker-info"
-  #         destination: "submariner-broker-info"
-  #   syncPolicy:
-  #     syncOptions:
-  #       - CreateNamespace=true
-  #       - ServerSideApply=true
+  submariner-k8s-broker:
+    annotations:
+      argocd.argoproj.io/sync-wave: "40"
+    sources:
+      - repoURL: https://github.com/ProjectInitiative/submariner-charts
+        chart: submariner-k8s-broker
+        targetRevision: v0.19.4
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
+  submariner-operator:
+    annotations:
+      argocd.argoproj.io/sync-wave: "50"
+    sources:
+      - repoURL: https://github.com/ProjectInitiative/submariner-charts
+        targetRevision: v0.19.4
+        path: charts/submariner-operator
+    helm:
+      values: |
+        submariner:
+          brokerK8sSecret: "submariner-broker-info"
+          brokerK8sRemoteNamespace: "submariner-k8s-broker"
+          natEnabled: true
+          globalnetEnabled: true
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      audiences:
+        - vault
+      secrets:
+        - name: submariner-broker-info
+          mount: k8s
+          path: "submariner/broker-info"
+          destination: "submariner-broker-info"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
 
   # Apps
   tailscale-proxy-groups:
