@@ -46,9 +46,12 @@ catalog:
         - RespectIgnoreDifferences=true
   
   sc-local-path:
-    path: bootstrap/mc/lpp 
+    path: bootstrap/base/lpp
     directory:
       include: '*.yaml'
+    syncPolicy:
+      syncOptions:
+        - ServerSideApply=true
   
   tpm-device-plugin:
     path: bootstrap/base/tpm-device-plugin/plugin
@@ -345,7 +348,7 @@ catalog:
                   }
 
   karmada-member:
-    path: bootstrap/mc/karmada-member
+    path: bootstrap/base/karmada-member
     annotations:
       argocd.argoproj.io/sync-wave: "0"
     syncPolicy:
@@ -353,47 +356,25 @@ catalog:
         - CreateNamespace=false
         - ServerSideApply=true
 
-  karmada:
+  karmada-operator:
     annotations:
-      argocd.argoproj.io/sync-wave: "50"
+      argocd.argoproj.io/sync-wave: "40"
     sources:
       - repoURL: https://github.com/karmada-io/karmada.git
         targetRevision: v1.11.9
-        path: charts/karmada
+        path: charts/karmada-operator
+        helm:
+          values: |
+            karmadaOperatorImageVersion: "v1.11.9"
     syncPolicy:
       syncOptions:
         - CreateNamespace=true
         - ServerSideApply=true
 
-  karmada-agent:
+  karmada-instance:
+    path: bootstrap/base/karmada-instance
     annotations:
       argocd.argoproj.io/sync-wave: "50"
-    sources:
-      - repoURL: https://github.com/karmada-io/karmada.git
-        targetRevision: v1.11.9
-        path: charts/karmada-agent
-    vaultSecrets:
-      createAuth: true
-      role: openbao-secrets-operator
-      audiences:
-        - vault
-      secrets:
-        - name: karmada-agent-kubeconfig
-          mount: k8s
-          path: "karmada/agent-kubeconfig"
-          destination: "karmada-agent-kubeconfig"
-    helm:
-      values: |
-        # These values will be manually updated by the user after Karmada is deployed
-        kubeconfigSecret:
-          name: karmada-agent-kubeconfig
-          key: kubeconfig
-          mountPath: /etc/karmada/kubeconfig
-        clusterName: mc
-        karmadaAPIServer: "https://<KARMADA_API_SERVER_IP_OR_DNS>:5443"
-        kubeconfig:
-          caBundle: ""
-          token: ""
     syncPolicy:
       syncOptions:
         - CreateNamespace=true

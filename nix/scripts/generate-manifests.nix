@@ -15,6 +15,6 @@ pkgs.writeShellScriptBin "generate-manifests" ''
   mkdir -p "$PULUMI_MANIFEST_OUTPUT_DIR"
   
   echo "Generating manifests to $PULUMI_MANIFEST_OUTPUT_DIR..."
-  ${pkgs.pulumi}/bin/pulumi up --yes --skip-preview --stack dev
+  ${pkgs.pulumi}/bin/pulumi up --yes --skip-preview --stack ''${PULUMI_STACK:-dev}
   echo "✅ Manifests generated in $PULUMI_MANIFEST_OUTPUT_DIR"
 ''
