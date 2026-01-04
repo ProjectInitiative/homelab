@@ -57,7 +57,9 @@ apps:
     namespace: monitoring
   - name: grafana-alloy
     namespace: monitoring
-  - name: karmada
+  - name: karmada-operator
+    namespace: karmada-system
+  - name: karmada-instance
     namespace: karmada-system
   - name: submariner-k8s-broker
     namespace: submariner-k8s-broker

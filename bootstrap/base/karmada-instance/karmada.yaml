@@ -1,0 +1,17 @@
+apiVersion: operator.karmada.io/v1alpha1
+kind: Karmada
+metadata:
+  name: karmada
+  namespace: karmada-system
+spec:
+  components:
+    karmadaAPIServer:
+      serviceType: ClusterIP
+    karmadaAggregatedAPIServer:
+      replicaCount: 1
+    karmadaControllerManager:
+      replicaCount: 1
+    karmadaScheduler:
+      replicaCount: 1
+    karmadaWebhook:
+      replicaCount: 1

@@ -137,8 +137,6 @@ apps:
     namespace: monitoring
   - name: nixos-remote-builder
     namespace: nixos-builder
-  - name: karmada-agent
-    namespace: karmada-system
   - name: submariner-operator
     namespace: submariner-operator
     helm_values: |
