@@ -7,26 +7,15 @@ spec:
   components:
     etcd:
       local:
-        replicas: 3
-        imageRepository: registry.k8s.io/etcd
-        imageTag: 3.5.10-0
-        volumeData:
-          volumeClaim:
-            spec:
-              accessModes:
-                - ReadWriteOnce
-              storageClassName: local-path-sticky
-              resources:
-                requests:
-                  storage: 5Gi
+        replicas: 1
     karmadaAPIServer:
       serviceType: ClusterIP
-      replicas: 3
+      replicas: 1
     karmadaAggregatedAPIServer:
-      replicas: 3
+      replicas: 1
     karmadaControllerManager:
-      replicas: 3
+      replicas: 1
     karmadaScheduler:
-      replicas: 3
+      replicas: 1
     karmadaWebhook:
-      replicas: 3
+      replicas: 1

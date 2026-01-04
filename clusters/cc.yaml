@@ -61,6 +61,48 @@ apps:
     namespace: karmada-system
   - name: karmada-instance
     namespace: karmada-system
+    patch: |-
+      apiVersion: operator.karmada.io/v1alpha1
+      kind: Karmada
+      metadata:
+        name: karmada
+      spec:
+        components:
+          etcd:
+            local:
+              replicas: 3
+              volumeData:
+                volumeClaim:
+                  spec:
+                    accessModes:
+                      - ReadWriteOnce
+                    storageClassName: local-path-sticky
+                    resources:
+                      requests:
+                        storage: 5Gi
+              affinity:
+                podAntiAffinity:
+                  requiredDuringSchedulingIgnoredDuringExecution:
+                  - labelSelector:
+                      matchExpressions:
+                      - key: app
+                        operator: In
+                        values:
+                        - etcd
+                    topologyKey: kubernetes.io/hostname
+          karmadaAPIServer:
+            replicas: 3
+          karmadaAggregatedAPIServer:
+            replicas: 3
+          karmadaControllerManager:
+            replicas: 3
+          karmadaScheduler:
+            replicas: 3
+          karmadaWebhook:
+            replicas: 3
+    patchTarget:
+      kind: Karmada
+      name: karmada
   - name: submariner-k8s-broker
     namespace: submariner-k8s-broker
   - name: submariner-operator
