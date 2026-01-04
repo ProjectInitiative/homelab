@@ -71,6 +71,8 @@ apps:
           etcd:
             local:
               replicas: 3
+              nodeSelector:
+                visibility: private
               volumeData:
                 volumeClaim:
                   spec:
@@ -92,14 +94,24 @@ apps:
                     topologyKey: kubernetes.io/hostname
           karmadaAPIServer:
             replicas: 3
+            nodeSelector:
+              visibility: private
           karmadaAggregatedAPIServer:
             replicas: 3
+            nodeSelector:
+              visibility: private
           karmadaControllerManager:
             replicas: 3
+            nodeSelector:
+              visibility: private
           karmadaScheduler:
             replicas: 3
+            nodeSelector:
+              visibility: private
           karmadaWebhook:
             replicas: 3
+            nodeSelector:
+              visibility: private
     patchTarget:
       kind: Karmada
       name: karmada
