@@ -8,10 +8,10 @@ spec:
     karmadaAPIServer:
       serviceType: ClusterIP
     karmadaAggregatedAPIServer:
-      replicaCount: 1
+      replicas: 1
     karmadaControllerManager:
-      replicaCount: 1
+      replicas: 1
     karmadaScheduler:
-      replicaCount: 1
+      replicas: 1
     karmadaWebhook:
-      replicaCount: 1
+      replicas: 1
