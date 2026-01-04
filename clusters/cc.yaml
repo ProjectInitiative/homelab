@@ -93,6 +93,8 @@ apps:
     patchTarget:
       kind: Karmada
       name: karmada
+  - name: karmada-member
+    namespace: kube-system
   - name: submariner-k8s-broker
     namespace: submariner-k8s-broker
   - name: submariner-operator
