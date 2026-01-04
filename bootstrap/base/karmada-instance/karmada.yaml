@@ -5,13 +5,28 @@ metadata:
   namespace: karmada-system
 spec:
   components:
+    etcd:
+      local:
+        replicas: 3
+        imageRepository: registry.k8s.io/etcd
+        imageTag: 3.5.10-0
+        volumeData:
+          volumeClaim:
+            spec:
+              accessModes:
+                - ReadWriteOnce
+              storageClassName: local-path-sticky
+              resources:
+                requests:
+                  storage: 5Gi
     karmadaAPIServer:
       serviceType: ClusterIP
+      replicas: 3
     karmadaAggregatedAPIServer:
-      replicas: 1
+      replicas: 3
     karmadaControllerManager:
-      replicas: 1
+      replicas: 3
     karmadaScheduler:
-      replicas: 1
+      replicas: 3
     karmadaWebhook:
-      replicas: 1
+      replicas: 3
