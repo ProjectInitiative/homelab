@@ -70,9 +70,7 @@ apps:
         components:
           etcd:
             local:
-              replicas: 3
-              nodeSelector:
-                visibility: private
+              replicas: 5
               volumeData:
                 volumeClaim:
                   spec:
@@ -82,36 +80,16 @@ apps:
                     resources:
                       requests:
                         storage: 5Gi
-              affinity:
-                podAntiAffinity:
-                  requiredDuringSchedulingIgnoredDuringExecution:
-                  - labelSelector:
-                      matchExpressions:
-                      - key: app
-                        operator: In
-                        values:
-                        - etcd
-                    topologyKey: kubernetes.io/hostname
           karmadaAPIServer:
-            replicas: 3
-            nodeSelector:
-              visibility: private
+            replicas: 5
           karmadaAggregatedAPIServer:
-            replicas: 3
-            nodeSelector:
-              visibility: private
+            replicas: 5
           karmadaControllerManager:
-            replicas: 3
-            nodeSelector:
-              visibility: private
+            replicas: 5
           karmadaScheduler:
-            replicas: 3
-            nodeSelector:
-              visibility: private
+            replicas: 5
           karmadaWebhook:
-            replicas: 3
-            nodeSelector:
-              visibility: private
+            replicas: 5
     patchTarget:
       kind: Karmada
       name: karmada
