@@ -5,8 +5,12 @@ metadata:
   namespace: karmada-system
 spec:
   components:
+    etcd:
+      local:
+        replicas: 1
     karmadaAPIServer:
       serviceType: ClusterIP
+      replicas: 1
     karmadaAggregatedAPIServer:
       replicas: 1
     karmadaControllerManager:
