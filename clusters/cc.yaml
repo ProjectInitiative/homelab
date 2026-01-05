@@ -81,15 +81,17 @@ apps:
                       requests:
                         storage: 5Gi
           karmadaAPIServer:
-            replicas: 5
+            replicas: 2
           karmadaAggregatedAPIServer:
-            replicas: 5
+            replicas: 2
           karmadaControllerManager:
-            replicas: 5
+            replicas: 2
           karmadaScheduler:
-            replicas: 5
+            replicas: 2
           karmadaWebhook:
-            replicas: 5
+            replicas: 2
+          karmadaSearch:
+            replicas: 2
     patchTarget:
       kind: Karmada
       name: karmada
