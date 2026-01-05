@@ -361,14 +361,11 @@ catalog:
       argocd.argoproj.io/sync-wave: "40"
     sources:
       - repoURL: https://github.com/karmada-io/karmada.git
-        targetRevision: v1.11.9
+        targetRevision: v1.16.1
         path: charts/karmada-operator
         helm:
           values: |
-            karmadaOperatorImageVersion: "v1.11.9"
-      - repoURL: https://github.com/karmada-io/karmada.git
-        targetRevision: v1.11.9
-        path: charts/karmada/_crds
+            karmadaOperatorImageVersion: "v1.16.1"
     syncPolicy:
       syncOptions:
         - CreateNamespace=true
