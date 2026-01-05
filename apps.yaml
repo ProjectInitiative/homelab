@@ -366,6 +366,9 @@ catalog:
         helm:
           values: |
             karmadaOperatorImageVersion: "v1.11.9"
+      - repoURL: https://github.com/karmada-io/karmada.git
+        targetRevision: v1.11.9
+        path: charts/karmada/_crds
     syncPolicy:
       syncOptions:
         - CreateNamespace=true
