@@ -5,11 +5,11 @@ metadata:
   namespace: karmada-system
 spec:
   selector:
-    app.kubernetes.io/name: karmada-aggregated-apiserver
+    app.kubernetes.io/name: karmada-apiserver
   ports:
     - name: https
       protocol: TCP
       port: 443 # External port on Tailscale
-      targetPort: 443 # Internal port of Karmada API Server
+      targetPort: 5443 # Internal port of Karmada API Server
   type: LoadBalancer
   loadBalancerClass: tailscale
