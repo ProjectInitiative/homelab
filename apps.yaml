@@ -461,3 +461,48 @@ catalog:
   #     syncOptions:
   #       - CreateNamespace=true
   #       - ServerSideApply=true
+
+  kubevirt-operator:
+    path: bootstrap/base/kubevirt/operator
+    annotations:
+      argocd.argoproj.io/sync-wave: "0"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
+  kubevirt-cr:
+    path: bootstrap/base/kubevirt/cr
+    annotations:
+      argocd.argoproj.io/sync-wave: "10"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
+  cdi-operator:
+    path: bootstrap/base/cdi/operator
+    annotations:
+      argocd.argoproj.io/sync-wave: "0"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
+  cdi-cr:
+    path: bootstrap/base/cdi/cr
+    annotations:
+      argocd.argoproj.io/sync-wave: "10"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
+  kubevirt-manager:
+    path: apps/base/kubevirt-manager
+    annotations:
+      argocd.argoproj.io/sync-wave: "20"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
