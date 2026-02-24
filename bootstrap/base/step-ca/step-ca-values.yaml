@@ -74,7 +74,8 @@ extraInitContainers:
 
 extraVolumes:
   - name: pgpass-shared-volume
-    emptyDir: {}
+    emptyDir:
+      medium: Memory
   - name: pgpass-volume
     secret:
       secretName: step-ca-db-datasource

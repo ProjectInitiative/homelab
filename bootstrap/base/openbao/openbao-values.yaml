@@ -88,7 +88,8 @@ server:
     # This is an in-memory volume used for the sidecar to communicate the
     # decrypted seal key to the main OpenBao container.
     - name: shared-env
-      emptyDir: {}
+      emptyDir:
+        medium: Memory
 
   # Mount the necessary volumes into the main 'openbao' container.
   volumeMounts:
