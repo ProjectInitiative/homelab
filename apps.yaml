@@ -204,7 +204,7 @@ catalog:
     vaultSecrets:
       createAuth: true
       role: openbao-secrets-operator
-      namespace: production
+      namespace: monitoring
       audiences:
         - vault
       secrets:

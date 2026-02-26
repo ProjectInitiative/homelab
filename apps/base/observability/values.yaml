@@ -57,7 +57,7 @@ kube-prometheus-stack:
     additionalDataSources:
       - name: Loki
         type: loki
-        url: http://loki-gateway.monitoring.svc.cluster.local:80
+        url: http://loki.monitoring.svc.cluster.local:3100
         access: proxy
         jsonData:
           maxLines: 1000
