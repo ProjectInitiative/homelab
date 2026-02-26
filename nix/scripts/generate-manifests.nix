@@ -2,7 +2,7 @@
 pkgs.writeShellScriptBin "generate-manifests" ''
   set -e
   # Add python environment and pulumi bin to PATH so Pulumi can find dependencies and the language host
-  export PATH="${pythonEnv}/bin:${pkgs.pulumi}/bin:$PATH"
+  export PATH="${pkgs.pulumi}/bin:${pythonEnv}/bin:$PATH"
 
   # Navigate to pulumi directory as expected by the project structure
   cd pulumi
