@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: karmada-endpoint-placeholder
+  namespace: argocd
+data:
+  message: "This app injects Karmada cluster secret into ArgoCD namespace via Vault"

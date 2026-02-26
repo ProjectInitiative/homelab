@@ -421,6 +421,24 @@ catalog:
         - CreateNamespace=true
         - ServerSideApply=true
 
+  argocd-karmada-endpoint:
+    path: apps/base/argocd-karmada-endpoint/config
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      namespace: argocd
+      secrets:
+        - name: karmada-cluster-secret
+          mount: k8s
+          path: "karmada/config"
+          destination: "karmada-cluster-secret"
+          type: "kv-v2"
+          labels:
+            argocd.argoproj.io/secret-type: cluster
+    syncPolicy:
+      syncOptions:
+        - ServerSideApply=true
+
   # Apps
   tailscale-proxy-groups:
     path: apps/base/tailscale-proxy-groups/config
