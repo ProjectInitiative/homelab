@@ -227,7 +227,7 @@ catalog:
     vaultSecrets:
       createAuth: true
       role: openbao-secrets-operator
-      namespace: production
+      namespace: monitoring
       audiences:
         - vault
       secrets:
@@ -280,6 +280,30 @@ catalog:
   
   garage-mem:
     path: bootstrap/mc/garage-mem
+
+  observability:
+    path: apps/base/observability
+    annotations:
+      argocd.argoproj.io/sync-wave: "20"
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      namespace: production
+      audiences:
+        - vault
+      secrets:
+        - name: thanos-objstore-secret
+          mount: k8s
+          path: "observability/objstore"
+          destination: "thanos-objstore-secret"
+        - name: loki-bucket-secret
+          mount: k8s
+          path: "observability/loki-bucket"
+          destination: "loki-bucket-secret"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
 
   prometheus-operator-crds:
     annotations:

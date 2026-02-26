@@ -57,6 +57,8 @@ apps:
     namespace: monitoring
   - name: grafana-alloy
     namespace: monitoring
+  - name: observability
+    namespace: monitoring
   - name: karmada-operator
     namespace: karmada-system
   - name: karmada-instance
