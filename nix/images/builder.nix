@@ -78,9 +78,7 @@ in pkgs.dockerTools.buildImage {
     ];
   };
 
-  copyToRoot = pkgs.buildEnv {
-    name = "image-root";
-    paths = [
+    contents = [
       pkgs.bashInteractive
       pkgs.coreutils
       pkgs.openssh
@@ -98,10 +96,8 @@ in pkgs.dockerTools.buildImage {
         echo "${builderUser}:x:${toString builderUid}:" >> $out/etc/group
       '')
     ];
-    pathsToLink = [ "/bin" "/etc" "/var" "/tmp" "/run" ];
-  };
 
-  runAsRoot = ''
+  fakeRootscommands = ''
     mkdir -p /home/${builderUser}
     chown ${toString builderUid}:${toString builderUid} /home/${builderUser}
     mkdir -p /tmp
