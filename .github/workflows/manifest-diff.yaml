@@ -26,6 +26,7 @@ jobs:
           extra-conf: |
             extra-platforms = aarch64-linux
             extra-sandbox-paths = /usr/bin/qemu-aarch64-static
+            filter-syscalls = false
 
       # 1. Checkout Code
       - name: Checkout Main
