@@ -27,27 +27,16 @@ let
     fi
 
     # Ensure /nix/var/nix/db exists and is writable
-    # In a container, /nix/store is usually part of the image, but we need the DB to be valid.
-    # dockerTools.buildImage doesn't fully initialize the runtime DB state.
     if [ ! -d /nix/var/nix/db ]; then
         echo "Initializing Nix DB..."
         mkdir -p /nix/var/nix
         ${pkgs.nix}/bin/nix-store --init
     fi
 
-    # Fix permissions if needed (container might start as root then drop, 
-    # but we are running as root to start sshd, so we can fix things)
+    # Fix permissions if needed
     chown -R ${builderUser}:${builderUser} ${builderHome}
     
     # Allow the builder user to write to the nix store
-    # In single-user mode, the running user needs write access.
-    # Since we run sshd as root, the session will switch to 'nix' user.
-    # We must ensure 'nix' owns /nix (or at least the parts it needs).
-    # This is drastic but necessary for a single-user-like container setup
-    # where the user isn't root but needs to install things.
-    # Alternatively, we could configure 'nix' to rely on a daemon, 
-    # but running the daemon inside the same container is complex.
-    # Simpler: Make /nix owned by the builder user.
     chown -R ${builderUser}:${builderUser} /nix
 
     echo "Starting SSHD on port 2222..."
@@ -62,7 +51,8 @@ let
     extra-platforms = aarch64-linux
   '';
 
-in pkgs.dockerTools.buildImage {
+# Changed from buildImage to buildLayeredImage
+in pkgs.dockerTools.buildLayeredImage {
   name = "nixos-remote-builder";
   tag = "latest";
 
@@ -78,29 +68,31 @@ in pkgs.dockerTools.buildImage {
     ];
   };
 
-    contents = [
-      pkgs.bashInteractive
-      pkgs.coreutils
-      pkgs.openssh
-      pkgs.nix
-      pkgs.cacert
-      pkgs.git
-      pkgs.iana-etc # /etc/protocols etc.
-      
-      (pkgs.runCommand "etc-setup" {} ''
-        mkdir -p $out/etc/nix $out/etc/ssh $out/run $out/tmp
-        ln -s ${nixConf} $out/etc/nix/nix.conf
-        echo "root:x:0:0::/root:/bin/bash" > $out/etc/passwd
-        echo "${builderUser}:x:${toString builderUid}:${toString builderUid}::${builderHome}:/bin/bash" >> $out/etc/passwd
-        echo "root:x:0:" > $out/etc/group
-        echo "${builderUser}:x:${toString builderUid}:" >> $out/etc/group
-      '')
-    ];
+  contents = [
+    pkgs.bashInteractive
+    pkgs.coreutils
+    pkgs.openssh
+    pkgs.nix
+    pkgs.cacert
+    pkgs.git
+    pkgs.iana-etc
+    
+    (pkgs.runCommand "etc-setup" {} ''
+      mkdir -p $out/etc/nix $out/etc/ssh $out/run $out/tmp
+      ln -s ${nixConf} $out/etc/nix/nix.conf
+      echo "root:x:0:0::/root:/bin/bash" > $out/etc/passwd
+      echo "${builderUser}:x:${toString builderUid}:${toString builderUid}::${builderHome}:/bin/bash" >> $out/etc/passwd
+      echo "root:x:0:" > $out/etc/group
+      echo "${builderUser}:x:${toString builderUid}:" >> $out/etc/group
+    '')
+  ];
 
-  fakeRootscommands = ''
-    mkdir -p /home/${builderUser}
-    chown ${toString builderUid}:${toString builderUid} /home/${builderUser}
-    mkdir -p /tmp
-    chmod 1777 /tmp
+  # Corrected typo: fakeRootCommands
+  # Paths must be relative (starting with ./) inside this block
+  fakeRootCommands = ''
+    mkdir -p ./home/${builderUser}
+    chown ${toString builderUid}:${toString builderUid} ./home/${builderUser}
+    mkdir -p ./tmp
+    chmod 1777 ./tmp
   '';
 }
