@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - dev
     paths:
       - 'nix/images/builder.nix'
       - '.github/workflows/build-push-nixos-remote-builder.yaml'
@@ -55,4 +56,5 @@ jobs:
           nix run .#push-multi-arch -- \
             nixos-remote-builder \
             nixos-remote-builder \
-            ${{ steps.repo_owner.outputs.name }}
+            ${{ steps.repo_owner.outputs.name }} \
+            ${{ github.ref_name == 'main' && 'latest' || 'dev' }}

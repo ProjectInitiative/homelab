@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main # Or your default branch
+      - dev
     # The 'paths' filter ensures this workflow only runs when one of
     # these specific files is changed in a push.
     paths:
@@ -50,4 +51,4 @@ jobs:
           context: apps/base/dnsutils/docker-dnsutils
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ghcr.io/${{ steps.repo_owner.outputs.name }}/dnsutils:latest
+          tags: ghcr.io/${{ steps.repo_owner.outputs.name }}/dnsutils:${{ github.ref_name == 'main' && 'latest' || 'dev' }}
