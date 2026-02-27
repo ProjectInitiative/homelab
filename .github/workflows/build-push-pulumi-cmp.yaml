@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - dev
     paths:
       - 'pulumi/cmp-image/**'
       - 'flake.nix'
@@ -54,4 +55,5 @@ jobs:
           nix run .#push-multi-arch -- \
             pulumi-cmp-plugin \
             pulumi-cmp-plugin \
-            ${{ steps.repo_owner.outputs.name }}
+            ${{ steps.repo_owner.outputs.name }} \
+            ${{ github.ref_name == 'main' && 'latest' || 'dev' }}

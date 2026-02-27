@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main # Or your default branch
+      - dev
     # The 'paths' filter ensures this workflow only runs when one of
     # these specific files is changed in a push.
     paths:
@@ -46,4 +47,4 @@ jobs:
         with:
           context: bootstrap/base/openbao/docker-openbao-hsm
           push: true
-          tags: ghcr.io/${{ steps.repo_owner.outputs.name }}/openbao-hsm:latest
+          tags: ghcr.io/${{ steps.repo_owner.outputs.name }}/openbao-hsm:${{ github.ref_name == 'main' && 'latest' || 'dev' }}
