@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   diff:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Install QEMU
         run: sudo apt-get update && sudo apt-get install -y qemu-user-static
@@ -26,7 +26,6 @@ jobs:
           extra-conf: |
             extra-platforms = aarch64-linux
             extra-sandbox-paths = /usr/bin/qemu-aarch64-static
-            filter-syscalls = false
 
       # 1. Checkout Code
       - name: Checkout Main

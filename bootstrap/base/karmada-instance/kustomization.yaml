@@ -3,4 +3,3 @@ kind: Kustomization
 resources:
   - karmada.yaml
   - tailscale-lb.yaml
-  - resource-registry.yaml

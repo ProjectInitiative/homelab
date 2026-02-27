@@ -448,7 +448,7 @@ def process_cluster(cluster_file):
 
 
 # Main
-clusters_files = ['clusters/mc.yaml', 'clusters/cc.yaml']
+clusters_files = ['clusters/mc.yaml', 'clusters/cc.yaml', 'clusters/karmada.yaml']
 
 for cf in clusters_files:
     full_path = os.path.join(root_dir, cf)
