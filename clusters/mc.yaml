@@ -98,6 +98,20 @@ apps:
             extraVolumeMounts:
               - name: snapshots
                 mountPath: /snapshots
+            ingress:
+              s3:
+                api:
+                  enabled: true
+                  ingressClassName: tailscale
+                  hosts:
+                    - host: s3.moonwake.io
+                      paths:
+                        - path: /
+                          pathType: Prefix
+                  tls:
+                    - secretName: garage-ingress-cert
+                      hosts:
+                        - s3.moonwake.io
         - name: KUSTOMIZE_PATCH
           value: |
             - op: add
