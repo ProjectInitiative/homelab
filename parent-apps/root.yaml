@@ -45,6 +45,29 @@ spec:
     kind: '*'
 ---
 apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: karmada-control-plane
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: "Project for Karmada Control Plane Resources"
+  sourceRepos:
+  - '*'
+  sourceNamespaces:
+  - '*'
+  destinations:
+  - server: '*'
+    namespace: '*'
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  namespaceResourceWhitelist:
+  - group: '*'
+    kind: '*'
+---
+apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: homelab-root

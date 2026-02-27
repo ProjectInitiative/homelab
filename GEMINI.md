@@ -7,8 +7,8 @@ This document outlines the architectural patterns and conventions used in this r
 This repository uses a GitOps workflow managed by Argo CD in a multi-cluster environment, with the root Application manifests **generated dynamically by Pulumi**.
 
 1.  **Multi-Cluster Setup:**
-    *   **`homelab` (Control Cluster):** This cluster runs the main Argo CD instance. Argo CD `Application` resources are deployed here.
-    *   **`capstan` (Main Cluster):** This is the primary workload cluster. Applications are deployed *to* this cluster from the `homelab` cluster.
+    *   **`homelab` (Control Cluster, `cc`):** This cluster runs the main Argo CD instance and the Karmada Control Plane.
+    *   **`capstan` (Main Cluster, `mc`):** This is the primary workload cluster.
 
 2.  **Pulumi-Generated Manifests:**
     *   **`apps.yaml` & `clusters/*.yaml`:** These are the source of truth. `apps.yaml` acts as a catalog of available applications, while `clusters/*.yaml` defines which applications are deployed to which cluster.
@@ -24,6 +24,29 @@ We have migrated away from complex Kustomize overlays and "meta-patching" for ro
 3.  **Review Diffs:**
     *   **PR Comments:** Automated automation posts the diff of the generated manifests to Pull Requests, providing a safeguard against unintended changes.
     *   **Local Testing:** Use local tools (like `pulumi preview` or custom scripts) to verify generation before pushing.
+
+## Karmada Setup (Federation)
+
+We use Karmada to federate our clusters (`cc` and `mc`).
+
+### Bootstrapping Member Clusters
+To register a cluster with Karmada:
+1.  **Deploy `karmada-member` App:** Enable the `karmada-member` application in the target cluster's configuration (`clusters/<cluster>.yaml`). This creates a dedicated ServiceAccount and long-lived Secret (`karmada-member-token`).
+2.  **Retrieve Token:** Get the token from the `karmada-member-token` secret in the `kube-system` namespace of the target cluster.
+3.  **Create Member Kubeconfig:** Create a temporary kubeconfig file (e.g., `member.kubeconfig`) using the retrieved token and the cluster's API endpoint.
+    *   *Trick:* When joining the host cluster (`cc`), `karmadactl` needs to reach the API server for validation.
+        1.  Create `member.kubeconfig` using the **external** (Tailscale) URL and `insecure-skip-tls-verify: true`.
+        2.  Run `karmadactl join`.
+        3.  **Crucial Optimization:** Edit the `Cluster` resource in Karmada (`kubectl edit cluster cc`) and change `spec.apiEndpoint` to the internal DNS `https://kubernetes.default.svc`. This forces Karmada to communicate via the high-speed internal network instead of the external proxy.
+    *   *Trick:* If the API server is self-signed and accessed via internal IP (like `mc`), you must provide the CA data or use `insecure-skip-tls-verify: true`.
+4.  **Join:** Run the join command:
+    ```bash
+    karmadactl --kubeconfig=karmada-admin.kubeconfig join <cluster-name> --cluster-kubeconfig=member.kubeconfig
+    ```
+
+### Troubleshooting
+*   **Missing API Groups:** If `kubectl --kubeconfig karmada-admin.kubeconfig get --raw /api/v1` returns 404, check the `karmada-apiserver-tailscale` Service. It *must* select `app.kubernetes.io/name: karmada-apiserver` (TargetPort 5443), NOT the aggregated API server.
+*   **TLS Errors:** Karmada uses self-signed certs. When accessing via Tailscale, use `insecure-skip-tls-verify: true` in your local admin kubeconfig to bypass hostname verification errors.
 
 ## Secret Management
 
@@ -55,4 +78,3 @@ This configuration tells the Pulumi generator to:
 2.  Create a `VaultStaticSecret` that authenticates using that `VaultAuth` to fetch the secret at `data/tailscale/auth`.
 
 **Important:** The OpenBao (Vault) server must be configured with a matching Role that binds the generated Service Account name (e.g., `operator-auth-sa`) and namespace to the necessary policies.
-
