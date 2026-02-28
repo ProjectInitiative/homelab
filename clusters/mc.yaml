@@ -146,3 +146,13 @@ apps:
         serviceCIDR: "10.43.0.0/16"
         brokerK8sSecret: "submariner-broker-info"
         brokerK8sApiServer: "https://100.95.205.21:443"
+  - name: kubevirt-operator
+    namespace: kubevirt
+  - name: kubevirt-cr
+    namespace: kubevirt
+  - name: cdi-operator
+    namespace: cdi
+  - name: cdi-cr
+    namespace: cdi
+  - name: kubevirt-manager
+    namespace: kubevirt-manager
