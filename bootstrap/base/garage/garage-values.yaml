@@ -75,6 +75,9 @@ garage:
     trace_sink = {{ .Values.monitoring.tracing.sink | quote }}
     {{- end }}
 
+    [k2v_api]
+    api_bind_addr = "[::]:3904"
+
 # Start 3 instances (StatefulSets) of garage
 deployment:
   kind: StatefulSet
