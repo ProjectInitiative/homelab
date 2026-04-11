@@ -71,9 +71,9 @@ garage:
 
     [admin]
     api_bind_addr = "[::]:3903"
-    {{- if .Values.monitoring.tracing.sink }}
-    trace_sink = {{ .Values.monitoring.tracing.sink | quote }}
-    {{- end }}
+    # {{- if .Values.monitoring.tracing.sink }}
+    # trace_sink = {{ .Values.monitoring.tracing.sink | quote }}
+    # {{- end }}
 
     [k2v_api]
     api_bind_addr = "[::]:3904"
