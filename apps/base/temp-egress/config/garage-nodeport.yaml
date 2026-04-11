@@ -25,8 +25,10 @@ spec:
     port: 3903
     # The port on the Garage pod that traffic should be sent to
     targetPort: 3903
-    # You can optionally specify a nodePort here (e.g., nodePort: 30900)
-    # If you omit it, Kubernetes will assign a random one.
+  - name: k2v
+    port: 3904
+    targetPort: 3904
+
   #
   # IMPORTANT: This must match the selector of your existing 'garage' service
   # Find it by running: kubectl get svc garage -o yaml
@@ -48,6 +50,10 @@ spec:
       protocol: TCP
       port: 3900
       targetPort: 3900
+    - name: k2v
+      protocol: TCP
+      port: 3904
+      targetPort: 3904
   type: LoadBalancer
   loadBalancerClass: tailscale
 ---
@@ -65,6 +71,9 @@ spec:
     port: 3900
     # The port on the Garage pod that traffic should be sent to
     targetPort: 3900
+  - name: k2v
+    port: 3904
+    targetPort: 3904
   - name: website
     # The port your new service will have inside the cluster
     port: 3902
