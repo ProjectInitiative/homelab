@@ -145,6 +145,17 @@
             shellHook = ''
               export PULUMI_MANIFEST_OUTPUT_DIR=$(pwd)/.direnv/manifests
               echo "Entering Pulumi development shell"
+              echo ""
+              echo "Available commands:"
+              echo "  generate-manifests  - Generate Argo CD Application manifests from apps.yaml and clusters/*.yaml"
+              echo "  import-crds         - Import CRDs for Pulumi"
+              echo "  setup-pulumi        - Setup Pulumi configuration"
+              echo "  diff-manifests      - Diff generated manifests against current state"
+              echo "  build-image         - Build the Pulumi CMP Docker image"
+              echo "  push-multi-arch     - Build and push multi-arch Pulumi CMP image"
+              echo "  push-insecure       - Push Pulumi CMP image to an insecure registry"
+              echo "  dev-push            - Build and push Pulumi CMP image for development"
+              echo ""
             '';
             
             PULUMI_CONFIG_PASSPHRASE = "";

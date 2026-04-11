@@ -243,11 +243,8 @@ catalog:
         name: garage-rpc-secret
       - group: apps
         kind: StatefulSet
-        jqPathExpressions:
-        - .spec.volumeClaimTemplates[].status
-        - .spec.volumeClaimTemplates[].metadata.creationTimestamp
-        - .spec.volumeClaimTemplates[].apiVersion
-        - .spec.volumeClaimTemplates[].kind
+        jsonPointers:
+        - /spec/volumeClaimTemplates
     syncPolicy:
       automated:
         prune: false
