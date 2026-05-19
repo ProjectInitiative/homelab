@@ -212,10 +212,10 @@ catalog:
           mount: k8s
           path: "cnpg/s3"
           destination: "postgres-cluster-s3"
-        - name: juicefs-db-credentials
+        - name: ai-juicefs-db-creds
           mount: k8s
-          path: "cnpg/juicefs-db-credentials"
-          destination: "juicefs-db-credentials"
+          path: "cnpg/ai-juicefs-db-creds"
+          destination: "ai-juicefs-db-creds"
     syncPolicy:
       syncOptions:
         - CreateNamespace=true
