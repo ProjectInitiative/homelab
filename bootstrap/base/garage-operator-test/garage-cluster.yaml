@@ -1,0 +1,86 @@
+apiVersion: garage.rajsingh.info/v1beta2
+kind: GarageCluster
+metadata:
+  name: garage
+  namespace: garage
+spec:
+  # Image — uses operator's defaultGarageImage or set to match current deploy
+  # image: dxflrs/garage:v1.0.1
+
+  # 3-node HA cluster matching current Helm deployment
+  storage:
+    replicas: 3
+    metadata:
+      size: 50Gi
+      storageClassName: host-local-path-nvme-sticky
+    data:
+      size: 1024Gi
+      storageClassName: host-local-path-nvme-sticky
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 2000m
+        memory: 2Gi
+
+  # Snapshot volume (currently Helm-managed via KUSTOMIZE_PATCH)
+  # Extra volumes need to be configured via the CR or post-deploy PVC
+  # See: https://garage.rajsingh.info/docs/advanced/extra-volumes
+
+  replication:
+    factor: 3
+    consistencyMode: consistent
+
+  network:
+    rpcBindPort: 3901
+    # RPC secret from Vault — operator auto-generates one if not set
+    # For migration, set to match the existing secret:
+    rpcSecretRef:
+      name: garage-rpc-secret
+      key: rpc-secret
+    service:
+      type: ClusterIP
+
+  s3Api:
+    bindPort: 3900
+    region: us-east-1
+
+  webApi:
+    bindPort: 3902
+    rootDomain: ".garage-web.moonwake.io"
+
+  admin:
+    bindPort: 3903
+    adminTokenSecretRef:
+      name: garage-admin-token
+      key: admin-token
+
+  k2vApi:
+    bindPort: 3904
+
+  database:
+    engine: lmdb
+
+  blocks:
+    size: 10Mi
+    ramBufferMax: 5120MiB
+    compression: none
+
+  logging:
+    level: info
+
+  monitoring:
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+
+  # Metadata auto-snapshots (matching Helm overrides)
+  # configMap overrides could set metadata_auto_snapshot_interval and
+  # metadata_snapshots_dir via the operator's config injection
+
+  # Critical app protection — matches current `critical: true`
+  pdb:
+    enabled: true
+    maxUnavailable: 1
