@@ -12,6 +12,19 @@ reference for the migration.
 - **RPC secret**: from Vault, synced to K8s secret `garage-rpc-secret`
 - **Admin API**: port 3903, file-based admin token (auto-managed by Helm chart)
 
+## Vault Secrets
+
+Both critical secrets are pre-provisioned in OpenBao and synced via VSO, so the
+operator references existing K8s secrets rather than auto-generating them:
+
+| Vault Path | K8s Secret | Purpose |
+|------------|-----------|---------|
+| `k8s/garage/rpc` | `garage-rpc-secret` | RPC secret (already exists) |
+| `k8s/garage/admin-token` | `garage-admin-token` | Admin API token (needs creation on Vault side) |
+
+Both are referenced in `garage-cluster.yaml` via `rpcSecretRef` and
+`adminTokenSecretRef`. The operator will NOT regenerate them.
+
 ## Key Mapping
 
 | Helm Value | Operator CR Field |

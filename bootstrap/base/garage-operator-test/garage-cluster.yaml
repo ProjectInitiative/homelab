@@ -4,9 +4,6 @@ metadata:
   name: garage
   namespace: garage
 spec:
-  # Image — uses operator's defaultGarageImage or set to match current deploy
-  # image: dxflrs/garage:v1.0.1
-
   # 3-node HA cluster matching current Helm deployment
   storage:
     replicas: 3
@@ -24,18 +21,14 @@ spec:
         cpu: 2000m
         memory: 2Gi
 
-  # Snapshot volume (currently Helm-managed via KUSTOMIZE_PATCH)
-  # Extra volumes need to be configured via the CR or post-deploy PVC
-  # See: https://garage.rajsingh.info/docs/advanced/extra-volumes
-
   replication:
     factor: 3
     consistencyMode: consistent
 
   network:
     rpcBindPort: 3901
-    # RPC secret from Vault — operator auto-generates one if not set
-    # For migration, set to match the existing secret:
+    # Existing RPC secret synced from OpenBao via VSO
+    # Vault path: k8s/garage/rpc → K8s secret: garage-rpc-secret
     rpcSecretRef:
       name: garage-rpc-secret
       key: rpc-secret
@@ -52,6 +45,8 @@ spec:
 
   admin:
     bindPort: 3903
+    # Admin token synced from OpenBao via VSO
+    # Vault path: k8s/garage/admin-token → K8s secret: garage-admin-token
     adminTokenSecretRef:
       name: garage-admin-token
       key: admin-token
@@ -75,10 +70,6 @@ spec:
       enabled: true
       serviceMonitor:
         enabled: true
-
-  # Metadata auto-snapshots (matching Helm overrides)
-  # configMap overrides could set metadata_auto_snapshot_interval and
-  # metadata_snapshots_dir via the operator's config injection
 
   # Critical app protection — matches current `critical: true`
   pdb:
