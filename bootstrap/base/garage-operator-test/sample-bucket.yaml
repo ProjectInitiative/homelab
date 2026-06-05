@@ -1,0 +1,51 @@
+# Example: App declares a bucket via the operator's CRD.
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageBucket
+metadata:
+  name: app-bucket
+  namespace: my-app
+spec:
+  clusterRef:
+    name: garage
+    namespace: garage
+
+  quotas:
+    maxSize: 10Gi
+    maxObjects: 100000
+
+  # Grant access to an app-specific key
+  keyPermissions:
+    - keyRef:
+        name: app-key
+        namespace: my-app
+      read: true
+      write: true
+---
+# Example: App key with auto-generated credentials written to a K8s Secret.
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageKey
+metadata:
+  name: app-key
+  namespace: my-app
+spec:
+  clusterRef:
+    name: garage
+    namespace: garage
+
+  name: "My App Key"
+
+  secretTemplate:
+    name: my-app-s3-creds
+    accessKeyIdKey: AWS_ACCESS_KEY_ID
+    secretAccessKeyKey: AWS_SECRET_ACCESS_KEY
+    endpointKey: S3_ENDPOINT
+    regionKey: AWS_REGION
+    includeEndpoint: true
+    includeRegion: true
+
+  bucketPermissions:
+    - bucketRef:
+        name: app-bucket
+        namespace: my-app
+      read: true
+      write: true

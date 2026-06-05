@@ -159,6 +159,7 @@
             '';
             
             PULUMI_CONFIG_PASSPHRASE = "";
+            PULUMI_ACCESS_TOKEN = "";
           };
         }
       );

@@ -1,0 +1,77 @@
+apiVersion: garage.rajsingh.info/v1beta2
+kind: GarageCluster
+metadata:
+  name: garage
+  namespace: garage
+spec:
+  # 3-node HA cluster matching current Helm deployment
+  storage:
+    replicas: 3
+    metadata:
+      size: 50Gi
+      storageClassName: host-local-path-nvme-sticky
+    data:
+      size: 1024Gi
+      storageClassName: host-local-path-nvme-sticky
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 2000m
+        memory: 2Gi
+
+  replication:
+    factor: 3
+    consistencyMode: consistent
+
+  network:
+    rpcBindPort: 3901
+    # Existing RPC secret synced from OpenBao via VSO
+    # Vault path: k8s/garage/rpc → K8s secret: garage-rpc-secret
+    rpcSecretRef:
+      name: garage-rpc-secret
+      key: rpc-secret
+    service:
+      type: ClusterIP
+
+  s3Api:
+    bindPort: 3900
+    region: us-east-1
+
+  webApi:
+    bindPort: 3902
+    rootDomain: ".garage-web.moonwake.io"
+
+  admin:
+    bindPort: 3903
+    # Admin token synced from OpenBao via VSO
+    # Vault path: k8s/garage/admin-token → K8s secret: garage-admin-token
+    adminTokenSecretRef:
+      name: garage-admin-token
+      key: admin-token
+
+  k2vApi:
+    bindPort: 3904
+
+  database:
+    engine: lmdb
+
+  blocks:
+    size: 10Mi
+    ramBufferMax: 5120MiB
+    compression: none
+
+  logging:
+    level: info
+
+  monitoring:
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+
+  # Critical app protection — matches current `critical: true`
+  pdb:
+    enabled: true
+    maxUnavailable: 1

@@ -42,3 +42,14 @@ spec:
     initdb:
       postInitSQL:
         - CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+
+  # Declarative User and Database Provisioning
+  managed:
+    roles:
+      - name: juicefs_user
+        login: true
+        passwordSecret:
+          name: ai-juicefs-db-creds
+    databases:
+      - name: ai-juicefs
+        owner: juicefs_user
