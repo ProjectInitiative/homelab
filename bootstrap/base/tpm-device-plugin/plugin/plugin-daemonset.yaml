@@ -21,6 +21,7 @@ spec:
       containers:
       - image: squat/generic-device-plugin
         args:
+        - --domain=squat.ai
         - --device
         - |
           name: tpm
