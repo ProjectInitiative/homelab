@@ -5,3 +5,5 @@ resources:
   - debug-clusterrole.yaml
   - deployment.yaml
   - service.yaml
+  - tailscale-lb.yaml
+  - network-policy.yaml
