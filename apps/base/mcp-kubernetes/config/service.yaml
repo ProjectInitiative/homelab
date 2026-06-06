@@ -1,0 +1,15 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-kubernetes-svc
+  labels:
+    app: mcp-kubernetes
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http-sse
+  selector:
+    app: mcp-kubernetes
