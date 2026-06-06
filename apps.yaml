@@ -167,7 +167,7 @@ catalog:
     sources:
       - repoURL: https://juicedata.github.io/charts/
         chart: juicefs-csi-driver
-        targetRevision: 0.20.1
+        targetRevision: 0.31.9
     syncPolicy:
       syncOptions:
         - CreateNamespace=true
