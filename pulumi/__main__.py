@@ -266,6 +266,18 @@ def process_cluster(cluster_file):
 
             # 2. Create VaultStaticSecrets (one source per secret)
             for secret_item in secrets_list:
+                # Build destination config
+                dest_config = {
+                    'name': secret_item['destination'],
+                    'create': True
+                }
+
+                if 'labels' in secret_item:
+                    dest_config['labels'] = secret_item['labels']
+
+                if 'annotations' in secret_item:
+                    dest_config['annotations'] = secret_item['annotations']
+
                 # YAML Patch for Spec and Namespace
                 vss_manifest = {
                     'apiVersion': 'secrets.hashicorp.com/v1beta1',
@@ -279,10 +291,7 @@ def process_cluster(cluster_file):
                         'mount': secret_item.get('mount', 'secret'), # Default mount point
                         'type': secret_item.get('type', 'kv-v2'), # Vault Secret Type
                         'path': secret_item['path'],
-                        'destination': {
-                            'name': secret_item['destination'],
-                            'create': True
-                        }
+                        'destination': dest_config
                     }
                 }
                 
