@@ -11,6 +11,7 @@ let
   pulumiGenerate = pkgs.writeShellScriptBin "pulumi-generate" ''
     export HOME=/home/argocd
     export PATH=${pythonEnv}/bin:$PATH
+    export PULUMI_MANIFEST_OUTPUT_DIR=/tmp/manifests
     ${pkgs.pulumi}/bin/pulumi up --yes --skip-preview 1>&2
     ${pkgs.gawk}/bin/awk 'FNR==1 && NR!=1 {print "---"} {print}' /tmp/manifests/1-manifest/*.yaml
   '';
@@ -25,6 +26,7 @@ in pkgs.dockerTools.buildLayeredImage {
       "PATH=/bin" 
       "HOME=/home/argocd" 
       "PULUMI_CONFIG_PASSPHRASE=" 
+      "PULUMI_MANIFEST_OUTPUT_DIR=/tmp/manifests"
     ];
     User = "999";
     WorkingDir = "/app/pulumi";
