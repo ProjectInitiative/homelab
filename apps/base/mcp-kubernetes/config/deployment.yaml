@@ -1,0 +1,56 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-kubernetes-server
+  labels:
+    app: mcp-kubernetes
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-kubernetes
+  template:
+    metadata:
+      labels:
+        app: mcp-kubernetes
+    spec:
+      serviceAccountName: mcp-agent-sa
+      containers:
+        - name: mcp-server
+          image: ghcr.io/azure/mcp-kubernetes:v0.0.14
+          args:
+            - "--transport"
+            - "sse"
+            - "--port"
+            - "8080"
+            - "--access-level"
+            - "readonly"
+          ports:
+            - containerPort: 8080
+              name: http-sse
+          livenessProbe:
+            tcpSocket:
+              port: http-sse
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            tcpSocket:
+              port: http-sse
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault

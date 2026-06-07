@@ -442,6 +442,13 @@ catalog:
   privateer:
     path: apps/base/privateer/config
 
+  mcp-kubernetes:
+    path: apps/base/mcp-kubernetes/config
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
   # nixos-remote-builder:
   #   path: apps/base/nixos-remote-builder/config
   #   vaultSecrets:
