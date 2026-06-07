@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: mcp-kubernetes-tailscale
+  name: mcp-ts-placeholder
   labels:
     app: mcp-kubernetes
 spec:
