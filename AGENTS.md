@@ -671,3 +671,65 @@ This regenerates the Pulumi CRD type stubs in `pulumi/crds/` using `crd2pulumi`.
 | `patch` | string | JSON Patch (RFC 6902) or strategic merge patch |
 | `target` | object | (optional) `{kind, name, group, version}` to target specific resources |
 | `sourceIndex` | integer | (optional) Which source in the sources list to patch (default: 0) |
+
+---
+
+## 10. MCP Kubernetes Debug Server
+
+An in-cluster MCP server (`mc` and `cc`) exposing a read-only Kubernetes API over SSE to the Tailnet. Accessible from within the tailnet via:
+
+- **mc**: `http://mcp-system-mcp-lb-mc.taildeab2.ts.net/sse`
+- **cc**: `http://mcp-system-mcp-lb-cc.taildeab2.ts.net/sse`
+
+### What it can do (read-only, no secrets)
+
+The default RBAC (`mcp-cluster-reader`) allows `get/list/watch` on pods, deployments, events, nodes, logs, storage, metrics, CRDs, etc. — **but not secrets**. See `apps/base/mcp-kubernetes/config/rbac.yaml` for the full list.
+
+### Granting temporary debug access (exec, port-forward, ephemeral containers)
+
+A `ClusterRole` named `mcp-namespace-debugger` is pre-defined (no bindings). To grant exec/debug access to a namespace, the MCP agent can generate a scoped file like this:
+
+```yaml
+# temp-mcp-debug.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mcp-debug-temp
+  namespace: <target-namespace>
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: mcp-namespace-debugger
+subjects:
+  - kind: ServiceAccount
+    name: mcp-agent-sa
+    namespace: mcp-system
+```
+
+Then apply and later delete:
+
+```bash
+kubectl apply -f temp-mcp-debug.yaml
+# ... debug session ...
+kubectl delete -f temp-mcp-debug.yaml
+```
+
+The permissions granted are defined in `apps/base/mcp-kubernetes/config/debug-clusterrole.yaml`:
+
+| Permission | Scope |
+|------------|-------|
+| `pods/exec` | `create` — `kubectl exec` into containers |
+| `pods/attach` | `create` — `kubectl attach` to containers |
+| `pods/portforward` | `create` — `kubectl port-forward` |
+| `pods/ephemeralcontainers` | `update`, `patch` — `kubectl debug` |
+| `pods` | `create`, `get`, `list`, `watch` — debug pods |
+
+### Asking for access (for the MCP agent)
+
+When the MCP agent needs debug access it doesn't have, it should:
+
+1. State exactly what namespace and what operation it needs (e.g., `exec` into a pod in `juicefs-platform`).
+2. Generate the `temp-mcp-debug.yaml` file content above with the correct namespace.
+3. Ask the user to apply it, run the debug commands, then delete it.
+
+The agent should NOT request permanent RBAC changes — use the temp file pattern.
