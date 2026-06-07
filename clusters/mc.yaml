@@ -149,11 +149,10 @@ apps:
 
   - name: mcp-kubernetes
     namespace: mcp-system
-    patches:
-      - patch: |-
-          - op: replace
-            path: /metadata/name
-            value: mcp-lb-mc
-        target:
-          kind: Service
-          name: mcp-ts-placeholder
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: mcp-lb-mc
+    patchTarget:
+      kind: Service
+      name: mcp-ts-placeholder
