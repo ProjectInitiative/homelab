@@ -120,14 +120,11 @@ catalog:
       syncOptions: []
   
   openbao-secrets-operator:
-    repoURL: https://github.com/openbao/openbao-secrets-operator.git
+    repoURL: https://github.com/hashicorp/vault-secrets-operator.git
     path: chart
-    targetRevision: main
+    targetRevision: v1.4.0
     helm:
       values: |
-        controller:
-          manager:
-            args: ["-v=4"]
         defaultVaultConnection:
           enabled: false
   
