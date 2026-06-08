@@ -162,3 +162,23 @@ server:
           squat.ai/tpm: 1
         requests:
           squat.ai/tpm: 1
+
+# --- Snapshot Agent for Raft backups to Garage S3 ---
+snapshotAgent:
+  enabled: true
+  schedule: "0 */6 * * *"
+  restartPolicy: OnFailure
+  image:
+    repository: ghcr.io/openbao/openbao-snapshot-agent
+    tag: 0.3.0
+  s3CredentialsSecret: "openbao-snapshot-s3"
+  config:
+    s3Host: "garage.garage.svc.cluster.local:3900"
+    s3Bucket: "openbao-snapshots"
+    s3Uri: "s3://openbao-snapshots"
+    s3Region: "us-east-1"
+    s3ExpireDays: "30"
+    baoAuthPath: "kubernetes"
+    baoRole: "snapshot"
+  extraEnvironmentVars:
+    AWS_DISABLE_SSL: "true"

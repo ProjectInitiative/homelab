@@ -96,6 +96,17 @@ catalog:
       - repoURL: https://github.com/projectinitiative/homelab.git
         targetRevision: HEAD
         path: bootstrap/base/openbao/config
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      namespace: production
+      audiences:
+        - vault
+      secrets:
+        - name: openbao-snapshot-s3
+          mount: k8s
+          path: "openbao-snapshot/s3"
+          destination: "openbao-snapshot-s3"
     ignoreDifferences:
       - group: admissionregistration.k8s.io
         jsonPointers:
