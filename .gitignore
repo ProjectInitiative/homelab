@@ -36,3 +36,4 @@ dist/
 
 # cdk8s-specific ignores
 cdk.out/
+vendor/
