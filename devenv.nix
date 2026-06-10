@@ -2,7 +2,10 @@
 {
   cachix.enable = false;
 
-  languages.python.enable = false;
+  languages.python = {
+    enable = true;
+    package = pkgs.python3.withPackages (ps: with ps; [ pip ]);
+  };
 
   packages = with pkgs; [
     pulumi
