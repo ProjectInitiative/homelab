@@ -38,33 +38,31 @@
           # -------------------------------------------------------------------
           mkPulumiEnv = pkgs':
             let
-              pulumiCrds = pkgs'.python3.pkgs.buildPythonPackage rec {
+              pyPkgs = pkgs'.python3.pkgs;
+
+              # Core pulumi deps shared by pulumiCrds and pythonEnv
+              coreDeps = [
+                pyPkgs.pulumi
+                pyPkgs."pulumi-kubernetes"
+                pyPkgs.parver
+                pyPkgs.semver
+                pyPkgs.requests
+                pyPkgs."typing-extensions"
+              ];
+
+              pulumiCrds = pyPkgs.buildPythonPackage rec {
                 pname = "pulumi-crds";
                 version = "4.23.0";
                 src = ./pulumi/crds;
                 format = "pyproject";
-                nativeBuildInputs = with pkgs'.python3.pkgs; [ setuptools ];
-                propagatedBuildInputs = [
-                  pkgs'.python3.pkgs.pulumi
-                  pkgs'.python3.pkgs."pulumi-kubernetes"
-                  pkgs'.python3.pkgs.parver
-                  pkgs'.python3.pkgs.semver
-                  pkgs'.python3.pkgs.requests
-                  pkgs'.python3.pkgs."typing-extensions"
-                ];
+                nativeBuildInputs = with pyPkgs; [ setuptools ];
+                propagatedBuildInputs = coreDeps;
                 doCheck = false;
               };
-              pythonEnv = pkgs'.python3.withPackages (_: [
-                pkgs'.python3.pkgs.pulumi
-                pkgs'.python3.pkgs."pulumi-kubernetes"
-                pkgs'.python3.pkgs.parver
-                pkgs'.python3.pkgs.semver
-                pkgs'.python3.pkgs.pyyaml
-                pkgs'.python3.pkgs.requests
-                pkgs'.python3.pkgs."typing-extensions"
-                pkgs'.python3.pkgs.pip
-                pulumiCrds
-              ]);
+
+              pythonEnv = pkgs'.python3.withPackages (_:
+                coreDeps ++ [ pyPkgs.pyyaml pyPkgs.pip pulumiCrds ]
+              );
             in
             { inherit pulumiCrds pythonEnv; };
 
