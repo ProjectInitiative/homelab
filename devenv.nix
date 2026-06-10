@@ -2,11 +2,7 @@
 {
   cachix.enable = false;
 
-  languages.python = {
-    enable = true;
-    uv.enable = true;
-    uv.sync.enable = false;
-  };
+  languages.python.enable = false;
 
   packages = with pkgs; [
     pulumi
