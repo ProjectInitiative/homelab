@@ -6,15 +6,7 @@ import os
 import sys
 import copy
 
-# Add the generated CRDs to the python path
-sys.path.append(os.path.join(os.getcwd(), 'crds'))
-
-try:
-    from pulumi_crds.argoproj.v1alpha1 import Application
-except ImportError as e:
-    print(f"Error importing generated CRDs: {e}", file=sys.stderr)
-    print("Make sure you have run 'import-crds pulumi/crd-imports.json' and the 'crds' directory exists.", file=sys.stderr)
-    sys.exit(1)
+from pulumi_crds.argoproj.v1alpha1 import Application
 
 from utils import recursive_transform
 
