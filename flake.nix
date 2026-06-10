@@ -34,160 +34,111 @@
         { config, pkgs, lib, system, ... }:
         let
           # -------------------------------------------------------------------
-          # Python environment
+          # Helper: build pulumi_crds + python env from any pkgs set
           # -------------------------------------------------------------------
-          pulumiCrds = pkgs.python3.pkgs.buildPythonPackage rec {
-            pname = "pulumi-crds";
-            version = "4.23.0";
-            src = ./pulumi/crds;
-            format = "pyproject";
-            nativeBuildInputs = with pkgs.python3.pkgs; [ setuptools ];
-            propagatedBuildInputs = [
-              pkgs.python3.pkgs.pulumi
-              pkgs.python3.pkgs."pulumi-kubernetes"
-              pkgs.python3.pkgs.parver
-              pkgs.python3.pkgs.semver
-              pkgs.python3.pkgs.requests
-              pkgs.python3.pkgs."typing-extensions"
-            ];
-            doCheck = false;
-          };
+          mkPulumiEnv = pkgs':
+            let
+              pulumiCrds = pkgs'.python3.pkgs.buildPythonPackage rec {
+                pname = "pulumi-crds";
+                version = "4.23.0";
+                src = ./pulumi/crds;
+                format = "pyproject";
+                nativeBuildInputs = with pkgs'.python3.pkgs; [ setuptools ];
+                propagatedBuildInputs = [
+                  pkgs'.python3.pkgs.pulumi
+                  pkgs'.python3.pkgs."pulumi-kubernetes"
+                  pkgs'.python3.pkgs.parver
+                  pkgs'.python3.pkgs.semver
+                  pkgs'.python3.pkgs.requests
+                  pkgs'.python3.pkgs."typing-extensions"
+                ];
+                doCheck = false;
+              };
+              pythonEnv = pkgs'.python3.withPackages (_: [
+                pkgs'.python3.pkgs.pulumi
+                pkgs'.python3.pkgs."pulumi-kubernetes"
+                pkgs'.python3.pkgs.parver
+                pkgs'.python3.pkgs.semver
+                pkgs'.python3.pkgs.pyyaml
+                pkgs'.python3.pkgs.requests
+                pkgs'.python3.pkgs."typing-extensions"
+                pkgs'.python3.pkgs.pip
+                pulumiCrds
+              ]);
+            in
+            { inherit pulumiCrds pythonEnv; };
 
-          pythonEnv = pkgs.python3.withPackages (_: [
-            (pkgs.python3.pkgs.pulumi)
-            (pkgs.python3.pkgs."pulumi-kubernetes")
-            (pkgs.python3.pkgs.parver)
-            (pkgs.python3.pkgs.semver)
-            (pkgs.python3.pkgs.pyyaml)
-            (pkgs.python3.pkgs.requests)
-            (pkgs.python3.pkgs."typing-extensions")
-            (pkgs.python3.pkgs.pip)
-            pulumiCrds
-          ]);
+          # Native env
+          native = mkPulumiEnv pkgs;
 
-          # -------------------------------------------------------------------
-          # Cross-compiled Python env (ARM on x86_64 for CMP image)
-          # -------------------------------------------------------------------
+          # Cross-compiled env (ARM on x86_64 for CMP image)
           pkgsCrossARM = import inputs.nixpkgs {
             system = "x86_64-linux";
             crossSystem = { config = "aarch64-unknown-linux-gnu"; };
           };
+          cross = mkPulumiEnv pkgsCrossARM;
 
-          pulumiCrdsArm = pkgsCrossARM.python3.pkgs.buildPythonPackage rec {
-            pname = "pulumi-crds";
-            version = "4.23.0";
-            src = ./pulumi/crds;
-            format = "pyproject";
-            nativeBuildInputs = with pkgsCrossARM.python3.pkgs; [ setuptools ];
-            propagatedBuildInputs = [
-              pkgsCrossARM.python3.pkgs.pulumi
-              pkgsCrossARM.python3.pkgs."pulumi-kubernetes"
-              pkgsCrossARM.python3.pkgs.parver
-              pkgsCrossARM.python3.pkgs.semver
-              pkgsCrossARM.python3.pkgs.requests
-              pkgsCrossARM.python3.pkgs."typing-extensions"
-            ];
-            doCheck = false;
-          };
-
-          pythonEnvArm = pkgsCrossARM.python3.withPackages (ps: [
-            ps.pulumi
-            ps."pulumi-kubernetes"
-            ps.parver
-            ps.semver
-            ps.pyyaml
-            ps.requests
-            ps."typing-extensions"
-            pulumiCrdsArm
-          ]);
-
-          # -------------------------------------------------------------------
-          # Shared ops-utils helpers
-          # -------------------------------------------------------------------
           ops = inputs.ops-utils.lib.mkUtils { inherit pkgs; };
 
         in
         {
-          # -------------------------------------------------------------------
-          # Packages
-          # -------------------------------------------------------------------
           packages = {
-
-            # --- CMP Plugin Containers ---
             pulumi-cmp-plugin = import ./pulumi/cmp-image/image.nix {
               inherit pkgs;
-              inherit pythonEnv;
+              pythonEnv = native.pythonEnv;
             };
 
             pulumi-cmp-plugin-arm-cross =
               if system == "x86_64-linux"
               then import ./pulumi/cmp-image/image.nix {
                 pkgs = pkgsCrossARM;
-                pythonEnv = pythonEnvArm;
+                pythonEnv = cross.pythonEnv;
               }
               else config.packages.pulumi-cmp-plugin;
 
-            # --- Utility Scripts ---
             import-crds = import ./nix/scripts/import-crds.nix { inherit pkgs; };
 
             generate-manifests = import ./nix/scripts/generate-manifests.nix {
               inherit pkgs system;
-              inherit pythonEnv;
+              pythonEnv = native.pythonEnv;
             };
 
             setup-pulumi = import ./nix/scripts/setup-pulumi.nix { inherit pkgs; };
 
             diff-manifests = import ./nix/scripts/diff-manifests.nix { inherit pkgs; };
 
-            # --- System Images ---
             nixos-remote-builder = import ./nix/images/builder.nix { inherit pkgs; };
 
-            # --- Go Tools ---
             korb = pkgs.callPackage ./nix/pkgs/korb.nix {
               inherit (pkgs) fetchFromGitHub;
             };
-
           } // ops;
 
-          # -------------------------------------------------------------------
-          # Development Shell (devenv)
-          # -------------------------------------------------------------------
           devenv.shells.default = {
             imports = [ ./devenv.nix ];
-            packages = [ pythonEnv ];
-            # devenv.root must be set explicitly for use devenv + flake-parts
-            # to avoid read-only filesystem issues
+            packages = [ native.pythonEnv ];
             devenv.root = lib.mkForce (toString ./.);
           };
 
-          # -------------------------------------------------------------------
-          # Apps
-          # -------------------------------------------------------------------
           apps = {
             import-crds = {
               type = "app";
               program = "${config.packages.import-crds}/bin/import-crds";
             };
-
             generate-manifests = {
               type = "app";
               program = "${config.packages.generate-manifests}/bin/generate-manifests";
             };
-
             setup-pulumi = {
               type = "app";
               program = "${config.packages.setup-pulumi}/bin/setup-pulumi";
             };
-
             diff-manifests = {
               type = "app";
               program = "${config.packages.diff-manifests}/bin/diff-manifests";
             };
           } // builtins.mapAttrs (name: value: value) (inputs.ops-utils.lib.mkApps { inherit pkgs; } ops);
 
-          # -------------------------------------------------------------------
-          # Checks
-          # -------------------------------------------------------------------
           checks.formatting =
             pkgs.runCommand "check-formatting"
               {

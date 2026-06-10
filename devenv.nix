@@ -20,11 +20,11 @@
   env = {
     PULUMI_CONFIG_PASSPHRASE = "";
     PULUMI_ACCESS_TOKEN = "";
-    PULUMI_MANIFEST_OUTPUT_DIR = "$PWD/.direnv/manifests";
   };
 
   scripts = {
     generate-manifests.exec = ''
+      export PULUMI_MANIFEST_OUTPUT_DIR="$PWD/.direnv/manifests"
       mkdir -p "$PULUMI_MANIFEST_OUTPUT_DIR"
       cd pulumi
       pulumi up --yes --skip-preview
@@ -45,11 +45,13 @@
   };
 
   enterShell = ''
+    export PULUMI_MANIFEST_OUTPUT_DIR="$PWD/.direnv/manifests"
+
     # Sync Python deps from uv.lock (project is in pulumi/)
     uv sync --project pulumi 2>/dev/null || true
 
     echo "╔═══════════════════════════════════════════════╗"
-    echo "║     Homelab Pulumi Development Shell         ║"
+    echo "║     Homelab Pulumi Development Shell          ║"
     echo "╚═══════════════════════════════════════════════╝"
     echo ""
     echo "Available commands:"

@@ -39,3 +39,4 @@ cdk.out/
 vendor/
 result
 .devenv
+pulumi/uv.lock
