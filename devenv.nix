@@ -4,7 +4,36 @@
 
   languages.python = {
     enable = true;
-    package = pkgs.python3.withPackages (ps: with ps; [ pip ]);
+    package =
+      let
+        pulumiCrds = pkgs.python3.pkgs.buildPythonPackage rec {
+          pname = "pulumi-crds";
+          version = "4.23.0";
+          src = ./pulumi/crds;
+          format = "pyproject";
+          nativeBuildInputs = with pkgs.python3.pkgs; [ setuptools ];
+          propagatedBuildInputs = [
+            pkgs.python3.pkgs.pulumi
+            pkgs.python3.pkgs."pulumi-kubernetes"
+            pkgs.python3.pkgs.parver
+            pkgs.python3.pkgs.semver
+            pkgs.python3.pkgs.requests
+            pkgs.python3.pkgs."typing-extensions"
+          ];
+          doCheck = false;
+        };
+      in
+      pkgs.python3.withPackages (ps: [
+        ps.pip
+        ps.pulumi
+        ps."pulumi-kubernetes"
+        ps.parver
+        ps.semver
+        ps.pyyaml
+        ps.requests
+        ps."typing-extensions"
+        pulumiCrds
+      ]);
   };
 
   packages = with pkgs; [
