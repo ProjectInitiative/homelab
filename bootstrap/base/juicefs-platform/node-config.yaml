@@ -21,16 +21,16 @@ data:
             value:
               name: JFS_CACHE_SIZE
               value: "1500000"
-      # default for other nodes: 50GB on local disk
+      # default for other nodes: 100GB at same path
       - nodeName: "*"
         mountPodPatch:
           - op: add
             path: /spec/containers/0/env/-
             value:
               name: JFS_CACHE_DIR
-              value: /var/cache/juicefs
+              value: /mnt/pool/juicefs
           - op: add
             path: /spec/containers/0/env/-
             value:
               name: JFS_CACHE_SIZE
-              value: "51200"
+              value: "102400"
