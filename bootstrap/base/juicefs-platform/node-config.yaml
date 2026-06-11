@@ -1,0 +1,36 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: juicefs-csi-node-config
+  labels:
+    app.kubernetes.io/component: juicefs-csi-driver
+data:
+  config.yaml: |
+    nodeConfig:
+      # astrolabe: 1.5TB NVMe cache
+      - nodeName: astrolabe
+        mountPodPatch:
+          - op: add
+            path: /spec/containers/0/env/-
+            value:
+              name: JFS_CACHE_DIR
+              value: /mnt/pool/juicefs
+          - op: add
+            path: /spec/containers/0/env/-
+            value:
+              name: JFS_CACHE_SIZE
+              value: "1500000"
+      # default for other nodes: 50GB on local disk
+      - nodeName: "*"
+        mountPodPatch:
+          - op: add
+            path: /spec/containers/0/env/-
+            value:
+              name: JFS_CACHE_DIR
+              value: /var/cache/juicefs
+          - op: add
+            path: /spec/containers/0/env/-
+            value:
+              name: JFS_CACHE_SIZE
+              value: "51200"

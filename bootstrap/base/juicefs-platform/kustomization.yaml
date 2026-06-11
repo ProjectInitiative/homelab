@@ -3,4 +3,15 @@ kind: Kustomization
 resources:
   - storage-class.yaml
   - job-format.yaml
+  - node-config.yaml
 namespace: juicefs-platform
+
+patches:
+  # juicefs-csi-node-config must live in kube-system where the CSI driver watches for it
+  - target:
+      kind: ConfigMap
+      name: juicefs-csi-node-config
+    patch: |-
+      - op: replace
+        path: /metadata/namespace
+        value: kube-system
