@@ -3,11 +3,8 @@ kind: Service
 metadata:
   name: gdrive-ftps
   namespace: default
-  annotations:
-    tailscale.com/hostname: "gdrive-ftps"
 spec:
-  type: LoadBalancer
-  loadBalancerClass: tailscale
+  type: ClusterIP
   selector:
     app: ftps-gdrive
   ports:
