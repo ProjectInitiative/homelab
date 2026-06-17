@@ -14,6 +14,8 @@ spec:
       labels:
         app: ftps-gdrive
     spec:
+      serviceAccountName: ftps-gdrive
+
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -53,7 +55,11 @@ spec:
             - --log-file=/tmp/rclone.log
           env:
             - name: RCLONE_CONFIG
-              value: /config/rclone.conf
+              value: /config/rclone/rclone.conf
+            # Tells Google auth library how to swap our K8s SA token
+            # for a GCP access token via Workload Identity Federation
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /config/gcp/sts-creds.json
           securityContext:
             privileged: true
             capabilities:
@@ -62,7 +68,10 @@ spec:
             - name: shared-data
               mountPath: /data
             - name: rclone-config
-              mountPath: /config
+              mountPath: /config/rclone
+            - name: gcp-auth
+              mountPath: /config/gcp
+              readOnly: true
           resources:
             limits:
               memory: "512Mi"
@@ -131,8 +140,11 @@ spec:
           emptyDir:
             medium: Memory
         - name: rclone-config
-          secret:
-            secretName: rclone-gdrive-secret
+          configMap:
+            name: rclone-config
+        - name: gcp-auth
+          configMap:
+            name: gcp-auth-config
         - name: ftps-ssl-certs
           secret:
             secretName: ftps-ssl-certs
