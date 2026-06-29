@@ -96,6 +96,17 @@ catalog:
       - repoURL: https://github.com/projectinitiative/homelab.git
         targetRevision: HEAD
         path: bootstrap/base/openbao/config
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      namespace: production
+      audiences:
+        - vault
+      secrets:
+        - name: openbao-snapshot-s3
+          mount: k8s
+          path: "openbao-snapshot/s3"
+          destination: "openbao-snapshot-s3"
     ignoreDifferences:
       - group: admissionregistration.k8s.io
         jsonPointers:
@@ -109,14 +120,11 @@ catalog:
       syncOptions: []
   
   openbao-secrets-operator:
-    repoURL: https://github.com/openbao/openbao-secrets-operator.git
+    repoURL: https://github.com/hashicorp/vault-secrets-operator.git
     path: chart
-    targetRevision: main
+    targetRevision: v1.4.0
     helm:
       values: |
-        controller:
-          manager:
-            args: ["-v=4"]
         defaultVaultConnection:
           enabled: false
   
@@ -438,6 +446,35 @@ catalog:
   
   docker-registry:
     path: apps/base/docker-registry/config
+
+  kubevirt:
+    path: bootstrap/base/kubevirt/config
+    annotations:
+      argocd.argoproj.io/sync-wave: "30"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
+  argo:
+    path: apps/vms/argo/config
+    annotations:
+      argocd.argoproj.io/sync-wave: "40"
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      namespace: production
+      audiences:
+        - vault
+      secrets:
+        - name: argo-s3-creds
+          mount: k8s
+          path: "argo/s3-creds"
+          destination: "argo-s3-creds"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
   
   privateer:
     path: apps/base/privateer/config

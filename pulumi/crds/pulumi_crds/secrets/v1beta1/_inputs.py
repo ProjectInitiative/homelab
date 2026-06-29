@@ -24,6 +24,10 @@ __all__ = [
     'VaultAuthSpecAwsPatchArgsDict',
     'VaultAuthSpecAwsArgs',
     'VaultAuthSpecAwsArgsDict',
+    'VaultAuthSpecGcpPatchArgs',
+    'VaultAuthSpecGcpPatchArgsDict',
+    'VaultAuthSpecGcpArgs',
+    'VaultAuthSpecGcpArgsDict',
     'VaultAuthSpecJwtPatchArgs',
     'VaultAuthSpecJwtPatchArgsDict',
     'VaultAuthSpecJwtArgs',
@@ -38,8 +42,18 @@ __all__ = [
     'VaultAuthSpecStorageEncryptionPatchArgsDict',
     'VaultAuthSpecStorageEncryptionArgs',
     'VaultAuthSpecStorageEncryptionArgsDict',
+    'VaultAuthSpecVaultAuthGlobalRefMergeStrategyPatchArgs',
+    'VaultAuthSpecVaultAuthGlobalRefMergeStrategyPatchArgsDict',
+    'VaultAuthSpecVaultAuthGlobalRefMergeStrategyArgs',
+    'VaultAuthSpecVaultAuthGlobalRefMergeStrategyArgsDict',
+    'VaultAuthSpecVaultAuthGlobalRefPatchArgs',
+    'VaultAuthSpecVaultAuthGlobalRefPatchArgsDict',
+    'VaultAuthSpecVaultAuthGlobalRefArgs',
+    'VaultAuthSpecVaultAuthGlobalRefArgsDict',
     'VaultAuthSpecArgs',
     'VaultAuthSpecArgsDict',
+    'VaultAuthStatusConditionsArgs',
+    'VaultAuthStatusConditionsArgsDict',
     'VaultAuthStatusArgs',
     'VaultAuthStatusArgsDict',
     'VaultAuthArgs',
@@ -48,12 +62,26 @@ __all__ = [
     'VaultConnectionSpecPatchArgsDict',
     'VaultConnectionSpecArgs',
     'VaultConnectionSpecArgsDict',
+    'VaultConnectionStatusConditionsArgs',
+    'VaultConnectionStatusConditionsArgsDict',
     'VaultConnectionStatusArgs',
     'VaultConnectionStatusArgsDict',
     'VaultConnectionArgs',
     'VaultConnectionArgsDict',
     'VaultDynamicSecretSpecDestinationPatchArgs',
     'VaultDynamicSecretSpecDestinationPatchArgsDict',
+    'VaultDynamicSecretSpecDestinationTransformationPatchArgs',
+    'VaultDynamicSecretSpecDestinationTransformationPatchArgsDict',
+    'VaultDynamicSecretSpecDestinationTransformationTransformationRefsPatchArgs',
+    'VaultDynamicSecretSpecDestinationTransformationTransformationRefsPatchArgsDict',
+    'VaultDynamicSecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgs',
+    'VaultDynamicSecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgsDict',
+    'VaultDynamicSecretSpecDestinationTransformationTransformationRefsTemplateRefsArgs',
+    'VaultDynamicSecretSpecDestinationTransformationTransformationRefsTemplateRefsArgsDict',
+    'VaultDynamicSecretSpecDestinationTransformationTransformationRefsArgs',
+    'VaultDynamicSecretSpecDestinationTransformationTransformationRefsArgsDict',
+    'VaultDynamicSecretSpecDestinationTransformationArgs',
+    'VaultDynamicSecretSpecDestinationTransformationArgsDict',
     'VaultDynamicSecretSpecDestinationArgs',
     'VaultDynamicSecretSpecDestinationArgsDict',
     'VaultDynamicSecretSpecPatchArgs',
@@ -64,16 +92,32 @@ __all__ = [
     'VaultDynamicSecretSpecRolloutRestartTargetsArgsDict',
     'VaultDynamicSecretSpecArgs',
     'VaultDynamicSecretSpecArgsDict',
+    'VaultDynamicSecretStatusConditionsArgs',
+    'VaultDynamicSecretStatusConditionsArgsDict',
     'VaultDynamicSecretStatusSecretLeaseArgs',
     'VaultDynamicSecretStatusSecretLeaseArgsDict',
     'VaultDynamicSecretStatusStaticCredsMetaDataArgs',
     'VaultDynamicSecretStatusStaticCredsMetaDataArgsDict',
+    'VaultDynamicSecretStatusVaultClientMetaArgs',
+    'VaultDynamicSecretStatusVaultClientMetaArgsDict',
     'VaultDynamicSecretStatusArgs',
     'VaultDynamicSecretStatusArgsDict',
     'VaultDynamicSecretArgs',
     'VaultDynamicSecretArgsDict',
     'VaultPKISecretSpecDestinationPatchArgs',
     'VaultPKISecretSpecDestinationPatchArgsDict',
+    'VaultPKISecretSpecDestinationTransformationPatchArgs',
+    'VaultPKISecretSpecDestinationTransformationPatchArgsDict',
+    'VaultPKISecretSpecDestinationTransformationTransformationRefsPatchArgs',
+    'VaultPKISecretSpecDestinationTransformationTransformationRefsPatchArgsDict',
+    'VaultPKISecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgs',
+    'VaultPKISecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgsDict',
+    'VaultPKISecretSpecDestinationTransformationTransformationRefsTemplateRefsArgs',
+    'VaultPKISecretSpecDestinationTransformationTransformationRefsTemplateRefsArgsDict',
+    'VaultPKISecretSpecDestinationTransformationTransformationRefsArgs',
+    'VaultPKISecretSpecDestinationTransformationTransformationRefsArgsDict',
+    'VaultPKISecretSpecDestinationTransformationArgs',
+    'VaultPKISecretSpecDestinationTransformationArgsDict',
     'VaultPKISecretSpecDestinationArgs',
     'VaultPKISecretSpecDestinationArgsDict',
     'VaultPKISecretSpecPatchArgs',
@@ -84,12 +128,26 @@ __all__ = [
     'VaultPKISecretSpecRolloutRestartTargetsArgsDict',
     'VaultPKISecretSpecArgs',
     'VaultPKISecretSpecArgsDict',
+    'VaultPKISecretStatusConditionsArgs',
+    'VaultPKISecretStatusConditionsArgsDict',
     'VaultPKISecretStatusArgs',
     'VaultPKISecretStatusArgsDict',
     'VaultPKISecretArgs',
     'VaultPKISecretArgsDict',
     'VaultStaticSecretSpecDestinationPatchArgs',
     'VaultStaticSecretSpecDestinationPatchArgsDict',
+    'VaultStaticSecretSpecDestinationTransformationPatchArgs',
+    'VaultStaticSecretSpecDestinationTransformationPatchArgsDict',
+    'VaultStaticSecretSpecDestinationTransformationTransformationRefsPatchArgs',
+    'VaultStaticSecretSpecDestinationTransformationTransformationRefsPatchArgsDict',
+    'VaultStaticSecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgs',
+    'VaultStaticSecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgsDict',
+    'VaultStaticSecretSpecDestinationTransformationTransformationRefsTemplateRefsArgs',
+    'VaultStaticSecretSpecDestinationTransformationTransformationRefsTemplateRefsArgsDict',
+    'VaultStaticSecretSpecDestinationTransformationTransformationRefsArgs',
+    'VaultStaticSecretSpecDestinationTransformationTransformationRefsArgsDict',
+    'VaultStaticSecretSpecDestinationTransformationArgs',
+    'VaultStaticSecretSpecDestinationTransformationArgsDict',
     'VaultStaticSecretSpecDestinationArgs',
     'VaultStaticSecretSpecDestinationArgsDict',
     'VaultStaticSecretSpecPatchArgs',
@@ -98,8 +156,16 @@ __all__ = [
     'VaultStaticSecretSpecRolloutRestartTargetsPatchArgsDict',
     'VaultStaticSecretSpecRolloutRestartTargetsArgs',
     'VaultStaticSecretSpecRolloutRestartTargetsArgsDict',
+    'VaultStaticSecretSpecSyncConfigPatchArgs',
+    'VaultStaticSecretSpecSyncConfigPatchArgsDict',
+    'VaultStaticSecretSpecSyncConfigArgs',
+    'VaultStaticSecretSpecSyncConfigArgsDict',
     'VaultStaticSecretSpecArgs',
     'VaultStaticSecretSpecArgsDict',
+    'VaultStaticSecretStatusConditionsArgs',
+    'VaultStaticSecretStatusConditionsArgsDict',
+    'VaultStaticSecretStatusVaultClientMetaArgs',
+    'VaultStaticSecretStatusVaultClientMetaArgsDict',
     'VaultStaticSecretStatusArgs',
     'VaultStaticSecretStatusArgsDict',
     'VaultStaticSecretArgs',
@@ -117,9 +183,18 @@ if not MYPY:
         """
         RoleID of the AppRole Role to use for authenticating to Vault.
         """
+        secret_id_path: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        SecretIDPath is a file system path pointing to a file containing the plaintext Secret ID for the
+        AppRole Role to use for authenticating to Vault.
+        SecretIDPath and SecretRef are mutually exclusive, and only one should be specified.
+        """
         secret_ref: NotRequired[pulumi.Input[_builtins.str]]
         """
-        SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which provides the AppRole Role's SecretID. The secret must have a key named `id` which holds the AppRole Role's secretID.
+        SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which
+        provides the AppRole Role's SecretID. The secret must have a key named `id` which holds the
+        AppRole Role's secretID.
+        SecretIDPath and SecretRef are mutually exclusive, and only one should be specified.
         """
 elif False:
     VaultAuthSpecAppRolePatchArgsDict: TypeAlias = Mapping[str, Any]
@@ -128,14 +203,23 @@ elif False:
 class VaultAuthSpecAppRolePatchArgs:
     def __init__(__self__, *,
                  role_id: Optional[pulumi.Input[_builtins.str]] = None,
+                 secret_id_path: Optional[pulumi.Input[_builtins.str]] = None,
                  secret_ref: Optional[pulumi.Input[_builtins.str]] = None):
         """
         AppRole specific auth configuration, requires that the Method be set to `appRole`.
         :param pulumi.Input[_builtins.str] role_id: RoleID of the AppRole Role to use for authenticating to Vault.
-        :param pulumi.Input[_builtins.str] secret_ref: SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which provides the AppRole Role's SecretID. The secret must have a key named `id` which holds the AppRole Role's secretID.
+        :param pulumi.Input[_builtins.str] secret_id_path: SecretIDPath is a file system path pointing to a file containing the plaintext Secret ID for the
+               AppRole Role to use for authenticating to Vault.
+               SecretIDPath and SecretRef are mutually exclusive, and only one should be specified.
+        :param pulumi.Input[_builtins.str] secret_ref: SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which
+               provides the AppRole Role's SecretID. The secret must have a key named `id` which holds the
+               AppRole Role's secretID.
+               SecretIDPath and SecretRef are mutually exclusive, and only one should be specified.
         """
         if role_id is not None:
             pulumi.set(__self__, "role_id", role_id)
+        if secret_id_path is not None:
+            pulumi.set(__self__, "secret_id_path", secret_id_path)
         if secret_ref is not None:
             pulumi.set(__self__, "secret_ref", secret_ref)
 
@@ -152,10 +236,27 @@ class VaultAuthSpecAppRolePatchArgs:
         pulumi.set(self, "role_id", value)
 
     @_builtins.property
+    @pulumi.getter(name="secretIDPath")
+    def secret_id_path(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        SecretIDPath is a file system path pointing to a file containing the plaintext Secret ID for the
+        AppRole Role to use for authenticating to Vault.
+        SecretIDPath and SecretRef are mutually exclusive, and only one should be specified.
+        """
+        return pulumi.get(self, "secret_id_path")
+
+    @secret_id_path.setter
+    def secret_id_path(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "secret_id_path", value)
+
+    @_builtins.property
     @pulumi.getter(name="secretRef")
     def secret_ref(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which provides the AppRole Role's SecretID. The secret must have a key named `id` which holds the AppRole Role's secretID.
+        SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which
+        provides the AppRole Role's SecretID. The secret must have a key named `id` which holds the
+        AppRole Role's secretID.
+        SecretIDPath and SecretRef are mutually exclusive, and only one should be specified.
         """
         return pulumi.get(self, "secret_ref")
 
@@ -173,9 +274,18 @@ if not MYPY:
         """
         RoleID of the AppRole Role to use for authenticating to Vault.
         """
+        secret_id_path: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        SecretIDPath is a file system path pointing to a file containing the plaintext Secret ID for the
+        AppRole Role to use for authenticating to Vault.
+        SecretIDPath and SecretRef are mutually exclusive, and only one should be specified.
+        """
         secret_ref: NotRequired[pulumi.Input[_builtins.str]]
         """
-        SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which provides the AppRole Role's SecretID. The secret must have a key named `id` which holds the AppRole Role's secretID.
+        SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which
+        provides the AppRole Role's SecretID. The secret must have a key named `id` which holds the
+        AppRole Role's secretID.
+        SecretIDPath and SecretRef are mutually exclusive, and only one should be specified.
         """
 elif False:
     VaultAuthSpecAppRoleArgsDict: TypeAlias = Mapping[str, Any]
@@ -184,14 +294,23 @@ elif False:
 class VaultAuthSpecAppRoleArgs:
     def __init__(__self__, *,
                  role_id: Optional[pulumi.Input[_builtins.str]] = None,
+                 secret_id_path: Optional[pulumi.Input[_builtins.str]] = None,
                  secret_ref: Optional[pulumi.Input[_builtins.str]] = None):
         """
         AppRole specific auth configuration, requires that the Method be set to `appRole`.
         :param pulumi.Input[_builtins.str] role_id: RoleID of the AppRole Role to use for authenticating to Vault.
-        :param pulumi.Input[_builtins.str] secret_ref: SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which provides the AppRole Role's SecretID. The secret must have a key named `id` which holds the AppRole Role's secretID.
+        :param pulumi.Input[_builtins.str] secret_id_path: SecretIDPath is a file system path pointing to a file containing the plaintext Secret ID for the
+               AppRole Role to use for authenticating to Vault.
+               SecretIDPath and SecretRef are mutually exclusive, and only one should be specified.
+        :param pulumi.Input[_builtins.str] secret_ref: SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which
+               provides the AppRole Role's SecretID. The secret must have a key named `id` which holds the
+               AppRole Role's secretID.
+               SecretIDPath and SecretRef are mutually exclusive, and only one should be specified.
         """
         if role_id is not None:
             pulumi.set(__self__, "role_id", role_id)
+        if secret_id_path is not None:
+            pulumi.set(__self__, "secret_id_path", secret_id_path)
         if secret_ref is not None:
             pulumi.set(__self__, "secret_ref", secret_ref)
 
@@ -208,10 +327,27 @@ class VaultAuthSpecAppRoleArgs:
         pulumi.set(self, "role_id", value)
 
     @_builtins.property
+    @pulumi.getter(name="secretIDPath")
+    def secret_id_path(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        SecretIDPath is a file system path pointing to a file containing the plaintext Secret ID for the
+        AppRole Role to use for authenticating to Vault.
+        SecretIDPath and SecretRef are mutually exclusive, and only one should be specified.
+        """
+        return pulumi.get(self, "secret_id_path")
+
+    @secret_id_path.setter
+    def secret_id_path(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "secret_id_path", value)
+
+    @_builtins.property
     @pulumi.getter(name="secretRef")
     def secret_ref(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which provides the AppRole Role's SecretID. The secret must have a key named `id` which holds the AppRole Role's secretID.
+        SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which
+        provides the AppRole Role's SecretID. The secret must have a key named `id` which holds the
+        AppRole Role's secretID.
+        SecretIDPath and SecretRef are mutually exclusive, and only one should be specified.
         """
         return pulumi.get(self, "secret_ref")
 
@@ -235,7 +371,10 @@ if not MYPY:
         """
         irsa_service_account: NotRequired[pulumi.Input[_builtins.str]]
         """
-        IRSAServiceAccount name to use with IAM Roles for Service Accounts (IRSA), and should be annotated with "eks.amazonaws.com/role-arn". This ServiceAccount will be checked for other EKS annotations: eks.amazonaws.com/audience and eks.amazonaws.com/token-expiration
+        IRSAServiceAccount name to use with IAM Roles for Service Accounts
+        (IRSA), and should be annotated with "eks.amazonaws.com/role-arn". This
+        ServiceAccount will be checked for other EKS annotations:
+        eks.amazonaws.com/audience and eks.amazonaws.com/token-expiration
         """
         region: NotRequired[pulumi.Input[_builtins.str]]
         """
@@ -247,7 +386,9 @@ if not MYPY:
         """
         secret_ref: NotRequired[pulumi.Input[_builtins.str]]
         """
-        SecretRef is the name of a Kubernetes Secret which holds credentials for AWS. Expected keys include `access_key_id`, `secret_access_key`, `session_token`
+        SecretRef is the name of a Kubernetes Secret in the consumer's (VDS/VSS/PKI) namespace
+        which holds credentials for AWS. Expected keys include `access_key_id`, `secret_access_key`,
+        `session_token`
         """
         session_name: NotRequired[pulumi.Input[_builtins.str]]
         """
@@ -275,10 +416,15 @@ class VaultAuthSpecAwsPatchArgs:
         AWS specific auth configuration, requires that Method be set to `aws`.
         :param pulumi.Input[_builtins.str] header_value: The Vault header value to include in the STS signing request
         :param pulumi.Input[_builtins.str] iam_endpoint: The IAM endpoint to use; if not set will use the default
-        :param pulumi.Input[_builtins.str] irsa_service_account: IRSAServiceAccount name to use with IAM Roles for Service Accounts (IRSA), and should be annotated with "eks.amazonaws.com/role-arn". This ServiceAccount will be checked for other EKS annotations: eks.amazonaws.com/audience and eks.amazonaws.com/token-expiration
+        :param pulumi.Input[_builtins.str] irsa_service_account: IRSAServiceAccount name to use with IAM Roles for Service Accounts
+               (IRSA), and should be annotated with "eks.amazonaws.com/role-arn". This
+               ServiceAccount will be checked for other EKS annotations:
+               eks.amazonaws.com/audience and eks.amazonaws.com/token-expiration
         :param pulumi.Input[_builtins.str] region: AWS Region to use for signing the authentication request
         :param pulumi.Input[_builtins.str] role: Vault role to use for authenticating
-        :param pulumi.Input[_builtins.str] secret_ref: SecretRef is the name of a Kubernetes Secret which holds credentials for AWS. Expected keys include `access_key_id`, `secret_access_key`, `session_token`
+        :param pulumi.Input[_builtins.str] secret_ref: SecretRef is the name of a Kubernetes Secret in the consumer's (VDS/VSS/PKI) namespace
+               which holds credentials for AWS. Expected keys include `access_key_id`, `secret_access_key`,
+               `session_token`
         :param pulumi.Input[_builtins.str] session_name: The role session name to use when creating a webidentity provider
         :param pulumi.Input[_builtins.str] sts_endpoint: The STS endpoint to use; if not set will use the default
         """
@@ -327,7 +473,10 @@ class VaultAuthSpecAwsPatchArgs:
     @pulumi.getter(name="irsaServiceAccount")
     def irsa_service_account(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        IRSAServiceAccount name to use with IAM Roles for Service Accounts (IRSA), and should be annotated with "eks.amazonaws.com/role-arn". This ServiceAccount will be checked for other EKS annotations: eks.amazonaws.com/audience and eks.amazonaws.com/token-expiration
+        IRSAServiceAccount name to use with IAM Roles for Service Accounts
+        (IRSA), and should be annotated with "eks.amazonaws.com/role-arn". This
+        ServiceAccount will be checked for other EKS annotations:
+        eks.amazonaws.com/audience and eks.amazonaws.com/token-expiration
         """
         return pulumi.get(self, "irsa_service_account")
 
@@ -363,7 +512,9 @@ class VaultAuthSpecAwsPatchArgs:
     @pulumi.getter(name="secretRef")
     def secret_ref(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        SecretRef is the name of a Kubernetes Secret which holds credentials for AWS. Expected keys include `access_key_id`, `secret_access_key`, `session_token`
+        SecretRef is the name of a Kubernetes Secret in the consumer's (VDS/VSS/PKI) namespace
+        which holds credentials for AWS. Expected keys include `access_key_id`, `secret_access_key`,
+        `session_token`
         """
         return pulumi.get(self, "secret_ref")
 
@@ -411,7 +562,10 @@ if not MYPY:
         """
         irsa_service_account: NotRequired[pulumi.Input[_builtins.str]]
         """
-        IRSAServiceAccount name to use with IAM Roles for Service Accounts (IRSA), and should be annotated with "eks.amazonaws.com/role-arn". This ServiceAccount will be checked for other EKS annotations: eks.amazonaws.com/audience and eks.amazonaws.com/token-expiration
+        IRSAServiceAccount name to use with IAM Roles for Service Accounts
+        (IRSA), and should be annotated with "eks.amazonaws.com/role-arn". This
+        ServiceAccount will be checked for other EKS annotations:
+        eks.amazonaws.com/audience and eks.amazonaws.com/token-expiration
         """
         region: NotRequired[pulumi.Input[_builtins.str]]
         """
@@ -423,7 +577,9 @@ if not MYPY:
         """
         secret_ref: NotRequired[pulumi.Input[_builtins.str]]
         """
-        SecretRef is the name of a Kubernetes Secret which holds credentials for AWS. Expected keys include `access_key_id`, `secret_access_key`, `session_token`
+        SecretRef is the name of a Kubernetes Secret in the consumer's (VDS/VSS/PKI) namespace
+        which holds credentials for AWS. Expected keys include `access_key_id`, `secret_access_key`,
+        `session_token`
         """
         session_name: NotRequired[pulumi.Input[_builtins.str]]
         """
@@ -451,10 +607,15 @@ class VaultAuthSpecAwsArgs:
         AWS specific auth configuration, requires that Method be set to `aws`.
         :param pulumi.Input[_builtins.str] header_value: The Vault header value to include in the STS signing request
         :param pulumi.Input[_builtins.str] iam_endpoint: The IAM endpoint to use; if not set will use the default
-        :param pulumi.Input[_builtins.str] irsa_service_account: IRSAServiceAccount name to use with IAM Roles for Service Accounts (IRSA), and should be annotated with "eks.amazonaws.com/role-arn". This ServiceAccount will be checked for other EKS annotations: eks.amazonaws.com/audience and eks.amazonaws.com/token-expiration
+        :param pulumi.Input[_builtins.str] irsa_service_account: IRSAServiceAccount name to use with IAM Roles for Service Accounts
+               (IRSA), and should be annotated with "eks.amazonaws.com/role-arn". This
+               ServiceAccount will be checked for other EKS annotations:
+               eks.amazonaws.com/audience and eks.amazonaws.com/token-expiration
         :param pulumi.Input[_builtins.str] region: AWS Region to use for signing the authentication request
         :param pulumi.Input[_builtins.str] role: Vault role to use for authenticating
-        :param pulumi.Input[_builtins.str] secret_ref: SecretRef is the name of a Kubernetes Secret which holds credentials for AWS. Expected keys include `access_key_id`, `secret_access_key`, `session_token`
+        :param pulumi.Input[_builtins.str] secret_ref: SecretRef is the name of a Kubernetes Secret in the consumer's (VDS/VSS/PKI) namespace
+               which holds credentials for AWS. Expected keys include `access_key_id`, `secret_access_key`,
+               `session_token`
         :param pulumi.Input[_builtins.str] session_name: The role session name to use when creating a webidentity provider
         :param pulumi.Input[_builtins.str] sts_endpoint: The STS endpoint to use; if not set will use the default
         """
@@ -503,7 +664,10 @@ class VaultAuthSpecAwsArgs:
     @pulumi.getter(name="irsaServiceAccount")
     def irsa_service_account(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        IRSAServiceAccount name to use with IAM Roles for Service Accounts (IRSA), and should be annotated with "eks.amazonaws.com/role-arn". This ServiceAccount will be checked for other EKS annotations: eks.amazonaws.com/audience and eks.amazonaws.com/token-expiration
+        IRSAServiceAccount name to use with IAM Roles for Service Accounts
+        (IRSA), and should be annotated with "eks.amazonaws.com/role-arn". This
+        ServiceAccount will be checked for other EKS annotations:
+        eks.amazonaws.com/audience and eks.amazonaws.com/token-expiration
         """
         return pulumi.get(self, "irsa_service_account")
 
@@ -539,7 +703,9 @@ class VaultAuthSpecAwsArgs:
     @pulumi.getter(name="secretRef")
     def secret_ref(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        SecretRef is the name of a Kubernetes Secret which holds credentials for AWS. Expected keys include `access_key_id`, `secret_access_key`, `session_token`
+        SecretRef is the name of a Kubernetes Secret in the consumer's (VDS/VSS/PKI) namespace
+        which holds credentials for AWS. Expected keys include `access_key_id`, `secret_access_key`,
+        `session_token`
         """
         return pulumi.get(self, "secret_ref")
 
@@ -573,6 +739,274 @@ class VaultAuthSpecAwsArgs:
 
 
 if not MYPY:
+    class VaultAuthSpecGcpPatchArgsDict(TypedDict):
+        """
+        GCP specific auth configuration, requires that Method be set to `gcp`.
+        """
+        cluster_name: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        GKE cluster name. Defaults to the cluster-name returned from the operator
+        pod's local metadata server.
+        """
+        project_id: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        GCP project ID. Defaults to the project-id returned from the operator
+        pod's local metadata server.
+        """
+        region: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        GCP Region of the GKE cluster's identity provider. Defaults to the region
+        returned from the operator pod's local metadata server.
+        """
+        role: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Vault role to use for authenticating
+        """
+        workload_identity_service_account: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        WorkloadIdentityServiceAccount is the name of a Kubernetes service
+        account (in the same Kubernetes namespace as the Vault*Secret referencing
+        this resource) which has been configured for workload identity in GKE.
+        Should be annotated with "iam.gke.io/gcp-service-account".
+        """
+elif False:
+    VaultAuthSpecGcpPatchArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultAuthSpecGcpPatchArgs:
+    def __init__(__self__, *,
+                 cluster_name: Optional[pulumi.Input[_builtins.str]] = None,
+                 project_id: Optional[pulumi.Input[_builtins.str]] = None,
+                 region: Optional[pulumi.Input[_builtins.str]] = None,
+                 role: Optional[pulumi.Input[_builtins.str]] = None,
+                 workload_identity_service_account: Optional[pulumi.Input[_builtins.str]] = None):
+        """
+        GCP specific auth configuration, requires that Method be set to `gcp`.
+        :param pulumi.Input[_builtins.str] cluster_name: GKE cluster name. Defaults to the cluster-name returned from the operator
+               pod's local metadata server.
+        :param pulumi.Input[_builtins.str] project_id: GCP project ID. Defaults to the project-id returned from the operator
+               pod's local metadata server.
+        :param pulumi.Input[_builtins.str] region: GCP Region of the GKE cluster's identity provider. Defaults to the region
+               returned from the operator pod's local metadata server.
+        :param pulumi.Input[_builtins.str] role: Vault role to use for authenticating
+        :param pulumi.Input[_builtins.str] workload_identity_service_account: WorkloadIdentityServiceAccount is the name of a Kubernetes service
+               account (in the same Kubernetes namespace as the Vault*Secret referencing
+               this resource) which has been configured for workload identity in GKE.
+               Should be annotated with "iam.gke.io/gcp-service-account".
+        """
+        if cluster_name is not None:
+            pulumi.set(__self__, "cluster_name", cluster_name)
+        if project_id is not None:
+            pulumi.set(__self__, "project_id", project_id)
+        if region is not None:
+            pulumi.set(__self__, "region", region)
+        if role is not None:
+            pulumi.set(__self__, "role", role)
+        if workload_identity_service_account is not None:
+            pulumi.set(__self__, "workload_identity_service_account", workload_identity_service_account)
+
+    @_builtins.property
+    @pulumi.getter(name="clusterName")
+    def cluster_name(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        GKE cluster name. Defaults to the cluster-name returned from the operator
+        pod's local metadata server.
+        """
+        return pulumi.get(self, "cluster_name")
+
+    @cluster_name.setter
+    def cluster_name(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "cluster_name", value)
+
+    @_builtins.property
+    @pulumi.getter(name="projectID")
+    def project_id(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        GCP project ID. Defaults to the project-id returned from the operator
+        pod's local metadata server.
+        """
+        return pulumi.get(self, "project_id")
+
+    @project_id.setter
+    def project_id(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "project_id", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def region(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        GCP Region of the GKE cluster's identity provider. Defaults to the region
+        returned from the operator pod's local metadata server.
+        """
+        return pulumi.get(self, "region")
+
+    @region.setter
+    def region(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "region", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def role(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Vault role to use for authenticating
+        """
+        return pulumi.get(self, "role")
+
+    @role.setter
+    def role(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "role", value)
+
+    @_builtins.property
+    @pulumi.getter(name="workloadIdentityServiceAccount")
+    def workload_identity_service_account(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        WorkloadIdentityServiceAccount is the name of a Kubernetes service
+        account (in the same Kubernetes namespace as the Vault*Secret referencing
+        this resource) which has been configured for workload identity in GKE.
+        Should be annotated with "iam.gke.io/gcp-service-account".
+        """
+        return pulumi.get(self, "workload_identity_service_account")
+
+    @workload_identity_service_account.setter
+    def workload_identity_service_account(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "workload_identity_service_account", value)
+
+
+if not MYPY:
+    class VaultAuthSpecGcpArgsDict(TypedDict):
+        """
+        GCP specific auth configuration, requires that Method be set to `gcp`.
+        """
+        cluster_name: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        GKE cluster name. Defaults to the cluster-name returned from the operator
+        pod's local metadata server.
+        """
+        project_id: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        GCP project ID. Defaults to the project-id returned from the operator
+        pod's local metadata server.
+        """
+        region: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        GCP Region of the GKE cluster's identity provider. Defaults to the region
+        returned from the operator pod's local metadata server.
+        """
+        role: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Vault role to use for authenticating
+        """
+        workload_identity_service_account: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        WorkloadIdentityServiceAccount is the name of a Kubernetes service
+        account (in the same Kubernetes namespace as the Vault*Secret referencing
+        this resource) which has been configured for workload identity in GKE.
+        Should be annotated with "iam.gke.io/gcp-service-account".
+        """
+elif False:
+    VaultAuthSpecGcpArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultAuthSpecGcpArgs:
+    def __init__(__self__, *,
+                 cluster_name: Optional[pulumi.Input[_builtins.str]] = None,
+                 project_id: Optional[pulumi.Input[_builtins.str]] = None,
+                 region: Optional[pulumi.Input[_builtins.str]] = None,
+                 role: Optional[pulumi.Input[_builtins.str]] = None,
+                 workload_identity_service_account: Optional[pulumi.Input[_builtins.str]] = None):
+        """
+        GCP specific auth configuration, requires that Method be set to `gcp`.
+        :param pulumi.Input[_builtins.str] cluster_name: GKE cluster name. Defaults to the cluster-name returned from the operator
+               pod's local metadata server.
+        :param pulumi.Input[_builtins.str] project_id: GCP project ID. Defaults to the project-id returned from the operator
+               pod's local metadata server.
+        :param pulumi.Input[_builtins.str] region: GCP Region of the GKE cluster's identity provider. Defaults to the region
+               returned from the operator pod's local metadata server.
+        :param pulumi.Input[_builtins.str] role: Vault role to use for authenticating
+        :param pulumi.Input[_builtins.str] workload_identity_service_account: WorkloadIdentityServiceAccount is the name of a Kubernetes service
+               account (in the same Kubernetes namespace as the Vault*Secret referencing
+               this resource) which has been configured for workload identity in GKE.
+               Should be annotated with "iam.gke.io/gcp-service-account".
+        """
+        if cluster_name is not None:
+            pulumi.set(__self__, "cluster_name", cluster_name)
+        if project_id is not None:
+            pulumi.set(__self__, "project_id", project_id)
+        if region is not None:
+            pulumi.set(__self__, "region", region)
+        if role is not None:
+            pulumi.set(__self__, "role", role)
+        if workload_identity_service_account is not None:
+            pulumi.set(__self__, "workload_identity_service_account", workload_identity_service_account)
+
+    @_builtins.property
+    @pulumi.getter(name="clusterName")
+    def cluster_name(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        GKE cluster name. Defaults to the cluster-name returned from the operator
+        pod's local metadata server.
+        """
+        return pulumi.get(self, "cluster_name")
+
+    @cluster_name.setter
+    def cluster_name(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "cluster_name", value)
+
+    @_builtins.property
+    @pulumi.getter(name="projectID")
+    def project_id(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        GCP project ID. Defaults to the project-id returned from the operator
+        pod's local metadata server.
+        """
+        return pulumi.get(self, "project_id")
+
+    @project_id.setter
+    def project_id(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "project_id", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def region(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        GCP Region of the GKE cluster's identity provider. Defaults to the region
+        returned from the operator pod's local metadata server.
+        """
+        return pulumi.get(self, "region")
+
+    @region.setter
+    def region(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "region", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def role(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Vault role to use for authenticating
+        """
+        return pulumi.get(self, "role")
+
+    @role.setter
+    def role(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "role", value)
+
+    @_builtins.property
+    @pulumi.getter(name="workloadIdentityServiceAccount")
+    def workload_identity_service_account(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        WorkloadIdentityServiceAccount is the name of a Kubernetes service
+        account (in the same Kubernetes namespace as the Vault*Secret referencing
+        this resource) which has been configured for workload identity in GKE.
+        Should be annotated with "iam.gke.io/gcp-service-account".
+        """
+        return pulumi.get(self, "workload_identity_service_account")
+
+    @workload_identity_service_account.setter
+    def workload_identity_service_account(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "workload_identity_service_account", value)
+
+
+if not MYPY:
     class VaultAuthSpecJwtPatchArgsDict(TypedDict):
         """
         JWT specific auth configuration, requires that the Method be set to `jwt`.
@@ -587,11 +1021,14 @@ if not MYPY:
         """
         secret_ref: NotRequired[pulumi.Input[_builtins.str]]
         """
-        SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which provides the JWT token to authenticate to Vault's JWT authentication backend. The secret must have a key named `jwt` which holds the JWT token.
+        SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which
+        provides the JWT token to authenticate to Vault's JWT authentication backend. The secret must
+        have a key named `jwt` which holds the JWT token.
         """
         service_account: NotRequired[pulumi.Input[_builtins.str]]
         """
-        ServiceAccount to use when creating a ServiceAccount token to authenticate to Vault's JWT authentication backend.
+        ServiceAccount to use when creating a ServiceAccount token to authenticate to Vault's
+        JWT authentication backend.
         """
         token_expiration_seconds: NotRequired[pulumi.Input[_builtins.int]]
         """
@@ -612,8 +1049,11 @@ class VaultAuthSpecJwtPatchArgs:
         JWT specific auth configuration, requires that the Method be set to `jwt`.
         :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] audiences: TokenAudiences to include in the ServiceAccount token.
         :param pulumi.Input[_builtins.str] role: Role to use for authenticating to Vault.
-        :param pulumi.Input[_builtins.str] secret_ref: SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which provides the JWT token to authenticate to Vault's JWT authentication backend. The secret must have a key named `jwt` which holds the JWT token.
-        :param pulumi.Input[_builtins.str] service_account: ServiceAccount to use when creating a ServiceAccount token to authenticate to Vault's JWT authentication backend.
+        :param pulumi.Input[_builtins.str] secret_ref: SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which
+               provides the JWT token to authenticate to Vault's JWT authentication backend. The secret must
+               have a key named `jwt` which holds the JWT token.
+        :param pulumi.Input[_builtins.str] service_account: ServiceAccount to use when creating a ServiceAccount token to authenticate to Vault's
+               JWT authentication backend.
         :param pulumi.Input[_builtins.int] token_expiration_seconds: TokenExpirationSeconds to set the ServiceAccount token.
         """
         if audiences is not None:
@@ -655,7 +1095,9 @@ class VaultAuthSpecJwtPatchArgs:
     @pulumi.getter(name="secretRef")
     def secret_ref(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which provides the JWT token to authenticate to Vault's JWT authentication backend. The secret must have a key named `jwt` which holds the JWT token.
+        SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which
+        provides the JWT token to authenticate to Vault's JWT authentication backend. The secret must
+        have a key named `jwt` which holds the JWT token.
         """
         return pulumi.get(self, "secret_ref")
 
@@ -667,7 +1109,8 @@ class VaultAuthSpecJwtPatchArgs:
     @pulumi.getter(name="serviceAccount")
     def service_account(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        ServiceAccount to use when creating a ServiceAccount token to authenticate to Vault's JWT authentication backend.
+        ServiceAccount to use when creating a ServiceAccount token to authenticate to Vault's
+        JWT authentication backend.
         """
         return pulumi.get(self, "service_account")
 
@@ -703,11 +1146,14 @@ if not MYPY:
         """
         secret_ref: NotRequired[pulumi.Input[_builtins.str]]
         """
-        SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which provides the JWT token to authenticate to Vault's JWT authentication backend. The secret must have a key named `jwt` which holds the JWT token.
+        SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which
+        provides the JWT token to authenticate to Vault's JWT authentication backend. The secret must
+        have a key named `jwt` which holds the JWT token.
         """
         service_account: NotRequired[pulumi.Input[_builtins.str]]
         """
-        ServiceAccount to use when creating a ServiceAccount token to authenticate to Vault's JWT authentication backend.
+        ServiceAccount to use when creating a ServiceAccount token to authenticate to Vault's
+        JWT authentication backend.
         """
         token_expiration_seconds: NotRequired[pulumi.Input[_builtins.int]]
         """
@@ -728,8 +1174,11 @@ class VaultAuthSpecJwtArgs:
         JWT specific auth configuration, requires that the Method be set to `jwt`.
         :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] audiences: TokenAudiences to include in the ServiceAccount token.
         :param pulumi.Input[_builtins.str] role: Role to use for authenticating to Vault.
-        :param pulumi.Input[_builtins.str] secret_ref: SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which provides the JWT token to authenticate to Vault's JWT authentication backend. The secret must have a key named `jwt` which holds the JWT token.
-        :param pulumi.Input[_builtins.str] service_account: ServiceAccount to use when creating a ServiceAccount token to authenticate to Vault's JWT authentication backend.
+        :param pulumi.Input[_builtins.str] secret_ref: SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which
+               provides the JWT token to authenticate to Vault's JWT authentication backend. The secret must
+               have a key named `jwt` which holds the JWT token.
+        :param pulumi.Input[_builtins.str] service_account: ServiceAccount to use when creating a ServiceAccount token to authenticate to Vault's
+               JWT authentication backend.
         :param pulumi.Input[_builtins.int] token_expiration_seconds: TokenExpirationSeconds to set the ServiceAccount token.
         """
         if audiences is not None:
@@ -771,7 +1220,9 @@ class VaultAuthSpecJwtArgs:
     @pulumi.getter(name="secretRef")
     def secret_ref(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which provides the JWT token to authenticate to Vault's JWT authentication backend. The secret must have a key named `jwt` which holds the JWT token.
+        SecretRef is the name of a Kubernetes secret in the consumer's (VDS/VSS/PKI) namespace which
+        provides the JWT token to authenticate to Vault's JWT authentication backend. The secret must
+        have a key named `jwt` which holds the JWT token.
         """
         return pulumi.get(self, "secret_ref")
 
@@ -783,7 +1234,8 @@ class VaultAuthSpecJwtArgs:
     @pulumi.getter(name="serviceAccount")
     def service_account(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        ServiceAccount to use when creating a ServiceAccount token to authenticate to Vault's JWT authentication backend.
+        ServiceAccount to use when creating a ServiceAccount token to authenticate to Vault's
+        JWT authentication backend.
         """
         return pulumi.get(self, "service_account")
 
@@ -819,7 +1271,8 @@ if not MYPY:
         """
         service_account: NotRequired[pulumi.Input[_builtins.str]]
         """
-        ServiceAccount to use when authenticating to Vault's kubernetes authentication backend.
+        ServiceAccount to use when authenticating to Vault's
+        authentication backend. This must reside in the consuming secret's (VDS/VSS/PKI) namespace.
         """
         token_expiration_seconds: NotRequired[pulumi.Input[_builtins.int]]
         """
@@ -839,7 +1292,8 @@ class VaultAuthSpecKubernetesPatchArgs:
         Kubernetes specific auth configuration, requires that the Method be set to `kubernetes`.
         :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] audiences: TokenAudiences to include in the ServiceAccount token.
         :param pulumi.Input[_builtins.str] role: Role to use for authenticating to Vault.
-        :param pulumi.Input[_builtins.str] service_account: ServiceAccount to use when authenticating to Vault's kubernetes authentication backend.
+        :param pulumi.Input[_builtins.str] service_account: ServiceAccount to use when authenticating to Vault's
+               authentication backend. This must reside in the consuming secret's (VDS/VSS/PKI) namespace.
         :param pulumi.Input[_builtins.int] token_expiration_seconds: TokenExpirationSeconds to set the ServiceAccount token.
         """
         if audiences is not None:
@@ -879,7 +1333,8 @@ class VaultAuthSpecKubernetesPatchArgs:
     @pulumi.getter(name="serviceAccount")
     def service_account(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        ServiceAccount to use when authenticating to Vault's kubernetes authentication backend.
+        ServiceAccount to use when authenticating to Vault's
+        authentication backend. This must reside in the consuming secret's (VDS/VSS/PKI) namespace.
         """
         return pulumi.get(self, "service_account")
 
@@ -915,7 +1370,8 @@ if not MYPY:
         """
         service_account: NotRequired[pulumi.Input[_builtins.str]]
         """
-        ServiceAccount to use when authenticating to Vault's kubernetes authentication backend.
+        ServiceAccount to use when authenticating to Vault's
+        authentication backend. This must reside in the consuming secret's (VDS/VSS/PKI) namespace.
         """
         token_expiration_seconds: NotRequired[pulumi.Input[_builtins.int]]
         """
@@ -935,7 +1391,8 @@ class VaultAuthSpecKubernetesArgs:
         Kubernetes specific auth configuration, requires that the Method be set to `kubernetes`.
         :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] audiences: TokenAudiences to include in the ServiceAccount token.
         :param pulumi.Input[_builtins.str] role: Role to use for authenticating to Vault.
-        :param pulumi.Input[_builtins.str] service_account: ServiceAccount to use when authenticating to Vault's kubernetes authentication backend.
+        :param pulumi.Input[_builtins.str] service_account: ServiceAccount to use when authenticating to Vault's
+               authentication backend. This must reside in the consuming secret's (VDS/VSS/PKI) namespace.
         :param pulumi.Input[_builtins.int] token_expiration_seconds: TokenExpirationSeconds to set the ServiceAccount token.
         """
         if audiences is not None:
@@ -975,7 +1432,8 @@ class VaultAuthSpecKubernetesArgs:
     @pulumi.getter(name="serviceAccount")
     def service_account(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        ServiceAccount to use when authenticating to Vault's kubernetes authentication backend.
+        ServiceAccount to use when authenticating to Vault's
+        authentication backend. This must reside in the consuming secret's (VDS/VSS/PKI) namespace.
         """
         return pulumi.get(self, "service_account")
 
@@ -1003,10 +1461,22 @@ if not MYPY:
         """
         allowed_namespaces: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
         """
-        AllowedNamespaces Kubernetes Namespaces which are allow-listed for use with this AuthMethod. This field allows administrators to customize which Kubernetes namespaces are authorized to use with this AuthMethod. While Vault will still enforce its own rules, this has the added configurability of restricting which VaultAuthMethods can be used by which namespaces. Accepted values: []{"*"} - wildcard, all namespaces. []{"a", "b"} - list of namespaces. unset - disallow all namespaces except the Operator's the VaultAuthMethod's namespace, this is the default behavior.
+        AllowedNamespaces Kubernetes Namespaces which are allow-listed for use with this AuthMethod.
+        This field allows administrators to customize which Kubernetes namespaces are authorized to
+        use with this AuthMethod. While Vault will still enforce its own rules, this has the added
+        configurability of restricting which VaultAuthMethods can be used by which namespaces.
+        You only need to set allowedNamespaces when you want to control access from a resource in
+        a different namespace than the VaultAuth it references. Secret resources in
+        the same namespace as the VaultAuth bypass this check.
+        Accepted values:
+        []{"*"} - wildcard, all namespaces.
+        []{"a", "b"} - list of namespaces.
+        unset - disallow all namespaces except the Operator's the VaultAuthMethod's namespace, this
+        is the default behavior.
         """
         app_role: NotRequired[pulumi.Input['VaultAuthSpecAppRolePatchArgsDict']]
         aws: NotRequired[pulumi.Input['VaultAuthSpecAwsPatchArgsDict']]
+        gcp: NotRequired[pulumi.Input['VaultAuthSpecGcpPatchArgsDict']]
         headers: NotRequired[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]
         """
         Headers to be included in all Vault requests.
@@ -1030,9 +1500,13 @@ if not MYPY:
         Params to use when authenticating to Vault
         """
         storage_encryption: NotRequired[pulumi.Input['VaultAuthSpecStorageEncryptionPatchArgsDict']]
+        vault_auth_global_ref: NotRequired[pulumi.Input['VaultAuthSpecVaultAuthGlobalRefPatchArgsDict']]
         vault_connection_ref: NotRequired[pulumi.Input[_builtins.str]]
         """
-        VaultConnectionRef to the VaultConnection resource, can be prefixed with a namespace, eg: `namespaceA/vaultConnectionRefB`. If no namespace prefix is provided it will default to namespace of the VaultConnection CR. If no value is specified for VaultConnectionRef the Operator will default to	`default` VaultConnection, configured in its own Kubernetes namespace.
+        VaultConnectionRef to the VaultConnection resource, can be prefixed with a namespace,
+        eg: `namespaceA/vaultConnectionRefB`. If no namespace prefix is provided it will default to
+        the namespace of the VaultConnection CR. If no value is specified for VaultConnectionRef the
+        Operator will default to the `default` VaultConnection, configured in the operator's namespace.
         """
 elif False:
     VaultAuthSpecPatchArgsDict: TypeAlias = Mapping[str, Any]
@@ -1043,6 +1517,7 @@ class VaultAuthSpecPatchArgs:
                  allowed_namespaces: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
                  app_role: Optional[pulumi.Input['VaultAuthSpecAppRolePatchArgs']] = None,
                  aws: Optional[pulumi.Input['VaultAuthSpecAwsPatchArgs']] = None,
+                 gcp: Optional[pulumi.Input['VaultAuthSpecGcpPatchArgs']] = None,
                  headers: Optional[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]] = None,
                  jwt: Optional[pulumi.Input['VaultAuthSpecJwtPatchArgs']] = None,
                  kubernetes: Optional[pulumi.Input['VaultAuthSpecKubernetesPatchArgs']] = None,
@@ -1051,16 +1526,31 @@ class VaultAuthSpecPatchArgs:
                  namespace: Optional[pulumi.Input[_builtins.str]] = None,
                  params: Optional[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]] = None,
                  storage_encryption: Optional[pulumi.Input['VaultAuthSpecStorageEncryptionPatchArgs']] = None,
+                 vault_auth_global_ref: Optional[pulumi.Input['VaultAuthSpecVaultAuthGlobalRefPatchArgs']] = None,
                  vault_connection_ref: Optional[pulumi.Input[_builtins.str]] = None):
         """
         VaultAuthSpec defines the desired state of VaultAuth
-        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] allowed_namespaces: AllowedNamespaces Kubernetes Namespaces which are allow-listed for use with this AuthMethod. This field allows administrators to customize which Kubernetes namespaces are authorized to use with this AuthMethod. While Vault will still enforce its own rules, this has the added configurability of restricting which VaultAuthMethods can be used by which namespaces. Accepted values: []{"*"} - wildcard, all namespaces. []{"a", "b"} - list of namespaces. unset - disallow all namespaces except the Operator's the VaultAuthMethod's namespace, this is the default behavior.
+        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] allowed_namespaces: AllowedNamespaces Kubernetes Namespaces which are allow-listed for use with this AuthMethod.
+               This field allows administrators to customize which Kubernetes namespaces are authorized to
+               use with this AuthMethod. While Vault will still enforce its own rules, this has the added
+               configurability of restricting which VaultAuthMethods can be used by which namespaces.
+               You only need to set allowedNamespaces when you want to control access from a resource in
+               a different namespace than the VaultAuth it references. Secret resources in
+               the same namespace as the VaultAuth bypass this check.
+               Accepted values:
+               []{"*"} - wildcard, all namespaces.
+               []{"a", "b"} - list of namespaces.
+               unset - disallow all namespaces except the Operator's the VaultAuthMethod's namespace, this
+               is the default behavior.
         :param pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]] headers: Headers to be included in all Vault requests.
         :param pulumi.Input[_builtins.str] method: Method to use when authenticating to Vault.
         :param pulumi.Input[_builtins.str] mount: Mount to use when authenticating to auth method.
         :param pulumi.Input[_builtins.str] namespace: Namespace to auth to in Vault
         :param pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]] params: Params to use when authenticating to Vault
-        :param pulumi.Input[_builtins.str] vault_connection_ref: VaultConnectionRef to the VaultConnection resource, can be prefixed with a namespace, eg: `namespaceA/vaultConnectionRefB`. If no namespace prefix is provided it will default to namespace of the VaultConnection CR. If no value is specified for VaultConnectionRef the Operator will default to	`default` VaultConnection, configured in its own Kubernetes namespace.
+        :param pulumi.Input[_builtins.str] vault_connection_ref: VaultConnectionRef to the VaultConnection resource, can be prefixed with a namespace,
+               eg: `namespaceA/vaultConnectionRefB`. If no namespace prefix is provided it will default to
+               the namespace of the VaultConnection CR. If no value is specified for VaultConnectionRef the
+               Operator will default to the `default` VaultConnection, configured in the operator's namespace.
         """
         if allowed_namespaces is not None:
             pulumi.set(__self__, "allowed_namespaces", allowed_namespaces)
@@ -1068,6 +1558,8 @@ class VaultAuthSpecPatchArgs:
             pulumi.set(__self__, "app_role", app_role)
         if aws is not None:
             pulumi.set(__self__, "aws", aws)
+        if gcp is not None:
+            pulumi.set(__self__, "gcp", gcp)
         if headers is not None:
             pulumi.set(__self__, "headers", headers)
         if jwt is not None:
@@ -1084,6 +1576,8 @@ class VaultAuthSpecPatchArgs:
             pulumi.set(__self__, "params", params)
         if storage_encryption is not None:
             pulumi.set(__self__, "storage_encryption", storage_encryption)
+        if vault_auth_global_ref is not None:
+            pulumi.set(__self__, "vault_auth_global_ref", vault_auth_global_ref)
         if vault_connection_ref is not None:
             pulumi.set(__self__, "vault_connection_ref", vault_connection_ref)
 
@@ -1091,7 +1585,18 @@ class VaultAuthSpecPatchArgs:
     @pulumi.getter(name="allowedNamespaces")
     def allowed_namespaces(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
         """
-        AllowedNamespaces Kubernetes Namespaces which are allow-listed for use with this AuthMethod. This field allows administrators to customize which Kubernetes namespaces are authorized to use with this AuthMethod. While Vault will still enforce its own rules, this has the added configurability of restricting which VaultAuthMethods can be used by which namespaces. Accepted values: []{"*"} - wildcard, all namespaces. []{"a", "b"} - list of namespaces. unset - disallow all namespaces except the Operator's the VaultAuthMethod's namespace, this is the default behavior.
+        AllowedNamespaces Kubernetes Namespaces which are allow-listed for use with this AuthMethod.
+        This field allows administrators to customize which Kubernetes namespaces are authorized to
+        use with this AuthMethod. While Vault will still enforce its own rules, this has the added
+        configurability of restricting which VaultAuthMethods can be used by which namespaces.
+        You only need to set allowedNamespaces when you want to control access from a resource in
+        a different namespace than the VaultAuth it references. Secret resources in
+        the same namespace as the VaultAuth bypass this check.
+        Accepted values:
+        []{"*"} - wildcard, all namespaces.
+        []{"a", "b"} - list of namespaces.
+        unset - disallow all namespaces except the Operator's the VaultAuthMethod's namespace, this
+        is the default behavior.
         """
         return pulumi.get(self, "allowed_namespaces")
 
@@ -1116,6 +1621,15 @@ class VaultAuthSpecPatchArgs:
     @aws.setter
     def aws(self, value: Optional[pulumi.Input['VaultAuthSpecAwsPatchArgs']]):
         pulumi.set(self, "aws", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def gcp(self) -> Optional[pulumi.Input['VaultAuthSpecGcpPatchArgs']]:
+        return pulumi.get(self, "gcp")
+
+    @gcp.setter
+    def gcp(self, value: Optional[pulumi.Input['VaultAuthSpecGcpPatchArgs']]):
+        pulumi.set(self, "gcp", value)
 
     @_builtins.property
     @pulumi.getter
@@ -1205,10 +1719,22 @@ class VaultAuthSpecPatchArgs:
         pulumi.set(self, "storage_encryption", value)
 
     @_builtins.property
+    @pulumi.getter(name="vaultAuthGlobalRef")
+    def vault_auth_global_ref(self) -> Optional[pulumi.Input['VaultAuthSpecVaultAuthGlobalRefPatchArgs']]:
+        return pulumi.get(self, "vault_auth_global_ref")
+
+    @vault_auth_global_ref.setter
+    def vault_auth_global_ref(self, value: Optional[pulumi.Input['VaultAuthSpecVaultAuthGlobalRefPatchArgs']]):
+        pulumi.set(self, "vault_auth_global_ref", value)
+
+    @_builtins.property
     @pulumi.getter(name="vaultConnectionRef")
     def vault_connection_ref(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        VaultConnectionRef to the VaultConnection resource, can be prefixed with a namespace, eg: `namespaceA/vaultConnectionRefB`. If no namespace prefix is provided it will default to namespace of the VaultConnection CR. If no value is specified for VaultConnectionRef the Operator will default to	`default` VaultConnection, configured in its own Kubernetes namespace.
+        VaultConnectionRef to the VaultConnection resource, can be prefixed with a namespace,
+        eg: `namespaceA/vaultConnectionRefB`. If no namespace prefix is provided it will default to
+        the namespace of the VaultConnection CR. If no value is specified for VaultConnectionRef the
+        Operator will default to the `default` VaultConnection, configured in the operator's namespace.
         """
         return pulumi.get(self, "vault_connection_ref")
 
@@ -1220,7 +1746,12 @@ class VaultAuthSpecPatchArgs:
 if not MYPY:
     class VaultAuthSpecStorageEncryptionPatchArgsDict(TypedDict):
         """
-        StorageEncryption provides the necessary configuration to encrypt the client storage cache. This should only be configured when client cache persistence with encryption is enabled. This is done by passing setting the manager's commandline argument --client-cache-persistence-model=direct-encrypted. Typically there should only ever be one VaultAuth configured with StorageEncryption in the Cluster, and it should have the label: cacheStorageEncryption=true
+        StorageEncryption provides the necessary configuration to encrypt the client storage cache.
+        This should only be configured when client cache persistence with encryption is enabled.
+        This is done by passing setting the manager's commandline argument
+        --client-cache-persistence-model=direct-encrypted. Typically, there should only ever
+        be one VaultAuth configured with StorageEncryption in the Cluster, and it should have
+        the label: cacheStorageEncryption=true
         """
         key_name: NotRequired[pulumi.Input[_builtins.str]]
         """
@@ -1239,7 +1770,12 @@ class VaultAuthSpecStorageEncryptionPatchArgs:
                  key_name: Optional[pulumi.Input[_builtins.str]] = None,
                  mount: Optional[pulumi.Input[_builtins.str]] = None):
         """
-        StorageEncryption provides the necessary configuration to encrypt the client storage cache. This should only be configured when client cache persistence with encryption is enabled. This is done by passing setting the manager's commandline argument --client-cache-persistence-model=direct-encrypted. Typically there should only ever be one VaultAuth configured with StorageEncryption in the Cluster, and it should have the label: cacheStorageEncryption=true
+        StorageEncryption provides the necessary configuration to encrypt the client storage cache.
+        This should only be configured when client cache persistence with encryption is enabled.
+        This is done by passing setting the manager's commandline argument
+        --client-cache-persistence-model=direct-encrypted. Typically, there should only ever
+        be one VaultAuth configured with StorageEncryption in the Cluster, and it should have
+        the label: cacheStorageEncryption=true
         :param pulumi.Input[_builtins.str] key_name: KeyName to use for encrypt/decrypt operations via Vault Transit.
         :param pulumi.Input[_builtins.str] mount: Mount path of the Transit engine in Vault.
         """
@@ -1276,7 +1812,12 @@ class VaultAuthSpecStorageEncryptionPatchArgs:
 if not MYPY:
     class VaultAuthSpecStorageEncryptionArgsDict(TypedDict):
         """
-        StorageEncryption provides the necessary configuration to encrypt the client storage cache. This should only be configured when client cache persistence with encryption is enabled. This is done by passing setting the manager's commandline argument --client-cache-persistence-model=direct-encrypted. Typically there should only ever be one VaultAuth configured with StorageEncryption in the Cluster, and it should have the label: cacheStorageEncryption=true
+        StorageEncryption provides the necessary configuration to encrypt the client storage cache.
+        This should only be configured when client cache persistence with encryption is enabled.
+        This is done by passing setting the manager's commandline argument
+        --client-cache-persistence-model=direct-encrypted. Typically, there should only ever
+        be one VaultAuth configured with StorageEncryption in the Cluster, and it should have
+        the label: cacheStorageEncryption=true
         """
         key_name: NotRequired[pulumi.Input[_builtins.str]]
         """
@@ -1295,7 +1836,12 @@ class VaultAuthSpecStorageEncryptionArgs:
                  key_name: Optional[pulumi.Input[_builtins.str]] = None,
                  mount: Optional[pulumi.Input[_builtins.str]] = None):
         """
-        StorageEncryption provides the necessary configuration to encrypt the client storage cache. This should only be configured when client cache persistence with encryption is enabled. This is done by passing setting the manager's commandline argument --client-cache-persistence-model=direct-encrypted. Typically there should only ever be one VaultAuth configured with StorageEncryption in the Cluster, and it should have the label: cacheStorageEncryption=true
+        StorageEncryption provides the necessary configuration to encrypt the client storage cache.
+        This should only be configured when client cache persistence with encryption is enabled.
+        This is done by passing setting the manager's commandline argument
+        --client-cache-persistence-model=direct-encrypted. Typically, there should only ever
+        be one VaultAuth configured with StorageEncryption in the Cluster, and it should have
+        the label: cacheStorageEncryption=true
         :param pulumi.Input[_builtins.str] key_name: KeyName to use for encrypt/decrypt operations via Vault Transit.
         :param pulumi.Input[_builtins.str] mount: Mount path of the Transit engine in Vault.
         """
@@ -1330,16 +1876,526 @@ class VaultAuthSpecStorageEncryptionArgs:
 
 
 if not MYPY:
+    class VaultAuthSpecVaultAuthGlobalRefMergeStrategyPatchArgsDict(TypedDict):
+        """
+        MergeStrategy configures the merge strategy for HTTP headers and parameters
+        that are included in all Vault authentication requests.
+        """
+        headers: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Headers configures the merge strategy for HTTP headers that are included in
+        all Vault requests. Choices are `union`, `replace`, or `none`.
+
+        If `union` is set, the headers from the VaultAuthGlobal and VaultAuth
+        resources are merged. The headers from the VaultAuth always take precedence.
+
+        If `replace` is set, the first set of non-empty headers taken in order from:
+        VaultAuth, VaultAuthGlobal auth method, VaultGlobal default headers.
+
+        If `none` is set, the headers from the
+        VaultAuthGlobal resource are ignored and only the headers from the VaultAuth
+        resource are used. The default is `none`.
+        """
+        params: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Params configures the merge strategy for HTTP parameters that are included in
+        all Vault requests. Choices are `union`, `replace`, or `none`.
+
+        If `union` is set, the parameters from the VaultAuthGlobal and VaultAuth
+        resources are merged. The parameters from the VaultAuth always take
+        precedence.
+
+        If `replace` is set, the first set of non-empty parameters taken in order from:
+        VaultAuth, VaultAuthGlobal auth method, VaultGlobal default parameters.
+
+        If `none` is set, the parameters from the VaultAuthGlobal resource are ignored
+        and only the parameters from the VaultAuth resource are used. The default is
+        `none`.
+        """
+elif False:
+    VaultAuthSpecVaultAuthGlobalRefMergeStrategyPatchArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultAuthSpecVaultAuthGlobalRefMergeStrategyPatchArgs:
+    def __init__(__self__, *,
+                 headers: Optional[pulumi.Input[_builtins.str]] = None,
+                 params: Optional[pulumi.Input[_builtins.str]] = None):
+        """
+        MergeStrategy configures the merge strategy for HTTP headers and parameters
+        that are included in all Vault authentication requests.
+        :param pulumi.Input[_builtins.str] headers: Headers configures the merge strategy for HTTP headers that are included in
+               all Vault requests. Choices are `union`, `replace`, or `none`.
+               
+               If `union` is set, the headers from the VaultAuthGlobal and VaultAuth
+               resources are merged. The headers from the VaultAuth always take precedence.
+               
+               If `replace` is set, the first set of non-empty headers taken in order from:
+               VaultAuth, VaultAuthGlobal auth method, VaultGlobal default headers.
+               
+               If `none` is set, the headers from the
+               VaultAuthGlobal resource are ignored and only the headers from the VaultAuth
+               resource are used. The default is `none`.
+        :param pulumi.Input[_builtins.str] params: Params configures the merge strategy for HTTP parameters that are included in
+               all Vault requests. Choices are `union`, `replace`, or `none`.
+               
+               If `union` is set, the parameters from the VaultAuthGlobal and VaultAuth
+               resources are merged. The parameters from the VaultAuth always take
+               precedence.
+               
+               If `replace` is set, the first set of non-empty parameters taken in order from:
+               VaultAuth, VaultAuthGlobal auth method, VaultGlobal default parameters.
+               
+               If `none` is set, the parameters from the VaultAuthGlobal resource are ignored
+               and only the parameters from the VaultAuth resource are used. The default is
+               `none`.
+        """
+        if headers is not None:
+            pulumi.set(__self__, "headers", headers)
+        if params is not None:
+            pulumi.set(__self__, "params", params)
+
+    @_builtins.property
+    @pulumi.getter
+    def headers(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Headers configures the merge strategy for HTTP headers that are included in
+        all Vault requests. Choices are `union`, `replace`, or `none`.
+
+        If `union` is set, the headers from the VaultAuthGlobal and VaultAuth
+        resources are merged. The headers from the VaultAuth always take precedence.
+
+        If `replace` is set, the first set of non-empty headers taken in order from:
+        VaultAuth, VaultAuthGlobal auth method, VaultGlobal default headers.
+
+        If `none` is set, the headers from the
+        VaultAuthGlobal resource are ignored and only the headers from the VaultAuth
+        resource are used. The default is `none`.
+        """
+        return pulumi.get(self, "headers")
+
+    @headers.setter
+    def headers(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "headers", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def params(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Params configures the merge strategy for HTTP parameters that are included in
+        all Vault requests. Choices are `union`, `replace`, or `none`.
+
+        If `union` is set, the parameters from the VaultAuthGlobal and VaultAuth
+        resources are merged. The parameters from the VaultAuth always take
+        precedence.
+
+        If `replace` is set, the first set of non-empty parameters taken in order from:
+        VaultAuth, VaultAuthGlobal auth method, VaultGlobal default parameters.
+
+        If `none` is set, the parameters from the VaultAuthGlobal resource are ignored
+        and only the parameters from the VaultAuth resource are used. The default is
+        `none`.
+        """
+        return pulumi.get(self, "params")
+
+    @params.setter
+    def params(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "params", value)
+
+
+if not MYPY:
+    class VaultAuthSpecVaultAuthGlobalRefMergeStrategyArgsDict(TypedDict):
+        """
+        MergeStrategy configures the merge strategy for HTTP headers and parameters
+        that are included in all Vault authentication requests.
+        """
+        headers: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Headers configures the merge strategy for HTTP headers that are included in
+        all Vault requests. Choices are `union`, `replace`, or `none`.
+
+        If `union` is set, the headers from the VaultAuthGlobal and VaultAuth
+        resources are merged. The headers from the VaultAuth always take precedence.
+
+        If `replace` is set, the first set of non-empty headers taken in order from:
+        VaultAuth, VaultAuthGlobal auth method, VaultGlobal default headers.
+
+        If `none` is set, the headers from the
+        VaultAuthGlobal resource are ignored and only the headers from the VaultAuth
+        resource are used. The default is `none`.
+        """
+        params: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Params configures the merge strategy for HTTP parameters that are included in
+        all Vault requests. Choices are `union`, `replace`, or `none`.
+
+        If `union` is set, the parameters from the VaultAuthGlobal and VaultAuth
+        resources are merged. The parameters from the VaultAuth always take
+        precedence.
+
+        If `replace` is set, the first set of non-empty parameters taken in order from:
+        VaultAuth, VaultAuthGlobal auth method, VaultGlobal default parameters.
+
+        If `none` is set, the parameters from the VaultAuthGlobal resource are ignored
+        and only the parameters from the VaultAuth resource are used. The default is
+        `none`.
+        """
+elif False:
+    VaultAuthSpecVaultAuthGlobalRefMergeStrategyArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultAuthSpecVaultAuthGlobalRefMergeStrategyArgs:
+    def __init__(__self__, *,
+                 headers: Optional[pulumi.Input[_builtins.str]] = None,
+                 params: Optional[pulumi.Input[_builtins.str]] = None):
+        """
+        MergeStrategy configures the merge strategy for HTTP headers and parameters
+        that are included in all Vault authentication requests.
+        :param pulumi.Input[_builtins.str] headers: Headers configures the merge strategy for HTTP headers that are included in
+               all Vault requests. Choices are `union`, `replace`, or `none`.
+               
+               If `union` is set, the headers from the VaultAuthGlobal and VaultAuth
+               resources are merged. The headers from the VaultAuth always take precedence.
+               
+               If `replace` is set, the first set of non-empty headers taken in order from:
+               VaultAuth, VaultAuthGlobal auth method, VaultGlobal default headers.
+               
+               If `none` is set, the headers from the
+               VaultAuthGlobal resource are ignored and only the headers from the VaultAuth
+               resource are used. The default is `none`.
+        :param pulumi.Input[_builtins.str] params: Params configures the merge strategy for HTTP parameters that are included in
+               all Vault requests. Choices are `union`, `replace`, or `none`.
+               
+               If `union` is set, the parameters from the VaultAuthGlobal and VaultAuth
+               resources are merged. The parameters from the VaultAuth always take
+               precedence.
+               
+               If `replace` is set, the first set of non-empty parameters taken in order from:
+               VaultAuth, VaultAuthGlobal auth method, VaultGlobal default parameters.
+               
+               If `none` is set, the parameters from the VaultAuthGlobal resource are ignored
+               and only the parameters from the VaultAuth resource are used. The default is
+               `none`.
+        """
+        if headers is not None:
+            pulumi.set(__self__, "headers", headers)
+        if params is not None:
+            pulumi.set(__self__, "params", params)
+
+    @_builtins.property
+    @pulumi.getter
+    def headers(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Headers configures the merge strategy for HTTP headers that are included in
+        all Vault requests. Choices are `union`, `replace`, or `none`.
+
+        If `union` is set, the headers from the VaultAuthGlobal and VaultAuth
+        resources are merged. The headers from the VaultAuth always take precedence.
+
+        If `replace` is set, the first set of non-empty headers taken in order from:
+        VaultAuth, VaultAuthGlobal auth method, VaultGlobal default headers.
+
+        If `none` is set, the headers from the
+        VaultAuthGlobal resource are ignored and only the headers from the VaultAuth
+        resource are used. The default is `none`.
+        """
+        return pulumi.get(self, "headers")
+
+    @headers.setter
+    def headers(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "headers", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def params(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Params configures the merge strategy for HTTP parameters that are included in
+        all Vault requests. Choices are `union`, `replace`, or `none`.
+
+        If `union` is set, the parameters from the VaultAuthGlobal and VaultAuth
+        resources are merged. The parameters from the VaultAuth always take
+        precedence.
+
+        If `replace` is set, the first set of non-empty parameters taken in order from:
+        VaultAuth, VaultAuthGlobal auth method, VaultGlobal default parameters.
+
+        If `none` is set, the parameters from the VaultAuthGlobal resource are ignored
+        and only the parameters from the VaultAuth resource are used. The default is
+        `none`.
+        """
+        return pulumi.get(self, "params")
+
+    @params.setter
+    def params(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "params", value)
+
+
+if not MYPY:
+    class VaultAuthSpecVaultAuthGlobalRefPatchArgsDict(TypedDict):
+        """
+        VaultAuthGlobalRef.
+        """
+        allow_default: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        AllowDefault when set to true will use the default VaultAuthGlobal resource
+        as the default if Name is not set. The 'allow-default-globals' option must be
+        set on the operator's '-global-vault-auth-options' flag
+
+        The default VaultAuthGlobal search is conditional.
+        When a ref Namespace is set, the search for the default
+        VaultAuthGlobal resource is constrained to that namespace.
+        Otherwise, the search order is:
+        1. The default VaultAuthGlobal resource in the referring VaultAuth resource's
+        namespace.
+        2. The default VaultAuthGlobal resource in the Operator's namespace.
+        """
+        merge_strategy: NotRequired[pulumi.Input['VaultAuthSpecVaultAuthGlobalRefMergeStrategyPatchArgsDict']]
+        name: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Name of the VaultAuthGlobal resource.
+        """
+        namespace: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Namespace of the VaultAuthGlobal resource. If not provided, the namespace of
+        the referring VaultAuth resource is used.
+        """
+elif False:
+    VaultAuthSpecVaultAuthGlobalRefPatchArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultAuthSpecVaultAuthGlobalRefPatchArgs:
+    def __init__(__self__, *,
+                 allow_default: Optional[pulumi.Input[_builtins.bool]] = None,
+                 merge_strategy: Optional[pulumi.Input['VaultAuthSpecVaultAuthGlobalRefMergeStrategyPatchArgs']] = None,
+                 name: Optional[pulumi.Input[_builtins.str]] = None,
+                 namespace: Optional[pulumi.Input[_builtins.str]] = None):
+        """
+        VaultAuthGlobalRef.
+        :param pulumi.Input[_builtins.bool] allow_default: AllowDefault when set to true will use the default VaultAuthGlobal resource
+               as the default if Name is not set. The 'allow-default-globals' option must be
+               set on the operator's '-global-vault-auth-options' flag
+               
+               The default VaultAuthGlobal search is conditional.
+               When a ref Namespace is set, the search for the default
+               VaultAuthGlobal resource is constrained to that namespace.
+               Otherwise, the search order is:
+               1. The default VaultAuthGlobal resource in the referring VaultAuth resource's
+               namespace.
+               2. The default VaultAuthGlobal resource in the Operator's namespace.
+        :param pulumi.Input[_builtins.str] name: Name of the VaultAuthGlobal resource.
+        :param pulumi.Input[_builtins.str] namespace: Namespace of the VaultAuthGlobal resource. If not provided, the namespace of
+               the referring VaultAuth resource is used.
+        """
+        if allow_default is not None:
+            pulumi.set(__self__, "allow_default", allow_default)
+        if merge_strategy is not None:
+            pulumi.set(__self__, "merge_strategy", merge_strategy)
+        if name is not None:
+            pulumi.set(__self__, "name", name)
+        if namespace is not None:
+            pulumi.set(__self__, "namespace", namespace)
+
+    @_builtins.property
+    @pulumi.getter(name="allowDefault")
+    def allow_default(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        AllowDefault when set to true will use the default VaultAuthGlobal resource
+        as the default if Name is not set. The 'allow-default-globals' option must be
+        set on the operator's '-global-vault-auth-options' flag
+
+        The default VaultAuthGlobal search is conditional.
+        When a ref Namespace is set, the search for the default
+        VaultAuthGlobal resource is constrained to that namespace.
+        Otherwise, the search order is:
+        1. The default VaultAuthGlobal resource in the referring VaultAuth resource's
+        namespace.
+        2. The default VaultAuthGlobal resource in the Operator's namespace.
+        """
+        return pulumi.get(self, "allow_default")
+
+    @allow_default.setter
+    def allow_default(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "allow_default", value)
+
+    @_builtins.property
+    @pulumi.getter(name="mergeStrategy")
+    def merge_strategy(self) -> Optional[pulumi.Input['VaultAuthSpecVaultAuthGlobalRefMergeStrategyPatchArgs']]:
+        return pulumi.get(self, "merge_strategy")
+
+    @merge_strategy.setter
+    def merge_strategy(self, value: Optional[pulumi.Input['VaultAuthSpecVaultAuthGlobalRefMergeStrategyPatchArgs']]):
+        pulumi.set(self, "merge_strategy", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def name(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Name of the VaultAuthGlobal resource.
+        """
+        return pulumi.get(self, "name")
+
+    @name.setter
+    def name(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "name", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def namespace(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Namespace of the VaultAuthGlobal resource. If not provided, the namespace of
+        the referring VaultAuth resource is used.
+        """
+        return pulumi.get(self, "namespace")
+
+    @namespace.setter
+    def namespace(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "namespace", value)
+
+
+if not MYPY:
+    class VaultAuthSpecVaultAuthGlobalRefArgsDict(TypedDict):
+        """
+        VaultAuthGlobalRef.
+        """
+        allow_default: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        AllowDefault when set to true will use the default VaultAuthGlobal resource
+        as the default if Name is not set. The 'allow-default-globals' option must be
+        set on the operator's '-global-vault-auth-options' flag
+
+        The default VaultAuthGlobal search is conditional.
+        When a ref Namespace is set, the search for the default
+        VaultAuthGlobal resource is constrained to that namespace.
+        Otherwise, the search order is:
+        1. The default VaultAuthGlobal resource in the referring VaultAuth resource's
+        namespace.
+        2. The default VaultAuthGlobal resource in the Operator's namespace.
+        """
+        merge_strategy: NotRequired[pulumi.Input['VaultAuthSpecVaultAuthGlobalRefMergeStrategyArgsDict']]
+        name: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Name of the VaultAuthGlobal resource.
+        """
+        namespace: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Namespace of the VaultAuthGlobal resource. If not provided, the namespace of
+        the referring VaultAuth resource is used.
+        """
+elif False:
+    VaultAuthSpecVaultAuthGlobalRefArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultAuthSpecVaultAuthGlobalRefArgs:
+    def __init__(__self__, *,
+                 allow_default: Optional[pulumi.Input[_builtins.bool]] = None,
+                 merge_strategy: Optional[pulumi.Input['VaultAuthSpecVaultAuthGlobalRefMergeStrategyArgs']] = None,
+                 name: Optional[pulumi.Input[_builtins.str]] = None,
+                 namespace: Optional[pulumi.Input[_builtins.str]] = None):
+        """
+        VaultAuthGlobalRef.
+        :param pulumi.Input[_builtins.bool] allow_default: AllowDefault when set to true will use the default VaultAuthGlobal resource
+               as the default if Name is not set. The 'allow-default-globals' option must be
+               set on the operator's '-global-vault-auth-options' flag
+               
+               The default VaultAuthGlobal search is conditional.
+               When a ref Namespace is set, the search for the default
+               VaultAuthGlobal resource is constrained to that namespace.
+               Otherwise, the search order is:
+               1. The default VaultAuthGlobal resource in the referring VaultAuth resource's
+               namespace.
+               2. The default VaultAuthGlobal resource in the Operator's namespace.
+        :param pulumi.Input[_builtins.str] name: Name of the VaultAuthGlobal resource.
+        :param pulumi.Input[_builtins.str] namespace: Namespace of the VaultAuthGlobal resource. If not provided, the namespace of
+               the referring VaultAuth resource is used.
+        """
+        if allow_default is not None:
+            pulumi.set(__self__, "allow_default", allow_default)
+        if merge_strategy is not None:
+            pulumi.set(__self__, "merge_strategy", merge_strategy)
+        if name is not None:
+            pulumi.set(__self__, "name", name)
+        if namespace is not None:
+            pulumi.set(__self__, "namespace", namespace)
+
+    @_builtins.property
+    @pulumi.getter(name="allowDefault")
+    def allow_default(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        AllowDefault when set to true will use the default VaultAuthGlobal resource
+        as the default if Name is not set. The 'allow-default-globals' option must be
+        set on the operator's '-global-vault-auth-options' flag
+
+        The default VaultAuthGlobal search is conditional.
+        When a ref Namespace is set, the search for the default
+        VaultAuthGlobal resource is constrained to that namespace.
+        Otherwise, the search order is:
+        1. The default VaultAuthGlobal resource in the referring VaultAuth resource's
+        namespace.
+        2. The default VaultAuthGlobal resource in the Operator's namespace.
+        """
+        return pulumi.get(self, "allow_default")
+
+    @allow_default.setter
+    def allow_default(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "allow_default", value)
+
+    @_builtins.property
+    @pulumi.getter(name="mergeStrategy")
+    def merge_strategy(self) -> Optional[pulumi.Input['VaultAuthSpecVaultAuthGlobalRefMergeStrategyArgs']]:
+        return pulumi.get(self, "merge_strategy")
+
+    @merge_strategy.setter
+    def merge_strategy(self, value: Optional[pulumi.Input['VaultAuthSpecVaultAuthGlobalRefMergeStrategyArgs']]):
+        pulumi.set(self, "merge_strategy", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def name(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Name of the VaultAuthGlobal resource.
+        """
+        return pulumi.get(self, "name")
+
+    @name.setter
+    def name(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "name", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def namespace(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Namespace of the VaultAuthGlobal resource. If not provided, the namespace of
+        the referring VaultAuth resource is used.
+        """
+        return pulumi.get(self, "namespace")
+
+    @namespace.setter
+    def namespace(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "namespace", value)
+
+
+if not MYPY:
     class VaultAuthSpecArgsDict(TypedDict):
         """
         VaultAuthSpec defines the desired state of VaultAuth
         """
         allowed_namespaces: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
         """
-        AllowedNamespaces Kubernetes Namespaces which are allow-listed for use with this AuthMethod. This field allows administrators to customize which Kubernetes namespaces are authorized to use with this AuthMethod. While Vault will still enforce its own rules, this has the added configurability of restricting which VaultAuthMethods can be used by which namespaces. Accepted values: []{"*"} - wildcard, all namespaces. []{"a", "b"} - list of namespaces. unset - disallow all namespaces except the Operator's the VaultAuthMethod's namespace, this is the default behavior.
+        AllowedNamespaces Kubernetes Namespaces which are allow-listed for use with this AuthMethod.
+        This field allows administrators to customize which Kubernetes namespaces are authorized to
+        use with this AuthMethod. While Vault will still enforce its own rules, this has the added
+        configurability of restricting which VaultAuthMethods can be used by which namespaces.
+        You only need to set allowedNamespaces when you want to control access from a resource in
+        a different namespace than the VaultAuth it references. Secret resources in
+        the same namespace as the VaultAuth bypass this check.
+        Accepted values:
+        []{"*"} - wildcard, all namespaces.
+        []{"a", "b"} - list of namespaces.
+        unset - disallow all namespaces except the Operator's the VaultAuthMethod's namespace, this
+        is the default behavior.
         """
         app_role: NotRequired[pulumi.Input['VaultAuthSpecAppRoleArgsDict']]
         aws: NotRequired[pulumi.Input['VaultAuthSpecAwsArgsDict']]
+        gcp: NotRequired[pulumi.Input['VaultAuthSpecGcpArgsDict']]
         headers: NotRequired[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]
         """
         Headers to be included in all Vault requests.
@@ -1363,9 +2419,13 @@ if not MYPY:
         Params to use when authenticating to Vault
         """
         storage_encryption: NotRequired[pulumi.Input['VaultAuthSpecStorageEncryptionArgsDict']]
+        vault_auth_global_ref: NotRequired[pulumi.Input['VaultAuthSpecVaultAuthGlobalRefArgsDict']]
         vault_connection_ref: NotRequired[pulumi.Input[_builtins.str]]
         """
-        VaultConnectionRef to the VaultConnection resource, can be prefixed with a namespace, eg: `namespaceA/vaultConnectionRefB`. If no namespace prefix is provided it will default to namespace of the VaultConnection CR. If no value is specified for VaultConnectionRef the Operator will default to	`default` VaultConnection, configured in its own Kubernetes namespace.
+        VaultConnectionRef to the VaultConnection resource, can be prefixed with a namespace,
+        eg: `namespaceA/vaultConnectionRefB`. If no namespace prefix is provided it will default to
+        the namespace of the VaultConnection CR. If no value is specified for VaultConnectionRef the
+        Operator will default to the `default` VaultConnection, configured in the operator's namespace.
         """
 elif False:
     VaultAuthSpecArgsDict: TypeAlias = Mapping[str, Any]
@@ -1376,6 +2436,7 @@ class VaultAuthSpecArgs:
                  allowed_namespaces: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
                  app_role: Optional[pulumi.Input['VaultAuthSpecAppRoleArgs']] = None,
                  aws: Optional[pulumi.Input['VaultAuthSpecAwsArgs']] = None,
+                 gcp: Optional[pulumi.Input['VaultAuthSpecGcpArgs']] = None,
                  headers: Optional[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]] = None,
                  jwt: Optional[pulumi.Input['VaultAuthSpecJwtArgs']] = None,
                  kubernetes: Optional[pulumi.Input['VaultAuthSpecKubernetesArgs']] = None,
@@ -1384,16 +2445,31 @@ class VaultAuthSpecArgs:
                  namespace: Optional[pulumi.Input[_builtins.str]] = None,
                  params: Optional[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]] = None,
                  storage_encryption: Optional[pulumi.Input['VaultAuthSpecStorageEncryptionArgs']] = None,
+                 vault_auth_global_ref: Optional[pulumi.Input['VaultAuthSpecVaultAuthGlobalRefArgs']] = None,
                  vault_connection_ref: Optional[pulumi.Input[_builtins.str]] = None):
         """
         VaultAuthSpec defines the desired state of VaultAuth
-        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] allowed_namespaces: AllowedNamespaces Kubernetes Namespaces which are allow-listed for use with this AuthMethod. This field allows administrators to customize which Kubernetes namespaces are authorized to use with this AuthMethod. While Vault will still enforce its own rules, this has the added configurability of restricting which VaultAuthMethods can be used by which namespaces. Accepted values: []{"*"} - wildcard, all namespaces. []{"a", "b"} - list of namespaces. unset - disallow all namespaces except the Operator's the VaultAuthMethod's namespace, this is the default behavior.
+        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] allowed_namespaces: AllowedNamespaces Kubernetes Namespaces which are allow-listed for use with this AuthMethod.
+               This field allows administrators to customize which Kubernetes namespaces are authorized to
+               use with this AuthMethod. While Vault will still enforce its own rules, this has the added
+               configurability of restricting which VaultAuthMethods can be used by which namespaces.
+               You only need to set allowedNamespaces when you want to control access from a resource in
+               a different namespace than the VaultAuth it references. Secret resources in
+               the same namespace as the VaultAuth bypass this check.
+               Accepted values:
+               []{"*"} - wildcard, all namespaces.
+               []{"a", "b"} - list of namespaces.
+               unset - disallow all namespaces except the Operator's the VaultAuthMethod's namespace, this
+               is the default behavior.
         :param pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]] headers: Headers to be included in all Vault requests.
         :param pulumi.Input[_builtins.str] method: Method to use when authenticating to Vault.
         :param pulumi.Input[_builtins.str] mount: Mount to use when authenticating to auth method.
         :param pulumi.Input[_builtins.str] namespace: Namespace to auth to in Vault
         :param pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]] params: Params to use when authenticating to Vault
-        :param pulumi.Input[_builtins.str] vault_connection_ref: VaultConnectionRef to the VaultConnection resource, can be prefixed with a namespace, eg: `namespaceA/vaultConnectionRefB`. If no namespace prefix is provided it will default to namespace of the VaultConnection CR. If no value is specified for VaultConnectionRef the Operator will default to	`default` VaultConnection, configured in its own Kubernetes namespace.
+        :param pulumi.Input[_builtins.str] vault_connection_ref: VaultConnectionRef to the VaultConnection resource, can be prefixed with a namespace,
+               eg: `namespaceA/vaultConnectionRefB`. If no namespace prefix is provided it will default to
+               the namespace of the VaultConnection CR. If no value is specified for VaultConnectionRef the
+               Operator will default to the `default` VaultConnection, configured in the operator's namespace.
         """
         if allowed_namespaces is not None:
             pulumi.set(__self__, "allowed_namespaces", allowed_namespaces)
@@ -1401,6 +2477,8 @@ class VaultAuthSpecArgs:
             pulumi.set(__self__, "app_role", app_role)
         if aws is not None:
             pulumi.set(__self__, "aws", aws)
+        if gcp is not None:
+            pulumi.set(__self__, "gcp", gcp)
         if headers is not None:
             pulumi.set(__self__, "headers", headers)
         if jwt is not None:
@@ -1417,6 +2495,8 @@ class VaultAuthSpecArgs:
             pulumi.set(__self__, "params", params)
         if storage_encryption is not None:
             pulumi.set(__self__, "storage_encryption", storage_encryption)
+        if vault_auth_global_ref is not None:
+            pulumi.set(__self__, "vault_auth_global_ref", vault_auth_global_ref)
         if vault_connection_ref is not None:
             pulumi.set(__self__, "vault_connection_ref", vault_connection_ref)
 
@@ -1424,7 +2504,18 @@ class VaultAuthSpecArgs:
     @pulumi.getter(name="allowedNamespaces")
     def allowed_namespaces(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
         """
-        AllowedNamespaces Kubernetes Namespaces which are allow-listed for use with this AuthMethod. This field allows administrators to customize which Kubernetes namespaces are authorized to use with this AuthMethod. While Vault will still enforce its own rules, this has the added configurability of restricting which VaultAuthMethods can be used by which namespaces. Accepted values: []{"*"} - wildcard, all namespaces. []{"a", "b"} - list of namespaces. unset - disallow all namespaces except the Operator's the VaultAuthMethod's namespace, this is the default behavior.
+        AllowedNamespaces Kubernetes Namespaces which are allow-listed for use with this AuthMethod.
+        This field allows administrators to customize which Kubernetes namespaces are authorized to
+        use with this AuthMethod. While Vault will still enforce its own rules, this has the added
+        configurability of restricting which VaultAuthMethods can be used by which namespaces.
+        You only need to set allowedNamespaces when you want to control access from a resource in
+        a different namespace than the VaultAuth it references. Secret resources in
+        the same namespace as the VaultAuth bypass this check.
+        Accepted values:
+        []{"*"} - wildcard, all namespaces.
+        []{"a", "b"} - list of namespaces.
+        unset - disallow all namespaces except the Operator's the VaultAuthMethod's namespace, this
+        is the default behavior.
         """
         return pulumi.get(self, "allowed_namespaces")
 
@@ -1449,6 +2540,15 @@ class VaultAuthSpecArgs:
     @aws.setter
     def aws(self, value: Optional[pulumi.Input['VaultAuthSpecAwsArgs']]):
         pulumi.set(self, "aws", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def gcp(self) -> Optional[pulumi.Input['VaultAuthSpecGcpArgs']]:
+        return pulumi.get(self, "gcp")
+
+    @gcp.setter
+    def gcp(self, value: Optional[pulumi.Input['VaultAuthSpecGcpArgs']]):
+        pulumi.set(self, "gcp", value)
 
     @_builtins.property
     @pulumi.getter
@@ -1538,10 +2638,22 @@ class VaultAuthSpecArgs:
         pulumi.set(self, "storage_encryption", value)
 
     @_builtins.property
+    @pulumi.getter(name="vaultAuthGlobalRef")
+    def vault_auth_global_ref(self) -> Optional[pulumi.Input['VaultAuthSpecVaultAuthGlobalRefArgs']]:
+        return pulumi.get(self, "vault_auth_global_ref")
+
+    @vault_auth_global_ref.setter
+    def vault_auth_global_ref(self, value: Optional[pulumi.Input['VaultAuthSpecVaultAuthGlobalRefArgs']]):
+        pulumi.set(self, "vault_auth_global_ref", value)
+
+    @_builtins.property
     @pulumi.getter(name="vaultConnectionRef")
     def vault_connection_ref(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        VaultConnectionRef to the VaultConnection resource, can be prefixed with a namespace, eg: `namespaceA/vaultConnectionRefB`. If no namespace prefix is provided it will default to namespace of the VaultConnection CR. If no value is specified for VaultConnectionRef the Operator will default to	`default` VaultConnection, configured in its own Kubernetes namespace.
+        VaultConnectionRef to the VaultConnection resource, can be prefixed with a namespace,
+        eg: `namespaceA/vaultConnectionRefB`. If no namespace prefix is provided it will default to
+        the namespace of the VaultConnection CR. If no value is specified for VaultConnectionRef the
+        Operator will default to the `default` VaultConnection, configured in the operator's namespace.
         """
         return pulumi.get(self, "vault_connection_ref")
 
@@ -1551,11 +2663,183 @@ class VaultAuthSpecArgs:
 
 
 if not MYPY:
+    class VaultAuthStatusConditionsArgsDict(TypedDict):
+        """
+        Condition contains details for one aspect of the current state of this API Resource.
+        """
+        last_transition_time: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        lastTransitionTime is the last time the condition transitioned from one status to another.
+        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+        """
+        message: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        message is a human readable message indicating details about the transition.
+        This may be an empty string.
+        """
+        observed_generation: NotRequired[pulumi.Input[_builtins.int]]
+        """
+        observedGeneration represents the .metadata.generation that the condition was set based upon.
+        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+        with respect to the current state of the instance.
+        """
+        reason: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+        Producers of specific condition types may define expected values and meanings for this field,
+        and whether the values are considered a guaranteed API.
+        The value should be a CamelCase string.
+        This field may not be empty.
+        """
+        status: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        status of the condition, one of True, False, Unknown.
+        """
+        type: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        type of condition in CamelCase or in foo.example.com/CamelCase.
+        """
+elif False:
+    VaultAuthStatusConditionsArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultAuthStatusConditionsArgs:
+    def __init__(__self__, *,
+                 last_transition_time: Optional[pulumi.Input[_builtins.str]] = None,
+                 message: Optional[pulumi.Input[_builtins.str]] = None,
+                 observed_generation: Optional[pulumi.Input[_builtins.int]] = None,
+                 reason: Optional[pulumi.Input[_builtins.str]] = None,
+                 status: Optional[pulumi.Input[_builtins.str]] = None,
+                 type: Optional[pulumi.Input[_builtins.str]] = None):
+        """
+        Condition contains details for one aspect of the current state of this API Resource.
+        :param pulumi.Input[_builtins.str] last_transition_time: lastTransitionTime is the last time the condition transitioned from one status to another.
+               This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+        :param pulumi.Input[_builtins.str] message: message is a human readable message indicating details about the transition.
+               This may be an empty string.
+        :param pulumi.Input[_builtins.int] observed_generation: observedGeneration represents the .metadata.generation that the condition was set based upon.
+               For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+               with respect to the current state of the instance.
+        :param pulumi.Input[_builtins.str] reason: reason contains a programmatic identifier indicating the reason for the condition's last transition.
+               Producers of specific condition types may define expected values and meanings for this field,
+               and whether the values are considered a guaranteed API.
+               The value should be a CamelCase string.
+               This field may not be empty.
+        :param pulumi.Input[_builtins.str] status: status of the condition, one of True, False, Unknown.
+        :param pulumi.Input[_builtins.str] type: type of condition in CamelCase or in foo.example.com/CamelCase.
+        """
+        if last_transition_time is not None:
+            pulumi.set(__self__, "last_transition_time", last_transition_time)
+        if message is not None:
+            pulumi.set(__self__, "message", message)
+        if observed_generation is not None:
+            pulumi.set(__self__, "observed_generation", observed_generation)
+        if reason is not None:
+            pulumi.set(__self__, "reason", reason)
+        if status is not None:
+            pulumi.set(__self__, "status", status)
+        if type is not None:
+            pulumi.set(__self__, "type", type)
+
+    @_builtins.property
+    @pulumi.getter(name="lastTransitionTime")
+    def last_transition_time(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        lastTransitionTime is the last time the condition transitioned from one status to another.
+        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+        """
+        return pulumi.get(self, "last_transition_time")
+
+    @last_transition_time.setter
+    def last_transition_time(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "last_transition_time", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def message(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        message is a human readable message indicating details about the transition.
+        This may be an empty string.
+        """
+        return pulumi.get(self, "message")
+
+    @message.setter
+    def message(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "message", value)
+
+    @_builtins.property
+    @pulumi.getter(name="observedGeneration")
+    def observed_generation(self) -> Optional[pulumi.Input[_builtins.int]]:
+        """
+        observedGeneration represents the .metadata.generation that the condition was set based upon.
+        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+        with respect to the current state of the instance.
+        """
+        return pulumi.get(self, "observed_generation")
+
+    @observed_generation.setter
+    def observed_generation(self, value: Optional[pulumi.Input[_builtins.int]]):
+        pulumi.set(self, "observed_generation", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def reason(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+        Producers of specific condition types may define expected values and meanings for this field,
+        and whether the values are considered a guaranteed API.
+        The value should be a CamelCase string.
+        This field may not be empty.
+        """
+        return pulumi.get(self, "reason")
+
+    @reason.setter
+    def reason(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "reason", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def status(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        status of the condition, one of True, False, Unknown.
+        """
+        return pulumi.get(self, "status")
+
+    @status.setter
+    def status(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "status", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def type(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        type of condition in CamelCase or in foo.example.com/CamelCase.
+        """
+        return pulumi.get(self, "type")
+
+    @type.setter
+    def type(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "type", value)
+
+
+if not MYPY:
     class VaultAuthStatusArgsDict(TypedDict):
         """
         VaultAuthStatus defines the observed state of VaultAuth
         """
+        conditions: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultAuthStatusConditionsArgsDict']]]]
+        """
+        Conditions hold information that can be used by other apps to determine the
+        health of the resource instance.
+        """
         error: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Error is a human-readable error message indicating why the VaultAuth is invalid.
+        """
+        spec_hash: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        SpecHash is a SHA256 hash of the spec, used to determine if the spec has changed.
+        """
         valid: NotRequired[pulumi.Input[_builtins.bool]]
         """
         Valid auth mechanism.
@@ -1566,25 +2850,63 @@ elif False:
 @pulumi.input_type
 class VaultAuthStatusArgs:
     def __init__(__self__, *,
+                 conditions: Optional[pulumi.Input[Sequence[pulumi.Input['VaultAuthStatusConditionsArgs']]]] = None,
                  error: Optional[pulumi.Input[_builtins.str]] = None,
+                 spec_hash: Optional[pulumi.Input[_builtins.str]] = None,
                  valid: Optional[pulumi.Input[_builtins.bool]] = None):
         """
         VaultAuthStatus defines the observed state of VaultAuth
+        :param pulumi.Input[Sequence[pulumi.Input['VaultAuthStatusConditionsArgs']]] conditions: Conditions hold information that can be used by other apps to determine the
+               health of the resource instance.
+        :param pulumi.Input[_builtins.str] error: Error is a human-readable error message indicating why the VaultAuth is invalid.
+        :param pulumi.Input[_builtins.str] spec_hash: SpecHash is a SHA256 hash of the spec, used to determine if the spec has changed.
         :param pulumi.Input[_builtins.bool] valid: Valid auth mechanism.
         """
+        if conditions is not None:
+            pulumi.set(__self__, "conditions", conditions)
         if error is not None:
             pulumi.set(__self__, "error", error)
+        if spec_hash is not None:
+            pulumi.set(__self__, "spec_hash", spec_hash)
         if valid is not None:
             pulumi.set(__self__, "valid", valid)
 
     @_builtins.property
     @pulumi.getter
+    def conditions(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultAuthStatusConditionsArgs']]]]:
+        """
+        Conditions hold information that can be used by other apps to determine the
+        health of the resource instance.
+        """
+        return pulumi.get(self, "conditions")
+
+    @conditions.setter
+    def conditions(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['VaultAuthStatusConditionsArgs']]]]):
+        pulumi.set(self, "conditions", value)
+
+    @_builtins.property
+    @pulumi.getter
     def error(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Error is a human-readable error message indicating why the VaultAuth is invalid.
+        """
         return pulumi.get(self, "error")
 
     @error.setter
     def error(self, value: Optional[pulumi.Input[_builtins.str]]):
         pulumi.set(self, "error", value)
+
+    @_builtins.property
+    @pulumi.getter(name="specHash")
+    def spec_hash(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        SpecHash is a SHA256 hash of the spec, used to determine if the spec has changed.
+        """
+        return pulumi.get(self, "spec_hash")
+
+    @spec_hash.setter
+    def spec_hash(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "spec_hash", value)
 
     @_builtins.property
     @pulumi.getter
@@ -1710,9 +3032,16 @@ if not MYPY:
         """
         Address of the Vault server
         """
+        ca_cert_path: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        CACertPath is the path to a trusted PEM-encoded CA certificate file on the filesystem that can be used to validate
+        the certificate presented by the Vault server.
+        CACertPath and CACertSecretRef are mutually exclusive, and only one should be specified.
+        """
         ca_cert_secret_ref: NotRequired[pulumi.Input[_builtins.str]]
         """
         CACertSecretRef is the name of a Kubernetes secret containing the trusted PEM encoded CA certificate chain as `ca.crt`.
+        CACertPath and CACertSecretRef are mutually exclusive, and only one should be specified.
         """
         headers: NotRequired[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]
         """
@@ -1721,6 +3050,11 @@ if not MYPY:
         skip_tls_verify: NotRequired[pulumi.Input[_builtins.bool]]
         """
         SkipTLSVerify for TLS connections.
+        """
+        timeout: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Timeout applied to all Vault requests for this connection. If not set, the
+        default timeout from the Vault API client config is used.
         """
         tls_server_name: NotRequired[pulumi.Input[_builtins.str]]
         """
@@ -1733,26 +3067,38 @@ elif False:
 class VaultConnectionSpecPatchArgs:
     def __init__(__self__, *,
                  address: Optional[pulumi.Input[_builtins.str]] = None,
+                 ca_cert_path: Optional[pulumi.Input[_builtins.str]] = None,
                  ca_cert_secret_ref: Optional[pulumi.Input[_builtins.str]] = None,
                  headers: Optional[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]] = None,
                  skip_tls_verify: Optional[pulumi.Input[_builtins.bool]] = None,
+                 timeout: Optional[pulumi.Input[_builtins.str]] = None,
                  tls_server_name: Optional[pulumi.Input[_builtins.str]] = None):
         """
         VaultConnectionSpec defines the desired state of VaultConnection
         :param pulumi.Input[_builtins.str] address: Address of the Vault server
+        :param pulumi.Input[_builtins.str] ca_cert_path: CACertPath is the path to a trusted PEM-encoded CA certificate file on the filesystem that can be used to validate
+               the certificate presented by the Vault server.
+               CACertPath and CACertSecretRef are mutually exclusive, and only one should be specified.
         :param pulumi.Input[_builtins.str] ca_cert_secret_ref: CACertSecretRef is the name of a Kubernetes secret containing the trusted PEM encoded CA certificate chain as `ca.crt`.
+               CACertPath and CACertSecretRef are mutually exclusive, and only one should be specified.
         :param pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]] headers: Headers to be included in all Vault requests.
         :param pulumi.Input[_builtins.bool] skip_tls_verify: SkipTLSVerify for TLS connections.
+        :param pulumi.Input[_builtins.str] timeout: Timeout applied to all Vault requests for this connection. If not set, the
+               default timeout from the Vault API client config is used.
         :param pulumi.Input[_builtins.str] tls_server_name: TLSServerName to use as the SNI host for TLS connections.
         """
         if address is not None:
             pulumi.set(__self__, "address", address)
+        if ca_cert_path is not None:
+            pulumi.set(__self__, "ca_cert_path", ca_cert_path)
         if ca_cert_secret_ref is not None:
             pulumi.set(__self__, "ca_cert_secret_ref", ca_cert_secret_ref)
         if headers is not None:
             pulumi.set(__self__, "headers", headers)
         if skip_tls_verify is not None:
             pulumi.set(__self__, "skip_tls_verify", skip_tls_verify)
+        if timeout is not None:
+            pulumi.set(__self__, "timeout", timeout)
         if tls_server_name is not None:
             pulumi.set(__self__, "tls_server_name", tls_server_name)
 
@@ -1769,10 +3115,25 @@ class VaultConnectionSpecPatchArgs:
         pulumi.set(self, "address", value)
 
     @_builtins.property
+    @pulumi.getter(name="caCertPath")
+    def ca_cert_path(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        CACertPath is the path to a trusted PEM-encoded CA certificate file on the filesystem that can be used to validate
+        the certificate presented by the Vault server.
+        CACertPath and CACertSecretRef are mutually exclusive, and only one should be specified.
+        """
+        return pulumi.get(self, "ca_cert_path")
+
+    @ca_cert_path.setter
+    def ca_cert_path(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "ca_cert_path", value)
+
+    @_builtins.property
     @pulumi.getter(name="caCertSecretRef")
     def ca_cert_secret_ref(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
         CACertSecretRef is the name of a Kubernetes secret containing the trusted PEM encoded CA certificate chain as `ca.crt`.
+        CACertPath and CACertSecretRef are mutually exclusive, and only one should be specified.
         """
         return pulumi.get(self, "ca_cert_secret_ref")
 
@@ -1803,6 +3164,19 @@ class VaultConnectionSpecPatchArgs:
     @skip_tls_verify.setter
     def skip_tls_verify(self, value: Optional[pulumi.Input[_builtins.bool]]):
         pulumi.set(self, "skip_tls_verify", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def timeout(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Timeout applied to all Vault requests for this connection. If not set, the
+        default timeout from the Vault API client config is used.
+        """
+        return pulumi.get(self, "timeout")
+
+    @timeout.setter
+    def timeout(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "timeout", value)
 
     @_builtins.property
     @pulumi.getter(name="tlsServerName")
@@ -1826,9 +3200,16 @@ if not MYPY:
         """
         Address of the Vault server
         """
+        ca_cert_path: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        CACertPath is the path to a trusted PEM-encoded CA certificate file on the filesystem that can be used to validate
+        the certificate presented by the Vault server.
+        CACertPath and CACertSecretRef are mutually exclusive, and only one should be specified.
+        """
         ca_cert_secret_ref: NotRequired[pulumi.Input[_builtins.str]]
         """
         CACertSecretRef is the name of a Kubernetes secret containing the trusted PEM encoded CA certificate chain as `ca.crt`.
+        CACertPath and CACertSecretRef are mutually exclusive, and only one should be specified.
         """
         headers: NotRequired[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]
         """
@@ -1837,6 +3218,11 @@ if not MYPY:
         skip_tls_verify: NotRequired[pulumi.Input[_builtins.bool]]
         """
         SkipTLSVerify for TLS connections.
+        """
+        timeout: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Timeout applied to all Vault requests for this connection. If not set, the
+        default timeout from the Vault API client config is used.
         """
         tls_server_name: NotRequired[pulumi.Input[_builtins.str]]
         """
@@ -1849,26 +3235,38 @@ elif False:
 class VaultConnectionSpecArgs:
     def __init__(__self__, *,
                  address: Optional[pulumi.Input[_builtins.str]] = None,
+                 ca_cert_path: Optional[pulumi.Input[_builtins.str]] = None,
                  ca_cert_secret_ref: Optional[pulumi.Input[_builtins.str]] = None,
                  headers: Optional[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]] = None,
                  skip_tls_verify: Optional[pulumi.Input[_builtins.bool]] = None,
+                 timeout: Optional[pulumi.Input[_builtins.str]] = None,
                  tls_server_name: Optional[pulumi.Input[_builtins.str]] = None):
         """
         VaultConnectionSpec defines the desired state of VaultConnection
         :param pulumi.Input[_builtins.str] address: Address of the Vault server
+        :param pulumi.Input[_builtins.str] ca_cert_path: CACertPath is the path to a trusted PEM-encoded CA certificate file on the filesystem that can be used to validate
+               the certificate presented by the Vault server.
+               CACertPath and CACertSecretRef are mutually exclusive, and only one should be specified.
         :param pulumi.Input[_builtins.str] ca_cert_secret_ref: CACertSecretRef is the name of a Kubernetes secret containing the trusted PEM encoded CA certificate chain as `ca.crt`.
+               CACertPath and CACertSecretRef are mutually exclusive, and only one should be specified.
         :param pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]] headers: Headers to be included in all Vault requests.
         :param pulumi.Input[_builtins.bool] skip_tls_verify: SkipTLSVerify for TLS connections.
+        :param pulumi.Input[_builtins.str] timeout: Timeout applied to all Vault requests for this connection. If not set, the
+               default timeout from the Vault API client config is used.
         :param pulumi.Input[_builtins.str] tls_server_name: TLSServerName to use as the SNI host for TLS connections.
         """
         if address is not None:
             pulumi.set(__self__, "address", address)
+        if ca_cert_path is not None:
+            pulumi.set(__self__, "ca_cert_path", ca_cert_path)
         if ca_cert_secret_ref is not None:
             pulumi.set(__self__, "ca_cert_secret_ref", ca_cert_secret_ref)
         if headers is not None:
             pulumi.set(__self__, "headers", headers)
         if skip_tls_verify is not None:
             pulumi.set(__self__, "skip_tls_verify", skip_tls_verify)
+        if timeout is not None:
+            pulumi.set(__self__, "timeout", timeout)
         if tls_server_name is not None:
             pulumi.set(__self__, "tls_server_name", tls_server_name)
 
@@ -1885,10 +3283,25 @@ class VaultConnectionSpecArgs:
         pulumi.set(self, "address", value)
 
     @_builtins.property
+    @pulumi.getter(name="caCertPath")
+    def ca_cert_path(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        CACertPath is the path to a trusted PEM-encoded CA certificate file on the filesystem that can be used to validate
+        the certificate presented by the Vault server.
+        CACertPath and CACertSecretRef are mutually exclusive, and only one should be specified.
+        """
+        return pulumi.get(self, "ca_cert_path")
+
+    @ca_cert_path.setter
+    def ca_cert_path(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "ca_cert_path", value)
+
+    @_builtins.property
     @pulumi.getter(name="caCertSecretRef")
     def ca_cert_secret_ref(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
         CACertSecretRef is the name of a Kubernetes secret containing the trusted PEM encoded CA certificate chain as `ca.crt`.
+        CACertPath and CACertSecretRef are mutually exclusive, and only one should be specified.
         """
         return pulumi.get(self, "ca_cert_secret_ref")
 
@@ -1921,6 +3334,19 @@ class VaultConnectionSpecArgs:
         pulumi.set(self, "skip_tls_verify", value)
 
     @_builtins.property
+    @pulumi.getter
+    def timeout(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Timeout applied to all Vault requests for this connection. If not set, the
+        default timeout from the Vault API client config is used.
+        """
+        return pulumi.get(self, "timeout")
+
+    @timeout.setter
+    def timeout(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "timeout", value)
+
+    @_builtins.property
     @pulumi.getter(name="tlsServerName")
     def tls_server_name(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
@@ -1934,9 +3360,174 @@ class VaultConnectionSpecArgs:
 
 
 if not MYPY:
+    class VaultConnectionStatusConditionsArgsDict(TypedDict):
+        """
+        Condition contains details for one aspect of the current state of this API Resource.
+        """
+        last_transition_time: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        lastTransitionTime is the last time the condition transitioned from one status to another.
+        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+        """
+        message: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        message is a human readable message indicating details about the transition.
+        This may be an empty string.
+        """
+        observed_generation: NotRequired[pulumi.Input[_builtins.int]]
+        """
+        observedGeneration represents the .metadata.generation that the condition was set based upon.
+        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+        with respect to the current state of the instance.
+        """
+        reason: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+        Producers of specific condition types may define expected values and meanings for this field,
+        and whether the values are considered a guaranteed API.
+        The value should be a CamelCase string.
+        This field may not be empty.
+        """
+        status: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        status of the condition, one of True, False, Unknown.
+        """
+        type: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        type of condition in CamelCase or in foo.example.com/CamelCase.
+        """
+elif False:
+    VaultConnectionStatusConditionsArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultConnectionStatusConditionsArgs:
+    def __init__(__self__, *,
+                 last_transition_time: Optional[pulumi.Input[_builtins.str]] = None,
+                 message: Optional[pulumi.Input[_builtins.str]] = None,
+                 observed_generation: Optional[pulumi.Input[_builtins.int]] = None,
+                 reason: Optional[pulumi.Input[_builtins.str]] = None,
+                 status: Optional[pulumi.Input[_builtins.str]] = None,
+                 type: Optional[pulumi.Input[_builtins.str]] = None):
+        """
+        Condition contains details for one aspect of the current state of this API Resource.
+        :param pulumi.Input[_builtins.str] last_transition_time: lastTransitionTime is the last time the condition transitioned from one status to another.
+               This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+        :param pulumi.Input[_builtins.str] message: message is a human readable message indicating details about the transition.
+               This may be an empty string.
+        :param pulumi.Input[_builtins.int] observed_generation: observedGeneration represents the .metadata.generation that the condition was set based upon.
+               For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+               with respect to the current state of the instance.
+        :param pulumi.Input[_builtins.str] reason: reason contains a programmatic identifier indicating the reason for the condition's last transition.
+               Producers of specific condition types may define expected values and meanings for this field,
+               and whether the values are considered a guaranteed API.
+               The value should be a CamelCase string.
+               This field may not be empty.
+        :param pulumi.Input[_builtins.str] status: status of the condition, one of True, False, Unknown.
+        :param pulumi.Input[_builtins.str] type: type of condition in CamelCase or in foo.example.com/CamelCase.
+        """
+        if last_transition_time is not None:
+            pulumi.set(__self__, "last_transition_time", last_transition_time)
+        if message is not None:
+            pulumi.set(__self__, "message", message)
+        if observed_generation is not None:
+            pulumi.set(__self__, "observed_generation", observed_generation)
+        if reason is not None:
+            pulumi.set(__self__, "reason", reason)
+        if status is not None:
+            pulumi.set(__self__, "status", status)
+        if type is not None:
+            pulumi.set(__self__, "type", type)
+
+    @_builtins.property
+    @pulumi.getter(name="lastTransitionTime")
+    def last_transition_time(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        lastTransitionTime is the last time the condition transitioned from one status to another.
+        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+        """
+        return pulumi.get(self, "last_transition_time")
+
+    @last_transition_time.setter
+    def last_transition_time(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "last_transition_time", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def message(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        message is a human readable message indicating details about the transition.
+        This may be an empty string.
+        """
+        return pulumi.get(self, "message")
+
+    @message.setter
+    def message(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "message", value)
+
+    @_builtins.property
+    @pulumi.getter(name="observedGeneration")
+    def observed_generation(self) -> Optional[pulumi.Input[_builtins.int]]:
+        """
+        observedGeneration represents the .metadata.generation that the condition was set based upon.
+        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+        with respect to the current state of the instance.
+        """
+        return pulumi.get(self, "observed_generation")
+
+    @observed_generation.setter
+    def observed_generation(self, value: Optional[pulumi.Input[_builtins.int]]):
+        pulumi.set(self, "observed_generation", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def reason(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+        Producers of specific condition types may define expected values and meanings for this field,
+        and whether the values are considered a guaranteed API.
+        The value should be a CamelCase string.
+        This field may not be empty.
+        """
+        return pulumi.get(self, "reason")
+
+    @reason.setter
+    def reason(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "reason", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def status(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        status of the condition, one of True, False, Unknown.
+        """
+        return pulumi.get(self, "status")
+
+    @status.setter
+    def status(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "status", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def type(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        type of condition in CamelCase or in foo.example.com/CamelCase.
+        """
+        return pulumi.get(self, "type")
+
+    @type.setter
+    def type(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "type", value)
+
+
+if not MYPY:
     class VaultConnectionStatusArgsDict(TypedDict):
         """
         VaultConnectionStatus defines the observed state of VaultConnection
+        """
+        conditions: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultConnectionStatusConditionsArgsDict']]]]
+        """
+        Conditions hold information that can be used by other apps to determine the
+        health of the resource instance.
         """
         valid: NotRequired[pulumi.Input[_builtins.bool]]
         """
@@ -1948,13 +3539,31 @@ elif False:
 @pulumi.input_type
 class VaultConnectionStatusArgs:
     def __init__(__self__, *,
+                 conditions: Optional[pulumi.Input[Sequence[pulumi.Input['VaultConnectionStatusConditionsArgs']]]] = None,
                  valid: Optional[pulumi.Input[_builtins.bool]] = None):
         """
         VaultConnectionStatus defines the observed state of VaultConnection
+        :param pulumi.Input[Sequence[pulumi.Input['VaultConnectionStatusConditionsArgs']]] conditions: Conditions hold information that can be used by other apps to determine the
+               health of the resource instance.
         :param pulumi.Input[_builtins.bool] valid: Valid auth mechanism.
         """
+        if conditions is not None:
+            pulumi.set(__self__, "conditions", conditions)
         if valid is not None:
             pulumi.set(__self__, "valid", valid)
+
+    @_builtins.property
+    @pulumi.getter
+    def conditions(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultConnectionStatusConditionsArgs']]]]:
+        """
+        Conditions hold information that can be used by other apps to determine the
+        health of the resource instance.
+        """
+        return pulumi.get(self, "conditions")
+
+    @conditions.setter
+    def conditions(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['VaultConnectionStatusConditionsArgs']]]]):
+        pulumi.set(self, "conditions", value)
 
     @_builtins.property
     @pulumi.getter
@@ -2082,7 +3691,8 @@ if not MYPY:
         """
         create: NotRequired[pulumi.Input[_builtins.bool]]
         """
-        Create the destination Secret. If the Secret already exists this should be set to false.
+        Create the destination Secret.
+        If the Secret already exists this should be set to false.
         """
         labels: NotRequired[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]
         """
@@ -2092,9 +3702,16 @@ if not MYPY:
         """
         Name of the Secret
         """
+        overwrite: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        Overwrite the destination Secret if it exists and Create is true. This is
+        useful when migrating to VSO from a previous secret deployment strategy.
+        """
+        transformation: NotRequired[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationPatchArgsDict']]
         type: NotRequired[pulumi.Input[_builtins.str]]
         """
-        Type of Kubernetes Secret. Requires Create to be set to true. Defaults to Opaque.
+        Type of Kubernetes Secret. Requires Create to be set to true.
+        Defaults to Opaque.
         """
 elif False:
     VaultDynamicSecretSpecDestinationPatchArgsDict: TypeAlias = Mapping[str, Any]
@@ -2106,14 +3723,20 @@ class VaultDynamicSecretSpecDestinationPatchArgs:
                  create: Optional[pulumi.Input[_builtins.bool]] = None,
                  labels: Optional[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]] = None,
                  name: Optional[pulumi.Input[_builtins.str]] = None,
+                 overwrite: Optional[pulumi.Input[_builtins.bool]] = None,
+                 transformation: Optional[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationPatchArgs']] = None,
                  type: Optional[pulumi.Input[_builtins.str]] = None):
         """
         Destination provides configuration necessary for syncing the Vault secret to Kubernetes.
         :param pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]] annotations: Annotations to apply to the Secret. Requires Create to be set to true.
-        :param pulumi.Input[_builtins.bool] create: Create the destination Secret. If the Secret already exists this should be set to false.
+        :param pulumi.Input[_builtins.bool] create: Create the destination Secret.
+               If the Secret already exists this should be set to false.
         :param pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]] labels: Labels to apply to the Secret. Requires Create to be set to true.
         :param pulumi.Input[_builtins.str] name: Name of the Secret
-        :param pulumi.Input[_builtins.str] type: Type of Kubernetes Secret. Requires Create to be set to true. Defaults to Opaque.
+        :param pulumi.Input[_builtins.bool] overwrite: Overwrite the destination Secret if it exists and Create is true. This is
+               useful when migrating to VSO from a previous secret deployment strategy.
+        :param pulumi.Input[_builtins.str] type: Type of Kubernetes Secret. Requires Create to be set to true.
+               Defaults to Opaque.
         """
         if annotations is not None:
             pulumi.set(__self__, "annotations", annotations)
@@ -2123,6 +3746,10 @@ class VaultDynamicSecretSpecDestinationPatchArgs:
             pulumi.set(__self__, "labels", labels)
         if name is not None:
             pulumi.set(__self__, "name", name)
+        if overwrite is not None:
+            pulumi.set(__self__, "overwrite", overwrite)
+        if transformation is not None:
+            pulumi.set(__self__, "transformation", transformation)
         if type is not None:
             pulumi.set(__self__, "type", type)
 
@@ -2142,7 +3769,8 @@ class VaultDynamicSecretSpecDestinationPatchArgs:
     @pulumi.getter
     def create(self) -> Optional[pulumi.Input[_builtins.bool]]:
         """
-        Create the destination Secret. If the Secret already exists this should be set to false.
+        Create the destination Secret.
+        If the Secret already exists this should be set to false.
         """
         return pulumi.get(self, "create")
 
@@ -2176,15 +3804,744 @@ class VaultDynamicSecretSpecDestinationPatchArgs:
 
     @_builtins.property
     @pulumi.getter
+    def overwrite(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        Overwrite the destination Secret if it exists and Create is true. This is
+        useful when migrating to VSO from a previous secret deployment strategy.
+        """
+        return pulumi.get(self, "overwrite")
+
+    @overwrite.setter
+    def overwrite(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "overwrite", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def transformation(self) -> Optional[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationPatchArgs']]:
+        return pulumi.get(self, "transformation")
+
+    @transformation.setter
+    def transformation(self, value: Optional[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationPatchArgs']]):
+        pulumi.set(self, "transformation", value)
+
+    @_builtins.property
+    @pulumi.getter
     def type(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        Type of Kubernetes Secret. Requires Create to be set to true. Defaults to Opaque.
+        Type of Kubernetes Secret. Requires Create to be set to true.
+        Defaults to Opaque.
         """
         return pulumi.get(self, "type")
 
     @type.setter
     def type(self, value: Optional[pulumi.Input[_builtins.str]]):
         pulumi.set(self, "type", value)
+
+
+if not MYPY:
+    class VaultDynamicSecretSpecDestinationTransformationPatchArgsDict(TypedDict):
+        """
+        Transformation provides configuration for transforming the secret data before
+        it is stored in the Destination.
+        """
+        exclude_raw: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        ExcludeRaw data from the destination Secret. Exclusion policy can be set
+        globally by including 'exclude-raw` in the '--global-transformation-options'
+        command line flag. If set, the command line flag always takes precedence over
+        this configuration.
+        """
+        excludes: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
+        """
+        Excludes contains regex patterns used to filter top-level source secret data
+        fields for exclusion from the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied before any inclusion patterns. To exclude all source secret data
+        fields, you can configure the single pattern ".*".
+        """
+        includes: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
+        """
+        Includes contains regex patterns used to filter top-level source secret data
+        fields for inclusion in the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied last.
+        """
+        templates: NotRequired[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]]
+        """
+        Templates maps a template name to its Template. Templates are always included
+        in the rendered K8s Secret, and take precedence over templates defined in a
+        SecretTransformation.
+        """
+        transformation_refs: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationTransformationRefsPatchArgsDict']]]]
+        """
+        TransformationRefs contain references to template configuration from
+        SecretTransformation.
+        """
+elif False:
+    VaultDynamicSecretSpecDestinationTransformationPatchArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultDynamicSecretSpecDestinationTransformationPatchArgs:
+    def __init__(__self__, *,
+                 exclude_raw: Optional[pulumi.Input[_builtins.bool]] = None,
+                 excludes: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
+                 includes: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
+                 templates: Optional[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]] = None,
+                 transformation_refs: Optional[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationTransformationRefsPatchArgs']]]] = None):
+        """
+        Transformation provides configuration for transforming the secret data before
+        it is stored in the Destination.
+        :param pulumi.Input[_builtins.bool] exclude_raw: ExcludeRaw data from the destination Secret. Exclusion policy can be set
+               globally by including 'exclude-raw` in the '--global-transformation-options'
+               command line flag. If set, the command line flag always takes precedence over
+               this configuration.
+        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] excludes: Excludes contains regex patterns used to filter top-level source secret data
+               fields for exclusion from the final K8s Secret data. These pattern filters are
+               never applied to templated fields as defined in Templates. They are always
+               applied before any inclusion patterns. To exclude all source secret data
+               fields, you can configure the single pattern ".*".
+        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] includes: Includes contains regex patterns used to filter top-level source secret data
+               fields for inclusion in the final K8s Secret data. These pattern filters are
+               never applied to templated fields as defined in Templates. They are always
+               applied last.
+        :param pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]] templates: Templates maps a template name to its Template. Templates are always included
+               in the rendered K8s Secret, and take precedence over templates defined in a
+               SecretTransformation.
+        :param pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationTransformationRefsPatchArgs']]] transformation_refs: TransformationRefs contain references to template configuration from
+               SecretTransformation.
+        """
+        if exclude_raw is not None:
+            pulumi.set(__self__, "exclude_raw", exclude_raw)
+        if excludes is not None:
+            pulumi.set(__self__, "excludes", excludes)
+        if includes is not None:
+            pulumi.set(__self__, "includes", includes)
+        if templates is not None:
+            pulumi.set(__self__, "templates", templates)
+        if transformation_refs is not None:
+            pulumi.set(__self__, "transformation_refs", transformation_refs)
+
+    @_builtins.property
+    @pulumi.getter(name="excludeRaw")
+    def exclude_raw(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        ExcludeRaw data from the destination Secret. Exclusion policy can be set
+        globally by including 'exclude-raw` in the '--global-transformation-options'
+        command line flag. If set, the command line flag always takes precedence over
+        this configuration.
+        """
+        return pulumi.get(self, "exclude_raw")
+
+    @exclude_raw.setter
+    def exclude_raw(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "exclude_raw", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def excludes(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
+        """
+        Excludes contains regex patterns used to filter top-level source secret data
+        fields for exclusion from the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied before any inclusion patterns. To exclude all source secret data
+        fields, you can configure the single pattern ".*".
+        """
+        return pulumi.get(self, "excludes")
+
+    @excludes.setter
+    def excludes(self, value: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]):
+        pulumi.set(self, "excludes", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def includes(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
+        """
+        Includes contains regex patterns used to filter top-level source secret data
+        fields for inclusion in the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied last.
+        """
+        return pulumi.get(self, "includes")
+
+    @includes.setter
+    def includes(self, value: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]):
+        pulumi.set(self, "includes", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def templates(self) -> Optional[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]]:
+        """
+        Templates maps a template name to its Template. Templates are always included
+        in the rendered K8s Secret, and take precedence over templates defined in a
+        SecretTransformation.
+        """
+        return pulumi.get(self, "templates")
+
+    @templates.setter
+    def templates(self, value: Optional[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]]):
+        pulumi.set(self, "templates", value)
+
+    @_builtins.property
+    @pulumi.getter(name="transformationRefs")
+    def transformation_refs(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationTransformationRefsPatchArgs']]]]:
+        """
+        TransformationRefs contain references to template configuration from
+        SecretTransformation.
+        """
+        return pulumi.get(self, "transformation_refs")
+
+    @transformation_refs.setter
+    def transformation_refs(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationTransformationRefsPatchArgs']]]]):
+        pulumi.set(self, "transformation_refs", value)
+
+
+if not MYPY:
+    class VaultDynamicSecretSpecDestinationTransformationTransformationRefsPatchArgsDict(TypedDict):
+        """
+        TransformationRef contains the configuration for accessing templates from an
+        SecretTransformation resource. TransformationRefs can be shared across all
+        syncable secret custom resources.
+        """
+        ignore_excludes: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        IgnoreExcludes controls whether to use the SecretTransformation's Excludes
+        data key filters.
+        """
+        ignore_includes: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        IgnoreIncludes controls whether to use the SecretTransformation's Includes
+        data key filters.
+        """
+        name: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Name of the SecretTransformation resource.
+        """
+        namespace: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Namespace of the SecretTransformation resource.
+        """
+        template_refs: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgsDict']]]]
+        """
+        TemplateRefs map to a Template found in this TransformationRef. If empty, then
+        all templates from the SecretTransformation will be rendered to the K8s Secret.
+        """
+elif False:
+    VaultDynamicSecretSpecDestinationTransformationTransformationRefsPatchArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultDynamicSecretSpecDestinationTransformationTransformationRefsPatchArgs:
+    def __init__(__self__, *,
+                 ignore_excludes: Optional[pulumi.Input[_builtins.bool]] = None,
+                 ignore_includes: Optional[pulumi.Input[_builtins.bool]] = None,
+                 name: Optional[pulumi.Input[_builtins.str]] = None,
+                 namespace: Optional[pulumi.Input[_builtins.str]] = None,
+                 template_refs: Optional[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgs']]]] = None):
+        """
+        TransformationRef contains the configuration for accessing templates from an
+        SecretTransformation resource. TransformationRefs can be shared across all
+        syncable secret custom resources.
+        :param pulumi.Input[_builtins.bool] ignore_excludes: IgnoreExcludes controls whether to use the SecretTransformation's Excludes
+               data key filters.
+        :param pulumi.Input[_builtins.bool] ignore_includes: IgnoreIncludes controls whether to use the SecretTransformation's Includes
+               data key filters.
+        :param pulumi.Input[_builtins.str] name: Name of the SecretTransformation resource.
+        :param pulumi.Input[_builtins.str] namespace: Namespace of the SecretTransformation resource.
+        :param pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgs']]] template_refs: TemplateRefs map to a Template found in this TransformationRef. If empty, then
+               all templates from the SecretTransformation will be rendered to the K8s Secret.
+        """
+        if ignore_excludes is not None:
+            pulumi.set(__self__, "ignore_excludes", ignore_excludes)
+        if ignore_includes is not None:
+            pulumi.set(__self__, "ignore_includes", ignore_includes)
+        if name is not None:
+            pulumi.set(__self__, "name", name)
+        if namespace is not None:
+            pulumi.set(__self__, "namespace", namespace)
+        if template_refs is not None:
+            pulumi.set(__self__, "template_refs", template_refs)
+
+    @_builtins.property
+    @pulumi.getter(name="ignoreExcludes")
+    def ignore_excludes(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        IgnoreExcludes controls whether to use the SecretTransformation's Excludes
+        data key filters.
+        """
+        return pulumi.get(self, "ignore_excludes")
+
+    @ignore_excludes.setter
+    def ignore_excludes(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "ignore_excludes", value)
+
+    @_builtins.property
+    @pulumi.getter(name="ignoreIncludes")
+    def ignore_includes(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        IgnoreIncludes controls whether to use the SecretTransformation's Includes
+        data key filters.
+        """
+        return pulumi.get(self, "ignore_includes")
+
+    @ignore_includes.setter
+    def ignore_includes(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "ignore_includes", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def name(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Name of the SecretTransformation resource.
+        """
+        return pulumi.get(self, "name")
+
+    @name.setter
+    def name(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "name", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def namespace(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Namespace of the SecretTransformation resource.
+        """
+        return pulumi.get(self, "namespace")
+
+    @namespace.setter
+    def namespace(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "namespace", value)
+
+    @_builtins.property
+    @pulumi.getter(name="templateRefs")
+    def template_refs(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgs']]]]:
+        """
+        TemplateRefs map to a Template found in this TransformationRef. If empty, then
+        all templates from the SecretTransformation will be rendered to the K8s Secret.
+        """
+        return pulumi.get(self, "template_refs")
+
+    @template_refs.setter
+    def template_refs(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgs']]]]):
+        pulumi.set(self, "template_refs", value)
+
+
+if not MYPY:
+    class VaultDynamicSecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgsDict(TypedDict):
+        """
+        TemplateRef points to templating text that is stored in a
+        SecretTransformation custom resource.
+        """
+        key_override: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        KeyOverride to the rendered template in the Destination secret. If Key is
+        empty, then the Key from reference spec will be used. Set this to override the
+        Key set from the reference spec.
+        """
+        name: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Name of the Template in SecretTransformationSpec.Templates.
+        the rendered secret data.
+        """
+elif False:
+    VaultDynamicSecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultDynamicSecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgs:
+    def __init__(__self__, *,
+                 key_override: Optional[pulumi.Input[_builtins.str]] = None,
+                 name: Optional[pulumi.Input[_builtins.str]] = None):
+        """
+        TemplateRef points to templating text that is stored in a
+        SecretTransformation custom resource.
+        :param pulumi.Input[_builtins.str] key_override: KeyOverride to the rendered template in the Destination secret. If Key is
+               empty, then the Key from reference spec will be used. Set this to override the
+               Key set from the reference spec.
+        :param pulumi.Input[_builtins.str] name: Name of the Template in SecretTransformationSpec.Templates.
+               the rendered secret data.
+        """
+        if key_override is not None:
+            pulumi.set(__self__, "key_override", key_override)
+        if name is not None:
+            pulumi.set(__self__, "name", name)
+
+    @_builtins.property
+    @pulumi.getter(name="keyOverride")
+    def key_override(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        KeyOverride to the rendered template in the Destination secret. If Key is
+        empty, then the Key from reference spec will be used. Set this to override the
+        Key set from the reference spec.
+        """
+        return pulumi.get(self, "key_override")
+
+    @key_override.setter
+    def key_override(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "key_override", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def name(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Name of the Template in SecretTransformationSpec.Templates.
+        the rendered secret data.
+        """
+        return pulumi.get(self, "name")
+
+    @name.setter
+    def name(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "name", value)
+
+
+if not MYPY:
+    class VaultDynamicSecretSpecDestinationTransformationTransformationRefsTemplateRefsArgsDict(TypedDict):
+        """
+        TemplateRef points to templating text that is stored in a
+        SecretTransformation custom resource.
+        """
+        key_override: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        KeyOverride to the rendered template in the Destination secret. If Key is
+        empty, then the Key from reference spec will be used. Set this to override the
+        Key set from the reference spec.
+        """
+        name: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Name of the Template in SecretTransformationSpec.Templates.
+        the rendered secret data.
+        """
+elif False:
+    VaultDynamicSecretSpecDestinationTransformationTransformationRefsTemplateRefsArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultDynamicSecretSpecDestinationTransformationTransformationRefsTemplateRefsArgs:
+    def __init__(__self__, *,
+                 key_override: Optional[pulumi.Input[_builtins.str]] = None,
+                 name: Optional[pulumi.Input[_builtins.str]] = None):
+        """
+        TemplateRef points to templating text that is stored in a
+        SecretTransformation custom resource.
+        :param pulumi.Input[_builtins.str] key_override: KeyOverride to the rendered template in the Destination secret. If Key is
+               empty, then the Key from reference spec will be used. Set this to override the
+               Key set from the reference spec.
+        :param pulumi.Input[_builtins.str] name: Name of the Template in SecretTransformationSpec.Templates.
+               the rendered secret data.
+        """
+        if key_override is not None:
+            pulumi.set(__self__, "key_override", key_override)
+        if name is not None:
+            pulumi.set(__self__, "name", name)
+
+    @_builtins.property
+    @pulumi.getter(name="keyOverride")
+    def key_override(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        KeyOverride to the rendered template in the Destination secret. If Key is
+        empty, then the Key from reference spec will be used. Set this to override the
+        Key set from the reference spec.
+        """
+        return pulumi.get(self, "key_override")
+
+    @key_override.setter
+    def key_override(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "key_override", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def name(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Name of the Template in SecretTransformationSpec.Templates.
+        the rendered secret data.
+        """
+        return pulumi.get(self, "name")
+
+    @name.setter
+    def name(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "name", value)
+
+
+if not MYPY:
+    class VaultDynamicSecretSpecDestinationTransformationTransformationRefsArgsDict(TypedDict):
+        """
+        TransformationRef contains the configuration for accessing templates from an
+        SecretTransformation resource. TransformationRefs can be shared across all
+        syncable secret custom resources.
+        """
+        ignore_excludes: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        IgnoreExcludes controls whether to use the SecretTransformation's Excludes
+        data key filters.
+        """
+        ignore_includes: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        IgnoreIncludes controls whether to use the SecretTransformation's Includes
+        data key filters.
+        """
+        name: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Name of the SecretTransformation resource.
+        """
+        namespace: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Namespace of the SecretTransformation resource.
+        """
+        template_refs: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationTransformationRefsTemplateRefsArgsDict']]]]
+        """
+        TemplateRefs map to a Template found in this TransformationRef. If empty, then
+        all templates from the SecretTransformation will be rendered to the K8s Secret.
+        """
+elif False:
+    VaultDynamicSecretSpecDestinationTransformationTransformationRefsArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultDynamicSecretSpecDestinationTransformationTransformationRefsArgs:
+    def __init__(__self__, *,
+                 ignore_excludes: Optional[pulumi.Input[_builtins.bool]] = None,
+                 ignore_includes: Optional[pulumi.Input[_builtins.bool]] = None,
+                 name: Optional[pulumi.Input[_builtins.str]] = None,
+                 namespace: Optional[pulumi.Input[_builtins.str]] = None,
+                 template_refs: Optional[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationTransformationRefsTemplateRefsArgs']]]] = None):
+        """
+        TransformationRef contains the configuration for accessing templates from an
+        SecretTransformation resource. TransformationRefs can be shared across all
+        syncable secret custom resources.
+        :param pulumi.Input[_builtins.bool] ignore_excludes: IgnoreExcludes controls whether to use the SecretTransformation's Excludes
+               data key filters.
+        :param pulumi.Input[_builtins.bool] ignore_includes: IgnoreIncludes controls whether to use the SecretTransformation's Includes
+               data key filters.
+        :param pulumi.Input[_builtins.str] name: Name of the SecretTransformation resource.
+        :param pulumi.Input[_builtins.str] namespace: Namespace of the SecretTransformation resource.
+        :param pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationTransformationRefsTemplateRefsArgs']]] template_refs: TemplateRefs map to a Template found in this TransformationRef. If empty, then
+               all templates from the SecretTransformation will be rendered to the K8s Secret.
+        """
+        if ignore_excludes is not None:
+            pulumi.set(__self__, "ignore_excludes", ignore_excludes)
+        if ignore_includes is not None:
+            pulumi.set(__self__, "ignore_includes", ignore_includes)
+        if name is not None:
+            pulumi.set(__self__, "name", name)
+        if namespace is not None:
+            pulumi.set(__self__, "namespace", namespace)
+        if template_refs is not None:
+            pulumi.set(__self__, "template_refs", template_refs)
+
+    @_builtins.property
+    @pulumi.getter(name="ignoreExcludes")
+    def ignore_excludes(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        IgnoreExcludes controls whether to use the SecretTransformation's Excludes
+        data key filters.
+        """
+        return pulumi.get(self, "ignore_excludes")
+
+    @ignore_excludes.setter
+    def ignore_excludes(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "ignore_excludes", value)
+
+    @_builtins.property
+    @pulumi.getter(name="ignoreIncludes")
+    def ignore_includes(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        IgnoreIncludes controls whether to use the SecretTransformation's Includes
+        data key filters.
+        """
+        return pulumi.get(self, "ignore_includes")
+
+    @ignore_includes.setter
+    def ignore_includes(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "ignore_includes", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def name(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Name of the SecretTransformation resource.
+        """
+        return pulumi.get(self, "name")
+
+    @name.setter
+    def name(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "name", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def namespace(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Namespace of the SecretTransformation resource.
+        """
+        return pulumi.get(self, "namespace")
+
+    @namespace.setter
+    def namespace(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "namespace", value)
+
+    @_builtins.property
+    @pulumi.getter(name="templateRefs")
+    def template_refs(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationTransformationRefsTemplateRefsArgs']]]]:
+        """
+        TemplateRefs map to a Template found in this TransformationRef. If empty, then
+        all templates from the SecretTransformation will be rendered to the K8s Secret.
+        """
+        return pulumi.get(self, "template_refs")
+
+    @template_refs.setter
+    def template_refs(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationTransformationRefsTemplateRefsArgs']]]]):
+        pulumi.set(self, "template_refs", value)
+
+
+if not MYPY:
+    class VaultDynamicSecretSpecDestinationTransformationArgsDict(TypedDict):
+        """
+        Transformation provides configuration for transforming the secret data before
+        it is stored in the Destination.
+        """
+        exclude_raw: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        ExcludeRaw data from the destination Secret. Exclusion policy can be set
+        globally by including 'exclude-raw` in the '--global-transformation-options'
+        command line flag. If set, the command line flag always takes precedence over
+        this configuration.
+        """
+        excludes: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
+        """
+        Excludes contains regex patterns used to filter top-level source secret data
+        fields for exclusion from the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied before any inclusion patterns. To exclude all source secret data
+        fields, you can configure the single pattern ".*".
+        """
+        includes: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
+        """
+        Includes contains regex patterns used to filter top-level source secret data
+        fields for inclusion in the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied last.
+        """
+        templates: NotRequired[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]]
+        """
+        Templates maps a template name to its Template. Templates are always included
+        in the rendered K8s Secret, and take precedence over templates defined in a
+        SecretTransformation.
+        """
+        transformation_refs: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationTransformationRefsArgsDict']]]]
+        """
+        TransformationRefs contain references to template configuration from
+        SecretTransformation.
+        """
+elif False:
+    VaultDynamicSecretSpecDestinationTransformationArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultDynamicSecretSpecDestinationTransformationArgs:
+    def __init__(__self__, *,
+                 exclude_raw: Optional[pulumi.Input[_builtins.bool]] = None,
+                 excludes: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
+                 includes: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
+                 templates: Optional[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]] = None,
+                 transformation_refs: Optional[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationTransformationRefsArgs']]]] = None):
+        """
+        Transformation provides configuration for transforming the secret data before
+        it is stored in the Destination.
+        :param pulumi.Input[_builtins.bool] exclude_raw: ExcludeRaw data from the destination Secret. Exclusion policy can be set
+               globally by including 'exclude-raw` in the '--global-transformation-options'
+               command line flag. If set, the command line flag always takes precedence over
+               this configuration.
+        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] excludes: Excludes contains regex patterns used to filter top-level source secret data
+               fields for exclusion from the final K8s Secret data. These pattern filters are
+               never applied to templated fields as defined in Templates. They are always
+               applied before any inclusion patterns. To exclude all source secret data
+               fields, you can configure the single pattern ".*".
+        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] includes: Includes contains regex patterns used to filter top-level source secret data
+               fields for inclusion in the final K8s Secret data. These pattern filters are
+               never applied to templated fields as defined in Templates. They are always
+               applied last.
+        :param pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]] templates: Templates maps a template name to its Template. Templates are always included
+               in the rendered K8s Secret, and take precedence over templates defined in a
+               SecretTransformation.
+        :param pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationTransformationRefsArgs']]] transformation_refs: TransformationRefs contain references to template configuration from
+               SecretTransformation.
+        """
+        if exclude_raw is not None:
+            pulumi.set(__self__, "exclude_raw", exclude_raw)
+        if excludes is not None:
+            pulumi.set(__self__, "excludes", excludes)
+        if includes is not None:
+            pulumi.set(__self__, "includes", includes)
+        if templates is not None:
+            pulumi.set(__self__, "templates", templates)
+        if transformation_refs is not None:
+            pulumi.set(__self__, "transformation_refs", transformation_refs)
+
+    @_builtins.property
+    @pulumi.getter(name="excludeRaw")
+    def exclude_raw(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        ExcludeRaw data from the destination Secret. Exclusion policy can be set
+        globally by including 'exclude-raw` in the '--global-transformation-options'
+        command line flag. If set, the command line flag always takes precedence over
+        this configuration.
+        """
+        return pulumi.get(self, "exclude_raw")
+
+    @exclude_raw.setter
+    def exclude_raw(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "exclude_raw", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def excludes(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
+        """
+        Excludes contains regex patterns used to filter top-level source secret data
+        fields for exclusion from the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied before any inclusion patterns. To exclude all source secret data
+        fields, you can configure the single pattern ".*".
+        """
+        return pulumi.get(self, "excludes")
+
+    @excludes.setter
+    def excludes(self, value: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]):
+        pulumi.set(self, "excludes", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def includes(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
+        """
+        Includes contains regex patterns used to filter top-level source secret data
+        fields for inclusion in the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied last.
+        """
+        return pulumi.get(self, "includes")
+
+    @includes.setter
+    def includes(self, value: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]):
+        pulumi.set(self, "includes", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def templates(self) -> Optional[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]]:
+        """
+        Templates maps a template name to its Template. Templates are always included
+        in the rendered K8s Secret, and take precedence over templates defined in a
+        SecretTransformation.
+        """
+        return pulumi.get(self, "templates")
+
+    @templates.setter
+    def templates(self, value: Optional[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]]):
+        pulumi.set(self, "templates", value)
+
+    @_builtins.property
+    @pulumi.getter(name="transformationRefs")
+    def transformation_refs(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationTransformationRefsArgs']]]]:
+        """
+        TransformationRefs contain references to template configuration from
+        SecretTransformation.
+        """
+        return pulumi.get(self, "transformation_refs")
+
+    @transformation_refs.setter
+    def transformation_refs(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationTransformationRefsArgs']]]]):
+        pulumi.set(self, "transformation_refs", value)
 
 
 if not MYPY:
@@ -2198,7 +4555,8 @@ if not MYPY:
         """
         create: NotRequired[pulumi.Input[_builtins.bool]]
         """
-        Create the destination Secret. If the Secret already exists this should be set to false.
+        Create the destination Secret.
+        If the Secret already exists this should be set to false.
         """
         labels: NotRequired[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]
         """
@@ -2208,9 +4566,16 @@ if not MYPY:
         """
         Name of the Secret
         """
+        overwrite: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        Overwrite the destination Secret if it exists and Create is true. This is
+        useful when migrating to VSO from a previous secret deployment strategy.
+        """
+        transformation: NotRequired[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationArgsDict']]
         type: NotRequired[pulumi.Input[_builtins.str]]
         """
-        Type of Kubernetes Secret. Requires Create to be set to true. Defaults to Opaque.
+        Type of Kubernetes Secret. Requires Create to be set to true.
+        Defaults to Opaque.
         """
 elif False:
     VaultDynamicSecretSpecDestinationArgsDict: TypeAlias = Mapping[str, Any]
@@ -2222,14 +4587,20 @@ class VaultDynamicSecretSpecDestinationArgs:
                  create: Optional[pulumi.Input[_builtins.bool]] = None,
                  labels: Optional[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]] = None,
                  name: Optional[pulumi.Input[_builtins.str]] = None,
+                 overwrite: Optional[pulumi.Input[_builtins.bool]] = None,
+                 transformation: Optional[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationArgs']] = None,
                  type: Optional[pulumi.Input[_builtins.str]] = None):
         """
         Destination provides configuration necessary for syncing the Vault secret to Kubernetes.
         :param pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]] annotations: Annotations to apply to the Secret. Requires Create to be set to true.
-        :param pulumi.Input[_builtins.bool] create: Create the destination Secret. If the Secret already exists this should be set to false.
+        :param pulumi.Input[_builtins.bool] create: Create the destination Secret.
+               If the Secret already exists this should be set to false.
         :param pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]] labels: Labels to apply to the Secret. Requires Create to be set to true.
         :param pulumi.Input[_builtins.str] name: Name of the Secret
-        :param pulumi.Input[_builtins.str] type: Type of Kubernetes Secret. Requires Create to be set to true. Defaults to Opaque.
+        :param pulumi.Input[_builtins.bool] overwrite: Overwrite the destination Secret if it exists and Create is true. This is
+               useful when migrating to VSO from a previous secret deployment strategy.
+        :param pulumi.Input[_builtins.str] type: Type of Kubernetes Secret. Requires Create to be set to true.
+               Defaults to Opaque.
         """
         if annotations is not None:
             pulumi.set(__self__, "annotations", annotations)
@@ -2239,6 +4610,10 @@ class VaultDynamicSecretSpecDestinationArgs:
             pulumi.set(__self__, "labels", labels)
         if name is not None:
             pulumi.set(__self__, "name", name)
+        if overwrite is not None:
+            pulumi.set(__self__, "overwrite", overwrite)
+        if transformation is not None:
+            pulumi.set(__self__, "transformation", transformation)
         if type is not None:
             pulumi.set(__self__, "type", type)
 
@@ -2258,7 +4633,8 @@ class VaultDynamicSecretSpecDestinationArgs:
     @pulumi.getter
     def create(self) -> Optional[pulumi.Input[_builtins.bool]]:
         """
-        Create the destination Secret. If the Secret already exists this should be set to false.
+        Create the destination Secret.
+        If the Secret already exists this should be set to false.
         """
         return pulumi.get(self, "create")
 
@@ -2292,9 +4668,32 @@ class VaultDynamicSecretSpecDestinationArgs:
 
     @_builtins.property
     @pulumi.getter
+    def overwrite(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        Overwrite the destination Secret if it exists and Create is true. This is
+        useful when migrating to VSO from a previous secret deployment strategy.
+        """
+        return pulumi.get(self, "overwrite")
+
+    @overwrite.setter
+    def overwrite(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "overwrite", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def transformation(self) -> Optional[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationArgs']]:
+        return pulumi.get(self, "transformation")
+
+    @transformation.setter
+    def transformation(self, value: Optional[pulumi.Input['VaultDynamicSecretSpecDestinationTransformationArgs']]):
+        pulumi.set(self, "transformation", value)
+
+    @_builtins.property
+    @pulumi.getter
     def type(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        Type of Kubernetes Secret. Requires Create to be set to true. Defaults to Opaque.
+        Type of Kubernetes Secret. Requires Create to be set to true.
+        Defaults to Opaque.
         """
         return pulumi.get(self, "type")
 
@@ -2310,7 +4709,10 @@ if not MYPY:
         """
         allow_static_creds: NotRequired[pulumi.Input[_builtins.bool]]
         """
-        AllowStaticCreds should be set when syncing credentials that are periodically rotated by the Vault server, rather than created upon request. These secrets are sometimes referred to as "static roles", or "static credentials", with a request path that contains "static-creds".
+        AllowStaticCreds should be set when syncing credentials that are periodically
+        rotated by the Vault server, rather than created upon request. These secrets
+        are sometimes referred to as "static roles", or "static credentials", with a
+        request path that contains "static-creds".
         """
         destination: NotRequired[pulumi.Input['VaultDynamicSecretSpecDestinationPatchArgsDict']]
         mount: NotRequired[pulumi.Input[_builtins.str]]
@@ -2319,23 +4721,47 @@ if not MYPY:
         """
         namespace: NotRequired[pulumi.Input[_builtins.str]]
         """
-        Namespace where the secrets engine is mounted in Vault.
+        Namespace of the secrets engine mount in Vault. If not set, the namespace that's
+        part of VaultAuth resource will be inferred.
         """
         params: NotRequired[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]
         """
-        Params that can be passed when requesting credentials/secrets. When Params is set the configured RequestHTTPMethod will be ignored. See RequestHTTPMethod for more details. Please consult https://developer.hashicorp.com/vault/docs/secrets if you are uncertain about what 'params' should/can be set to.
+        Params that can be passed when requesting credentials/secrets.
+        When Params is set the configured RequestHTTPMethod will be
+        ignored. See RequestHTTPMethod for more details.
+        Please consult https://developer.hashicorp.com/vault/docs/secrets if you are
+        uncertain about what 'params' should/can be set to.
         """
         path: NotRequired[pulumi.Input[_builtins.str]]
         """
-        Path in Vault to get the credentials for, and is relative to Mount. Please consult https://developer.hashicorp.com/vault/docs/secrets if you are uncertain about what 'path' should be set to.
+        Path in Vault to get the credentials for, and is relative to Mount.
+        Please consult https://developer.hashicorp.com/vault/docs/secrets if you are
+        uncertain about what 'path' should be set to.
+        """
+        refresh_after: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        RefreshAfter a period of time for VSO to sync the source secret data, in
+        duration notation e.g. 30s, 1m, 24h. This value only needs to be set when
+        syncing from a secret's engine that does not provide a lease TTL in its
+        response. The value should be within the secret engine's configured ttl or
+        max_ttl. The source secret's lease duration takes precedence over this
+        configuration when it is greater than 0.
         """
         renewal_percent: NotRequired[pulumi.Input[_builtins.int]]
         """
-        RenewalPercent is the percent out of 100 of the lease duration when the lease is renewed. Defaults to 67 percent plus jitter.
+        RenewalPercent is the percent out of 100 of the lease duration when the
+        lease is renewed. Defaults to 67 percent plus jitter.
         """
         request_http_method: NotRequired[pulumi.Input[_builtins.str]]
         """
-        RequestHTTPMethod to use when syncing Secrets from Vault. Setting a value here is not typically required. If left unset the Operator will make requests using the GET method. In the case where Params are specified the Operator will use the PUT method. Please consult https://developer.hashicorp.com/vault/docs/secrets if you are uncertain about what method to use. Of note, the Vault client treats PUT and POST as being equivalent. The underlying Vault client implementation will always use the PUT method.
+        RequestHTTPMethod to use when syncing Secrets from Vault.
+        Setting a value here is not typically required.
+        If left unset the Operator will make requests using the GET method.
+        In the case where Params are specified the Operator will use the PUT method.
+        Please consult https://developer.hashicorp.com/vault/docs/secrets if you are
+        uncertain about what method to use.
+        Of note, the Vault client treats PUT and POST as being equivalent.
+        The underlying Vault client implementation will always use the PUT method.
         """
         revoke: NotRequired[pulumi.Input[_builtins.bool]]
         """
@@ -2343,11 +4769,18 @@ if not MYPY:
         """
         rollout_restart_targets: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecRolloutRestartTargetsPatchArgsDict']]]]
         """
-        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does not support dynamically reloading a rotated secret. In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events. See RolloutRestartTarget for more details.
+        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does
+        not support dynamically reloading a rotated secret.
+        In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will
+        trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events.
+        See RolloutRestartTarget for more details.
         """
         vault_auth_ref: NotRequired[pulumi.Input[_builtins.str]]
         """
-        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace, eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will default to the `default` VaultAuth, configured in its own Kubernetes namespace.
+        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace,
+        eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to
+        the namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator
+        will default to the `default` VaultAuth, configured in the operator's namespace.
         """
 elif False:
     VaultDynamicSecretSpecPatchArgsDict: TypeAlias = Mapping[str, Any]
@@ -2361,6 +4794,7 @@ class VaultDynamicSecretSpecPatchArgs:
                  namespace: Optional[pulumi.Input[_builtins.str]] = None,
                  params: Optional[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]] = None,
                  path: Optional[pulumi.Input[_builtins.str]] = None,
+                 refresh_after: Optional[pulumi.Input[_builtins.str]] = None,
                  renewal_percent: Optional[pulumi.Input[_builtins.int]] = None,
                  request_http_method: Optional[pulumi.Input[_builtins.str]] = None,
                  revoke: Optional[pulumi.Input[_builtins.bool]] = None,
@@ -2368,16 +4802,47 @@ class VaultDynamicSecretSpecPatchArgs:
                  vault_auth_ref: Optional[pulumi.Input[_builtins.str]] = None):
         """
         VaultDynamicSecretSpec defines the desired state of VaultDynamicSecret
-        :param pulumi.Input[_builtins.bool] allow_static_creds: AllowStaticCreds should be set when syncing credentials that are periodically rotated by the Vault server, rather than created upon request. These secrets are sometimes referred to as "static roles", or "static credentials", with a request path that contains "static-creds".
+        :param pulumi.Input[_builtins.bool] allow_static_creds: AllowStaticCreds should be set when syncing credentials that are periodically
+               rotated by the Vault server, rather than created upon request. These secrets
+               are sometimes referred to as "static roles", or "static credentials", with a
+               request path that contains "static-creds".
         :param pulumi.Input[_builtins.str] mount: Mount path of the secret's engine in Vault.
-        :param pulumi.Input[_builtins.str] namespace: Namespace where the secrets engine is mounted in Vault.
-        :param pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]] params: Params that can be passed when requesting credentials/secrets. When Params is set the configured RequestHTTPMethod will be ignored. See RequestHTTPMethod for more details. Please consult https://developer.hashicorp.com/vault/docs/secrets if you are uncertain about what 'params' should/can be set to.
-        :param pulumi.Input[_builtins.str] path: Path in Vault to get the credentials for, and is relative to Mount. Please consult https://developer.hashicorp.com/vault/docs/secrets if you are uncertain about what 'path' should be set to.
-        :param pulumi.Input[_builtins.int] renewal_percent: RenewalPercent is the percent out of 100 of the lease duration when the lease is renewed. Defaults to 67 percent plus jitter.
-        :param pulumi.Input[_builtins.str] request_http_method: RequestHTTPMethod to use when syncing Secrets from Vault. Setting a value here is not typically required. If left unset the Operator will make requests using the GET method. In the case where Params are specified the Operator will use the PUT method. Please consult https://developer.hashicorp.com/vault/docs/secrets if you are uncertain about what method to use. Of note, the Vault client treats PUT and POST as being equivalent. The underlying Vault client implementation will always use the PUT method.
+        :param pulumi.Input[_builtins.str] namespace: Namespace of the secrets engine mount in Vault. If not set, the namespace that's
+               part of VaultAuth resource will be inferred.
+        :param pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]] params: Params that can be passed when requesting credentials/secrets.
+               When Params is set the configured RequestHTTPMethod will be
+               ignored. See RequestHTTPMethod for more details.
+               Please consult https://developer.hashicorp.com/vault/docs/secrets if you are
+               uncertain about what 'params' should/can be set to.
+        :param pulumi.Input[_builtins.str] path: Path in Vault to get the credentials for, and is relative to Mount.
+               Please consult https://developer.hashicorp.com/vault/docs/secrets if you are
+               uncertain about what 'path' should be set to.
+        :param pulumi.Input[_builtins.str] refresh_after: RefreshAfter a period of time for VSO to sync the source secret data, in
+               duration notation e.g. 30s, 1m, 24h. This value only needs to be set when
+               syncing from a secret's engine that does not provide a lease TTL in its
+               response. The value should be within the secret engine's configured ttl or
+               max_ttl. The source secret's lease duration takes precedence over this
+               configuration when it is greater than 0.
+        :param pulumi.Input[_builtins.int] renewal_percent: RenewalPercent is the percent out of 100 of the lease duration when the
+               lease is renewed. Defaults to 67 percent plus jitter.
+        :param pulumi.Input[_builtins.str] request_http_method: RequestHTTPMethod to use when syncing Secrets from Vault.
+               Setting a value here is not typically required.
+               If left unset the Operator will make requests using the GET method.
+               In the case where Params are specified the Operator will use the PUT method.
+               Please consult https://developer.hashicorp.com/vault/docs/secrets if you are
+               uncertain about what method to use.
+               Of note, the Vault client treats PUT and POST as being equivalent.
+               The underlying Vault client implementation will always use the PUT method.
         :param pulumi.Input[_builtins.bool] revoke: Revoke the existing lease on VDS resource deletion.
-        :param pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecRolloutRestartTargetsPatchArgs']]] rollout_restart_targets: RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does not support dynamically reloading a rotated secret. In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events. See RolloutRestartTarget for more details.
-        :param pulumi.Input[_builtins.str] vault_auth_ref: VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace, eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will default to the `default` VaultAuth, configured in its own Kubernetes namespace.
+        :param pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecRolloutRestartTargetsPatchArgs']]] rollout_restart_targets: RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does
+               not support dynamically reloading a rotated secret.
+               In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will
+               trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events.
+               See RolloutRestartTarget for more details.
+        :param pulumi.Input[_builtins.str] vault_auth_ref: VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace,
+               eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to
+               the namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator
+               will default to the `default` VaultAuth, configured in the operator's namespace.
         """
         if allow_static_creds is not None:
             pulumi.set(__self__, "allow_static_creds", allow_static_creds)
@@ -2391,6 +4856,8 @@ class VaultDynamicSecretSpecPatchArgs:
             pulumi.set(__self__, "params", params)
         if path is not None:
             pulumi.set(__self__, "path", path)
+        if refresh_after is not None:
+            pulumi.set(__self__, "refresh_after", refresh_after)
         if renewal_percent is not None:
             pulumi.set(__self__, "renewal_percent", renewal_percent)
         if request_http_method is not None:
@@ -2406,7 +4873,10 @@ class VaultDynamicSecretSpecPatchArgs:
     @pulumi.getter(name="allowStaticCreds")
     def allow_static_creds(self) -> Optional[pulumi.Input[_builtins.bool]]:
         """
-        AllowStaticCreds should be set when syncing credentials that are periodically rotated by the Vault server, rather than created upon request. These secrets are sometimes referred to as "static roles", or "static credentials", with a request path that contains "static-creds".
+        AllowStaticCreds should be set when syncing credentials that are periodically
+        rotated by the Vault server, rather than created upon request. These secrets
+        are sometimes referred to as "static roles", or "static credentials", with a
+        request path that contains "static-creds".
         """
         return pulumi.get(self, "allow_static_creds")
 
@@ -2439,7 +4909,8 @@ class VaultDynamicSecretSpecPatchArgs:
     @pulumi.getter
     def namespace(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        Namespace where the secrets engine is mounted in Vault.
+        Namespace of the secrets engine mount in Vault. If not set, the namespace that's
+        part of VaultAuth resource will be inferred.
         """
         return pulumi.get(self, "namespace")
 
@@ -2451,7 +4922,11 @@ class VaultDynamicSecretSpecPatchArgs:
     @pulumi.getter
     def params(self) -> Optional[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]:
         """
-        Params that can be passed when requesting credentials/secrets. When Params is set the configured RequestHTTPMethod will be ignored. See RequestHTTPMethod for more details. Please consult https://developer.hashicorp.com/vault/docs/secrets if you are uncertain about what 'params' should/can be set to.
+        Params that can be passed when requesting credentials/secrets.
+        When Params is set the configured RequestHTTPMethod will be
+        ignored. See RequestHTTPMethod for more details.
+        Please consult https://developer.hashicorp.com/vault/docs/secrets if you are
+        uncertain about what 'params' should/can be set to.
         """
         return pulumi.get(self, "params")
 
@@ -2463,7 +4938,9 @@ class VaultDynamicSecretSpecPatchArgs:
     @pulumi.getter
     def path(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        Path in Vault to get the credentials for, and is relative to Mount. Please consult https://developer.hashicorp.com/vault/docs/secrets if you are uncertain about what 'path' should be set to.
+        Path in Vault to get the credentials for, and is relative to Mount.
+        Please consult https://developer.hashicorp.com/vault/docs/secrets if you are
+        uncertain about what 'path' should be set to.
         """
         return pulumi.get(self, "path")
 
@@ -2472,10 +4949,28 @@ class VaultDynamicSecretSpecPatchArgs:
         pulumi.set(self, "path", value)
 
     @_builtins.property
+    @pulumi.getter(name="refreshAfter")
+    def refresh_after(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        RefreshAfter a period of time for VSO to sync the source secret data, in
+        duration notation e.g. 30s, 1m, 24h. This value only needs to be set when
+        syncing from a secret's engine that does not provide a lease TTL in its
+        response. The value should be within the secret engine's configured ttl or
+        max_ttl. The source secret's lease duration takes precedence over this
+        configuration when it is greater than 0.
+        """
+        return pulumi.get(self, "refresh_after")
+
+    @refresh_after.setter
+    def refresh_after(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "refresh_after", value)
+
+    @_builtins.property
     @pulumi.getter(name="renewalPercent")
     def renewal_percent(self) -> Optional[pulumi.Input[_builtins.int]]:
         """
-        RenewalPercent is the percent out of 100 of the lease duration when the lease is renewed. Defaults to 67 percent plus jitter.
+        RenewalPercent is the percent out of 100 of the lease duration when the
+        lease is renewed. Defaults to 67 percent plus jitter.
         """
         return pulumi.get(self, "renewal_percent")
 
@@ -2487,7 +4982,14 @@ class VaultDynamicSecretSpecPatchArgs:
     @pulumi.getter(name="requestHTTPMethod")
     def request_http_method(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        RequestHTTPMethod to use when syncing Secrets from Vault. Setting a value here is not typically required. If left unset the Operator will make requests using the GET method. In the case where Params are specified the Operator will use the PUT method. Please consult https://developer.hashicorp.com/vault/docs/secrets if you are uncertain about what method to use. Of note, the Vault client treats PUT and POST as being equivalent. The underlying Vault client implementation will always use the PUT method.
+        RequestHTTPMethod to use when syncing Secrets from Vault.
+        Setting a value here is not typically required.
+        If left unset the Operator will make requests using the GET method.
+        In the case where Params are specified the Operator will use the PUT method.
+        Please consult https://developer.hashicorp.com/vault/docs/secrets if you are
+        uncertain about what method to use.
+        Of note, the Vault client treats PUT and POST as being equivalent.
+        The underlying Vault client implementation will always use the PUT method.
         """
         return pulumi.get(self, "request_http_method")
 
@@ -2511,7 +5013,11 @@ class VaultDynamicSecretSpecPatchArgs:
     @pulumi.getter(name="rolloutRestartTargets")
     def rollout_restart_targets(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecRolloutRestartTargetsPatchArgs']]]]:
         """
-        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does not support dynamically reloading a rotated secret. In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events. See RolloutRestartTarget for more details.
+        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does
+        not support dynamically reloading a rotated secret.
+        In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will
+        trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events.
+        See RolloutRestartTarget for more details.
         """
         return pulumi.get(self, "rollout_restart_targets")
 
@@ -2523,7 +5029,10 @@ class VaultDynamicSecretSpecPatchArgs:
     @pulumi.getter(name="vaultAuthRef")
     def vault_auth_ref(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace, eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will default to the `default` VaultAuth, configured in its own Kubernetes namespace.
+        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace,
+        eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to
+        the namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator
+        will default to the `default` VaultAuth, configured in the operator's namespace.
         """
         return pulumi.get(self, "vault_auth_ref")
 
@@ -2535,11 +5044,23 @@ class VaultDynamicSecretSpecPatchArgs:
 if not MYPY:
     class VaultDynamicSecretSpecRolloutRestartTargetsPatchArgsDict(TypedDict):
         """
-        RolloutRestartTarget provides the configuration required to perform a rollout-restart of the supported resources upon Vault Secret rotation. The rollout-restart is triggered by patching the target resource's 'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt' with a timestamp value of when the trigger was executed. E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z" 
-         Supported resources: Deployment, DaemonSet, StatefulSet
+        RolloutRestartTarget provides the configuration required to perform a
+        rollout-restart of the supported resources upon Vault Secret rotation.
+        The rollout-restart is triggered by patching the target resource's
+        'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt'
+        with a timestamp value of when the trigger was executed.
+        E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z"
+
+        Supported resources: Deployment, DaemonSet, StatefulSet, argo.Rollout
         """
         kind: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Kind of the resource
+        """
         name: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Name of the resource
+        """
 elif False:
     VaultDynamicSecretSpecRolloutRestartTargetsPatchArgsDict: TypeAlias = Mapping[str, Any]
 
@@ -2549,8 +5070,16 @@ class VaultDynamicSecretSpecRolloutRestartTargetsPatchArgs:
                  kind: Optional[pulumi.Input[_builtins.str]] = None,
                  name: Optional[pulumi.Input[_builtins.str]] = None):
         """
-        RolloutRestartTarget provides the configuration required to perform a rollout-restart of the supported resources upon Vault Secret rotation. The rollout-restart is triggered by patching the target resource's 'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt' with a timestamp value of when the trigger was executed. E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z" 
-         Supported resources: Deployment, DaemonSet, StatefulSet
+        RolloutRestartTarget provides the configuration required to perform a
+        rollout-restart of the supported resources upon Vault Secret rotation.
+        The rollout-restart is triggered by patching the target resource's
+        'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt'
+        with a timestamp value of when the trigger was executed.
+        E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z"
+
+        Supported resources: Deployment, DaemonSet, StatefulSet, argo.Rollout
+        :param pulumi.Input[_builtins.str] kind: Kind of the resource
+        :param pulumi.Input[_builtins.str] name: Name of the resource
         """
         if kind is not None:
             pulumi.set(__self__, "kind", kind)
@@ -2560,6 +5089,9 @@ class VaultDynamicSecretSpecRolloutRestartTargetsPatchArgs:
     @_builtins.property
     @pulumi.getter
     def kind(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Kind of the resource
+        """
         return pulumi.get(self, "kind")
 
     @kind.setter
@@ -2569,6 +5101,9 @@ class VaultDynamicSecretSpecRolloutRestartTargetsPatchArgs:
     @_builtins.property
     @pulumi.getter
     def name(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Name of the resource
+        """
         return pulumi.get(self, "name")
 
     @name.setter
@@ -2579,11 +5114,23 @@ class VaultDynamicSecretSpecRolloutRestartTargetsPatchArgs:
 if not MYPY:
     class VaultDynamicSecretSpecRolloutRestartTargetsArgsDict(TypedDict):
         """
-        RolloutRestartTarget provides the configuration required to perform a rollout-restart of the supported resources upon Vault Secret rotation. The rollout-restart is triggered by patching the target resource's 'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt' with a timestamp value of when the trigger was executed. E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z" 
-         Supported resources: Deployment, DaemonSet, StatefulSet
+        RolloutRestartTarget provides the configuration required to perform a
+        rollout-restart of the supported resources upon Vault Secret rotation.
+        The rollout-restart is triggered by patching the target resource's
+        'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt'
+        with a timestamp value of when the trigger was executed.
+        E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z"
+
+        Supported resources: Deployment, DaemonSet, StatefulSet, argo.Rollout
         """
         kind: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Kind of the resource
+        """
         name: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Name of the resource
+        """
 elif False:
     VaultDynamicSecretSpecRolloutRestartTargetsArgsDict: TypeAlias = Mapping[str, Any]
 
@@ -2593,8 +5140,16 @@ class VaultDynamicSecretSpecRolloutRestartTargetsArgs:
                  kind: Optional[pulumi.Input[_builtins.str]] = None,
                  name: Optional[pulumi.Input[_builtins.str]] = None):
         """
-        RolloutRestartTarget provides the configuration required to perform a rollout-restart of the supported resources upon Vault Secret rotation. The rollout-restart is triggered by patching the target resource's 'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt' with a timestamp value of when the trigger was executed. E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z" 
-         Supported resources: Deployment, DaemonSet, StatefulSet
+        RolloutRestartTarget provides the configuration required to perform a
+        rollout-restart of the supported resources upon Vault Secret rotation.
+        The rollout-restart is triggered by patching the target resource's
+        'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt'
+        with a timestamp value of when the trigger was executed.
+        E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z"
+
+        Supported resources: Deployment, DaemonSet, StatefulSet, argo.Rollout
+        :param pulumi.Input[_builtins.str] kind: Kind of the resource
+        :param pulumi.Input[_builtins.str] name: Name of the resource
         """
         if kind is not None:
             pulumi.set(__self__, "kind", kind)
@@ -2604,6 +5159,9 @@ class VaultDynamicSecretSpecRolloutRestartTargetsArgs:
     @_builtins.property
     @pulumi.getter
     def kind(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Kind of the resource
+        """
         return pulumi.get(self, "kind")
 
     @kind.setter
@@ -2613,6 +5171,9 @@ class VaultDynamicSecretSpecRolloutRestartTargetsArgs:
     @_builtins.property
     @pulumi.getter
     def name(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Name of the resource
+        """
         return pulumi.get(self, "name")
 
     @name.setter
@@ -2627,7 +5188,10 @@ if not MYPY:
         """
         allow_static_creds: NotRequired[pulumi.Input[_builtins.bool]]
         """
-        AllowStaticCreds should be set when syncing credentials that are periodically rotated by the Vault server, rather than created upon request. These secrets are sometimes referred to as "static roles", or "static credentials", with a request path that contains "static-creds".
+        AllowStaticCreds should be set when syncing credentials that are periodically
+        rotated by the Vault server, rather than created upon request. These secrets
+        are sometimes referred to as "static roles", or "static credentials", with a
+        request path that contains "static-creds".
         """
         destination: NotRequired[pulumi.Input['VaultDynamicSecretSpecDestinationArgsDict']]
         mount: NotRequired[pulumi.Input[_builtins.str]]
@@ -2636,23 +5200,47 @@ if not MYPY:
         """
         namespace: NotRequired[pulumi.Input[_builtins.str]]
         """
-        Namespace where the secrets engine is mounted in Vault.
+        Namespace of the secrets engine mount in Vault. If not set, the namespace that's
+        part of VaultAuth resource will be inferred.
         """
         params: NotRequired[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]
         """
-        Params that can be passed when requesting credentials/secrets. When Params is set the configured RequestHTTPMethod will be ignored. See RequestHTTPMethod for more details. Please consult https://developer.hashicorp.com/vault/docs/secrets if you are uncertain about what 'params' should/can be set to.
+        Params that can be passed when requesting credentials/secrets.
+        When Params is set the configured RequestHTTPMethod will be
+        ignored. See RequestHTTPMethod for more details.
+        Please consult https://developer.hashicorp.com/vault/docs/secrets if you are
+        uncertain about what 'params' should/can be set to.
         """
         path: NotRequired[pulumi.Input[_builtins.str]]
         """
-        Path in Vault to get the credentials for, and is relative to Mount. Please consult https://developer.hashicorp.com/vault/docs/secrets if you are uncertain about what 'path' should be set to.
+        Path in Vault to get the credentials for, and is relative to Mount.
+        Please consult https://developer.hashicorp.com/vault/docs/secrets if you are
+        uncertain about what 'path' should be set to.
+        """
+        refresh_after: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        RefreshAfter a period of time for VSO to sync the source secret data, in
+        duration notation e.g. 30s, 1m, 24h. This value only needs to be set when
+        syncing from a secret's engine that does not provide a lease TTL in its
+        response. The value should be within the secret engine's configured ttl or
+        max_ttl. The source secret's lease duration takes precedence over this
+        configuration when it is greater than 0.
         """
         renewal_percent: NotRequired[pulumi.Input[_builtins.int]]
         """
-        RenewalPercent is the percent out of 100 of the lease duration when the lease is renewed. Defaults to 67 percent plus jitter.
+        RenewalPercent is the percent out of 100 of the lease duration when the
+        lease is renewed. Defaults to 67 percent plus jitter.
         """
         request_http_method: NotRequired[pulumi.Input[_builtins.str]]
         """
-        RequestHTTPMethod to use when syncing Secrets from Vault. Setting a value here is not typically required. If left unset the Operator will make requests using the GET method. In the case where Params are specified the Operator will use the PUT method. Please consult https://developer.hashicorp.com/vault/docs/secrets if you are uncertain about what method to use. Of note, the Vault client treats PUT and POST as being equivalent. The underlying Vault client implementation will always use the PUT method.
+        RequestHTTPMethod to use when syncing Secrets from Vault.
+        Setting a value here is not typically required.
+        If left unset the Operator will make requests using the GET method.
+        In the case where Params are specified the Operator will use the PUT method.
+        Please consult https://developer.hashicorp.com/vault/docs/secrets if you are
+        uncertain about what method to use.
+        Of note, the Vault client treats PUT and POST as being equivalent.
+        The underlying Vault client implementation will always use the PUT method.
         """
         revoke: NotRequired[pulumi.Input[_builtins.bool]]
         """
@@ -2660,11 +5248,18 @@ if not MYPY:
         """
         rollout_restart_targets: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecRolloutRestartTargetsArgsDict']]]]
         """
-        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does not support dynamically reloading a rotated secret. In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events. See RolloutRestartTarget for more details.
+        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does
+        not support dynamically reloading a rotated secret.
+        In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will
+        trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events.
+        See RolloutRestartTarget for more details.
         """
         vault_auth_ref: NotRequired[pulumi.Input[_builtins.str]]
         """
-        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace, eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will default to the `default` VaultAuth, configured in its own Kubernetes namespace.
+        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace,
+        eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to
+        the namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator
+        will default to the `default` VaultAuth, configured in the operator's namespace.
         """
 elif False:
     VaultDynamicSecretSpecArgsDict: TypeAlias = Mapping[str, Any]
@@ -2678,6 +5273,7 @@ class VaultDynamicSecretSpecArgs:
                  namespace: Optional[pulumi.Input[_builtins.str]] = None,
                  params: Optional[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]] = None,
                  path: Optional[pulumi.Input[_builtins.str]] = None,
+                 refresh_after: Optional[pulumi.Input[_builtins.str]] = None,
                  renewal_percent: Optional[pulumi.Input[_builtins.int]] = None,
                  request_http_method: Optional[pulumi.Input[_builtins.str]] = None,
                  revoke: Optional[pulumi.Input[_builtins.bool]] = None,
@@ -2685,16 +5281,47 @@ class VaultDynamicSecretSpecArgs:
                  vault_auth_ref: Optional[pulumi.Input[_builtins.str]] = None):
         """
         VaultDynamicSecretSpec defines the desired state of VaultDynamicSecret
-        :param pulumi.Input[_builtins.bool] allow_static_creds: AllowStaticCreds should be set when syncing credentials that are periodically rotated by the Vault server, rather than created upon request. These secrets are sometimes referred to as "static roles", or "static credentials", with a request path that contains "static-creds".
+        :param pulumi.Input[_builtins.bool] allow_static_creds: AllowStaticCreds should be set when syncing credentials that are periodically
+               rotated by the Vault server, rather than created upon request. These secrets
+               are sometimes referred to as "static roles", or "static credentials", with a
+               request path that contains "static-creds".
         :param pulumi.Input[_builtins.str] mount: Mount path of the secret's engine in Vault.
-        :param pulumi.Input[_builtins.str] namespace: Namespace where the secrets engine is mounted in Vault.
-        :param pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]] params: Params that can be passed when requesting credentials/secrets. When Params is set the configured RequestHTTPMethod will be ignored. See RequestHTTPMethod for more details. Please consult https://developer.hashicorp.com/vault/docs/secrets if you are uncertain about what 'params' should/can be set to.
-        :param pulumi.Input[_builtins.str] path: Path in Vault to get the credentials for, and is relative to Mount. Please consult https://developer.hashicorp.com/vault/docs/secrets if you are uncertain about what 'path' should be set to.
-        :param pulumi.Input[_builtins.int] renewal_percent: RenewalPercent is the percent out of 100 of the lease duration when the lease is renewed. Defaults to 67 percent plus jitter.
-        :param pulumi.Input[_builtins.str] request_http_method: RequestHTTPMethod to use when syncing Secrets from Vault. Setting a value here is not typically required. If left unset the Operator will make requests using the GET method. In the case where Params are specified the Operator will use the PUT method. Please consult https://developer.hashicorp.com/vault/docs/secrets if you are uncertain about what method to use. Of note, the Vault client treats PUT and POST as being equivalent. The underlying Vault client implementation will always use the PUT method.
+        :param pulumi.Input[_builtins.str] namespace: Namespace of the secrets engine mount in Vault. If not set, the namespace that's
+               part of VaultAuth resource will be inferred.
+        :param pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]] params: Params that can be passed when requesting credentials/secrets.
+               When Params is set the configured RequestHTTPMethod will be
+               ignored. See RequestHTTPMethod for more details.
+               Please consult https://developer.hashicorp.com/vault/docs/secrets if you are
+               uncertain about what 'params' should/can be set to.
+        :param pulumi.Input[_builtins.str] path: Path in Vault to get the credentials for, and is relative to Mount.
+               Please consult https://developer.hashicorp.com/vault/docs/secrets if you are
+               uncertain about what 'path' should be set to.
+        :param pulumi.Input[_builtins.str] refresh_after: RefreshAfter a period of time for VSO to sync the source secret data, in
+               duration notation e.g. 30s, 1m, 24h. This value only needs to be set when
+               syncing from a secret's engine that does not provide a lease TTL in its
+               response. The value should be within the secret engine's configured ttl or
+               max_ttl. The source secret's lease duration takes precedence over this
+               configuration when it is greater than 0.
+        :param pulumi.Input[_builtins.int] renewal_percent: RenewalPercent is the percent out of 100 of the lease duration when the
+               lease is renewed. Defaults to 67 percent plus jitter.
+        :param pulumi.Input[_builtins.str] request_http_method: RequestHTTPMethod to use when syncing Secrets from Vault.
+               Setting a value here is not typically required.
+               If left unset the Operator will make requests using the GET method.
+               In the case where Params are specified the Operator will use the PUT method.
+               Please consult https://developer.hashicorp.com/vault/docs/secrets if you are
+               uncertain about what method to use.
+               Of note, the Vault client treats PUT and POST as being equivalent.
+               The underlying Vault client implementation will always use the PUT method.
         :param pulumi.Input[_builtins.bool] revoke: Revoke the existing lease on VDS resource deletion.
-        :param pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecRolloutRestartTargetsArgs']]] rollout_restart_targets: RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does not support dynamically reloading a rotated secret. In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events. See RolloutRestartTarget for more details.
-        :param pulumi.Input[_builtins.str] vault_auth_ref: VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace, eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will default to the `default` VaultAuth, configured in its own Kubernetes namespace.
+        :param pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecRolloutRestartTargetsArgs']]] rollout_restart_targets: RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does
+               not support dynamically reloading a rotated secret.
+               In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will
+               trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events.
+               See RolloutRestartTarget for more details.
+        :param pulumi.Input[_builtins.str] vault_auth_ref: VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace,
+               eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to
+               the namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator
+               will default to the `default` VaultAuth, configured in the operator's namespace.
         """
         if allow_static_creds is not None:
             pulumi.set(__self__, "allow_static_creds", allow_static_creds)
@@ -2708,6 +5335,8 @@ class VaultDynamicSecretSpecArgs:
             pulumi.set(__self__, "params", params)
         if path is not None:
             pulumi.set(__self__, "path", path)
+        if refresh_after is not None:
+            pulumi.set(__self__, "refresh_after", refresh_after)
         if renewal_percent is not None:
             pulumi.set(__self__, "renewal_percent", renewal_percent)
         if request_http_method is not None:
@@ -2723,7 +5352,10 @@ class VaultDynamicSecretSpecArgs:
     @pulumi.getter(name="allowStaticCreds")
     def allow_static_creds(self) -> Optional[pulumi.Input[_builtins.bool]]:
         """
-        AllowStaticCreds should be set when syncing credentials that are periodically rotated by the Vault server, rather than created upon request. These secrets are sometimes referred to as "static roles", or "static credentials", with a request path that contains "static-creds".
+        AllowStaticCreds should be set when syncing credentials that are periodically
+        rotated by the Vault server, rather than created upon request. These secrets
+        are sometimes referred to as "static roles", or "static credentials", with a
+        request path that contains "static-creds".
         """
         return pulumi.get(self, "allow_static_creds")
 
@@ -2756,7 +5388,8 @@ class VaultDynamicSecretSpecArgs:
     @pulumi.getter
     def namespace(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        Namespace where the secrets engine is mounted in Vault.
+        Namespace of the secrets engine mount in Vault. If not set, the namespace that's
+        part of VaultAuth resource will be inferred.
         """
         return pulumi.get(self, "namespace")
 
@@ -2768,7 +5401,11 @@ class VaultDynamicSecretSpecArgs:
     @pulumi.getter
     def params(self) -> Optional[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]:
         """
-        Params that can be passed when requesting credentials/secrets. When Params is set the configured RequestHTTPMethod will be ignored. See RequestHTTPMethod for more details. Please consult https://developer.hashicorp.com/vault/docs/secrets if you are uncertain about what 'params' should/can be set to.
+        Params that can be passed when requesting credentials/secrets.
+        When Params is set the configured RequestHTTPMethod will be
+        ignored. See RequestHTTPMethod for more details.
+        Please consult https://developer.hashicorp.com/vault/docs/secrets if you are
+        uncertain about what 'params' should/can be set to.
         """
         return pulumi.get(self, "params")
 
@@ -2780,7 +5417,9 @@ class VaultDynamicSecretSpecArgs:
     @pulumi.getter
     def path(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        Path in Vault to get the credentials for, and is relative to Mount. Please consult https://developer.hashicorp.com/vault/docs/secrets if you are uncertain about what 'path' should be set to.
+        Path in Vault to get the credentials for, and is relative to Mount.
+        Please consult https://developer.hashicorp.com/vault/docs/secrets if you are
+        uncertain about what 'path' should be set to.
         """
         return pulumi.get(self, "path")
 
@@ -2789,10 +5428,28 @@ class VaultDynamicSecretSpecArgs:
         pulumi.set(self, "path", value)
 
     @_builtins.property
+    @pulumi.getter(name="refreshAfter")
+    def refresh_after(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        RefreshAfter a period of time for VSO to sync the source secret data, in
+        duration notation e.g. 30s, 1m, 24h. This value only needs to be set when
+        syncing from a secret's engine that does not provide a lease TTL in its
+        response. The value should be within the secret engine's configured ttl or
+        max_ttl. The source secret's lease duration takes precedence over this
+        configuration when it is greater than 0.
+        """
+        return pulumi.get(self, "refresh_after")
+
+    @refresh_after.setter
+    def refresh_after(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "refresh_after", value)
+
+    @_builtins.property
     @pulumi.getter(name="renewalPercent")
     def renewal_percent(self) -> Optional[pulumi.Input[_builtins.int]]:
         """
-        RenewalPercent is the percent out of 100 of the lease duration when the lease is renewed. Defaults to 67 percent plus jitter.
+        RenewalPercent is the percent out of 100 of the lease duration when the
+        lease is renewed. Defaults to 67 percent plus jitter.
         """
         return pulumi.get(self, "renewal_percent")
 
@@ -2804,7 +5461,14 @@ class VaultDynamicSecretSpecArgs:
     @pulumi.getter(name="requestHTTPMethod")
     def request_http_method(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        RequestHTTPMethod to use when syncing Secrets from Vault. Setting a value here is not typically required. If left unset the Operator will make requests using the GET method. In the case where Params are specified the Operator will use the PUT method. Please consult https://developer.hashicorp.com/vault/docs/secrets if you are uncertain about what method to use. Of note, the Vault client treats PUT and POST as being equivalent. The underlying Vault client implementation will always use the PUT method.
+        RequestHTTPMethod to use when syncing Secrets from Vault.
+        Setting a value here is not typically required.
+        If left unset the Operator will make requests using the GET method.
+        In the case where Params are specified the Operator will use the PUT method.
+        Please consult https://developer.hashicorp.com/vault/docs/secrets if you are
+        uncertain about what method to use.
+        Of note, the Vault client treats PUT and POST as being equivalent.
+        The underlying Vault client implementation will always use the PUT method.
         """
         return pulumi.get(self, "request_http_method")
 
@@ -2828,7 +5492,11 @@ class VaultDynamicSecretSpecArgs:
     @pulumi.getter(name="rolloutRestartTargets")
     def rollout_restart_targets(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretSpecRolloutRestartTargetsArgs']]]]:
         """
-        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does not support dynamically reloading a rotated secret. In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events. See RolloutRestartTarget for more details.
+        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does
+        not support dynamically reloading a rotated secret.
+        In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will
+        trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events.
+        See RolloutRestartTarget for more details.
         """
         return pulumi.get(self, "rollout_restart_targets")
 
@@ -2840,13 +5508,176 @@ class VaultDynamicSecretSpecArgs:
     @pulumi.getter(name="vaultAuthRef")
     def vault_auth_ref(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace, eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will default to the `default` VaultAuth, configured in its own Kubernetes namespace.
+        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace,
+        eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to
+        the namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator
+        will default to the `default` VaultAuth, configured in the operator's namespace.
         """
         return pulumi.get(self, "vault_auth_ref")
 
     @vault_auth_ref.setter
     def vault_auth_ref(self, value: Optional[pulumi.Input[_builtins.str]]):
         pulumi.set(self, "vault_auth_ref", value)
+
+
+if not MYPY:
+    class VaultDynamicSecretStatusConditionsArgsDict(TypedDict):
+        """
+        Condition contains details for one aspect of the current state of this API Resource.
+        """
+        last_transition_time: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        lastTransitionTime is the last time the condition transitioned from one status to another.
+        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+        """
+        message: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        message is a human readable message indicating details about the transition.
+        This may be an empty string.
+        """
+        observed_generation: NotRequired[pulumi.Input[_builtins.int]]
+        """
+        observedGeneration represents the .metadata.generation that the condition was set based upon.
+        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+        with respect to the current state of the instance.
+        """
+        reason: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+        Producers of specific condition types may define expected values and meanings for this field,
+        and whether the values are considered a guaranteed API.
+        The value should be a CamelCase string.
+        This field may not be empty.
+        """
+        status: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        status of the condition, one of True, False, Unknown.
+        """
+        type: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        type of condition in CamelCase or in foo.example.com/CamelCase.
+        """
+elif False:
+    VaultDynamicSecretStatusConditionsArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultDynamicSecretStatusConditionsArgs:
+    def __init__(__self__, *,
+                 last_transition_time: Optional[pulumi.Input[_builtins.str]] = None,
+                 message: Optional[pulumi.Input[_builtins.str]] = None,
+                 observed_generation: Optional[pulumi.Input[_builtins.int]] = None,
+                 reason: Optional[pulumi.Input[_builtins.str]] = None,
+                 status: Optional[pulumi.Input[_builtins.str]] = None,
+                 type: Optional[pulumi.Input[_builtins.str]] = None):
+        """
+        Condition contains details for one aspect of the current state of this API Resource.
+        :param pulumi.Input[_builtins.str] last_transition_time: lastTransitionTime is the last time the condition transitioned from one status to another.
+               This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+        :param pulumi.Input[_builtins.str] message: message is a human readable message indicating details about the transition.
+               This may be an empty string.
+        :param pulumi.Input[_builtins.int] observed_generation: observedGeneration represents the .metadata.generation that the condition was set based upon.
+               For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+               with respect to the current state of the instance.
+        :param pulumi.Input[_builtins.str] reason: reason contains a programmatic identifier indicating the reason for the condition's last transition.
+               Producers of specific condition types may define expected values and meanings for this field,
+               and whether the values are considered a guaranteed API.
+               The value should be a CamelCase string.
+               This field may not be empty.
+        :param pulumi.Input[_builtins.str] status: status of the condition, one of True, False, Unknown.
+        :param pulumi.Input[_builtins.str] type: type of condition in CamelCase or in foo.example.com/CamelCase.
+        """
+        if last_transition_time is not None:
+            pulumi.set(__self__, "last_transition_time", last_transition_time)
+        if message is not None:
+            pulumi.set(__self__, "message", message)
+        if observed_generation is not None:
+            pulumi.set(__self__, "observed_generation", observed_generation)
+        if reason is not None:
+            pulumi.set(__self__, "reason", reason)
+        if status is not None:
+            pulumi.set(__self__, "status", status)
+        if type is not None:
+            pulumi.set(__self__, "type", type)
+
+    @_builtins.property
+    @pulumi.getter(name="lastTransitionTime")
+    def last_transition_time(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        lastTransitionTime is the last time the condition transitioned from one status to another.
+        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+        """
+        return pulumi.get(self, "last_transition_time")
+
+    @last_transition_time.setter
+    def last_transition_time(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "last_transition_time", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def message(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        message is a human readable message indicating details about the transition.
+        This may be an empty string.
+        """
+        return pulumi.get(self, "message")
+
+    @message.setter
+    def message(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "message", value)
+
+    @_builtins.property
+    @pulumi.getter(name="observedGeneration")
+    def observed_generation(self) -> Optional[pulumi.Input[_builtins.int]]:
+        """
+        observedGeneration represents the .metadata.generation that the condition was set based upon.
+        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+        with respect to the current state of the instance.
+        """
+        return pulumi.get(self, "observed_generation")
+
+    @observed_generation.setter
+    def observed_generation(self, value: Optional[pulumi.Input[_builtins.int]]):
+        pulumi.set(self, "observed_generation", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def reason(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+        Producers of specific condition types may define expected values and meanings for this field,
+        and whether the values are considered a guaranteed API.
+        The value should be a CamelCase string.
+        This field may not be empty.
+        """
+        return pulumi.get(self, "reason")
+
+    @reason.setter
+    def reason(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "reason", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def status(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        status of the condition, one of True, False, Unknown.
+        """
+        return pulumi.get(self, "status")
+
+    @status.setter
+    def status(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "status", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def type(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        type of condition in CamelCase or in foo.example.com/CamelCase.
+        """
+        return pulumi.get(self, "type")
+
+    @type.setter
+    def type(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "type", value)
 
 
 if not MYPY:
@@ -2956,7 +5787,16 @@ if not MYPY:
         """
         rotation_period: NotRequired[pulumi.Input[_builtins.int]]
         """
-        RotationPeriod is number in seconds between each rotation, effectively a "time to live". This value is compared to the LastVaultRotation to determine if a password needs to be rotated
+        RotationPeriod is number in seconds between each rotation, effectively a
+        "time to live". This value is compared to the LastVaultRotation to
+        determine if a password needs to be rotated
+        """
+        rotation_schedule: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        RotationSchedule is a "cron style" string representing the allowed
+        schedule for each rotation.
+        e.g. "1 0 * * *" would rotate at one minute past midnight (00:01) every
+        day.
         """
         ttl: NotRequired[pulumi.Input[_builtins.int]]
         """
@@ -2970,17 +5810,26 @@ class VaultDynamicSecretStatusStaticCredsMetaDataArgs:
     def __init__(__self__, *,
                  last_vault_rotation: Optional[pulumi.Input[_builtins.int]] = None,
                  rotation_period: Optional[pulumi.Input[_builtins.int]] = None,
+                 rotation_schedule: Optional[pulumi.Input[_builtins.str]] = None,
                  ttl: Optional[pulumi.Input[_builtins.int]] = None):
         """
         StaticCredsMetaData contains the static creds response meta-data
         :param pulumi.Input[_builtins.int] last_vault_rotation: LastVaultRotation represents the last time Vault rotated the password
-        :param pulumi.Input[_builtins.int] rotation_period: RotationPeriod is number in seconds between each rotation, effectively a "time to live". This value is compared to the LastVaultRotation to determine if a password needs to be rotated
+        :param pulumi.Input[_builtins.int] rotation_period: RotationPeriod is number in seconds between each rotation, effectively a
+               "time to live". This value is compared to the LastVaultRotation to
+               determine if a password needs to be rotated
+        :param pulumi.Input[_builtins.str] rotation_schedule: RotationSchedule is a "cron style" string representing the allowed
+               schedule for each rotation.
+               e.g. "1 0 * * *" would rotate at one minute past midnight (00:01) every
+               day.
         :param pulumi.Input[_builtins.int] ttl: TTL is the seconds remaining before the next rotation.
         """
         if last_vault_rotation is not None:
             pulumi.set(__self__, "last_vault_rotation", last_vault_rotation)
         if rotation_period is not None:
             pulumi.set(__self__, "rotation_period", rotation_period)
+        if rotation_schedule is not None:
+            pulumi.set(__self__, "rotation_schedule", rotation_schedule)
         if ttl is not None:
             pulumi.set(__self__, "ttl", ttl)
 
@@ -3000,13 +5849,30 @@ class VaultDynamicSecretStatusStaticCredsMetaDataArgs:
     @pulumi.getter(name="rotationPeriod")
     def rotation_period(self) -> Optional[pulumi.Input[_builtins.int]]:
         """
-        RotationPeriod is number in seconds between each rotation, effectively a "time to live". This value is compared to the LastVaultRotation to determine if a password needs to be rotated
+        RotationPeriod is number in seconds between each rotation, effectively a
+        "time to live". This value is compared to the LastVaultRotation to
+        determine if a password needs to be rotated
         """
         return pulumi.get(self, "rotation_period")
 
     @rotation_period.setter
     def rotation_period(self, value: Optional[pulumi.Input[_builtins.int]]):
         pulumi.set(self, "rotation_period", value)
+
+    @_builtins.property
+    @pulumi.getter(name="rotationSchedule")
+    def rotation_schedule(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        RotationSchedule is a "cron style" string representing the allowed
+        schedule for each rotation.
+        e.g. "1 0 * * *" would rotate at one minute past midnight (00:01) every
+        day.
+        """
+        return pulumi.get(self, "rotation_schedule")
+
+    @rotation_schedule.setter
+    def rotation_schedule(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "rotation_schedule", value)
 
     @_builtins.property
     @pulumi.getter
@@ -3022,9 +5888,75 @@ class VaultDynamicSecretStatusStaticCredsMetaDataArgs:
 
 
 if not MYPY:
+    class VaultDynamicSecretStatusVaultClientMetaArgsDict(TypedDict):
+        """
+        VaultClientMeta contains the status of the Vault client and is used during
+        resource reconciliation.
+        """
+        cache_key: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        CacheKey is the unique key used to identify the client cache.
+        """
+        id: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        ID is the Vault ID of the authenticated client. The ID should never contain
+        any sensitive information.
+        """
+elif False:
+    VaultDynamicSecretStatusVaultClientMetaArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultDynamicSecretStatusVaultClientMetaArgs:
+    def __init__(__self__, *,
+                 cache_key: Optional[pulumi.Input[_builtins.str]] = None,
+                 id: Optional[pulumi.Input[_builtins.str]] = None):
+        """
+        VaultClientMeta contains the status of the Vault client and is used during
+        resource reconciliation.
+        :param pulumi.Input[_builtins.str] cache_key: CacheKey is the unique key used to identify the client cache.
+        :param pulumi.Input[_builtins.str] id: ID is the Vault ID of the authenticated client. The ID should never contain
+               any sensitive information.
+        """
+        if cache_key is not None:
+            pulumi.set(__self__, "cache_key", cache_key)
+        if id is not None:
+            pulumi.set(__self__, "id", id)
+
+    @_builtins.property
+    @pulumi.getter(name="cacheKey")
+    def cache_key(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        CacheKey is the unique key used to identify the client cache.
+        """
+        return pulumi.get(self, "cache_key")
+
+    @cache_key.setter
+    def cache_key(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "cache_key", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def id(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        ID is the Vault ID of the authenticated client. The ID should never contain
+        any sensitive information.
+        """
+        return pulumi.get(self, "id")
+
+    @id.setter
+    def id(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "id", value)
+
+
+if not MYPY:
     class VaultDynamicSecretStatusArgsDict(TypedDict):
         """
         VaultDynamicSecretStatus defines the observed state of VaultDynamicSecret
+        """
+        conditions: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretStatusConditionsArgsDict']]]]
+        """
+        Conditions hold information that can be used by other apps to determine the
+        health of the resource instance.
         """
         last_generation: NotRequired[pulumi.Input[_builtins.int]]
         """
@@ -3036,37 +5968,56 @@ if not MYPY:
         """
         last_runtime_pod_uid: NotRequired[pulumi.Input[_builtins.str]]
         """
-        LastRuntimePodUID used for tracking the transition from one Pod to the next. It is used to mitigate the effects of a Vault lease renewal storm.
+        LastRuntimePodUID used for tracking the transition from one Pod to the next.
+        It is used to mitigate the effects of a Vault lease renewal storm.
         """
         secret_lease: NotRequired[pulumi.Input['VaultDynamicSecretStatusSecretLeaseArgsDict']]
         secret_mac: NotRequired[pulumi.Input[_builtins.str]]
         """
-        SecretMAC used when deciding whether new Vault secret data should be synced. 
-         The controller will compare the "new" Vault secret data to this value using HMAC, if they are different, then the data will be synced to the Destination. 
-         The SecretMac is also used to detect drift in the Destination Secret's Data. If drift is detected the data will be synced to the Destination. SecretMAC will only be stored when VaultDynamicSecretSpec.AllowStaticCreds is true.
+        SecretMAC used when deciding whether new Vault secret data should be synced.
+
+        The controller will compare the "new" Vault secret data to this value using HMAC,
+        if they are different, then the data will be synced to the Destination.
+
+        The SecretMac is also used to detect drift in the Destination Secret's Data.
+        If drift is detected the data will be synced to the Destination.
+        SecretMAC will only be stored when VaultDynamicSecretSpec.AllowStaticCreds is true.
         """
         static_creds_meta_data: NotRequired[pulumi.Input['VaultDynamicSecretStatusStaticCredsMetaDataArgsDict']]
+        vault_client_meta: NotRequired[pulumi.Input['VaultDynamicSecretStatusVaultClientMetaArgsDict']]
 elif False:
     VaultDynamicSecretStatusArgsDict: TypeAlias = Mapping[str, Any]
 
 @pulumi.input_type
 class VaultDynamicSecretStatusArgs:
     def __init__(__self__, *,
+                 conditions: Optional[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretStatusConditionsArgs']]]] = None,
                  last_generation: Optional[pulumi.Input[_builtins.int]] = None,
                  last_renewal_time: Optional[pulumi.Input[_builtins.int]] = None,
                  last_runtime_pod_uid: Optional[pulumi.Input[_builtins.str]] = None,
                  secret_lease: Optional[pulumi.Input['VaultDynamicSecretStatusSecretLeaseArgs']] = None,
                  secret_mac: Optional[pulumi.Input[_builtins.str]] = None,
-                 static_creds_meta_data: Optional[pulumi.Input['VaultDynamicSecretStatusStaticCredsMetaDataArgs']] = None):
+                 static_creds_meta_data: Optional[pulumi.Input['VaultDynamicSecretStatusStaticCredsMetaDataArgs']] = None,
+                 vault_client_meta: Optional[pulumi.Input['VaultDynamicSecretStatusVaultClientMetaArgs']] = None):
         """
         VaultDynamicSecretStatus defines the observed state of VaultDynamicSecret
+        :param pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretStatusConditionsArgs']]] conditions: Conditions hold information that can be used by other apps to determine the
+               health of the resource instance.
         :param pulumi.Input[_builtins.int] last_generation: LastGeneration is the Generation of the last reconciled resource.
         :param pulumi.Input[_builtins.int] last_renewal_time: LastRenewalTime of the last successful secret lease renewal.
-        :param pulumi.Input[_builtins.str] last_runtime_pod_uid: LastRuntimePodUID used for tracking the transition from one Pod to the next. It is used to mitigate the effects of a Vault lease renewal storm.
-        :param pulumi.Input[_builtins.str] secret_mac: SecretMAC used when deciding whether new Vault secret data should be synced. 
-                The controller will compare the "new" Vault secret data to this value using HMAC, if they are different, then the data will be synced to the Destination. 
-                The SecretMac is also used to detect drift in the Destination Secret's Data. If drift is detected the data will be synced to the Destination. SecretMAC will only be stored when VaultDynamicSecretSpec.AllowStaticCreds is true.
+        :param pulumi.Input[_builtins.str] last_runtime_pod_uid: LastRuntimePodUID used for tracking the transition from one Pod to the next.
+               It is used to mitigate the effects of a Vault lease renewal storm.
+        :param pulumi.Input[_builtins.str] secret_mac: SecretMAC used when deciding whether new Vault secret data should be synced.
+               
+               The controller will compare the "new" Vault secret data to this value using HMAC,
+               if they are different, then the data will be synced to the Destination.
+               
+               The SecretMac is also used to detect drift in the Destination Secret's Data.
+               If drift is detected the data will be synced to the Destination.
+               SecretMAC will only be stored when VaultDynamicSecretSpec.AllowStaticCreds is true.
         """
+        if conditions is not None:
+            pulumi.set(__self__, "conditions", conditions)
         if last_generation is not None:
             pulumi.set(__self__, "last_generation", last_generation)
         if last_renewal_time is not None:
@@ -3079,6 +6030,21 @@ class VaultDynamicSecretStatusArgs:
             pulumi.set(__self__, "secret_mac", secret_mac)
         if static_creds_meta_data is not None:
             pulumi.set(__self__, "static_creds_meta_data", static_creds_meta_data)
+        if vault_client_meta is not None:
+            pulumi.set(__self__, "vault_client_meta", vault_client_meta)
+
+    @_builtins.property
+    @pulumi.getter
+    def conditions(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretStatusConditionsArgs']]]]:
+        """
+        Conditions hold information that can be used by other apps to determine the
+        health of the resource instance.
+        """
+        return pulumi.get(self, "conditions")
+
+    @conditions.setter
+    def conditions(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['VaultDynamicSecretStatusConditionsArgs']]]]):
+        pulumi.set(self, "conditions", value)
 
     @_builtins.property
     @pulumi.getter(name="lastGeneration")
@@ -3108,7 +6074,8 @@ class VaultDynamicSecretStatusArgs:
     @pulumi.getter(name="lastRuntimePodUID")
     def last_runtime_pod_uid(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        LastRuntimePodUID used for tracking the transition from one Pod to the next. It is used to mitigate the effects of a Vault lease renewal storm.
+        LastRuntimePodUID used for tracking the transition from one Pod to the next.
+        It is used to mitigate the effects of a Vault lease renewal storm.
         """
         return pulumi.get(self, "last_runtime_pod_uid")
 
@@ -3129,9 +6096,14 @@ class VaultDynamicSecretStatusArgs:
     @pulumi.getter(name="secretMAC")
     def secret_mac(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        SecretMAC used when deciding whether new Vault secret data should be synced. 
-         The controller will compare the "new" Vault secret data to this value using HMAC, if they are different, then the data will be synced to the Destination. 
-         The SecretMac is also used to detect drift in the Destination Secret's Data. If drift is detected the data will be synced to the Destination. SecretMAC will only be stored when VaultDynamicSecretSpec.AllowStaticCreds is true.
+        SecretMAC used when deciding whether new Vault secret data should be synced.
+
+        The controller will compare the "new" Vault secret data to this value using HMAC,
+        if they are different, then the data will be synced to the Destination.
+
+        The SecretMac is also used to detect drift in the Destination Secret's Data.
+        If drift is detected the data will be synced to the Destination.
+        SecretMAC will only be stored when VaultDynamicSecretSpec.AllowStaticCreds is true.
         """
         return pulumi.get(self, "secret_mac")
 
@@ -3147,6 +6119,15 @@ class VaultDynamicSecretStatusArgs:
     @static_creds_meta_data.setter
     def static_creds_meta_data(self, value: Optional[pulumi.Input['VaultDynamicSecretStatusStaticCredsMetaDataArgs']]):
         pulumi.set(self, "static_creds_meta_data", value)
+
+    @_builtins.property
+    @pulumi.getter(name="vaultClientMeta")
+    def vault_client_meta(self) -> Optional[pulumi.Input['VaultDynamicSecretStatusVaultClientMetaArgs']]:
+        return pulumi.get(self, "vault_client_meta")
+
+    @vault_client_meta.setter
+    def vault_client_meta(self, value: Optional[pulumi.Input['VaultDynamicSecretStatusVaultClientMetaArgs']]):
+        pulumi.set(self, "vault_client_meta", value)
 
 
 if not MYPY:
@@ -3254,7 +6235,12 @@ class VaultDynamicSecretArgs:
 if not MYPY:
     class VaultPKISecretSpecDestinationPatchArgsDict(TypedDict):
         """
-        Destination provides configuration necessary for syncing the Vault secret to Kubernetes. If the type is set to "kubernetes.io/tls", "tls.key" will be set to the "private_key" response from Vault, and "tls.crt" will be set to "certificate" + "ca_chain" from the Vault response ("issuing_ca" is used when "ca_chain" is empty). The "remove_roots_from_chain=true" option is used with Vault to exclude the root CA from the Vault response.
+        Destination provides configuration necessary for syncing the Vault secret
+        to Kubernetes. If the type is set to "kubernetes.io/tls", "tls.key" will
+        be set to the "private_key" response from Vault, and "tls.crt" will be
+        set to "certificate" + "ca_chain" from the Vault response ("issuing_ca"
+        is used when "ca_chain" is empty). The "remove_roots_from_chain=true"
+        option is used with Vault to exclude the root CA from the Vault response.
         """
         annotations: NotRequired[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]
         """
@@ -3262,7 +6248,8 @@ if not MYPY:
         """
         create: NotRequired[pulumi.Input[_builtins.bool]]
         """
-        Create the destination Secret. If the Secret already exists this should be set to false.
+        Create the destination Secret.
+        If the Secret already exists this should be set to false.
         """
         labels: NotRequired[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]
         """
@@ -3272,9 +6259,16 @@ if not MYPY:
         """
         Name of the Secret
         """
+        overwrite: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        Overwrite the destination Secret if it exists and Create is true. This is
+        useful when migrating to VSO from a previous secret deployment strategy.
+        """
+        transformation: NotRequired[pulumi.Input['VaultPKISecretSpecDestinationTransformationPatchArgsDict']]
         type: NotRequired[pulumi.Input[_builtins.str]]
         """
-        Type of Kubernetes Secret. Requires Create to be set to true. Defaults to Opaque.
+        Type of Kubernetes Secret. Requires Create to be set to true.
+        Defaults to Opaque.
         """
 elif False:
     VaultPKISecretSpecDestinationPatchArgsDict: TypeAlias = Mapping[str, Any]
@@ -3286,14 +6280,25 @@ class VaultPKISecretSpecDestinationPatchArgs:
                  create: Optional[pulumi.Input[_builtins.bool]] = None,
                  labels: Optional[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]] = None,
                  name: Optional[pulumi.Input[_builtins.str]] = None,
+                 overwrite: Optional[pulumi.Input[_builtins.bool]] = None,
+                 transformation: Optional[pulumi.Input['VaultPKISecretSpecDestinationTransformationPatchArgs']] = None,
                  type: Optional[pulumi.Input[_builtins.str]] = None):
         """
-        Destination provides configuration necessary for syncing the Vault secret to Kubernetes. If the type is set to "kubernetes.io/tls", "tls.key" will be set to the "private_key" response from Vault, and "tls.crt" will be set to "certificate" + "ca_chain" from the Vault response ("issuing_ca" is used when "ca_chain" is empty). The "remove_roots_from_chain=true" option is used with Vault to exclude the root CA from the Vault response.
+        Destination provides configuration necessary for syncing the Vault secret
+        to Kubernetes. If the type is set to "kubernetes.io/tls", "tls.key" will
+        be set to the "private_key" response from Vault, and "tls.crt" will be
+        set to "certificate" + "ca_chain" from the Vault response ("issuing_ca"
+        is used when "ca_chain" is empty). The "remove_roots_from_chain=true"
+        option is used with Vault to exclude the root CA from the Vault response.
         :param pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]] annotations: Annotations to apply to the Secret. Requires Create to be set to true.
-        :param pulumi.Input[_builtins.bool] create: Create the destination Secret. If the Secret already exists this should be set to false.
+        :param pulumi.Input[_builtins.bool] create: Create the destination Secret.
+               If the Secret already exists this should be set to false.
         :param pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]] labels: Labels to apply to the Secret. Requires Create to be set to true.
         :param pulumi.Input[_builtins.str] name: Name of the Secret
-        :param pulumi.Input[_builtins.str] type: Type of Kubernetes Secret. Requires Create to be set to true. Defaults to Opaque.
+        :param pulumi.Input[_builtins.bool] overwrite: Overwrite the destination Secret if it exists and Create is true. This is
+               useful when migrating to VSO from a previous secret deployment strategy.
+        :param pulumi.Input[_builtins.str] type: Type of Kubernetes Secret. Requires Create to be set to true.
+               Defaults to Opaque.
         """
         if annotations is not None:
             pulumi.set(__self__, "annotations", annotations)
@@ -3303,6 +6308,10 @@ class VaultPKISecretSpecDestinationPatchArgs:
             pulumi.set(__self__, "labels", labels)
         if name is not None:
             pulumi.set(__self__, "name", name)
+        if overwrite is not None:
+            pulumi.set(__self__, "overwrite", overwrite)
+        if transformation is not None:
+            pulumi.set(__self__, "transformation", transformation)
         if type is not None:
             pulumi.set(__self__, "type", type)
 
@@ -3322,7 +6331,8 @@ class VaultPKISecretSpecDestinationPatchArgs:
     @pulumi.getter
     def create(self) -> Optional[pulumi.Input[_builtins.bool]]:
         """
-        Create the destination Secret. If the Secret already exists this should be set to false.
+        Create the destination Secret.
+        If the Secret already exists this should be set to false.
         """
         return pulumi.get(self, "create")
 
@@ -3356,9 +6366,32 @@ class VaultPKISecretSpecDestinationPatchArgs:
 
     @_builtins.property
     @pulumi.getter
+    def overwrite(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        Overwrite the destination Secret if it exists and Create is true. This is
+        useful when migrating to VSO from a previous secret deployment strategy.
+        """
+        return pulumi.get(self, "overwrite")
+
+    @overwrite.setter
+    def overwrite(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "overwrite", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def transformation(self) -> Optional[pulumi.Input['VaultPKISecretSpecDestinationTransformationPatchArgs']]:
+        return pulumi.get(self, "transformation")
+
+    @transformation.setter
+    def transformation(self, value: Optional[pulumi.Input['VaultPKISecretSpecDestinationTransformationPatchArgs']]):
+        pulumi.set(self, "transformation", value)
+
+    @_builtins.property
+    @pulumi.getter
     def type(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        Type of Kubernetes Secret. Requires Create to be set to true. Defaults to Opaque.
+        Type of Kubernetes Secret. Requires Create to be set to true.
+        Defaults to Opaque.
         """
         return pulumi.get(self, "type")
 
@@ -3368,9 +6401,720 @@ class VaultPKISecretSpecDestinationPatchArgs:
 
 
 if not MYPY:
+    class VaultPKISecretSpecDestinationTransformationPatchArgsDict(TypedDict):
+        """
+        Transformation provides configuration for transforming the secret data before
+        it is stored in the Destination.
+        """
+        exclude_raw: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        ExcludeRaw data from the destination Secret. Exclusion policy can be set
+        globally by including 'exclude-raw` in the '--global-transformation-options'
+        command line flag. If set, the command line flag always takes precedence over
+        this configuration.
+        """
+        excludes: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
+        """
+        Excludes contains regex patterns used to filter top-level source secret data
+        fields for exclusion from the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied before any inclusion patterns. To exclude all source secret data
+        fields, you can configure the single pattern ".*".
+        """
+        includes: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
+        """
+        Includes contains regex patterns used to filter top-level source secret data
+        fields for inclusion in the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied last.
+        """
+        templates: NotRequired[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]]
+        """
+        Templates maps a template name to its Template. Templates are always included
+        in the rendered K8s Secret, and take precedence over templates defined in a
+        SecretTransformation.
+        """
+        transformation_refs: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecDestinationTransformationTransformationRefsPatchArgsDict']]]]
+        """
+        TransformationRefs contain references to template configuration from
+        SecretTransformation.
+        """
+elif False:
+    VaultPKISecretSpecDestinationTransformationPatchArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultPKISecretSpecDestinationTransformationPatchArgs:
+    def __init__(__self__, *,
+                 exclude_raw: Optional[pulumi.Input[_builtins.bool]] = None,
+                 excludes: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
+                 includes: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
+                 templates: Optional[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]] = None,
+                 transformation_refs: Optional[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecDestinationTransformationTransformationRefsPatchArgs']]]] = None):
+        """
+        Transformation provides configuration for transforming the secret data before
+        it is stored in the Destination.
+        :param pulumi.Input[_builtins.bool] exclude_raw: ExcludeRaw data from the destination Secret. Exclusion policy can be set
+               globally by including 'exclude-raw` in the '--global-transformation-options'
+               command line flag. If set, the command line flag always takes precedence over
+               this configuration.
+        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] excludes: Excludes contains regex patterns used to filter top-level source secret data
+               fields for exclusion from the final K8s Secret data. These pattern filters are
+               never applied to templated fields as defined in Templates. They are always
+               applied before any inclusion patterns. To exclude all source secret data
+               fields, you can configure the single pattern ".*".
+        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] includes: Includes contains regex patterns used to filter top-level source secret data
+               fields for inclusion in the final K8s Secret data. These pattern filters are
+               never applied to templated fields as defined in Templates. They are always
+               applied last.
+        :param pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]] templates: Templates maps a template name to its Template. Templates are always included
+               in the rendered K8s Secret, and take precedence over templates defined in a
+               SecretTransformation.
+        :param pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecDestinationTransformationTransformationRefsPatchArgs']]] transformation_refs: TransformationRefs contain references to template configuration from
+               SecretTransformation.
+        """
+        if exclude_raw is not None:
+            pulumi.set(__self__, "exclude_raw", exclude_raw)
+        if excludes is not None:
+            pulumi.set(__self__, "excludes", excludes)
+        if includes is not None:
+            pulumi.set(__self__, "includes", includes)
+        if templates is not None:
+            pulumi.set(__self__, "templates", templates)
+        if transformation_refs is not None:
+            pulumi.set(__self__, "transformation_refs", transformation_refs)
+
+    @_builtins.property
+    @pulumi.getter(name="excludeRaw")
+    def exclude_raw(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        ExcludeRaw data from the destination Secret. Exclusion policy can be set
+        globally by including 'exclude-raw` in the '--global-transformation-options'
+        command line flag. If set, the command line flag always takes precedence over
+        this configuration.
+        """
+        return pulumi.get(self, "exclude_raw")
+
+    @exclude_raw.setter
+    def exclude_raw(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "exclude_raw", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def excludes(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
+        """
+        Excludes contains regex patterns used to filter top-level source secret data
+        fields for exclusion from the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied before any inclusion patterns. To exclude all source secret data
+        fields, you can configure the single pattern ".*".
+        """
+        return pulumi.get(self, "excludes")
+
+    @excludes.setter
+    def excludes(self, value: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]):
+        pulumi.set(self, "excludes", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def includes(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
+        """
+        Includes contains regex patterns used to filter top-level source secret data
+        fields for inclusion in the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied last.
+        """
+        return pulumi.get(self, "includes")
+
+    @includes.setter
+    def includes(self, value: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]):
+        pulumi.set(self, "includes", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def templates(self) -> Optional[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]]:
+        """
+        Templates maps a template name to its Template. Templates are always included
+        in the rendered K8s Secret, and take precedence over templates defined in a
+        SecretTransformation.
+        """
+        return pulumi.get(self, "templates")
+
+    @templates.setter
+    def templates(self, value: Optional[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]]):
+        pulumi.set(self, "templates", value)
+
+    @_builtins.property
+    @pulumi.getter(name="transformationRefs")
+    def transformation_refs(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecDestinationTransformationTransformationRefsPatchArgs']]]]:
+        """
+        TransformationRefs contain references to template configuration from
+        SecretTransformation.
+        """
+        return pulumi.get(self, "transformation_refs")
+
+    @transformation_refs.setter
+    def transformation_refs(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecDestinationTransformationTransformationRefsPatchArgs']]]]):
+        pulumi.set(self, "transformation_refs", value)
+
+
+if not MYPY:
+    class VaultPKISecretSpecDestinationTransformationTransformationRefsPatchArgsDict(TypedDict):
+        """
+        TransformationRef contains the configuration for accessing templates from an
+        SecretTransformation resource. TransformationRefs can be shared across all
+        syncable secret custom resources.
+        """
+        ignore_excludes: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        IgnoreExcludes controls whether to use the SecretTransformation's Excludes
+        data key filters.
+        """
+        ignore_includes: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        IgnoreIncludes controls whether to use the SecretTransformation's Includes
+        data key filters.
+        """
+        name: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Name of the SecretTransformation resource.
+        """
+        namespace: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Namespace of the SecretTransformation resource.
+        """
+        template_refs: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgsDict']]]]
+        """
+        TemplateRefs map to a Template found in this TransformationRef. If empty, then
+        all templates from the SecretTransformation will be rendered to the K8s Secret.
+        """
+elif False:
+    VaultPKISecretSpecDestinationTransformationTransformationRefsPatchArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultPKISecretSpecDestinationTransformationTransformationRefsPatchArgs:
+    def __init__(__self__, *,
+                 ignore_excludes: Optional[pulumi.Input[_builtins.bool]] = None,
+                 ignore_includes: Optional[pulumi.Input[_builtins.bool]] = None,
+                 name: Optional[pulumi.Input[_builtins.str]] = None,
+                 namespace: Optional[pulumi.Input[_builtins.str]] = None,
+                 template_refs: Optional[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgs']]]] = None):
+        """
+        TransformationRef contains the configuration for accessing templates from an
+        SecretTransformation resource. TransformationRefs can be shared across all
+        syncable secret custom resources.
+        :param pulumi.Input[_builtins.bool] ignore_excludes: IgnoreExcludes controls whether to use the SecretTransformation's Excludes
+               data key filters.
+        :param pulumi.Input[_builtins.bool] ignore_includes: IgnoreIncludes controls whether to use the SecretTransformation's Includes
+               data key filters.
+        :param pulumi.Input[_builtins.str] name: Name of the SecretTransformation resource.
+        :param pulumi.Input[_builtins.str] namespace: Namespace of the SecretTransformation resource.
+        :param pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgs']]] template_refs: TemplateRefs map to a Template found in this TransformationRef. If empty, then
+               all templates from the SecretTransformation will be rendered to the K8s Secret.
+        """
+        if ignore_excludes is not None:
+            pulumi.set(__self__, "ignore_excludes", ignore_excludes)
+        if ignore_includes is not None:
+            pulumi.set(__self__, "ignore_includes", ignore_includes)
+        if name is not None:
+            pulumi.set(__self__, "name", name)
+        if namespace is not None:
+            pulumi.set(__self__, "namespace", namespace)
+        if template_refs is not None:
+            pulumi.set(__self__, "template_refs", template_refs)
+
+    @_builtins.property
+    @pulumi.getter(name="ignoreExcludes")
+    def ignore_excludes(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        IgnoreExcludes controls whether to use the SecretTransformation's Excludes
+        data key filters.
+        """
+        return pulumi.get(self, "ignore_excludes")
+
+    @ignore_excludes.setter
+    def ignore_excludes(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "ignore_excludes", value)
+
+    @_builtins.property
+    @pulumi.getter(name="ignoreIncludes")
+    def ignore_includes(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        IgnoreIncludes controls whether to use the SecretTransformation's Includes
+        data key filters.
+        """
+        return pulumi.get(self, "ignore_includes")
+
+    @ignore_includes.setter
+    def ignore_includes(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "ignore_includes", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def name(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Name of the SecretTransformation resource.
+        """
+        return pulumi.get(self, "name")
+
+    @name.setter
+    def name(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "name", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def namespace(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Namespace of the SecretTransformation resource.
+        """
+        return pulumi.get(self, "namespace")
+
+    @namespace.setter
+    def namespace(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "namespace", value)
+
+    @_builtins.property
+    @pulumi.getter(name="templateRefs")
+    def template_refs(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgs']]]]:
+        """
+        TemplateRefs map to a Template found in this TransformationRef. If empty, then
+        all templates from the SecretTransformation will be rendered to the K8s Secret.
+        """
+        return pulumi.get(self, "template_refs")
+
+    @template_refs.setter
+    def template_refs(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgs']]]]):
+        pulumi.set(self, "template_refs", value)
+
+
+if not MYPY:
+    class VaultPKISecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgsDict(TypedDict):
+        """
+        TemplateRef points to templating text that is stored in a
+        SecretTransformation custom resource.
+        """
+        key_override: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        KeyOverride to the rendered template in the Destination secret. If Key is
+        empty, then the Key from reference spec will be used. Set this to override the
+        Key set from the reference spec.
+        """
+        name: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Name of the Template in SecretTransformationSpec.Templates.
+        the rendered secret data.
+        """
+elif False:
+    VaultPKISecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultPKISecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgs:
+    def __init__(__self__, *,
+                 key_override: Optional[pulumi.Input[_builtins.str]] = None,
+                 name: Optional[pulumi.Input[_builtins.str]] = None):
+        """
+        TemplateRef points to templating text that is stored in a
+        SecretTransformation custom resource.
+        :param pulumi.Input[_builtins.str] key_override: KeyOverride to the rendered template in the Destination secret. If Key is
+               empty, then the Key from reference spec will be used. Set this to override the
+               Key set from the reference spec.
+        :param pulumi.Input[_builtins.str] name: Name of the Template in SecretTransformationSpec.Templates.
+               the rendered secret data.
+        """
+        if key_override is not None:
+            pulumi.set(__self__, "key_override", key_override)
+        if name is not None:
+            pulumi.set(__self__, "name", name)
+
+    @_builtins.property
+    @pulumi.getter(name="keyOverride")
+    def key_override(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        KeyOverride to the rendered template in the Destination secret. If Key is
+        empty, then the Key from reference spec will be used. Set this to override the
+        Key set from the reference spec.
+        """
+        return pulumi.get(self, "key_override")
+
+    @key_override.setter
+    def key_override(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "key_override", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def name(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Name of the Template in SecretTransformationSpec.Templates.
+        the rendered secret data.
+        """
+        return pulumi.get(self, "name")
+
+    @name.setter
+    def name(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "name", value)
+
+
+if not MYPY:
+    class VaultPKISecretSpecDestinationTransformationTransformationRefsTemplateRefsArgsDict(TypedDict):
+        """
+        TemplateRef points to templating text that is stored in a
+        SecretTransformation custom resource.
+        """
+        key_override: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        KeyOverride to the rendered template in the Destination secret. If Key is
+        empty, then the Key from reference spec will be used. Set this to override the
+        Key set from the reference spec.
+        """
+        name: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Name of the Template in SecretTransformationSpec.Templates.
+        the rendered secret data.
+        """
+elif False:
+    VaultPKISecretSpecDestinationTransformationTransformationRefsTemplateRefsArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultPKISecretSpecDestinationTransformationTransformationRefsTemplateRefsArgs:
+    def __init__(__self__, *,
+                 key_override: Optional[pulumi.Input[_builtins.str]] = None,
+                 name: Optional[pulumi.Input[_builtins.str]] = None):
+        """
+        TemplateRef points to templating text that is stored in a
+        SecretTransformation custom resource.
+        :param pulumi.Input[_builtins.str] key_override: KeyOverride to the rendered template in the Destination secret. If Key is
+               empty, then the Key from reference spec will be used. Set this to override the
+               Key set from the reference spec.
+        :param pulumi.Input[_builtins.str] name: Name of the Template in SecretTransformationSpec.Templates.
+               the rendered secret data.
+        """
+        if key_override is not None:
+            pulumi.set(__self__, "key_override", key_override)
+        if name is not None:
+            pulumi.set(__self__, "name", name)
+
+    @_builtins.property
+    @pulumi.getter(name="keyOverride")
+    def key_override(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        KeyOverride to the rendered template in the Destination secret. If Key is
+        empty, then the Key from reference spec will be used. Set this to override the
+        Key set from the reference spec.
+        """
+        return pulumi.get(self, "key_override")
+
+    @key_override.setter
+    def key_override(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "key_override", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def name(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Name of the Template in SecretTransformationSpec.Templates.
+        the rendered secret data.
+        """
+        return pulumi.get(self, "name")
+
+    @name.setter
+    def name(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "name", value)
+
+
+if not MYPY:
+    class VaultPKISecretSpecDestinationTransformationTransformationRefsArgsDict(TypedDict):
+        """
+        TransformationRef contains the configuration for accessing templates from an
+        SecretTransformation resource. TransformationRefs can be shared across all
+        syncable secret custom resources.
+        """
+        ignore_excludes: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        IgnoreExcludes controls whether to use the SecretTransformation's Excludes
+        data key filters.
+        """
+        ignore_includes: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        IgnoreIncludes controls whether to use the SecretTransformation's Includes
+        data key filters.
+        """
+        name: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Name of the SecretTransformation resource.
+        """
+        namespace: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Namespace of the SecretTransformation resource.
+        """
+        template_refs: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecDestinationTransformationTransformationRefsTemplateRefsArgsDict']]]]
+        """
+        TemplateRefs map to a Template found in this TransformationRef. If empty, then
+        all templates from the SecretTransformation will be rendered to the K8s Secret.
+        """
+elif False:
+    VaultPKISecretSpecDestinationTransformationTransformationRefsArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultPKISecretSpecDestinationTransformationTransformationRefsArgs:
+    def __init__(__self__, *,
+                 ignore_excludes: Optional[pulumi.Input[_builtins.bool]] = None,
+                 ignore_includes: Optional[pulumi.Input[_builtins.bool]] = None,
+                 name: Optional[pulumi.Input[_builtins.str]] = None,
+                 namespace: Optional[pulumi.Input[_builtins.str]] = None,
+                 template_refs: Optional[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecDestinationTransformationTransformationRefsTemplateRefsArgs']]]] = None):
+        """
+        TransformationRef contains the configuration for accessing templates from an
+        SecretTransformation resource. TransformationRefs can be shared across all
+        syncable secret custom resources.
+        :param pulumi.Input[_builtins.bool] ignore_excludes: IgnoreExcludes controls whether to use the SecretTransformation's Excludes
+               data key filters.
+        :param pulumi.Input[_builtins.bool] ignore_includes: IgnoreIncludes controls whether to use the SecretTransformation's Includes
+               data key filters.
+        :param pulumi.Input[_builtins.str] name: Name of the SecretTransformation resource.
+        :param pulumi.Input[_builtins.str] namespace: Namespace of the SecretTransformation resource.
+        :param pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecDestinationTransformationTransformationRefsTemplateRefsArgs']]] template_refs: TemplateRefs map to a Template found in this TransformationRef. If empty, then
+               all templates from the SecretTransformation will be rendered to the K8s Secret.
+        """
+        if ignore_excludes is not None:
+            pulumi.set(__self__, "ignore_excludes", ignore_excludes)
+        if ignore_includes is not None:
+            pulumi.set(__self__, "ignore_includes", ignore_includes)
+        if name is not None:
+            pulumi.set(__self__, "name", name)
+        if namespace is not None:
+            pulumi.set(__self__, "namespace", namespace)
+        if template_refs is not None:
+            pulumi.set(__self__, "template_refs", template_refs)
+
+    @_builtins.property
+    @pulumi.getter(name="ignoreExcludes")
+    def ignore_excludes(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        IgnoreExcludes controls whether to use the SecretTransformation's Excludes
+        data key filters.
+        """
+        return pulumi.get(self, "ignore_excludes")
+
+    @ignore_excludes.setter
+    def ignore_excludes(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "ignore_excludes", value)
+
+    @_builtins.property
+    @pulumi.getter(name="ignoreIncludes")
+    def ignore_includes(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        IgnoreIncludes controls whether to use the SecretTransformation's Includes
+        data key filters.
+        """
+        return pulumi.get(self, "ignore_includes")
+
+    @ignore_includes.setter
+    def ignore_includes(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "ignore_includes", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def name(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Name of the SecretTransformation resource.
+        """
+        return pulumi.get(self, "name")
+
+    @name.setter
+    def name(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "name", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def namespace(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Namespace of the SecretTransformation resource.
+        """
+        return pulumi.get(self, "namespace")
+
+    @namespace.setter
+    def namespace(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "namespace", value)
+
+    @_builtins.property
+    @pulumi.getter(name="templateRefs")
+    def template_refs(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecDestinationTransformationTransformationRefsTemplateRefsArgs']]]]:
+        """
+        TemplateRefs map to a Template found in this TransformationRef. If empty, then
+        all templates from the SecretTransformation will be rendered to the K8s Secret.
+        """
+        return pulumi.get(self, "template_refs")
+
+    @template_refs.setter
+    def template_refs(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecDestinationTransformationTransformationRefsTemplateRefsArgs']]]]):
+        pulumi.set(self, "template_refs", value)
+
+
+if not MYPY:
+    class VaultPKISecretSpecDestinationTransformationArgsDict(TypedDict):
+        """
+        Transformation provides configuration for transforming the secret data before
+        it is stored in the Destination.
+        """
+        exclude_raw: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        ExcludeRaw data from the destination Secret. Exclusion policy can be set
+        globally by including 'exclude-raw` in the '--global-transformation-options'
+        command line flag. If set, the command line flag always takes precedence over
+        this configuration.
+        """
+        excludes: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
+        """
+        Excludes contains regex patterns used to filter top-level source secret data
+        fields for exclusion from the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied before any inclusion patterns. To exclude all source secret data
+        fields, you can configure the single pattern ".*".
+        """
+        includes: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
+        """
+        Includes contains regex patterns used to filter top-level source secret data
+        fields for inclusion in the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied last.
+        """
+        templates: NotRequired[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]]
+        """
+        Templates maps a template name to its Template. Templates are always included
+        in the rendered K8s Secret, and take precedence over templates defined in a
+        SecretTransformation.
+        """
+        transformation_refs: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecDestinationTransformationTransformationRefsArgsDict']]]]
+        """
+        TransformationRefs contain references to template configuration from
+        SecretTransformation.
+        """
+elif False:
+    VaultPKISecretSpecDestinationTransformationArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultPKISecretSpecDestinationTransformationArgs:
+    def __init__(__self__, *,
+                 exclude_raw: Optional[pulumi.Input[_builtins.bool]] = None,
+                 excludes: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
+                 includes: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
+                 templates: Optional[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]] = None,
+                 transformation_refs: Optional[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecDestinationTransformationTransformationRefsArgs']]]] = None):
+        """
+        Transformation provides configuration for transforming the secret data before
+        it is stored in the Destination.
+        :param pulumi.Input[_builtins.bool] exclude_raw: ExcludeRaw data from the destination Secret. Exclusion policy can be set
+               globally by including 'exclude-raw` in the '--global-transformation-options'
+               command line flag. If set, the command line flag always takes precedence over
+               this configuration.
+        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] excludes: Excludes contains regex patterns used to filter top-level source secret data
+               fields for exclusion from the final K8s Secret data. These pattern filters are
+               never applied to templated fields as defined in Templates. They are always
+               applied before any inclusion patterns. To exclude all source secret data
+               fields, you can configure the single pattern ".*".
+        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] includes: Includes contains regex patterns used to filter top-level source secret data
+               fields for inclusion in the final K8s Secret data. These pattern filters are
+               never applied to templated fields as defined in Templates. They are always
+               applied last.
+        :param pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]] templates: Templates maps a template name to its Template. Templates are always included
+               in the rendered K8s Secret, and take precedence over templates defined in a
+               SecretTransformation.
+        :param pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecDestinationTransformationTransformationRefsArgs']]] transformation_refs: TransformationRefs contain references to template configuration from
+               SecretTransformation.
+        """
+        if exclude_raw is not None:
+            pulumi.set(__self__, "exclude_raw", exclude_raw)
+        if excludes is not None:
+            pulumi.set(__self__, "excludes", excludes)
+        if includes is not None:
+            pulumi.set(__self__, "includes", includes)
+        if templates is not None:
+            pulumi.set(__self__, "templates", templates)
+        if transformation_refs is not None:
+            pulumi.set(__self__, "transformation_refs", transformation_refs)
+
+    @_builtins.property
+    @pulumi.getter(name="excludeRaw")
+    def exclude_raw(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        ExcludeRaw data from the destination Secret. Exclusion policy can be set
+        globally by including 'exclude-raw` in the '--global-transformation-options'
+        command line flag. If set, the command line flag always takes precedence over
+        this configuration.
+        """
+        return pulumi.get(self, "exclude_raw")
+
+    @exclude_raw.setter
+    def exclude_raw(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "exclude_raw", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def excludes(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
+        """
+        Excludes contains regex patterns used to filter top-level source secret data
+        fields for exclusion from the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied before any inclusion patterns. To exclude all source secret data
+        fields, you can configure the single pattern ".*".
+        """
+        return pulumi.get(self, "excludes")
+
+    @excludes.setter
+    def excludes(self, value: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]):
+        pulumi.set(self, "excludes", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def includes(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
+        """
+        Includes contains regex patterns used to filter top-level source secret data
+        fields for inclusion in the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied last.
+        """
+        return pulumi.get(self, "includes")
+
+    @includes.setter
+    def includes(self, value: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]):
+        pulumi.set(self, "includes", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def templates(self) -> Optional[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]]:
+        """
+        Templates maps a template name to its Template. Templates are always included
+        in the rendered K8s Secret, and take precedence over templates defined in a
+        SecretTransformation.
+        """
+        return pulumi.get(self, "templates")
+
+    @templates.setter
+    def templates(self, value: Optional[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]]):
+        pulumi.set(self, "templates", value)
+
+    @_builtins.property
+    @pulumi.getter(name="transformationRefs")
+    def transformation_refs(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecDestinationTransformationTransformationRefsArgs']]]]:
+        """
+        TransformationRefs contain references to template configuration from
+        SecretTransformation.
+        """
+        return pulumi.get(self, "transformation_refs")
+
+    @transformation_refs.setter
+    def transformation_refs(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecDestinationTransformationTransformationRefsArgs']]]]):
+        pulumi.set(self, "transformation_refs", value)
+
+
+if not MYPY:
     class VaultPKISecretSpecDestinationArgsDict(TypedDict):
         """
-        Destination provides configuration necessary for syncing the Vault secret to Kubernetes. If the type is set to "kubernetes.io/tls", "tls.key" will be set to the "private_key" response from Vault, and "tls.crt" will be set to "certificate" + "ca_chain" from the Vault response ("issuing_ca" is used when "ca_chain" is empty). The "remove_roots_from_chain=true" option is used with Vault to exclude the root CA from the Vault response.
+        Destination provides configuration necessary for syncing the Vault secret
+        to Kubernetes. If the type is set to "kubernetes.io/tls", "tls.key" will
+        be set to the "private_key" response from Vault, and "tls.crt" will be
+        set to "certificate" + "ca_chain" from the Vault response ("issuing_ca"
+        is used when "ca_chain" is empty). The "remove_roots_from_chain=true"
+        option is used with Vault to exclude the root CA from the Vault response.
         """
         annotations: NotRequired[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]
         """
@@ -3378,7 +7122,8 @@ if not MYPY:
         """
         create: NotRequired[pulumi.Input[_builtins.bool]]
         """
-        Create the destination Secret. If the Secret already exists this should be set to false.
+        Create the destination Secret.
+        If the Secret already exists this should be set to false.
         """
         labels: NotRequired[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]
         """
@@ -3388,9 +7133,16 @@ if not MYPY:
         """
         Name of the Secret
         """
+        overwrite: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        Overwrite the destination Secret if it exists and Create is true. This is
+        useful when migrating to VSO from a previous secret deployment strategy.
+        """
+        transformation: NotRequired[pulumi.Input['VaultPKISecretSpecDestinationTransformationArgsDict']]
         type: NotRequired[pulumi.Input[_builtins.str]]
         """
-        Type of Kubernetes Secret. Requires Create to be set to true. Defaults to Opaque.
+        Type of Kubernetes Secret. Requires Create to be set to true.
+        Defaults to Opaque.
         """
 elif False:
     VaultPKISecretSpecDestinationArgsDict: TypeAlias = Mapping[str, Any]
@@ -3402,14 +7154,25 @@ class VaultPKISecretSpecDestinationArgs:
                  create: Optional[pulumi.Input[_builtins.bool]] = None,
                  labels: Optional[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]] = None,
                  name: Optional[pulumi.Input[_builtins.str]] = None,
+                 overwrite: Optional[pulumi.Input[_builtins.bool]] = None,
+                 transformation: Optional[pulumi.Input['VaultPKISecretSpecDestinationTransformationArgs']] = None,
                  type: Optional[pulumi.Input[_builtins.str]] = None):
         """
-        Destination provides configuration necessary for syncing the Vault secret to Kubernetes. If the type is set to "kubernetes.io/tls", "tls.key" will be set to the "private_key" response from Vault, and "tls.crt" will be set to "certificate" + "ca_chain" from the Vault response ("issuing_ca" is used when "ca_chain" is empty). The "remove_roots_from_chain=true" option is used with Vault to exclude the root CA from the Vault response.
+        Destination provides configuration necessary for syncing the Vault secret
+        to Kubernetes. If the type is set to "kubernetes.io/tls", "tls.key" will
+        be set to the "private_key" response from Vault, and "tls.crt" will be
+        set to "certificate" + "ca_chain" from the Vault response ("issuing_ca"
+        is used when "ca_chain" is empty). The "remove_roots_from_chain=true"
+        option is used with Vault to exclude the root CA from the Vault response.
         :param pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]] annotations: Annotations to apply to the Secret. Requires Create to be set to true.
-        :param pulumi.Input[_builtins.bool] create: Create the destination Secret. If the Secret already exists this should be set to false.
+        :param pulumi.Input[_builtins.bool] create: Create the destination Secret.
+               If the Secret already exists this should be set to false.
         :param pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]] labels: Labels to apply to the Secret. Requires Create to be set to true.
         :param pulumi.Input[_builtins.str] name: Name of the Secret
-        :param pulumi.Input[_builtins.str] type: Type of Kubernetes Secret. Requires Create to be set to true. Defaults to Opaque.
+        :param pulumi.Input[_builtins.bool] overwrite: Overwrite the destination Secret if it exists and Create is true. This is
+               useful when migrating to VSO from a previous secret deployment strategy.
+        :param pulumi.Input[_builtins.str] type: Type of Kubernetes Secret. Requires Create to be set to true.
+               Defaults to Opaque.
         """
         if annotations is not None:
             pulumi.set(__self__, "annotations", annotations)
@@ -3419,6 +7182,10 @@ class VaultPKISecretSpecDestinationArgs:
             pulumi.set(__self__, "labels", labels)
         if name is not None:
             pulumi.set(__self__, "name", name)
+        if overwrite is not None:
+            pulumi.set(__self__, "overwrite", overwrite)
+        if transformation is not None:
+            pulumi.set(__self__, "transformation", transformation)
         if type is not None:
             pulumi.set(__self__, "type", type)
 
@@ -3438,7 +7205,8 @@ class VaultPKISecretSpecDestinationArgs:
     @pulumi.getter
     def create(self) -> Optional[pulumi.Input[_builtins.bool]]:
         """
-        Create the destination Secret. If the Secret already exists this should be set to false.
+        Create the destination Secret.
+        If the Secret already exists this should be set to false.
         """
         return pulumi.get(self, "create")
 
@@ -3472,9 +7240,32 @@ class VaultPKISecretSpecDestinationArgs:
 
     @_builtins.property
     @pulumi.getter
+    def overwrite(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        Overwrite the destination Secret if it exists and Create is true. This is
+        useful when migrating to VSO from a previous secret deployment strategy.
+        """
+        return pulumi.get(self, "overwrite")
+
+    @overwrite.setter
+    def overwrite(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "overwrite", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def transformation(self) -> Optional[pulumi.Input['VaultPKISecretSpecDestinationTransformationArgs']]:
+        return pulumi.get(self, "transformation")
+
+    @transformation.setter
+    def transformation(self, value: Optional[pulumi.Input['VaultPKISecretSpecDestinationTransformationArgs']]):
+        pulumi.set(self, "transformation", value)
+
+    @_builtins.property
+    @pulumi.getter
     def type(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        Type of Kubernetes Secret. Requires Create to be set to true. Defaults to Opaque.
+        Type of Kubernetes Secret. Requires Create to be set to true.
+        Defaults to Opaque.
         """
         return pulumi.get(self, "type")
 
@@ -3490,7 +7281,8 @@ if not MYPY:
         """
         alt_names: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
         """
-        AltNames to include in the request May contain both DNS names and email addresses.
+        AltNames to include in the request
+        May contain both DNS names and email addresses.
         """
         clear: NotRequired[pulumi.Input[_builtins.bool]]
         """
@@ -3503,15 +7295,22 @@ if not MYPY:
         destination: NotRequired[pulumi.Input['VaultPKISecretSpecDestinationPatchArgsDict']]
         exclude_cn_from_sans: NotRequired[pulumi.Input[_builtins.bool]]
         """
-        ExcludeCNFromSans from DNS or Email Subject Alternate Names. Default: false
+        ExcludeCNFromSans from DNS or Email Subject Alternate Names.
+        Default: false
         """
         expiry_offset: NotRequired[pulumi.Input[_builtins.str]]
         """
-        ExpiryOffset to use for computing when the certificate should be renewed. The rotation time will be difference between the expiration and the offset. Should be in duration notation e.g. 30s, 120s, etc. Set to empty string "" to prevent certificate rotation.
+        ExpiryOffset to use for computing when the certificate should be renewed.
+        The rotation time will be difference between the expiration and the offset.
+        Should be in duration notation e.g. 30s, 120s, etc.
         """
         format: NotRequired[pulumi.Input[_builtins.str]]
         """
-        Format for the certificate. Choices: "pem", "der", "pem_bundle". If "pem_bundle", any private key and issuing cert will be appended to the certificate pem. If "der", the value will be base64 encoded. Default: pem
+        Format for the certificate. Choices: "pem", "der", "pem_bundle".
+        If "pem_bundle",
+        any private key and issuing cert will be appended to the certificate pem.
+        If "der", the value will be base64 encoded.
+        Default: pem
         """
         ip_sans: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
         """
@@ -3519,7 +7318,10 @@ if not MYPY:
         """
         issuer_ref: NotRequired[pulumi.Input[_builtins.str]]
         """
-        IssuerRef reference to an existing PKI issuer, either by Vault-generated identifier, the literal string default to refer to the currently configured default issuer, or the name assigned to an issuer. This parameter is part of the request URL.
+        IssuerRef reference to an existing PKI issuer, either by Vault-generated
+        identifier, the literal string default to refer to the currently
+        configured default issuer, or the name assigned to an issuer.
+        This parameter is part of the request URL.
         """
         mount: NotRequired[pulumi.Input[_builtins.str]]
         """
@@ -3527,19 +7329,27 @@ if not MYPY:
         """
         namespace: NotRequired[pulumi.Input[_builtins.str]]
         """
-        Namespace to get the secret from in Vault
+        Namespace of the secrets engine mount in Vault. If not set, the namespace that's
+        part of VaultAuth resource will be inferred.
         """
         not_after: NotRequired[pulumi.Input[_builtins.str]]
         """
-        NotAfter field of the certificate with specified date value. The value format should be given in UTC format YYYY-MM-ddTHH:MM:SSZ
+        NotAfter field of the certificate with specified date value.
+        The value format should be given in UTC format YYYY-MM-ddTHH:MM:SSZ
         """
         other_sans: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
         """
-        Requested other SANs, in an array with the format oid;type:value for each entry.
+        Requested other SANs, in an array with the format
+        oid;type:value for each entry.
         """
         private_key_format: NotRequired[pulumi.Input[_builtins.str]]
         """
-        PrivateKeyFormat, generally the default will be controlled by the Format parameter as either base64-encoded DER or PEM-encoded DER. However, this can be set to "pkcs8" to have the returned private key contain base64-encoded pkcs8 or PEM-encoded pkcs8 instead. Default: der
+        PrivateKeyFormat, generally the default will be controlled by the Format
+        parameter as either base64-encoded DER or PEM-encoded DER.
+        However, this can be set to "pkcs8" to have the returned
+        private key contain base64-encoded pkcs8 or PEM-encoded
+        pkcs8 instead.
+        Default: der
         """
         revoke: NotRequired[pulumi.Input[_builtins.bool]]
         """
@@ -3551,19 +7361,37 @@ if not MYPY:
         """
         rollout_restart_targets: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecRolloutRestartTargetsPatchArgsDict']]]]
         """
-        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does not support dynamically reloading a rotated secret. In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events. See RolloutRestartTarget for more details.
+        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does
+        not support dynamically reloading a rotated secret.
+        In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will
+        trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events.
+        See RolloutRestartTarget for more details.
         """
         ttl: NotRequired[pulumi.Input[_builtins.str]]
         """
-        TTL for the certificate; sets the expiration date. If not specified the Vault role's default, backend default, or system default TTL is used, in that order. Cannot be larger than the mount's max TTL. Note: this only has an effect when generating a CA cert or signing a CA cert, not when generating a CSR for an intermediate CA. Should be in duration notation e.g. 120s, 2h, etc.
+        TTL for the certificate; sets the expiration date.
+        If not specified the Vault role's default,
+        backend default, or system default TTL is used, in that order.
+        Cannot be larger than the mount's max TTL.
+        Note: this only has an effect when generating a CA cert or signing a CA cert,
+        not when generating a CSR for an intermediate CA.
+        Should be in duration notation e.g. 120s, 2h, etc.
         """
         uri_sans: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
         """
         The requested URI SANs.
         """
+        user_ids: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
+        """
+        User ID (OID 0.9.2342.19200300.100.1.1) Subject values to be placed on the
+        signed certificate.
+        """
         vault_auth_ref: NotRequired[pulumi.Input[_builtins.str]]
         """
-        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace, eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will default to the `default` VaultAuth, configured in its own Kubernetes namespace.
+        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace,
+        eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to
+        the namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator
+        will default to the `default` VaultAuth, configured in the operator's namespace.
         """
 elif False:
     VaultPKISecretSpecPatchArgsDict: TypeAlias = Mapping[str, Any]
@@ -3590,28 +7418,63 @@ class VaultPKISecretSpecPatchArgs:
                  rollout_restart_targets: Optional[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecRolloutRestartTargetsPatchArgs']]]] = None,
                  ttl: Optional[pulumi.Input[_builtins.str]] = None,
                  uri_sans: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
+                 user_ids: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
                  vault_auth_ref: Optional[pulumi.Input[_builtins.str]] = None):
         """
         VaultPKISecretSpec defines the desired state of VaultPKISecret
-        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] alt_names: AltNames to include in the request May contain both DNS names and email addresses.
+        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] alt_names: AltNames to include in the request
+               May contain both DNS names and email addresses.
         :param pulumi.Input[_builtins.bool] clear: Clear the Kubernetes secret when the resource is deleted.
         :param pulumi.Input[_builtins.str] common_name: CommonName to include in the request.
-        :param pulumi.Input[_builtins.bool] exclude_cn_from_sans: ExcludeCNFromSans from DNS or Email Subject Alternate Names. Default: false
-        :param pulumi.Input[_builtins.str] expiry_offset: ExpiryOffset to use for computing when the certificate should be renewed. The rotation time will be difference between the expiration and the offset. Should be in duration notation e.g. 30s, 120s, etc. Set to empty string "" to prevent certificate rotation.
-        :param pulumi.Input[_builtins.str] format: Format for the certificate. Choices: "pem", "der", "pem_bundle". If "pem_bundle", any private key and issuing cert will be appended to the certificate pem. If "der", the value will be base64 encoded. Default: pem
+        :param pulumi.Input[_builtins.bool] exclude_cn_from_sans: ExcludeCNFromSans from DNS or Email Subject Alternate Names.
+               Default: false
+        :param pulumi.Input[_builtins.str] expiry_offset: ExpiryOffset to use for computing when the certificate should be renewed.
+               The rotation time will be difference between the expiration and the offset.
+               Should be in duration notation e.g. 30s, 120s, etc.
+        :param pulumi.Input[_builtins.str] format: Format for the certificate. Choices: "pem", "der", "pem_bundle".
+               If "pem_bundle",
+               any private key and issuing cert will be appended to the certificate pem.
+               If "der", the value will be base64 encoded.
+               Default: pem
         :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] ip_sans: IPSans to include in the request.
-        :param pulumi.Input[_builtins.str] issuer_ref: IssuerRef reference to an existing PKI issuer, either by Vault-generated identifier, the literal string default to refer to the currently configured default issuer, or the name assigned to an issuer. This parameter is part of the request URL.
+        :param pulumi.Input[_builtins.str] issuer_ref: IssuerRef reference to an existing PKI issuer, either by Vault-generated
+               identifier, the literal string default to refer to the currently
+               configured default issuer, or the name assigned to an issuer.
+               This parameter is part of the request URL.
         :param pulumi.Input[_builtins.str] mount: Mount for the secret in Vault
-        :param pulumi.Input[_builtins.str] namespace: Namespace to get the secret from in Vault
-        :param pulumi.Input[_builtins.str] not_after: NotAfter field of the certificate with specified date value. The value format should be given in UTC format YYYY-MM-ddTHH:MM:SSZ
-        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] other_sans: Requested other SANs, in an array with the format oid;type:value for each entry.
-        :param pulumi.Input[_builtins.str] private_key_format: PrivateKeyFormat, generally the default will be controlled by the Format parameter as either base64-encoded DER or PEM-encoded DER. However, this can be set to "pkcs8" to have the returned private key contain base64-encoded pkcs8 or PEM-encoded pkcs8 instead. Default: der
+        :param pulumi.Input[_builtins.str] namespace: Namespace of the secrets engine mount in Vault. If not set, the namespace that's
+               part of VaultAuth resource will be inferred.
+        :param pulumi.Input[_builtins.str] not_after: NotAfter field of the certificate with specified date value.
+               The value format should be given in UTC format YYYY-MM-ddTHH:MM:SSZ
+        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] other_sans: Requested other SANs, in an array with the format
+               oid;type:value for each entry.
+        :param pulumi.Input[_builtins.str] private_key_format: PrivateKeyFormat, generally the default will be controlled by the Format
+               parameter as either base64-encoded DER or PEM-encoded DER.
+               However, this can be set to "pkcs8" to have the returned
+               private key contain base64-encoded pkcs8 or PEM-encoded
+               pkcs8 instead.
+               Default: der
         :param pulumi.Input[_builtins.bool] revoke: Revoke the certificate when the resource is deleted.
         :param pulumi.Input[_builtins.str] role: Role in Vault to use when issuing TLS certificates.
-        :param pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecRolloutRestartTargetsPatchArgs']]] rollout_restart_targets: RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does not support dynamically reloading a rotated secret. In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events. See RolloutRestartTarget for more details.
-        :param pulumi.Input[_builtins.str] ttl: TTL for the certificate; sets the expiration date. If not specified the Vault role's default, backend default, or system default TTL is used, in that order. Cannot be larger than the mount's max TTL. Note: this only has an effect when generating a CA cert or signing a CA cert, not when generating a CSR for an intermediate CA. Should be in duration notation e.g. 120s, 2h, etc.
+        :param pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecRolloutRestartTargetsPatchArgs']]] rollout_restart_targets: RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does
+               not support dynamically reloading a rotated secret.
+               In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will
+               trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events.
+               See RolloutRestartTarget for more details.
+        :param pulumi.Input[_builtins.str] ttl: TTL for the certificate; sets the expiration date.
+               If not specified the Vault role's default,
+               backend default, or system default TTL is used, in that order.
+               Cannot be larger than the mount's max TTL.
+               Note: this only has an effect when generating a CA cert or signing a CA cert,
+               not when generating a CSR for an intermediate CA.
+               Should be in duration notation e.g. 120s, 2h, etc.
         :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] uri_sans: The requested URI SANs.
-        :param pulumi.Input[_builtins.str] vault_auth_ref: VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace, eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will default to the `default` VaultAuth, configured in its own Kubernetes namespace.
+        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] user_ids: User ID (OID 0.9.2342.19200300.100.1.1) Subject values to be placed on the
+               signed certificate.
+        :param pulumi.Input[_builtins.str] vault_auth_ref: VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace,
+               eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to
+               the namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator
+               will default to the `default` VaultAuth, configured in the operator's namespace.
         """
         if alt_names is not None:
             pulumi.set(__self__, "alt_names", alt_names)
@@ -3651,6 +7514,8 @@ class VaultPKISecretSpecPatchArgs:
             pulumi.set(__self__, "ttl", ttl)
         if uri_sans is not None:
             pulumi.set(__self__, "uri_sans", uri_sans)
+        if user_ids is not None:
+            pulumi.set(__self__, "user_ids", user_ids)
         if vault_auth_ref is not None:
             pulumi.set(__self__, "vault_auth_ref", vault_auth_ref)
 
@@ -3658,7 +7523,8 @@ class VaultPKISecretSpecPatchArgs:
     @pulumi.getter(name="altNames")
     def alt_names(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
         """
-        AltNames to include in the request May contain both DNS names and email addresses.
+        AltNames to include in the request
+        May contain both DNS names and email addresses.
         """
         return pulumi.get(self, "alt_names")
 
@@ -3703,7 +7569,8 @@ class VaultPKISecretSpecPatchArgs:
     @pulumi.getter(name="excludeCNFromSans")
     def exclude_cn_from_sans(self) -> Optional[pulumi.Input[_builtins.bool]]:
         """
-        ExcludeCNFromSans from DNS or Email Subject Alternate Names. Default: false
+        ExcludeCNFromSans from DNS or Email Subject Alternate Names.
+        Default: false
         """
         return pulumi.get(self, "exclude_cn_from_sans")
 
@@ -3715,7 +7582,9 @@ class VaultPKISecretSpecPatchArgs:
     @pulumi.getter(name="expiryOffset")
     def expiry_offset(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        ExpiryOffset to use for computing when the certificate should be renewed. The rotation time will be difference between the expiration and the offset. Should be in duration notation e.g. 30s, 120s, etc. Set to empty string "" to prevent certificate rotation.
+        ExpiryOffset to use for computing when the certificate should be renewed.
+        The rotation time will be difference between the expiration and the offset.
+        Should be in duration notation e.g. 30s, 120s, etc.
         """
         return pulumi.get(self, "expiry_offset")
 
@@ -3727,7 +7596,11 @@ class VaultPKISecretSpecPatchArgs:
     @pulumi.getter
     def format(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        Format for the certificate. Choices: "pem", "der", "pem_bundle". If "pem_bundle", any private key and issuing cert will be appended to the certificate pem. If "der", the value will be base64 encoded. Default: pem
+        Format for the certificate. Choices: "pem", "der", "pem_bundle".
+        If "pem_bundle",
+        any private key and issuing cert will be appended to the certificate pem.
+        If "der", the value will be base64 encoded.
+        Default: pem
         """
         return pulumi.get(self, "format")
 
@@ -3751,7 +7624,10 @@ class VaultPKISecretSpecPatchArgs:
     @pulumi.getter(name="issuerRef")
     def issuer_ref(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        IssuerRef reference to an existing PKI issuer, either by Vault-generated identifier, the literal string default to refer to the currently configured default issuer, or the name assigned to an issuer. This parameter is part of the request URL.
+        IssuerRef reference to an existing PKI issuer, either by Vault-generated
+        identifier, the literal string default to refer to the currently
+        configured default issuer, or the name assigned to an issuer.
+        This parameter is part of the request URL.
         """
         return pulumi.get(self, "issuer_ref")
 
@@ -3775,7 +7651,8 @@ class VaultPKISecretSpecPatchArgs:
     @pulumi.getter
     def namespace(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        Namespace to get the secret from in Vault
+        Namespace of the secrets engine mount in Vault. If not set, the namespace that's
+        part of VaultAuth resource will be inferred.
         """
         return pulumi.get(self, "namespace")
 
@@ -3787,7 +7664,8 @@ class VaultPKISecretSpecPatchArgs:
     @pulumi.getter(name="notAfter")
     def not_after(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        NotAfter field of the certificate with specified date value. The value format should be given in UTC format YYYY-MM-ddTHH:MM:SSZ
+        NotAfter field of the certificate with specified date value.
+        The value format should be given in UTC format YYYY-MM-ddTHH:MM:SSZ
         """
         return pulumi.get(self, "not_after")
 
@@ -3799,7 +7677,8 @@ class VaultPKISecretSpecPatchArgs:
     @pulumi.getter(name="otherSans")
     def other_sans(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
         """
-        Requested other SANs, in an array with the format oid;type:value for each entry.
+        Requested other SANs, in an array with the format
+        oid;type:value for each entry.
         """
         return pulumi.get(self, "other_sans")
 
@@ -3811,7 +7690,12 @@ class VaultPKISecretSpecPatchArgs:
     @pulumi.getter(name="privateKeyFormat")
     def private_key_format(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        PrivateKeyFormat, generally the default will be controlled by the Format parameter as either base64-encoded DER or PEM-encoded DER. However, this can be set to "pkcs8" to have the returned private key contain base64-encoded pkcs8 or PEM-encoded pkcs8 instead. Default: der
+        PrivateKeyFormat, generally the default will be controlled by the Format
+        parameter as either base64-encoded DER or PEM-encoded DER.
+        However, this can be set to "pkcs8" to have the returned
+        private key contain base64-encoded pkcs8 or PEM-encoded
+        pkcs8 instead.
+        Default: der
         """
         return pulumi.get(self, "private_key_format")
 
@@ -3847,7 +7731,11 @@ class VaultPKISecretSpecPatchArgs:
     @pulumi.getter(name="rolloutRestartTargets")
     def rollout_restart_targets(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecRolloutRestartTargetsPatchArgs']]]]:
         """
-        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does not support dynamically reloading a rotated secret. In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events. See RolloutRestartTarget for more details.
+        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does
+        not support dynamically reloading a rotated secret.
+        In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will
+        trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events.
+        See RolloutRestartTarget for more details.
         """
         return pulumi.get(self, "rollout_restart_targets")
 
@@ -3859,7 +7747,13 @@ class VaultPKISecretSpecPatchArgs:
     @pulumi.getter
     def ttl(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        TTL for the certificate; sets the expiration date. If not specified the Vault role's default, backend default, or system default TTL is used, in that order. Cannot be larger than the mount's max TTL. Note: this only has an effect when generating a CA cert or signing a CA cert, not when generating a CSR for an intermediate CA. Should be in duration notation e.g. 120s, 2h, etc.
+        TTL for the certificate; sets the expiration date.
+        If not specified the Vault role's default,
+        backend default, or system default TTL is used, in that order.
+        Cannot be larger than the mount's max TTL.
+        Note: this only has an effect when generating a CA cert or signing a CA cert,
+        not when generating a CSR for an intermediate CA.
+        Should be in duration notation e.g. 120s, 2h, etc.
         """
         return pulumi.get(self, "ttl")
 
@@ -3880,10 +7774,26 @@ class VaultPKISecretSpecPatchArgs:
         pulumi.set(self, "uri_sans", value)
 
     @_builtins.property
+    @pulumi.getter(name="userIDs")
+    def user_ids(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
+        """
+        User ID (OID 0.9.2342.19200300.100.1.1) Subject values to be placed on the
+        signed certificate.
+        """
+        return pulumi.get(self, "user_ids")
+
+    @user_ids.setter
+    def user_ids(self, value: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]):
+        pulumi.set(self, "user_ids", value)
+
+    @_builtins.property
     @pulumi.getter(name="vaultAuthRef")
     def vault_auth_ref(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace, eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will default to the `default` VaultAuth, configured in its own Kubernetes namespace.
+        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace,
+        eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to
+        the namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator
+        will default to the `default` VaultAuth, configured in the operator's namespace.
         """
         return pulumi.get(self, "vault_auth_ref")
 
@@ -3895,11 +7805,23 @@ class VaultPKISecretSpecPatchArgs:
 if not MYPY:
     class VaultPKISecretSpecRolloutRestartTargetsPatchArgsDict(TypedDict):
         """
-        RolloutRestartTarget provides the configuration required to perform a rollout-restart of the supported resources upon Vault Secret rotation. The rollout-restart is triggered by patching the target resource's 'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt' with a timestamp value of when the trigger was executed. E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z" 
-         Supported resources: Deployment, DaemonSet, StatefulSet
+        RolloutRestartTarget provides the configuration required to perform a
+        rollout-restart of the supported resources upon Vault Secret rotation.
+        The rollout-restart is triggered by patching the target resource's
+        'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt'
+        with a timestamp value of when the trigger was executed.
+        E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z"
+
+        Supported resources: Deployment, DaemonSet, StatefulSet, argo.Rollout
         """
         kind: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Kind of the resource
+        """
         name: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Name of the resource
+        """
 elif False:
     VaultPKISecretSpecRolloutRestartTargetsPatchArgsDict: TypeAlias = Mapping[str, Any]
 
@@ -3909,8 +7831,16 @@ class VaultPKISecretSpecRolloutRestartTargetsPatchArgs:
                  kind: Optional[pulumi.Input[_builtins.str]] = None,
                  name: Optional[pulumi.Input[_builtins.str]] = None):
         """
-        RolloutRestartTarget provides the configuration required to perform a rollout-restart of the supported resources upon Vault Secret rotation. The rollout-restart is triggered by patching the target resource's 'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt' with a timestamp value of when the trigger was executed. E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z" 
-         Supported resources: Deployment, DaemonSet, StatefulSet
+        RolloutRestartTarget provides the configuration required to perform a
+        rollout-restart of the supported resources upon Vault Secret rotation.
+        The rollout-restart is triggered by patching the target resource's
+        'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt'
+        with a timestamp value of when the trigger was executed.
+        E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z"
+
+        Supported resources: Deployment, DaemonSet, StatefulSet, argo.Rollout
+        :param pulumi.Input[_builtins.str] kind: Kind of the resource
+        :param pulumi.Input[_builtins.str] name: Name of the resource
         """
         if kind is not None:
             pulumi.set(__self__, "kind", kind)
@@ -3920,6 +7850,9 @@ class VaultPKISecretSpecRolloutRestartTargetsPatchArgs:
     @_builtins.property
     @pulumi.getter
     def kind(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Kind of the resource
+        """
         return pulumi.get(self, "kind")
 
     @kind.setter
@@ -3929,6 +7862,9 @@ class VaultPKISecretSpecRolloutRestartTargetsPatchArgs:
     @_builtins.property
     @pulumi.getter
     def name(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Name of the resource
+        """
         return pulumi.get(self, "name")
 
     @name.setter
@@ -3939,11 +7875,23 @@ class VaultPKISecretSpecRolloutRestartTargetsPatchArgs:
 if not MYPY:
     class VaultPKISecretSpecRolloutRestartTargetsArgsDict(TypedDict):
         """
-        RolloutRestartTarget provides the configuration required to perform a rollout-restart of the supported resources upon Vault Secret rotation. The rollout-restart is triggered by patching the target resource's 'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt' with a timestamp value of when the trigger was executed. E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z" 
-         Supported resources: Deployment, DaemonSet, StatefulSet
+        RolloutRestartTarget provides the configuration required to perform a
+        rollout-restart of the supported resources upon Vault Secret rotation.
+        The rollout-restart is triggered by patching the target resource's
+        'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt'
+        with a timestamp value of when the trigger was executed.
+        E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z"
+
+        Supported resources: Deployment, DaemonSet, StatefulSet, argo.Rollout
         """
         kind: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Kind of the resource
+        """
         name: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Name of the resource
+        """
 elif False:
     VaultPKISecretSpecRolloutRestartTargetsArgsDict: TypeAlias = Mapping[str, Any]
 
@@ -3953,8 +7901,16 @@ class VaultPKISecretSpecRolloutRestartTargetsArgs:
                  kind: Optional[pulumi.Input[_builtins.str]] = None,
                  name: Optional[pulumi.Input[_builtins.str]] = None):
         """
-        RolloutRestartTarget provides the configuration required to perform a rollout-restart of the supported resources upon Vault Secret rotation. The rollout-restart is triggered by patching the target resource's 'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt' with a timestamp value of when the trigger was executed. E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z" 
-         Supported resources: Deployment, DaemonSet, StatefulSet
+        RolloutRestartTarget provides the configuration required to perform a
+        rollout-restart of the supported resources upon Vault Secret rotation.
+        The rollout-restart is triggered by patching the target resource's
+        'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt'
+        with a timestamp value of when the trigger was executed.
+        E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z"
+
+        Supported resources: Deployment, DaemonSet, StatefulSet, argo.Rollout
+        :param pulumi.Input[_builtins.str] kind: Kind of the resource
+        :param pulumi.Input[_builtins.str] name: Name of the resource
         """
         if kind is not None:
             pulumi.set(__self__, "kind", kind)
@@ -3964,6 +7920,9 @@ class VaultPKISecretSpecRolloutRestartTargetsArgs:
     @_builtins.property
     @pulumi.getter
     def kind(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Kind of the resource
+        """
         return pulumi.get(self, "kind")
 
     @kind.setter
@@ -3973,6 +7932,9 @@ class VaultPKISecretSpecRolloutRestartTargetsArgs:
     @_builtins.property
     @pulumi.getter
     def name(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Name of the resource
+        """
         return pulumi.get(self, "name")
 
     @name.setter
@@ -3987,7 +7949,8 @@ if not MYPY:
         """
         alt_names: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
         """
-        AltNames to include in the request May contain both DNS names and email addresses.
+        AltNames to include in the request
+        May contain both DNS names and email addresses.
         """
         clear: NotRequired[pulumi.Input[_builtins.bool]]
         """
@@ -4000,15 +7963,22 @@ if not MYPY:
         destination: NotRequired[pulumi.Input['VaultPKISecretSpecDestinationArgsDict']]
         exclude_cn_from_sans: NotRequired[pulumi.Input[_builtins.bool]]
         """
-        ExcludeCNFromSans from DNS or Email Subject Alternate Names. Default: false
+        ExcludeCNFromSans from DNS or Email Subject Alternate Names.
+        Default: false
         """
         expiry_offset: NotRequired[pulumi.Input[_builtins.str]]
         """
-        ExpiryOffset to use for computing when the certificate should be renewed. The rotation time will be difference between the expiration and the offset. Should be in duration notation e.g. 30s, 120s, etc. Set to empty string "" to prevent certificate rotation.
+        ExpiryOffset to use for computing when the certificate should be renewed.
+        The rotation time will be difference between the expiration and the offset.
+        Should be in duration notation e.g. 30s, 120s, etc.
         """
         format: NotRequired[pulumi.Input[_builtins.str]]
         """
-        Format for the certificate. Choices: "pem", "der", "pem_bundle". If "pem_bundle", any private key and issuing cert will be appended to the certificate pem. If "der", the value will be base64 encoded. Default: pem
+        Format for the certificate. Choices: "pem", "der", "pem_bundle".
+        If "pem_bundle",
+        any private key and issuing cert will be appended to the certificate pem.
+        If "der", the value will be base64 encoded.
+        Default: pem
         """
         ip_sans: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
         """
@@ -4016,7 +7986,10 @@ if not MYPY:
         """
         issuer_ref: NotRequired[pulumi.Input[_builtins.str]]
         """
-        IssuerRef reference to an existing PKI issuer, either by Vault-generated identifier, the literal string default to refer to the currently configured default issuer, or the name assigned to an issuer. This parameter is part of the request URL.
+        IssuerRef reference to an existing PKI issuer, either by Vault-generated
+        identifier, the literal string default to refer to the currently
+        configured default issuer, or the name assigned to an issuer.
+        This parameter is part of the request URL.
         """
         mount: NotRequired[pulumi.Input[_builtins.str]]
         """
@@ -4024,19 +7997,27 @@ if not MYPY:
         """
         namespace: NotRequired[pulumi.Input[_builtins.str]]
         """
-        Namespace to get the secret from in Vault
+        Namespace of the secrets engine mount in Vault. If not set, the namespace that's
+        part of VaultAuth resource will be inferred.
         """
         not_after: NotRequired[pulumi.Input[_builtins.str]]
         """
-        NotAfter field of the certificate with specified date value. The value format should be given in UTC format YYYY-MM-ddTHH:MM:SSZ
+        NotAfter field of the certificate with specified date value.
+        The value format should be given in UTC format YYYY-MM-ddTHH:MM:SSZ
         """
         other_sans: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
         """
-        Requested other SANs, in an array with the format oid;type:value for each entry.
+        Requested other SANs, in an array with the format
+        oid;type:value for each entry.
         """
         private_key_format: NotRequired[pulumi.Input[_builtins.str]]
         """
-        PrivateKeyFormat, generally the default will be controlled by the Format parameter as either base64-encoded DER or PEM-encoded DER. However, this can be set to "pkcs8" to have the returned private key contain base64-encoded pkcs8 or PEM-encoded pkcs8 instead. Default: der
+        PrivateKeyFormat, generally the default will be controlled by the Format
+        parameter as either base64-encoded DER or PEM-encoded DER.
+        However, this can be set to "pkcs8" to have the returned
+        private key contain base64-encoded pkcs8 or PEM-encoded
+        pkcs8 instead.
+        Default: der
         """
         revoke: NotRequired[pulumi.Input[_builtins.bool]]
         """
@@ -4048,19 +8029,37 @@ if not MYPY:
         """
         rollout_restart_targets: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecRolloutRestartTargetsArgsDict']]]]
         """
-        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does not support dynamically reloading a rotated secret. In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events. See RolloutRestartTarget for more details.
+        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does
+        not support dynamically reloading a rotated secret.
+        In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will
+        trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events.
+        See RolloutRestartTarget for more details.
         """
         ttl: NotRequired[pulumi.Input[_builtins.str]]
         """
-        TTL for the certificate; sets the expiration date. If not specified the Vault role's default, backend default, or system default TTL is used, in that order. Cannot be larger than the mount's max TTL. Note: this only has an effect when generating a CA cert or signing a CA cert, not when generating a CSR for an intermediate CA. Should be in duration notation e.g. 120s, 2h, etc.
+        TTL for the certificate; sets the expiration date.
+        If not specified the Vault role's default,
+        backend default, or system default TTL is used, in that order.
+        Cannot be larger than the mount's max TTL.
+        Note: this only has an effect when generating a CA cert or signing a CA cert,
+        not when generating a CSR for an intermediate CA.
+        Should be in duration notation e.g. 120s, 2h, etc.
         """
         uri_sans: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
         """
         The requested URI SANs.
         """
+        user_ids: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
+        """
+        User ID (OID 0.9.2342.19200300.100.1.1) Subject values to be placed on the
+        signed certificate.
+        """
         vault_auth_ref: NotRequired[pulumi.Input[_builtins.str]]
         """
-        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace, eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will default to the `default` VaultAuth, configured in its own Kubernetes namespace.
+        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace,
+        eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to
+        the namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator
+        will default to the `default` VaultAuth, configured in the operator's namespace.
         """
 elif False:
     VaultPKISecretSpecArgsDict: TypeAlias = Mapping[str, Any]
@@ -4087,28 +8086,63 @@ class VaultPKISecretSpecArgs:
                  rollout_restart_targets: Optional[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecRolloutRestartTargetsArgs']]]] = None,
                  ttl: Optional[pulumi.Input[_builtins.str]] = None,
                  uri_sans: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
+                 user_ids: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
                  vault_auth_ref: Optional[pulumi.Input[_builtins.str]] = None):
         """
         VaultPKISecretSpec defines the desired state of VaultPKISecret
-        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] alt_names: AltNames to include in the request May contain both DNS names and email addresses.
+        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] alt_names: AltNames to include in the request
+               May contain both DNS names and email addresses.
         :param pulumi.Input[_builtins.bool] clear: Clear the Kubernetes secret when the resource is deleted.
         :param pulumi.Input[_builtins.str] common_name: CommonName to include in the request.
-        :param pulumi.Input[_builtins.bool] exclude_cn_from_sans: ExcludeCNFromSans from DNS or Email Subject Alternate Names. Default: false
-        :param pulumi.Input[_builtins.str] expiry_offset: ExpiryOffset to use for computing when the certificate should be renewed. The rotation time will be difference between the expiration and the offset. Should be in duration notation e.g. 30s, 120s, etc. Set to empty string "" to prevent certificate rotation.
-        :param pulumi.Input[_builtins.str] format: Format for the certificate. Choices: "pem", "der", "pem_bundle". If "pem_bundle", any private key and issuing cert will be appended to the certificate pem. If "der", the value will be base64 encoded. Default: pem
+        :param pulumi.Input[_builtins.bool] exclude_cn_from_sans: ExcludeCNFromSans from DNS or Email Subject Alternate Names.
+               Default: false
+        :param pulumi.Input[_builtins.str] expiry_offset: ExpiryOffset to use for computing when the certificate should be renewed.
+               The rotation time will be difference between the expiration and the offset.
+               Should be in duration notation e.g. 30s, 120s, etc.
+        :param pulumi.Input[_builtins.str] format: Format for the certificate. Choices: "pem", "der", "pem_bundle".
+               If "pem_bundle",
+               any private key and issuing cert will be appended to the certificate pem.
+               If "der", the value will be base64 encoded.
+               Default: pem
         :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] ip_sans: IPSans to include in the request.
-        :param pulumi.Input[_builtins.str] issuer_ref: IssuerRef reference to an existing PKI issuer, either by Vault-generated identifier, the literal string default to refer to the currently configured default issuer, or the name assigned to an issuer. This parameter is part of the request URL.
+        :param pulumi.Input[_builtins.str] issuer_ref: IssuerRef reference to an existing PKI issuer, either by Vault-generated
+               identifier, the literal string default to refer to the currently
+               configured default issuer, or the name assigned to an issuer.
+               This parameter is part of the request URL.
         :param pulumi.Input[_builtins.str] mount: Mount for the secret in Vault
-        :param pulumi.Input[_builtins.str] namespace: Namespace to get the secret from in Vault
-        :param pulumi.Input[_builtins.str] not_after: NotAfter field of the certificate with specified date value. The value format should be given in UTC format YYYY-MM-ddTHH:MM:SSZ
-        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] other_sans: Requested other SANs, in an array with the format oid;type:value for each entry.
-        :param pulumi.Input[_builtins.str] private_key_format: PrivateKeyFormat, generally the default will be controlled by the Format parameter as either base64-encoded DER or PEM-encoded DER. However, this can be set to "pkcs8" to have the returned private key contain base64-encoded pkcs8 or PEM-encoded pkcs8 instead. Default: der
+        :param pulumi.Input[_builtins.str] namespace: Namespace of the secrets engine mount in Vault. If not set, the namespace that's
+               part of VaultAuth resource will be inferred.
+        :param pulumi.Input[_builtins.str] not_after: NotAfter field of the certificate with specified date value.
+               The value format should be given in UTC format YYYY-MM-ddTHH:MM:SSZ
+        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] other_sans: Requested other SANs, in an array with the format
+               oid;type:value for each entry.
+        :param pulumi.Input[_builtins.str] private_key_format: PrivateKeyFormat, generally the default will be controlled by the Format
+               parameter as either base64-encoded DER or PEM-encoded DER.
+               However, this can be set to "pkcs8" to have the returned
+               private key contain base64-encoded pkcs8 or PEM-encoded
+               pkcs8 instead.
+               Default: der
         :param pulumi.Input[_builtins.bool] revoke: Revoke the certificate when the resource is deleted.
         :param pulumi.Input[_builtins.str] role: Role in Vault to use when issuing TLS certificates.
-        :param pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecRolloutRestartTargetsArgs']]] rollout_restart_targets: RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does not support dynamically reloading a rotated secret. In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events. See RolloutRestartTarget for more details.
-        :param pulumi.Input[_builtins.str] ttl: TTL for the certificate; sets the expiration date. If not specified the Vault role's default, backend default, or system default TTL is used, in that order. Cannot be larger than the mount's max TTL. Note: this only has an effect when generating a CA cert or signing a CA cert, not when generating a CSR for an intermediate CA. Should be in duration notation e.g. 120s, 2h, etc.
+        :param pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecRolloutRestartTargetsArgs']]] rollout_restart_targets: RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does
+               not support dynamically reloading a rotated secret.
+               In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will
+               trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events.
+               See RolloutRestartTarget for more details.
+        :param pulumi.Input[_builtins.str] ttl: TTL for the certificate; sets the expiration date.
+               If not specified the Vault role's default,
+               backend default, or system default TTL is used, in that order.
+               Cannot be larger than the mount's max TTL.
+               Note: this only has an effect when generating a CA cert or signing a CA cert,
+               not when generating a CSR for an intermediate CA.
+               Should be in duration notation e.g. 120s, 2h, etc.
         :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] uri_sans: The requested URI SANs.
-        :param pulumi.Input[_builtins.str] vault_auth_ref: VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace, eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will default to the `default` VaultAuth, configured in its own Kubernetes namespace.
+        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] user_ids: User ID (OID 0.9.2342.19200300.100.1.1) Subject values to be placed on the
+               signed certificate.
+        :param pulumi.Input[_builtins.str] vault_auth_ref: VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace,
+               eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to
+               the namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator
+               will default to the `default` VaultAuth, configured in the operator's namespace.
         """
         if alt_names is not None:
             pulumi.set(__self__, "alt_names", alt_names)
@@ -4148,6 +8182,8 @@ class VaultPKISecretSpecArgs:
             pulumi.set(__self__, "ttl", ttl)
         if uri_sans is not None:
             pulumi.set(__self__, "uri_sans", uri_sans)
+        if user_ids is not None:
+            pulumi.set(__self__, "user_ids", user_ids)
         if vault_auth_ref is not None:
             pulumi.set(__self__, "vault_auth_ref", vault_auth_ref)
 
@@ -4155,7 +8191,8 @@ class VaultPKISecretSpecArgs:
     @pulumi.getter(name="altNames")
     def alt_names(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
         """
-        AltNames to include in the request May contain both DNS names and email addresses.
+        AltNames to include in the request
+        May contain both DNS names and email addresses.
         """
         return pulumi.get(self, "alt_names")
 
@@ -4200,7 +8237,8 @@ class VaultPKISecretSpecArgs:
     @pulumi.getter(name="excludeCNFromSans")
     def exclude_cn_from_sans(self) -> Optional[pulumi.Input[_builtins.bool]]:
         """
-        ExcludeCNFromSans from DNS or Email Subject Alternate Names. Default: false
+        ExcludeCNFromSans from DNS or Email Subject Alternate Names.
+        Default: false
         """
         return pulumi.get(self, "exclude_cn_from_sans")
 
@@ -4212,7 +8250,9 @@ class VaultPKISecretSpecArgs:
     @pulumi.getter(name="expiryOffset")
     def expiry_offset(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        ExpiryOffset to use for computing when the certificate should be renewed. The rotation time will be difference between the expiration and the offset. Should be in duration notation e.g. 30s, 120s, etc. Set to empty string "" to prevent certificate rotation.
+        ExpiryOffset to use for computing when the certificate should be renewed.
+        The rotation time will be difference between the expiration and the offset.
+        Should be in duration notation e.g. 30s, 120s, etc.
         """
         return pulumi.get(self, "expiry_offset")
 
@@ -4224,7 +8264,11 @@ class VaultPKISecretSpecArgs:
     @pulumi.getter
     def format(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        Format for the certificate. Choices: "pem", "der", "pem_bundle". If "pem_bundle", any private key and issuing cert will be appended to the certificate pem. If "der", the value will be base64 encoded. Default: pem
+        Format for the certificate. Choices: "pem", "der", "pem_bundle".
+        If "pem_bundle",
+        any private key and issuing cert will be appended to the certificate pem.
+        If "der", the value will be base64 encoded.
+        Default: pem
         """
         return pulumi.get(self, "format")
 
@@ -4248,7 +8292,10 @@ class VaultPKISecretSpecArgs:
     @pulumi.getter(name="issuerRef")
     def issuer_ref(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        IssuerRef reference to an existing PKI issuer, either by Vault-generated identifier, the literal string default to refer to the currently configured default issuer, or the name assigned to an issuer. This parameter is part of the request URL.
+        IssuerRef reference to an existing PKI issuer, either by Vault-generated
+        identifier, the literal string default to refer to the currently
+        configured default issuer, or the name assigned to an issuer.
+        This parameter is part of the request URL.
         """
         return pulumi.get(self, "issuer_ref")
 
@@ -4272,7 +8319,8 @@ class VaultPKISecretSpecArgs:
     @pulumi.getter
     def namespace(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        Namespace to get the secret from in Vault
+        Namespace of the secrets engine mount in Vault. If not set, the namespace that's
+        part of VaultAuth resource will be inferred.
         """
         return pulumi.get(self, "namespace")
 
@@ -4284,7 +8332,8 @@ class VaultPKISecretSpecArgs:
     @pulumi.getter(name="notAfter")
     def not_after(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        NotAfter field of the certificate with specified date value. The value format should be given in UTC format YYYY-MM-ddTHH:MM:SSZ
+        NotAfter field of the certificate with specified date value.
+        The value format should be given in UTC format YYYY-MM-ddTHH:MM:SSZ
         """
         return pulumi.get(self, "not_after")
 
@@ -4296,7 +8345,8 @@ class VaultPKISecretSpecArgs:
     @pulumi.getter(name="otherSans")
     def other_sans(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
         """
-        Requested other SANs, in an array with the format oid;type:value for each entry.
+        Requested other SANs, in an array with the format
+        oid;type:value for each entry.
         """
         return pulumi.get(self, "other_sans")
 
@@ -4308,7 +8358,12 @@ class VaultPKISecretSpecArgs:
     @pulumi.getter(name="privateKeyFormat")
     def private_key_format(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        PrivateKeyFormat, generally the default will be controlled by the Format parameter as either base64-encoded DER or PEM-encoded DER. However, this can be set to "pkcs8" to have the returned private key contain base64-encoded pkcs8 or PEM-encoded pkcs8 instead. Default: der
+        PrivateKeyFormat, generally the default will be controlled by the Format
+        parameter as either base64-encoded DER or PEM-encoded DER.
+        However, this can be set to "pkcs8" to have the returned
+        private key contain base64-encoded pkcs8 or PEM-encoded
+        pkcs8 instead.
+        Default: der
         """
         return pulumi.get(self, "private_key_format")
 
@@ -4344,7 +8399,11 @@ class VaultPKISecretSpecArgs:
     @pulumi.getter(name="rolloutRestartTargets")
     def rollout_restart_targets(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretSpecRolloutRestartTargetsArgs']]]]:
         """
-        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does not support dynamically reloading a rotated secret. In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events. See RolloutRestartTarget for more details.
+        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does
+        not support dynamically reloading a rotated secret.
+        In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will
+        trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events.
+        See RolloutRestartTarget for more details.
         """
         return pulumi.get(self, "rollout_restart_targets")
 
@@ -4356,7 +8415,13 @@ class VaultPKISecretSpecArgs:
     @pulumi.getter
     def ttl(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        TTL for the certificate; sets the expiration date. If not specified the Vault role's default, backend default, or system default TTL is used, in that order. Cannot be larger than the mount's max TTL. Note: this only has an effect when generating a CA cert or signing a CA cert, not when generating a CSR for an intermediate CA. Should be in duration notation e.g. 120s, 2h, etc.
+        TTL for the certificate; sets the expiration date.
+        If not specified the Vault role's default,
+        backend default, or system default TTL is used, in that order.
+        Cannot be larger than the mount's max TTL.
+        Note: this only has an effect when generating a CA cert or signing a CA cert,
+        not when generating a CSR for an intermediate CA.
+        Should be in duration notation e.g. 120s, 2h, etc.
         """
         return pulumi.get(self, "ttl")
 
@@ -4377,10 +8442,26 @@ class VaultPKISecretSpecArgs:
         pulumi.set(self, "uri_sans", value)
 
     @_builtins.property
+    @pulumi.getter(name="userIDs")
+    def user_ids(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
+        """
+        User ID (OID 0.9.2342.19200300.100.1.1) Subject values to be placed on the
+        signed certificate.
+        """
+        return pulumi.get(self, "user_ids")
+
+    @user_ids.setter
+    def user_ids(self, value: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]):
+        pulumi.set(self, "user_ids", value)
+
+    @_builtins.property
     @pulumi.getter(name="vaultAuthRef")
     def vault_auth_ref(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace, eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will default to the `default` VaultAuth, configured in its own Kubernetes namespace.
+        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace,
+        eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to
+        the namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator
+        will default to the `default` VaultAuth, configured in the operator's namespace.
         """
         return pulumi.get(self, "vault_auth_ref")
 
@@ -4390,12 +8471,195 @@ class VaultPKISecretSpecArgs:
 
 
 if not MYPY:
+    class VaultPKISecretStatusConditionsArgsDict(TypedDict):
+        """
+        Condition contains details for one aspect of the current state of this API Resource.
+        """
+        last_transition_time: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        lastTransitionTime is the last time the condition transitioned from one status to another.
+        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+        """
+        message: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        message is a human readable message indicating details about the transition.
+        This may be an empty string.
+        """
+        observed_generation: NotRequired[pulumi.Input[_builtins.int]]
+        """
+        observedGeneration represents the .metadata.generation that the condition was set based upon.
+        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+        with respect to the current state of the instance.
+        """
+        reason: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+        Producers of specific condition types may define expected values and meanings for this field,
+        and whether the values are considered a guaranteed API.
+        The value should be a CamelCase string.
+        This field may not be empty.
+        """
+        status: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        status of the condition, one of True, False, Unknown.
+        """
+        type: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        type of condition in CamelCase or in foo.example.com/CamelCase.
+        """
+elif False:
+    VaultPKISecretStatusConditionsArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultPKISecretStatusConditionsArgs:
+    def __init__(__self__, *,
+                 last_transition_time: Optional[pulumi.Input[_builtins.str]] = None,
+                 message: Optional[pulumi.Input[_builtins.str]] = None,
+                 observed_generation: Optional[pulumi.Input[_builtins.int]] = None,
+                 reason: Optional[pulumi.Input[_builtins.str]] = None,
+                 status: Optional[pulumi.Input[_builtins.str]] = None,
+                 type: Optional[pulumi.Input[_builtins.str]] = None):
+        """
+        Condition contains details for one aspect of the current state of this API Resource.
+        :param pulumi.Input[_builtins.str] last_transition_time: lastTransitionTime is the last time the condition transitioned from one status to another.
+               This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+        :param pulumi.Input[_builtins.str] message: message is a human readable message indicating details about the transition.
+               This may be an empty string.
+        :param pulumi.Input[_builtins.int] observed_generation: observedGeneration represents the .metadata.generation that the condition was set based upon.
+               For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+               with respect to the current state of the instance.
+        :param pulumi.Input[_builtins.str] reason: reason contains a programmatic identifier indicating the reason for the condition's last transition.
+               Producers of specific condition types may define expected values and meanings for this field,
+               and whether the values are considered a guaranteed API.
+               The value should be a CamelCase string.
+               This field may not be empty.
+        :param pulumi.Input[_builtins.str] status: status of the condition, one of True, False, Unknown.
+        :param pulumi.Input[_builtins.str] type: type of condition in CamelCase or in foo.example.com/CamelCase.
+        """
+        if last_transition_time is not None:
+            pulumi.set(__self__, "last_transition_time", last_transition_time)
+        if message is not None:
+            pulumi.set(__self__, "message", message)
+        if observed_generation is not None:
+            pulumi.set(__self__, "observed_generation", observed_generation)
+        if reason is not None:
+            pulumi.set(__self__, "reason", reason)
+        if status is not None:
+            pulumi.set(__self__, "status", status)
+        if type is not None:
+            pulumi.set(__self__, "type", type)
+
+    @_builtins.property
+    @pulumi.getter(name="lastTransitionTime")
+    def last_transition_time(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        lastTransitionTime is the last time the condition transitioned from one status to another.
+        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+        """
+        return pulumi.get(self, "last_transition_time")
+
+    @last_transition_time.setter
+    def last_transition_time(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "last_transition_time", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def message(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        message is a human readable message indicating details about the transition.
+        This may be an empty string.
+        """
+        return pulumi.get(self, "message")
+
+    @message.setter
+    def message(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "message", value)
+
+    @_builtins.property
+    @pulumi.getter(name="observedGeneration")
+    def observed_generation(self) -> Optional[pulumi.Input[_builtins.int]]:
+        """
+        observedGeneration represents the .metadata.generation that the condition was set based upon.
+        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+        with respect to the current state of the instance.
+        """
+        return pulumi.get(self, "observed_generation")
+
+    @observed_generation.setter
+    def observed_generation(self, value: Optional[pulumi.Input[_builtins.int]]):
+        pulumi.set(self, "observed_generation", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def reason(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+        Producers of specific condition types may define expected values and meanings for this field,
+        and whether the values are considered a guaranteed API.
+        The value should be a CamelCase string.
+        This field may not be empty.
+        """
+        return pulumi.get(self, "reason")
+
+    @reason.setter
+    def reason(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "reason", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def status(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        status of the condition, one of True, False, Unknown.
+        """
+        return pulumi.get(self, "status")
+
+    @status.setter
+    def status(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "status", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def type(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        type of condition in CamelCase or in foo.example.com/CamelCase.
+        """
+        return pulumi.get(self, "type")
+
+    @type.setter
+    def type(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "type", value)
+
+
+if not MYPY:
     class VaultPKISecretStatusArgsDict(TypedDict):
         """
         VaultPKISecretStatus defines the observed state of VaultPKISecret
         """
+        conditions: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretStatusConditionsArgsDict']]]]
+        """
+        Conditions hold information that can be used by other apps to determine the
+        health of the resource instance.
+        """
         error: NotRequired[pulumi.Input[_builtins.str]]
         expiration: NotRequired[pulumi.Input[_builtins.int]]
+        last_generation: NotRequired[pulumi.Input[_builtins.int]]
+        """
+        LastGeneration is the Generation of the last reconciled resource.
+        """
+        last_rotation: NotRequired[pulumi.Input[_builtins.int]]
+        """
+        LastLastRotation of the certificate.
+        """
+        secret_mac: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        SecretMAC used when deciding whether new Vault secret data should be synced.
+
+        The controller will compare the "new" Vault secret data to this value using HMAC,
+        if they are different, then the data will be synced to the Destination.
+
+        The SecretMac is also used to detect drift in the Destination Secret's Data.
+        If drift is detected the data will be synced to the Destination.
+        """
         serial_number: NotRequired[pulumi.Input[_builtins.str]]
         valid: NotRequired[pulumi.Input[_builtins.bool]]
 elif False:
@@ -4404,21 +8668,57 @@ elif False:
 @pulumi.input_type
 class VaultPKISecretStatusArgs:
     def __init__(__self__, *,
+                 conditions: Optional[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretStatusConditionsArgs']]]] = None,
                  error: Optional[pulumi.Input[_builtins.str]] = None,
                  expiration: Optional[pulumi.Input[_builtins.int]] = None,
+                 last_generation: Optional[pulumi.Input[_builtins.int]] = None,
+                 last_rotation: Optional[pulumi.Input[_builtins.int]] = None,
+                 secret_mac: Optional[pulumi.Input[_builtins.str]] = None,
                  serial_number: Optional[pulumi.Input[_builtins.str]] = None,
                  valid: Optional[pulumi.Input[_builtins.bool]] = None):
         """
         VaultPKISecretStatus defines the observed state of VaultPKISecret
+        :param pulumi.Input[Sequence[pulumi.Input['VaultPKISecretStatusConditionsArgs']]] conditions: Conditions hold information that can be used by other apps to determine the
+               health of the resource instance.
+        :param pulumi.Input[_builtins.int] last_generation: LastGeneration is the Generation of the last reconciled resource.
+        :param pulumi.Input[_builtins.int] last_rotation: LastLastRotation of the certificate.
+        :param pulumi.Input[_builtins.str] secret_mac: SecretMAC used when deciding whether new Vault secret data should be synced.
+               
+               The controller will compare the "new" Vault secret data to this value using HMAC,
+               if they are different, then the data will be synced to the Destination.
+               
+               The SecretMac is also used to detect drift in the Destination Secret's Data.
+               If drift is detected the data will be synced to the Destination.
         """
+        if conditions is not None:
+            pulumi.set(__self__, "conditions", conditions)
         if error is not None:
             pulumi.set(__self__, "error", error)
         if expiration is not None:
             pulumi.set(__self__, "expiration", expiration)
+        if last_generation is not None:
+            pulumi.set(__self__, "last_generation", last_generation)
+        if last_rotation is not None:
+            pulumi.set(__self__, "last_rotation", last_rotation)
+        if secret_mac is not None:
+            pulumi.set(__self__, "secret_mac", secret_mac)
         if serial_number is not None:
             pulumi.set(__self__, "serial_number", serial_number)
         if valid is not None:
             pulumi.set(__self__, "valid", valid)
+
+    @_builtins.property
+    @pulumi.getter
+    def conditions(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretStatusConditionsArgs']]]]:
+        """
+        Conditions hold information that can be used by other apps to determine the
+        health of the resource instance.
+        """
+        return pulumi.get(self, "conditions")
+
+    @conditions.setter
+    def conditions(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['VaultPKISecretStatusConditionsArgs']]]]):
+        pulumi.set(self, "conditions", value)
 
     @_builtins.property
     @pulumi.getter
@@ -4437,6 +8737,48 @@ class VaultPKISecretStatusArgs:
     @expiration.setter
     def expiration(self, value: Optional[pulumi.Input[_builtins.int]]):
         pulumi.set(self, "expiration", value)
+
+    @_builtins.property
+    @pulumi.getter(name="lastGeneration")
+    def last_generation(self) -> Optional[pulumi.Input[_builtins.int]]:
+        """
+        LastGeneration is the Generation of the last reconciled resource.
+        """
+        return pulumi.get(self, "last_generation")
+
+    @last_generation.setter
+    def last_generation(self, value: Optional[pulumi.Input[_builtins.int]]):
+        pulumi.set(self, "last_generation", value)
+
+    @_builtins.property
+    @pulumi.getter(name="lastRotation")
+    def last_rotation(self) -> Optional[pulumi.Input[_builtins.int]]:
+        """
+        LastLastRotation of the certificate.
+        """
+        return pulumi.get(self, "last_rotation")
+
+    @last_rotation.setter
+    def last_rotation(self, value: Optional[pulumi.Input[_builtins.int]]):
+        pulumi.set(self, "last_rotation", value)
+
+    @_builtins.property
+    @pulumi.getter(name="secretMAC")
+    def secret_mac(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        SecretMAC used when deciding whether new Vault secret data should be synced.
+
+        The controller will compare the "new" Vault secret data to this value using HMAC,
+        if they are different, then the data will be synced to the Destination.
+
+        The SecretMac is also used to detect drift in the Destination Secret's Data.
+        If drift is detected the data will be synced to the Destination.
+        """
+        return pulumi.get(self, "secret_mac")
+
+    @secret_mac.setter
+    def secret_mac(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "secret_mac", value)
 
     @_builtins.property
     @pulumi.getter(name="serialNumber")
@@ -4570,7 +8912,8 @@ if not MYPY:
         """
         create: NotRequired[pulumi.Input[_builtins.bool]]
         """
-        Create the destination Secret. If the Secret already exists this should be set to false.
+        Create the destination Secret.
+        If the Secret already exists this should be set to false.
         """
         labels: NotRequired[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]
         """
@@ -4580,9 +8923,16 @@ if not MYPY:
         """
         Name of the Secret
         """
+        overwrite: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        Overwrite the destination Secret if it exists and Create is true. This is
+        useful when migrating to VSO from a previous secret deployment strategy.
+        """
+        transformation: NotRequired[pulumi.Input['VaultStaticSecretSpecDestinationTransformationPatchArgsDict']]
         type: NotRequired[pulumi.Input[_builtins.str]]
         """
-        Type of Kubernetes Secret. Requires Create to be set to true. Defaults to Opaque.
+        Type of Kubernetes Secret. Requires Create to be set to true.
+        Defaults to Opaque.
         """
 elif False:
     VaultStaticSecretSpecDestinationPatchArgsDict: TypeAlias = Mapping[str, Any]
@@ -4594,14 +8944,20 @@ class VaultStaticSecretSpecDestinationPatchArgs:
                  create: Optional[pulumi.Input[_builtins.bool]] = None,
                  labels: Optional[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]] = None,
                  name: Optional[pulumi.Input[_builtins.str]] = None,
+                 overwrite: Optional[pulumi.Input[_builtins.bool]] = None,
+                 transformation: Optional[pulumi.Input['VaultStaticSecretSpecDestinationTransformationPatchArgs']] = None,
                  type: Optional[pulumi.Input[_builtins.str]] = None):
         """
         Destination provides configuration necessary for syncing the Vault secret to Kubernetes.
         :param pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]] annotations: Annotations to apply to the Secret. Requires Create to be set to true.
-        :param pulumi.Input[_builtins.bool] create: Create the destination Secret. If the Secret already exists this should be set to false.
+        :param pulumi.Input[_builtins.bool] create: Create the destination Secret.
+               If the Secret already exists this should be set to false.
         :param pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]] labels: Labels to apply to the Secret. Requires Create to be set to true.
         :param pulumi.Input[_builtins.str] name: Name of the Secret
-        :param pulumi.Input[_builtins.str] type: Type of Kubernetes Secret. Requires Create to be set to true. Defaults to Opaque.
+        :param pulumi.Input[_builtins.bool] overwrite: Overwrite the destination Secret if it exists and Create is true. This is
+               useful when migrating to VSO from a previous secret deployment strategy.
+        :param pulumi.Input[_builtins.str] type: Type of Kubernetes Secret. Requires Create to be set to true.
+               Defaults to Opaque.
         """
         if annotations is not None:
             pulumi.set(__self__, "annotations", annotations)
@@ -4611,6 +8967,10 @@ class VaultStaticSecretSpecDestinationPatchArgs:
             pulumi.set(__self__, "labels", labels)
         if name is not None:
             pulumi.set(__self__, "name", name)
+        if overwrite is not None:
+            pulumi.set(__self__, "overwrite", overwrite)
+        if transformation is not None:
+            pulumi.set(__self__, "transformation", transformation)
         if type is not None:
             pulumi.set(__self__, "type", type)
 
@@ -4630,7 +8990,8 @@ class VaultStaticSecretSpecDestinationPatchArgs:
     @pulumi.getter
     def create(self) -> Optional[pulumi.Input[_builtins.bool]]:
         """
-        Create the destination Secret. If the Secret already exists this should be set to false.
+        Create the destination Secret.
+        If the Secret already exists this should be set to false.
         """
         return pulumi.get(self, "create")
 
@@ -4664,15 +9025,744 @@ class VaultStaticSecretSpecDestinationPatchArgs:
 
     @_builtins.property
     @pulumi.getter
+    def overwrite(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        Overwrite the destination Secret if it exists and Create is true. This is
+        useful when migrating to VSO from a previous secret deployment strategy.
+        """
+        return pulumi.get(self, "overwrite")
+
+    @overwrite.setter
+    def overwrite(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "overwrite", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def transformation(self) -> Optional[pulumi.Input['VaultStaticSecretSpecDestinationTransformationPatchArgs']]:
+        return pulumi.get(self, "transformation")
+
+    @transformation.setter
+    def transformation(self, value: Optional[pulumi.Input['VaultStaticSecretSpecDestinationTransformationPatchArgs']]):
+        pulumi.set(self, "transformation", value)
+
+    @_builtins.property
+    @pulumi.getter
     def type(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        Type of Kubernetes Secret. Requires Create to be set to true. Defaults to Opaque.
+        Type of Kubernetes Secret. Requires Create to be set to true.
+        Defaults to Opaque.
         """
         return pulumi.get(self, "type")
 
     @type.setter
     def type(self, value: Optional[pulumi.Input[_builtins.str]]):
         pulumi.set(self, "type", value)
+
+
+if not MYPY:
+    class VaultStaticSecretSpecDestinationTransformationPatchArgsDict(TypedDict):
+        """
+        Transformation provides configuration for transforming the secret data before
+        it is stored in the Destination.
+        """
+        exclude_raw: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        ExcludeRaw data from the destination Secret. Exclusion policy can be set
+        globally by including 'exclude-raw` in the '--global-transformation-options'
+        command line flag. If set, the command line flag always takes precedence over
+        this configuration.
+        """
+        excludes: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
+        """
+        Excludes contains regex patterns used to filter top-level source secret data
+        fields for exclusion from the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied before any inclusion patterns. To exclude all source secret data
+        fields, you can configure the single pattern ".*".
+        """
+        includes: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
+        """
+        Includes contains regex patterns used to filter top-level source secret data
+        fields for inclusion in the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied last.
+        """
+        templates: NotRequired[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]]
+        """
+        Templates maps a template name to its Template. Templates are always included
+        in the rendered K8s Secret, and take precedence over templates defined in a
+        SecretTransformation.
+        """
+        transformation_refs: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecDestinationTransformationTransformationRefsPatchArgsDict']]]]
+        """
+        TransformationRefs contain references to template configuration from
+        SecretTransformation.
+        """
+elif False:
+    VaultStaticSecretSpecDestinationTransformationPatchArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultStaticSecretSpecDestinationTransformationPatchArgs:
+    def __init__(__self__, *,
+                 exclude_raw: Optional[pulumi.Input[_builtins.bool]] = None,
+                 excludes: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
+                 includes: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
+                 templates: Optional[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]] = None,
+                 transformation_refs: Optional[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecDestinationTransformationTransformationRefsPatchArgs']]]] = None):
+        """
+        Transformation provides configuration for transforming the secret data before
+        it is stored in the Destination.
+        :param pulumi.Input[_builtins.bool] exclude_raw: ExcludeRaw data from the destination Secret. Exclusion policy can be set
+               globally by including 'exclude-raw` in the '--global-transformation-options'
+               command line flag. If set, the command line flag always takes precedence over
+               this configuration.
+        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] excludes: Excludes contains regex patterns used to filter top-level source secret data
+               fields for exclusion from the final K8s Secret data. These pattern filters are
+               never applied to templated fields as defined in Templates. They are always
+               applied before any inclusion patterns. To exclude all source secret data
+               fields, you can configure the single pattern ".*".
+        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] includes: Includes contains regex patterns used to filter top-level source secret data
+               fields for inclusion in the final K8s Secret data. These pattern filters are
+               never applied to templated fields as defined in Templates. They are always
+               applied last.
+        :param pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]] templates: Templates maps a template name to its Template. Templates are always included
+               in the rendered K8s Secret, and take precedence over templates defined in a
+               SecretTransformation.
+        :param pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecDestinationTransformationTransformationRefsPatchArgs']]] transformation_refs: TransformationRefs contain references to template configuration from
+               SecretTransformation.
+        """
+        if exclude_raw is not None:
+            pulumi.set(__self__, "exclude_raw", exclude_raw)
+        if excludes is not None:
+            pulumi.set(__self__, "excludes", excludes)
+        if includes is not None:
+            pulumi.set(__self__, "includes", includes)
+        if templates is not None:
+            pulumi.set(__self__, "templates", templates)
+        if transformation_refs is not None:
+            pulumi.set(__self__, "transformation_refs", transformation_refs)
+
+    @_builtins.property
+    @pulumi.getter(name="excludeRaw")
+    def exclude_raw(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        ExcludeRaw data from the destination Secret. Exclusion policy can be set
+        globally by including 'exclude-raw` in the '--global-transformation-options'
+        command line flag. If set, the command line flag always takes precedence over
+        this configuration.
+        """
+        return pulumi.get(self, "exclude_raw")
+
+    @exclude_raw.setter
+    def exclude_raw(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "exclude_raw", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def excludes(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
+        """
+        Excludes contains regex patterns used to filter top-level source secret data
+        fields for exclusion from the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied before any inclusion patterns. To exclude all source secret data
+        fields, you can configure the single pattern ".*".
+        """
+        return pulumi.get(self, "excludes")
+
+    @excludes.setter
+    def excludes(self, value: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]):
+        pulumi.set(self, "excludes", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def includes(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
+        """
+        Includes contains regex patterns used to filter top-level source secret data
+        fields for inclusion in the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied last.
+        """
+        return pulumi.get(self, "includes")
+
+    @includes.setter
+    def includes(self, value: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]):
+        pulumi.set(self, "includes", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def templates(self) -> Optional[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]]:
+        """
+        Templates maps a template name to its Template. Templates are always included
+        in the rendered K8s Secret, and take precedence over templates defined in a
+        SecretTransformation.
+        """
+        return pulumi.get(self, "templates")
+
+    @templates.setter
+    def templates(self, value: Optional[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]]):
+        pulumi.set(self, "templates", value)
+
+    @_builtins.property
+    @pulumi.getter(name="transformationRefs")
+    def transformation_refs(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecDestinationTransformationTransformationRefsPatchArgs']]]]:
+        """
+        TransformationRefs contain references to template configuration from
+        SecretTransformation.
+        """
+        return pulumi.get(self, "transformation_refs")
+
+    @transformation_refs.setter
+    def transformation_refs(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecDestinationTransformationTransformationRefsPatchArgs']]]]):
+        pulumi.set(self, "transformation_refs", value)
+
+
+if not MYPY:
+    class VaultStaticSecretSpecDestinationTransformationTransformationRefsPatchArgsDict(TypedDict):
+        """
+        TransformationRef contains the configuration for accessing templates from an
+        SecretTransformation resource. TransformationRefs can be shared across all
+        syncable secret custom resources.
+        """
+        ignore_excludes: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        IgnoreExcludes controls whether to use the SecretTransformation's Excludes
+        data key filters.
+        """
+        ignore_includes: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        IgnoreIncludes controls whether to use the SecretTransformation's Includes
+        data key filters.
+        """
+        name: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Name of the SecretTransformation resource.
+        """
+        namespace: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Namespace of the SecretTransformation resource.
+        """
+        template_refs: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgsDict']]]]
+        """
+        TemplateRefs map to a Template found in this TransformationRef. If empty, then
+        all templates from the SecretTransformation will be rendered to the K8s Secret.
+        """
+elif False:
+    VaultStaticSecretSpecDestinationTransformationTransformationRefsPatchArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultStaticSecretSpecDestinationTransformationTransformationRefsPatchArgs:
+    def __init__(__self__, *,
+                 ignore_excludes: Optional[pulumi.Input[_builtins.bool]] = None,
+                 ignore_includes: Optional[pulumi.Input[_builtins.bool]] = None,
+                 name: Optional[pulumi.Input[_builtins.str]] = None,
+                 namespace: Optional[pulumi.Input[_builtins.str]] = None,
+                 template_refs: Optional[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgs']]]] = None):
+        """
+        TransformationRef contains the configuration for accessing templates from an
+        SecretTransformation resource. TransformationRefs can be shared across all
+        syncable secret custom resources.
+        :param pulumi.Input[_builtins.bool] ignore_excludes: IgnoreExcludes controls whether to use the SecretTransformation's Excludes
+               data key filters.
+        :param pulumi.Input[_builtins.bool] ignore_includes: IgnoreIncludes controls whether to use the SecretTransformation's Includes
+               data key filters.
+        :param pulumi.Input[_builtins.str] name: Name of the SecretTransformation resource.
+        :param pulumi.Input[_builtins.str] namespace: Namespace of the SecretTransformation resource.
+        :param pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgs']]] template_refs: TemplateRefs map to a Template found in this TransformationRef. If empty, then
+               all templates from the SecretTransformation will be rendered to the K8s Secret.
+        """
+        if ignore_excludes is not None:
+            pulumi.set(__self__, "ignore_excludes", ignore_excludes)
+        if ignore_includes is not None:
+            pulumi.set(__self__, "ignore_includes", ignore_includes)
+        if name is not None:
+            pulumi.set(__self__, "name", name)
+        if namespace is not None:
+            pulumi.set(__self__, "namespace", namespace)
+        if template_refs is not None:
+            pulumi.set(__self__, "template_refs", template_refs)
+
+    @_builtins.property
+    @pulumi.getter(name="ignoreExcludes")
+    def ignore_excludes(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        IgnoreExcludes controls whether to use the SecretTransformation's Excludes
+        data key filters.
+        """
+        return pulumi.get(self, "ignore_excludes")
+
+    @ignore_excludes.setter
+    def ignore_excludes(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "ignore_excludes", value)
+
+    @_builtins.property
+    @pulumi.getter(name="ignoreIncludes")
+    def ignore_includes(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        IgnoreIncludes controls whether to use the SecretTransformation's Includes
+        data key filters.
+        """
+        return pulumi.get(self, "ignore_includes")
+
+    @ignore_includes.setter
+    def ignore_includes(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "ignore_includes", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def name(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Name of the SecretTransformation resource.
+        """
+        return pulumi.get(self, "name")
+
+    @name.setter
+    def name(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "name", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def namespace(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Namespace of the SecretTransformation resource.
+        """
+        return pulumi.get(self, "namespace")
+
+    @namespace.setter
+    def namespace(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "namespace", value)
+
+    @_builtins.property
+    @pulumi.getter(name="templateRefs")
+    def template_refs(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgs']]]]:
+        """
+        TemplateRefs map to a Template found in this TransformationRef. If empty, then
+        all templates from the SecretTransformation will be rendered to the K8s Secret.
+        """
+        return pulumi.get(self, "template_refs")
+
+    @template_refs.setter
+    def template_refs(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgs']]]]):
+        pulumi.set(self, "template_refs", value)
+
+
+if not MYPY:
+    class VaultStaticSecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgsDict(TypedDict):
+        """
+        TemplateRef points to templating text that is stored in a
+        SecretTransformation custom resource.
+        """
+        key_override: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        KeyOverride to the rendered template in the Destination secret. If Key is
+        empty, then the Key from reference spec will be used. Set this to override the
+        Key set from the reference spec.
+        """
+        name: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Name of the Template in SecretTransformationSpec.Templates.
+        the rendered secret data.
+        """
+elif False:
+    VaultStaticSecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultStaticSecretSpecDestinationTransformationTransformationRefsTemplateRefsPatchArgs:
+    def __init__(__self__, *,
+                 key_override: Optional[pulumi.Input[_builtins.str]] = None,
+                 name: Optional[pulumi.Input[_builtins.str]] = None):
+        """
+        TemplateRef points to templating text that is stored in a
+        SecretTransformation custom resource.
+        :param pulumi.Input[_builtins.str] key_override: KeyOverride to the rendered template in the Destination secret. If Key is
+               empty, then the Key from reference spec will be used. Set this to override the
+               Key set from the reference spec.
+        :param pulumi.Input[_builtins.str] name: Name of the Template in SecretTransformationSpec.Templates.
+               the rendered secret data.
+        """
+        if key_override is not None:
+            pulumi.set(__self__, "key_override", key_override)
+        if name is not None:
+            pulumi.set(__self__, "name", name)
+
+    @_builtins.property
+    @pulumi.getter(name="keyOverride")
+    def key_override(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        KeyOverride to the rendered template in the Destination secret. If Key is
+        empty, then the Key from reference spec will be used. Set this to override the
+        Key set from the reference spec.
+        """
+        return pulumi.get(self, "key_override")
+
+    @key_override.setter
+    def key_override(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "key_override", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def name(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Name of the Template in SecretTransformationSpec.Templates.
+        the rendered secret data.
+        """
+        return pulumi.get(self, "name")
+
+    @name.setter
+    def name(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "name", value)
+
+
+if not MYPY:
+    class VaultStaticSecretSpecDestinationTransformationTransformationRefsTemplateRefsArgsDict(TypedDict):
+        """
+        TemplateRef points to templating text that is stored in a
+        SecretTransformation custom resource.
+        """
+        key_override: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        KeyOverride to the rendered template in the Destination secret. If Key is
+        empty, then the Key from reference spec will be used. Set this to override the
+        Key set from the reference spec.
+        """
+        name: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Name of the Template in SecretTransformationSpec.Templates.
+        the rendered secret data.
+        """
+elif False:
+    VaultStaticSecretSpecDestinationTransformationTransformationRefsTemplateRefsArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultStaticSecretSpecDestinationTransformationTransformationRefsTemplateRefsArgs:
+    def __init__(__self__, *,
+                 key_override: Optional[pulumi.Input[_builtins.str]] = None,
+                 name: Optional[pulumi.Input[_builtins.str]] = None):
+        """
+        TemplateRef points to templating text that is stored in a
+        SecretTransformation custom resource.
+        :param pulumi.Input[_builtins.str] key_override: KeyOverride to the rendered template in the Destination secret. If Key is
+               empty, then the Key from reference spec will be used. Set this to override the
+               Key set from the reference spec.
+        :param pulumi.Input[_builtins.str] name: Name of the Template in SecretTransformationSpec.Templates.
+               the rendered secret data.
+        """
+        if key_override is not None:
+            pulumi.set(__self__, "key_override", key_override)
+        if name is not None:
+            pulumi.set(__self__, "name", name)
+
+    @_builtins.property
+    @pulumi.getter(name="keyOverride")
+    def key_override(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        KeyOverride to the rendered template in the Destination secret. If Key is
+        empty, then the Key from reference spec will be used. Set this to override the
+        Key set from the reference spec.
+        """
+        return pulumi.get(self, "key_override")
+
+    @key_override.setter
+    def key_override(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "key_override", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def name(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Name of the Template in SecretTransformationSpec.Templates.
+        the rendered secret data.
+        """
+        return pulumi.get(self, "name")
+
+    @name.setter
+    def name(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "name", value)
+
+
+if not MYPY:
+    class VaultStaticSecretSpecDestinationTransformationTransformationRefsArgsDict(TypedDict):
+        """
+        TransformationRef contains the configuration for accessing templates from an
+        SecretTransformation resource. TransformationRefs can be shared across all
+        syncable secret custom resources.
+        """
+        ignore_excludes: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        IgnoreExcludes controls whether to use the SecretTransformation's Excludes
+        data key filters.
+        """
+        ignore_includes: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        IgnoreIncludes controls whether to use the SecretTransformation's Includes
+        data key filters.
+        """
+        name: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Name of the SecretTransformation resource.
+        """
+        namespace: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Namespace of the SecretTransformation resource.
+        """
+        template_refs: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecDestinationTransformationTransformationRefsTemplateRefsArgsDict']]]]
+        """
+        TemplateRefs map to a Template found in this TransformationRef. If empty, then
+        all templates from the SecretTransformation will be rendered to the K8s Secret.
+        """
+elif False:
+    VaultStaticSecretSpecDestinationTransformationTransformationRefsArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultStaticSecretSpecDestinationTransformationTransformationRefsArgs:
+    def __init__(__self__, *,
+                 ignore_excludes: Optional[pulumi.Input[_builtins.bool]] = None,
+                 ignore_includes: Optional[pulumi.Input[_builtins.bool]] = None,
+                 name: Optional[pulumi.Input[_builtins.str]] = None,
+                 namespace: Optional[pulumi.Input[_builtins.str]] = None,
+                 template_refs: Optional[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecDestinationTransformationTransformationRefsTemplateRefsArgs']]]] = None):
+        """
+        TransformationRef contains the configuration for accessing templates from an
+        SecretTransformation resource. TransformationRefs can be shared across all
+        syncable secret custom resources.
+        :param pulumi.Input[_builtins.bool] ignore_excludes: IgnoreExcludes controls whether to use the SecretTransformation's Excludes
+               data key filters.
+        :param pulumi.Input[_builtins.bool] ignore_includes: IgnoreIncludes controls whether to use the SecretTransformation's Includes
+               data key filters.
+        :param pulumi.Input[_builtins.str] name: Name of the SecretTransformation resource.
+        :param pulumi.Input[_builtins.str] namespace: Namespace of the SecretTransformation resource.
+        :param pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecDestinationTransformationTransformationRefsTemplateRefsArgs']]] template_refs: TemplateRefs map to a Template found in this TransformationRef. If empty, then
+               all templates from the SecretTransformation will be rendered to the K8s Secret.
+        """
+        if ignore_excludes is not None:
+            pulumi.set(__self__, "ignore_excludes", ignore_excludes)
+        if ignore_includes is not None:
+            pulumi.set(__self__, "ignore_includes", ignore_includes)
+        if name is not None:
+            pulumi.set(__self__, "name", name)
+        if namespace is not None:
+            pulumi.set(__self__, "namespace", namespace)
+        if template_refs is not None:
+            pulumi.set(__self__, "template_refs", template_refs)
+
+    @_builtins.property
+    @pulumi.getter(name="ignoreExcludes")
+    def ignore_excludes(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        IgnoreExcludes controls whether to use the SecretTransformation's Excludes
+        data key filters.
+        """
+        return pulumi.get(self, "ignore_excludes")
+
+    @ignore_excludes.setter
+    def ignore_excludes(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "ignore_excludes", value)
+
+    @_builtins.property
+    @pulumi.getter(name="ignoreIncludes")
+    def ignore_includes(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        IgnoreIncludes controls whether to use the SecretTransformation's Includes
+        data key filters.
+        """
+        return pulumi.get(self, "ignore_includes")
+
+    @ignore_includes.setter
+    def ignore_includes(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "ignore_includes", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def name(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Name of the SecretTransformation resource.
+        """
+        return pulumi.get(self, "name")
+
+    @name.setter
+    def name(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "name", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def namespace(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Namespace of the SecretTransformation resource.
+        """
+        return pulumi.get(self, "namespace")
+
+    @namespace.setter
+    def namespace(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "namespace", value)
+
+    @_builtins.property
+    @pulumi.getter(name="templateRefs")
+    def template_refs(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecDestinationTransformationTransformationRefsTemplateRefsArgs']]]]:
+        """
+        TemplateRefs map to a Template found in this TransformationRef. If empty, then
+        all templates from the SecretTransformation will be rendered to the K8s Secret.
+        """
+        return pulumi.get(self, "template_refs")
+
+    @template_refs.setter
+    def template_refs(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecDestinationTransformationTransformationRefsTemplateRefsArgs']]]]):
+        pulumi.set(self, "template_refs", value)
+
+
+if not MYPY:
+    class VaultStaticSecretSpecDestinationTransformationArgsDict(TypedDict):
+        """
+        Transformation provides configuration for transforming the secret data before
+        it is stored in the Destination.
+        """
+        exclude_raw: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        ExcludeRaw data from the destination Secret. Exclusion policy can be set
+        globally by including 'exclude-raw` in the '--global-transformation-options'
+        command line flag. If set, the command line flag always takes precedence over
+        this configuration.
+        """
+        excludes: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
+        """
+        Excludes contains regex patterns used to filter top-level source secret data
+        fields for exclusion from the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied before any inclusion patterns. To exclude all source secret data
+        fields, you can configure the single pattern ".*".
+        """
+        includes: NotRequired[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]
+        """
+        Includes contains regex patterns used to filter top-level source secret data
+        fields for inclusion in the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied last.
+        """
+        templates: NotRequired[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]]
+        """
+        Templates maps a template name to its Template. Templates are always included
+        in the rendered K8s Secret, and take precedence over templates defined in a
+        SecretTransformation.
+        """
+        transformation_refs: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecDestinationTransformationTransformationRefsArgsDict']]]]
+        """
+        TransformationRefs contain references to template configuration from
+        SecretTransformation.
+        """
+elif False:
+    VaultStaticSecretSpecDestinationTransformationArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultStaticSecretSpecDestinationTransformationArgs:
+    def __init__(__self__, *,
+                 exclude_raw: Optional[pulumi.Input[_builtins.bool]] = None,
+                 excludes: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
+                 includes: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]] = None,
+                 templates: Optional[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]] = None,
+                 transformation_refs: Optional[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecDestinationTransformationTransformationRefsArgs']]]] = None):
+        """
+        Transformation provides configuration for transforming the secret data before
+        it is stored in the Destination.
+        :param pulumi.Input[_builtins.bool] exclude_raw: ExcludeRaw data from the destination Secret. Exclusion policy can be set
+               globally by including 'exclude-raw` in the '--global-transformation-options'
+               command line flag. If set, the command line flag always takes precedence over
+               this configuration.
+        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] excludes: Excludes contains regex patterns used to filter top-level source secret data
+               fields for exclusion from the final K8s Secret data. These pattern filters are
+               never applied to templated fields as defined in Templates. They are always
+               applied before any inclusion patterns. To exclude all source secret data
+               fields, you can configure the single pattern ".*".
+        :param pulumi.Input[Sequence[pulumi.Input[_builtins.str]]] includes: Includes contains regex patterns used to filter top-level source secret data
+               fields for inclusion in the final K8s Secret data. These pattern filters are
+               never applied to templated fields as defined in Templates. They are always
+               applied last.
+        :param pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]] templates: Templates maps a template name to its Template. Templates are always included
+               in the rendered K8s Secret, and take precedence over templates defined in a
+               SecretTransformation.
+        :param pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecDestinationTransformationTransformationRefsArgs']]] transformation_refs: TransformationRefs contain references to template configuration from
+               SecretTransformation.
+        """
+        if exclude_raw is not None:
+            pulumi.set(__self__, "exclude_raw", exclude_raw)
+        if excludes is not None:
+            pulumi.set(__self__, "excludes", excludes)
+        if includes is not None:
+            pulumi.set(__self__, "includes", includes)
+        if templates is not None:
+            pulumi.set(__self__, "templates", templates)
+        if transformation_refs is not None:
+            pulumi.set(__self__, "transformation_refs", transformation_refs)
+
+    @_builtins.property
+    @pulumi.getter(name="excludeRaw")
+    def exclude_raw(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        ExcludeRaw data from the destination Secret. Exclusion policy can be set
+        globally by including 'exclude-raw` in the '--global-transformation-options'
+        command line flag. If set, the command line flag always takes precedence over
+        this configuration.
+        """
+        return pulumi.get(self, "exclude_raw")
+
+    @exclude_raw.setter
+    def exclude_raw(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "exclude_raw", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def excludes(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
+        """
+        Excludes contains regex patterns used to filter top-level source secret data
+        fields for exclusion from the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied before any inclusion patterns. To exclude all source secret data
+        fields, you can configure the single pattern ".*".
+        """
+        return pulumi.get(self, "excludes")
+
+    @excludes.setter
+    def excludes(self, value: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]):
+        pulumi.set(self, "excludes", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def includes(self) -> Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]:
+        """
+        Includes contains regex patterns used to filter top-level source secret data
+        fields for inclusion in the final K8s Secret data. These pattern filters are
+        never applied to templated fields as defined in Templates. They are always
+        applied last.
+        """
+        return pulumi.get(self, "includes")
+
+    @includes.setter
+    def includes(self, value: Optional[pulumi.Input[Sequence[pulumi.Input[_builtins.str]]]]):
+        pulumi.set(self, "includes", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def templates(self) -> Optional[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]]:
+        """
+        Templates maps a template name to its Template. Templates are always included
+        in the rendered K8s Secret, and take precedence over templates defined in a
+        SecretTransformation.
+        """
+        return pulumi.get(self, "templates")
+
+    @templates.setter
+    def templates(self, value: Optional[pulumi.Input[Mapping[str, pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]]]):
+        pulumi.set(self, "templates", value)
+
+    @_builtins.property
+    @pulumi.getter(name="transformationRefs")
+    def transformation_refs(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecDestinationTransformationTransformationRefsArgs']]]]:
+        """
+        TransformationRefs contain references to template configuration from
+        SecretTransformation.
+        """
+        return pulumi.get(self, "transformation_refs")
+
+    @transformation_refs.setter
+    def transformation_refs(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecDestinationTransformationTransformationRefsArgs']]]]):
+        pulumi.set(self, "transformation_refs", value)
 
 
 if not MYPY:
@@ -4686,7 +9776,8 @@ if not MYPY:
         """
         create: NotRequired[pulumi.Input[_builtins.bool]]
         """
-        Create the destination Secret. If the Secret already exists this should be set to false.
+        Create the destination Secret.
+        If the Secret already exists this should be set to false.
         """
         labels: NotRequired[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]]
         """
@@ -4696,9 +9787,16 @@ if not MYPY:
         """
         Name of the Secret
         """
+        overwrite: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        Overwrite the destination Secret if it exists and Create is true. This is
+        useful when migrating to VSO from a previous secret deployment strategy.
+        """
+        transformation: NotRequired[pulumi.Input['VaultStaticSecretSpecDestinationTransformationArgsDict']]
         type: NotRequired[pulumi.Input[_builtins.str]]
         """
-        Type of Kubernetes Secret. Requires Create to be set to true. Defaults to Opaque.
+        Type of Kubernetes Secret. Requires Create to be set to true.
+        Defaults to Opaque.
         """
 elif False:
     VaultStaticSecretSpecDestinationArgsDict: TypeAlias = Mapping[str, Any]
@@ -4710,14 +9808,20 @@ class VaultStaticSecretSpecDestinationArgs:
                  create: Optional[pulumi.Input[_builtins.bool]] = None,
                  labels: Optional[pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]]] = None,
                  name: Optional[pulumi.Input[_builtins.str]] = None,
+                 overwrite: Optional[pulumi.Input[_builtins.bool]] = None,
+                 transformation: Optional[pulumi.Input['VaultStaticSecretSpecDestinationTransformationArgs']] = None,
                  type: Optional[pulumi.Input[_builtins.str]] = None):
         """
         Destination provides configuration necessary for syncing the Vault secret to Kubernetes.
         :param pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]] annotations: Annotations to apply to the Secret. Requires Create to be set to true.
-        :param pulumi.Input[_builtins.bool] create: Create the destination Secret. If the Secret already exists this should be set to false.
+        :param pulumi.Input[_builtins.bool] create: Create the destination Secret.
+               If the Secret already exists this should be set to false.
         :param pulumi.Input[Mapping[str, pulumi.Input[_builtins.str]]] labels: Labels to apply to the Secret. Requires Create to be set to true.
         :param pulumi.Input[_builtins.str] name: Name of the Secret
-        :param pulumi.Input[_builtins.str] type: Type of Kubernetes Secret. Requires Create to be set to true. Defaults to Opaque.
+        :param pulumi.Input[_builtins.bool] overwrite: Overwrite the destination Secret if it exists and Create is true. This is
+               useful when migrating to VSO from a previous secret deployment strategy.
+        :param pulumi.Input[_builtins.str] type: Type of Kubernetes Secret. Requires Create to be set to true.
+               Defaults to Opaque.
         """
         if annotations is not None:
             pulumi.set(__self__, "annotations", annotations)
@@ -4727,6 +9831,10 @@ class VaultStaticSecretSpecDestinationArgs:
             pulumi.set(__self__, "labels", labels)
         if name is not None:
             pulumi.set(__self__, "name", name)
+        if overwrite is not None:
+            pulumi.set(__self__, "overwrite", overwrite)
+        if transformation is not None:
+            pulumi.set(__self__, "transformation", transformation)
         if type is not None:
             pulumi.set(__self__, "type", type)
 
@@ -4746,7 +9854,8 @@ class VaultStaticSecretSpecDestinationArgs:
     @pulumi.getter
     def create(self) -> Optional[pulumi.Input[_builtins.bool]]:
         """
-        Create the destination Secret. If the Secret already exists this should be set to false.
+        Create the destination Secret.
+        If the Secret already exists this should be set to false.
         """
         return pulumi.get(self, "create")
 
@@ -4780,9 +9889,32 @@ class VaultStaticSecretSpecDestinationArgs:
 
     @_builtins.property
     @pulumi.getter
+    def overwrite(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        Overwrite the destination Secret if it exists and Create is true. This is
+        useful when migrating to VSO from a previous secret deployment strategy.
+        """
+        return pulumi.get(self, "overwrite")
+
+    @overwrite.setter
+    def overwrite(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "overwrite", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def transformation(self) -> Optional[pulumi.Input['VaultStaticSecretSpecDestinationTransformationArgs']]:
+        return pulumi.get(self, "transformation")
+
+    @transformation.setter
+    def transformation(self, value: Optional[pulumi.Input['VaultStaticSecretSpecDestinationTransformationArgs']]):
+        pulumi.set(self, "transformation", value)
+
+    @_builtins.property
+    @pulumi.getter
     def type(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        Type of Kubernetes Secret. Requires Create to be set to true. Defaults to Opaque.
+        Type of Kubernetes Secret. Requires Create to be set to true.
+        Defaults to Opaque.
         """
         return pulumi.get(self, "type")
 
@@ -4799,7 +9931,11 @@ if not MYPY:
         destination: NotRequired[pulumi.Input['VaultStaticSecretSpecDestinationPatchArgsDict']]
         hmac_secret_data: NotRequired[pulumi.Input[_builtins.bool]]
         """
-        HMACSecretData determines whether the Operator computes the HMAC of the Secret's data. The MAC value will be stored in the resource's Status.SecretMac field, and will be used for drift detection and during incoming Vault secret comparison. Enabling this feature is recommended to ensure that Secret's data stays consistent with Vault.
+        HMACSecretData determines whether the Operator computes the
+        HMAC of the Secret's data. The MAC value will be stored in
+        the resource's Status.SecretMac field, and will be used for drift detection
+        and during incoming Vault secret comparison.
+        Enabling this feature is recommended to ensure that Secret's data stays consistent with Vault.
         """
         mount: NotRequired[pulumi.Input[_builtins.str]]
         """
@@ -4807,31 +9943,44 @@ if not MYPY:
         """
         namespace: NotRequired[pulumi.Input[_builtins.str]]
         """
-        Namespace to get the secret from in Vault
+        Namespace of the secrets engine mount in Vault. If not set, the namespace that's
+        part of VaultAuth resource will be inferred.
         """
         path: NotRequired[pulumi.Input[_builtins.str]]
         """
-        Path of the secret in Vault, corresponds to the `path` parameter for, kv-v1: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v1#read-secret kv-v2: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#read-secret-version
+        Path of the secret in Vault, corresponds to the `path` parameter for:
+        kv-v1: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v1#read-secret
+        kv-v2: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#read-secret-version
         """
         refresh_after: NotRequired[pulumi.Input[_builtins.str]]
         """
-        RefreshAfter a period of time, in duration notation
+        RefreshAfter a period of time, in duration notation e.g. 30s, 1m, 24h
         """
         rollout_restart_targets: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecRolloutRestartTargetsPatchArgsDict']]]]
         """
-        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does not support dynamically reloading a rotated secret. In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events. All configured targets wil be ignored if HMACSecretData is set to false. See RolloutRestartTarget for more details.
+        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does
+        not support dynamically reloading a rotated secret.
+        In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will
+        trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events.
+        All configured targets will be ignored if HMACSecretData is set to false.
+        See RolloutRestartTarget for more details.
         """
+        sync_config: NotRequired[pulumi.Input['VaultStaticSecretSpecSyncConfigPatchArgsDict']]
         type: NotRequired[pulumi.Input[_builtins.str]]
         """
         Type of the Vault static secret
         """
         vault_auth_ref: NotRequired[pulumi.Input[_builtins.str]]
         """
-        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace, eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will default to the `default` VaultAuth, configured in its own Kubernetes namespace.
+        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace,
+        eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to the
+        namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will
+        default to the `default` VaultAuth, configured in the operator's namespace.
         """
         version: NotRequired[pulumi.Input[_builtins.int]]
         """
-        Version of the secret to fetch. Only valid for type kv-v2. Corresponds to version query parameter: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#version
+        Version of the secret to fetch. Only valid for type kv-v2. Corresponds to version query parameter:
+        https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#version
         """
 elif False:
     VaultStaticSecretSpecPatchArgsDict: TypeAlias = Mapping[str, Any]
@@ -4846,20 +9995,37 @@ class VaultStaticSecretSpecPatchArgs:
                  path: Optional[pulumi.Input[_builtins.str]] = None,
                  refresh_after: Optional[pulumi.Input[_builtins.str]] = None,
                  rollout_restart_targets: Optional[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecRolloutRestartTargetsPatchArgs']]]] = None,
+                 sync_config: Optional[pulumi.Input['VaultStaticSecretSpecSyncConfigPatchArgs']] = None,
                  type: Optional[pulumi.Input[_builtins.str]] = None,
                  vault_auth_ref: Optional[pulumi.Input[_builtins.str]] = None,
                  version: Optional[pulumi.Input[_builtins.int]] = None):
         """
         VaultStaticSecretSpec defines the desired state of VaultStaticSecret
-        :param pulumi.Input[_builtins.bool] hmac_secret_data: HMACSecretData determines whether the Operator computes the HMAC of the Secret's data. The MAC value will be stored in the resource's Status.SecretMac field, and will be used for drift detection and during incoming Vault secret comparison. Enabling this feature is recommended to ensure that Secret's data stays consistent with Vault.
+        :param pulumi.Input[_builtins.bool] hmac_secret_data: HMACSecretData determines whether the Operator computes the
+               HMAC of the Secret's data. The MAC value will be stored in
+               the resource's Status.SecretMac field, and will be used for drift detection
+               and during incoming Vault secret comparison.
+               Enabling this feature is recommended to ensure that Secret's data stays consistent with Vault.
         :param pulumi.Input[_builtins.str] mount: Mount for the secret in Vault
-        :param pulumi.Input[_builtins.str] namespace: Namespace to get the secret from in Vault
-        :param pulumi.Input[_builtins.str] path: Path of the secret in Vault, corresponds to the `path` parameter for, kv-v1: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v1#read-secret kv-v2: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#read-secret-version
-        :param pulumi.Input[_builtins.str] refresh_after: RefreshAfter a period of time, in duration notation
-        :param pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecRolloutRestartTargetsPatchArgs']]] rollout_restart_targets: RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does not support dynamically reloading a rotated secret. In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events. All configured targets wil be ignored if HMACSecretData is set to false. See RolloutRestartTarget for more details.
+        :param pulumi.Input[_builtins.str] namespace: Namespace of the secrets engine mount in Vault. If not set, the namespace that's
+               part of VaultAuth resource will be inferred.
+        :param pulumi.Input[_builtins.str] path: Path of the secret in Vault, corresponds to the `path` parameter for:
+               kv-v1: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v1#read-secret
+               kv-v2: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#read-secret-version
+        :param pulumi.Input[_builtins.str] refresh_after: RefreshAfter a period of time, in duration notation e.g. 30s, 1m, 24h
+        :param pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecRolloutRestartTargetsPatchArgs']]] rollout_restart_targets: RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does
+               not support dynamically reloading a rotated secret.
+               In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will
+               trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events.
+               All configured targets will be ignored if HMACSecretData is set to false.
+               See RolloutRestartTarget for more details.
         :param pulumi.Input[_builtins.str] type: Type of the Vault static secret
-        :param pulumi.Input[_builtins.str] vault_auth_ref: VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace, eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will default to the `default` VaultAuth, configured in its own Kubernetes namespace.
-        :param pulumi.Input[_builtins.int] version: Version of the secret to fetch. Only valid for type kv-v2. Corresponds to version query parameter: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#version
+        :param pulumi.Input[_builtins.str] vault_auth_ref: VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace,
+               eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to the
+               namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will
+               default to the `default` VaultAuth, configured in the operator's namespace.
+        :param pulumi.Input[_builtins.int] version: Version of the secret to fetch. Only valid for type kv-v2. Corresponds to version query parameter:
+               https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#version
         """
         if destination is not None:
             pulumi.set(__self__, "destination", destination)
@@ -4875,6 +10041,8 @@ class VaultStaticSecretSpecPatchArgs:
             pulumi.set(__self__, "refresh_after", refresh_after)
         if rollout_restart_targets is not None:
             pulumi.set(__self__, "rollout_restart_targets", rollout_restart_targets)
+        if sync_config is not None:
+            pulumi.set(__self__, "sync_config", sync_config)
         if type is not None:
             pulumi.set(__self__, "type", type)
         if vault_auth_ref is not None:
@@ -4895,7 +10063,11 @@ class VaultStaticSecretSpecPatchArgs:
     @pulumi.getter(name="hmacSecretData")
     def hmac_secret_data(self) -> Optional[pulumi.Input[_builtins.bool]]:
         """
-        HMACSecretData determines whether the Operator computes the HMAC of the Secret's data. The MAC value will be stored in the resource's Status.SecretMac field, and will be used for drift detection and during incoming Vault secret comparison. Enabling this feature is recommended to ensure that Secret's data stays consistent with Vault.
+        HMACSecretData determines whether the Operator computes the
+        HMAC of the Secret's data. The MAC value will be stored in
+        the resource's Status.SecretMac field, and will be used for drift detection
+        and during incoming Vault secret comparison.
+        Enabling this feature is recommended to ensure that Secret's data stays consistent with Vault.
         """
         return pulumi.get(self, "hmac_secret_data")
 
@@ -4919,7 +10091,8 @@ class VaultStaticSecretSpecPatchArgs:
     @pulumi.getter
     def namespace(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        Namespace to get the secret from in Vault
+        Namespace of the secrets engine mount in Vault. If not set, the namespace that's
+        part of VaultAuth resource will be inferred.
         """
         return pulumi.get(self, "namespace")
 
@@ -4931,7 +10104,9 @@ class VaultStaticSecretSpecPatchArgs:
     @pulumi.getter
     def path(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        Path of the secret in Vault, corresponds to the `path` parameter for, kv-v1: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v1#read-secret kv-v2: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#read-secret-version
+        Path of the secret in Vault, corresponds to the `path` parameter for:
+        kv-v1: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v1#read-secret
+        kv-v2: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#read-secret-version
         """
         return pulumi.get(self, "path")
 
@@ -4943,7 +10118,7 @@ class VaultStaticSecretSpecPatchArgs:
     @pulumi.getter(name="refreshAfter")
     def refresh_after(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        RefreshAfter a period of time, in duration notation
+        RefreshAfter a period of time, in duration notation e.g. 30s, 1m, 24h
         """
         return pulumi.get(self, "refresh_after")
 
@@ -4955,13 +10130,27 @@ class VaultStaticSecretSpecPatchArgs:
     @pulumi.getter(name="rolloutRestartTargets")
     def rollout_restart_targets(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecRolloutRestartTargetsPatchArgs']]]]:
         """
-        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does not support dynamically reloading a rotated secret. In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events. All configured targets wil be ignored if HMACSecretData is set to false. See RolloutRestartTarget for more details.
+        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does
+        not support dynamically reloading a rotated secret.
+        In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will
+        trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events.
+        All configured targets will be ignored if HMACSecretData is set to false.
+        See RolloutRestartTarget for more details.
         """
         return pulumi.get(self, "rollout_restart_targets")
 
     @rollout_restart_targets.setter
     def rollout_restart_targets(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecRolloutRestartTargetsPatchArgs']]]]):
         pulumi.set(self, "rollout_restart_targets", value)
+
+    @_builtins.property
+    @pulumi.getter(name="syncConfig")
+    def sync_config(self) -> Optional[pulumi.Input['VaultStaticSecretSpecSyncConfigPatchArgs']]:
+        return pulumi.get(self, "sync_config")
+
+    @sync_config.setter
+    def sync_config(self, value: Optional[pulumi.Input['VaultStaticSecretSpecSyncConfigPatchArgs']]):
+        pulumi.set(self, "sync_config", value)
 
     @_builtins.property
     @pulumi.getter
@@ -4979,7 +10168,10 @@ class VaultStaticSecretSpecPatchArgs:
     @pulumi.getter(name="vaultAuthRef")
     def vault_auth_ref(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace, eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will default to the `default` VaultAuth, configured in its own Kubernetes namespace.
+        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace,
+        eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to the
+        namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will
+        default to the `default` VaultAuth, configured in the operator's namespace.
         """
         return pulumi.get(self, "vault_auth_ref")
 
@@ -4991,7 +10183,8 @@ class VaultStaticSecretSpecPatchArgs:
     @pulumi.getter
     def version(self) -> Optional[pulumi.Input[_builtins.int]]:
         """
-        Version of the secret to fetch. Only valid for type kv-v2. Corresponds to version query parameter: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#version
+        Version of the secret to fetch. Only valid for type kv-v2. Corresponds to version query parameter:
+        https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#version
         """
         return pulumi.get(self, "version")
 
@@ -5003,11 +10196,23 @@ class VaultStaticSecretSpecPatchArgs:
 if not MYPY:
     class VaultStaticSecretSpecRolloutRestartTargetsPatchArgsDict(TypedDict):
         """
-        RolloutRestartTarget provides the configuration required to perform a rollout-restart of the supported resources upon Vault Secret rotation. The rollout-restart is triggered by patching the target resource's 'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt' with a timestamp value of when the trigger was executed. E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z" 
-         Supported resources: Deployment, DaemonSet, StatefulSet
+        RolloutRestartTarget provides the configuration required to perform a
+        rollout-restart of the supported resources upon Vault Secret rotation.
+        The rollout-restart is triggered by patching the target resource's
+        'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt'
+        with a timestamp value of when the trigger was executed.
+        E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z"
+
+        Supported resources: Deployment, DaemonSet, StatefulSet, argo.Rollout
         """
         kind: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Kind of the resource
+        """
         name: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Name of the resource
+        """
 elif False:
     VaultStaticSecretSpecRolloutRestartTargetsPatchArgsDict: TypeAlias = Mapping[str, Any]
 
@@ -5017,8 +10222,16 @@ class VaultStaticSecretSpecRolloutRestartTargetsPatchArgs:
                  kind: Optional[pulumi.Input[_builtins.str]] = None,
                  name: Optional[pulumi.Input[_builtins.str]] = None):
         """
-        RolloutRestartTarget provides the configuration required to perform a rollout-restart of the supported resources upon Vault Secret rotation. The rollout-restart is triggered by patching the target resource's 'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt' with a timestamp value of when the trigger was executed. E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z" 
-         Supported resources: Deployment, DaemonSet, StatefulSet
+        RolloutRestartTarget provides the configuration required to perform a
+        rollout-restart of the supported resources upon Vault Secret rotation.
+        The rollout-restart is triggered by patching the target resource's
+        'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt'
+        with a timestamp value of when the trigger was executed.
+        E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z"
+
+        Supported resources: Deployment, DaemonSet, StatefulSet, argo.Rollout
+        :param pulumi.Input[_builtins.str] kind: Kind of the resource
+        :param pulumi.Input[_builtins.str] name: Name of the resource
         """
         if kind is not None:
             pulumi.set(__self__, "kind", kind)
@@ -5028,6 +10241,9 @@ class VaultStaticSecretSpecRolloutRestartTargetsPatchArgs:
     @_builtins.property
     @pulumi.getter
     def kind(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Kind of the resource
+        """
         return pulumi.get(self, "kind")
 
     @kind.setter
@@ -5037,6 +10253,9 @@ class VaultStaticSecretSpecRolloutRestartTargetsPatchArgs:
     @_builtins.property
     @pulumi.getter
     def name(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Name of the resource
+        """
         return pulumi.get(self, "name")
 
     @name.setter
@@ -5047,11 +10266,23 @@ class VaultStaticSecretSpecRolloutRestartTargetsPatchArgs:
 if not MYPY:
     class VaultStaticSecretSpecRolloutRestartTargetsArgsDict(TypedDict):
         """
-        RolloutRestartTarget provides the configuration required to perform a rollout-restart of the supported resources upon Vault Secret rotation. The rollout-restart is triggered by patching the target resource's 'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt' with a timestamp value of when the trigger was executed. E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z" 
-         Supported resources: Deployment, DaemonSet, StatefulSet
+        RolloutRestartTarget provides the configuration required to perform a
+        rollout-restart of the supported resources upon Vault Secret rotation.
+        The rollout-restart is triggered by patching the target resource's
+        'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt'
+        with a timestamp value of when the trigger was executed.
+        E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z"
+
+        Supported resources: Deployment, DaemonSet, StatefulSet, argo.Rollout
         """
         kind: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Kind of the resource
+        """
         name: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        Name of the resource
+        """
 elif False:
     VaultStaticSecretSpecRolloutRestartTargetsArgsDict: TypeAlias = Mapping[str, Any]
 
@@ -5061,8 +10292,16 @@ class VaultStaticSecretSpecRolloutRestartTargetsArgs:
                  kind: Optional[pulumi.Input[_builtins.str]] = None,
                  name: Optional[pulumi.Input[_builtins.str]] = None):
         """
-        RolloutRestartTarget provides the configuration required to perform a rollout-restart of the supported resources upon Vault Secret rotation. The rollout-restart is triggered by patching the target resource's 'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt' with a timestamp value of when the trigger was executed. E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z" 
-         Supported resources: Deployment, DaemonSet, StatefulSet
+        RolloutRestartTarget provides the configuration required to perform a
+        rollout-restart of the supported resources upon Vault Secret rotation.
+        The rollout-restart is triggered by patching the target resource's
+        'spec.template.metadata.annotations' to include 'vso.secrets.hashicorp.com/restartedAt'
+        with a timestamp value of when the trigger was executed.
+        E.g. vso.secrets.hashicorp.com/restartedAt: "2023-03-23T13:39:31Z"
+
+        Supported resources: Deployment, DaemonSet, StatefulSet, argo.Rollout
+        :param pulumi.Input[_builtins.str] kind: Kind of the resource
+        :param pulumi.Input[_builtins.str] name: Name of the resource
         """
         if kind is not None:
             pulumi.set(__self__, "kind", kind)
@@ -5072,6 +10311,9 @@ class VaultStaticSecretSpecRolloutRestartTargetsArgs:
     @_builtins.property
     @pulumi.getter
     def kind(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Kind of the resource
+        """
         return pulumi.get(self, "kind")
 
     @kind.setter
@@ -5081,11 +10323,92 @@ class VaultStaticSecretSpecRolloutRestartTargetsArgs:
     @_builtins.property
     @pulumi.getter
     def name(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        Name of the resource
+        """
         return pulumi.get(self, "name")
 
     @name.setter
     def name(self, value: Optional[pulumi.Input[_builtins.str]]):
         pulumi.set(self, "name", value)
+
+
+if not MYPY:
+    class VaultStaticSecretSpecSyncConfigPatchArgsDict(TypedDict):
+        """
+        SyncConfig configures sync behavior from Vault to VSO
+        """
+        instant_updates: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        InstantUpdates is a flag to indicate that event-driven updates are
+        enabled for this VaultStaticSecret
+        """
+elif False:
+    VaultStaticSecretSpecSyncConfigPatchArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultStaticSecretSpecSyncConfigPatchArgs:
+    def __init__(__self__, *,
+                 instant_updates: Optional[pulumi.Input[_builtins.bool]] = None):
+        """
+        SyncConfig configures sync behavior from Vault to VSO
+        :param pulumi.Input[_builtins.bool] instant_updates: InstantUpdates is a flag to indicate that event-driven updates are
+               enabled for this VaultStaticSecret
+        """
+        if instant_updates is not None:
+            pulumi.set(__self__, "instant_updates", instant_updates)
+
+    @_builtins.property
+    @pulumi.getter(name="instantUpdates")
+    def instant_updates(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        InstantUpdates is a flag to indicate that event-driven updates are
+        enabled for this VaultStaticSecret
+        """
+        return pulumi.get(self, "instant_updates")
+
+    @instant_updates.setter
+    def instant_updates(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "instant_updates", value)
+
+
+if not MYPY:
+    class VaultStaticSecretSpecSyncConfigArgsDict(TypedDict):
+        """
+        SyncConfig configures sync behavior from Vault to VSO
+        """
+        instant_updates: NotRequired[pulumi.Input[_builtins.bool]]
+        """
+        InstantUpdates is a flag to indicate that event-driven updates are
+        enabled for this VaultStaticSecret
+        """
+elif False:
+    VaultStaticSecretSpecSyncConfigArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultStaticSecretSpecSyncConfigArgs:
+    def __init__(__self__, *,
+                 instant_updates: Optional[pulumi.Input[_builtins.bool]] = None):
+        """
+        SyncConfig configures sync behavior from Vault to VSO
+        :param pulumi.Input[_builtins.bool] instant_updates: InstantUpdates is a flag to indicate that event-driven updates are
+               enabled for this VaultStaticSecret
+        """
+        if instant_updates is not None:
+            pulumi.set(__self__, "instant_updates", instant_updates)
+
+    @_builtins.property
+    @pulumi.getter(name="instantUpdates")
+    def instant_updates(self) -> Optional[pulumi.Input[_builtins.bool]]:
+        """
+        InstantUpdates is a flag to indicate that event-driven updates are
+        enabled for this VaultStaticSecret
+        """
+        return pulumi.get(self, "instant_updates")
+
+    @instant_updates.setter
+    def instant_updates(self, value: Optional[pulumi.Input[_builtins.bool]]):
+        pulumi.set(self, "instant_updates", value)
 
 
 if not MYPY:
@@ -5096,7 +10419,11 @@ if not MYPY:
         destination: NotRequired[pulumi.Input['VaultStaticSecretSpecDestinationArgsDict']]
         hmac_secret_data: NotRequired[pulumi.Input[_builtins.bool]]
         """
-        HMACSecretData determines whether the Operator computes the HMAC of the Secret's data. The MAC value will be stored in the resource's Status.SecretMac field, and will be used for drift detection and during incoming Vault secret comparison. Enabling this feature is recommended to ensure that Secret's data stays consistent with Vault.
+        HMACSecretData determines whether the Operator computes the
+        HMAC of the Secret's data. The MAC value will be stored in
+        the resource's Status.SecretMac field, and will be used for drift detection
+        and during incoming Vault secret comparison.
+        Enabling this feature is recommended to ensure that Secret's data stays consistent with Vault.
         """
         mount: NotRequired[pulumi.Input[_builtins.str]]
         """
@@ -5104,31 +10431,44 @@ if not MYPY:
         """
         namespace: NotRequired[pulumi.Input[_builtins.str]]
         """
-        Namespace to get the secret from in Vault
+        Namespace of the secrets engine mount in Vault. If not set, the namespace that's
+        part of VaultAuth resource will be inferred.
         """
         path: NotRequired[pulumi.Input[_builtins.str]]
         """
-        Path of the secret in Vault, corresponds to the `path` parameter for, kv-v1: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v1#read-secret kv-v2: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#read-secret-version
+        Path of the secret in Vault, corresponds to the `path` parameter for:
+        kv-v1: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v1#read-secret
+        kv-v2: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#read-secret-version
         """
         refresh_after: NotRequired[pulumi.Input[_builtins.str]]
         """
-        RefreshAfter a period of time, in duration notation
+        RefreshAfter a period of time, in duration notation e.g. 30s, 1m, 24h
         """
         rollout_restart_targets: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecRolloutRestartTargetsArgsDict']]]]
         """
-        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does not support dynamically reloading a rotated secret. In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events. All configured targets wil be ignored if HMACSecretData is set to false. See RolloutRestartTarget for more details.
+        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does
+        not support dynamically reloading a rotated secret.
+        In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will
+        trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events.
+        All configured targets will be ignored if HMACSecretData is set to false.
+        See RolloutRestartTarget for more details.
         """
+        sync_config: NotRequired[pulumi.Input['VaultStaticSecretSpecSyncConfigArgsDict']]
         type: NotRequired[pulumi.Input[_builtins.str]]
         """
         Type of the Vault static secret
         """
         vault_auth_ref: NotRequired[pulumi.Input[_builtins.str]]
         """
-        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace, eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will default to the `default` VaultAuth, configured in its own Kubernetes namespace.
+        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace,
+        eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to the
+        namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will
+        default to the `default` VaultAuth, configured in the operator's namespace.
         """
         version: NotRequired[pulumi.Input[_builtins.int]]
         """
-        Version of the secret to fetch. Only valid for type kv-v2. Corresponds to version query parameter: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#version
+        Version of the secret to fetch. Only valid for type kv-v2. Corresponds to version query parameter:
+        https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#version
         """
 elif False:
     VaultStaticSecretSpecArgsDict: TypeAlias = Mapping[str, Any]
@@ -5143,20 +10483,37 @@ class VaultStaticSecretSpecArgs:
                  path: Optional[pulumi.Input[_builtins.str]] = None,
                  refresh_after: Optional[pulumi.Input[_builtins.str]] = None,
                  rollout_restart_targets: Optional[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecRolloutRestartTargetsArgs']]]] = None,
+                 sync_config: Optional[pulumi.Input['VaultStaticSecretSpecSyncConfigArgs']] = None,
                  type: Optional[pulumi.Input[_builtins.str]] = None,
                  vault_auth_ref: Optional[pulumi.Input[_builtins.str]] = None,
                  version: Optional[pulumi.Input[_builtins.int]] = None):
         """
         VaultStaticSecretSpec defines the desired state of VaultStaticSecret
-        :param pulumi.Input[_builtins.bool] hmac_secret_data: HMACSecretData determines whether the Operator computes the HMAC of the Secret's data. The MAC value will be stored in the resource's Status.SecretMac field, and will be used for drift detection and during incoming Vault secret comparison. Enabling this feature is recommended to ensure that Secret's data stays consistent with Vault.
+        :param pulumi.Input[_builtins.bool] hmac_secret_data: HMACSecretData determines whether the Operator computes the
+               HMAC of the Secret's data. The MAC value will be stored in
+               the resource's Status.SecretMac field, and will be used for drift detection
+               and during incoming Vault secret comparison.
+               Enabling this feature is recommended to ensure that Secret's data stays consistent with Vault.
         :param pulumi.Input[_builtins.str] mount: Mount for the secret in Vault
-        :param pulumi.Input[_builtins.str] namespace: Namespace to get the secret from in Vault
-        :param pulumi.Input[_builtins.str] path: Path of the secret in Vault, corresponds to the `path` parameter for, kv-v1: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v1#read-secret kv-v2: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#read-secret-version
-        :param pulumi.Input[_builtins.str] refresh_after: RefreshAfter a period of time, in duration notation
-        :param pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecRolloutRestartTargetsArgs']]] rollout_restart_targets: RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does not support dynamically reloading a rotated secret. In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events. All configured targets wil be ignored if HMACSecretData is set to false. See RolloutRestartTarget for more details.
+        :param pulumi.Input[_builtins.str] namespace: Namespace of the secrets engine mount in Vault. If not set, the namespace that's
+               part of VaultAuth resource will be inferred.
+        :param pulumi.Input[_builtins.str] path: Path of the secret in Vault, corresponds to the `path` parameter for:
+               kv-v1: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v1#read-secret
+               kv-v2: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#read-secret-version
+        :param pulumi.Input[_builtins.str] refresh_after: RefreshAfter a period of time, in duration notation e.g. 30s, 1m, 24h
+        :param pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecRolloutRestartTargetsArgs']]] rollout_restart_targets: RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does
+               not support dynamically reloading a rotated secret.
+               In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will
+               trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events.
+               All configured targets will be ignored if HMACSecretData is set to false.
+               See RolloutRestartTarget for more details.
         :param pulumi.Input[_builtins.str] type: Type of the Vault static secret
-        :param pulumi.Input[_builtins.str] vault_auth_ref: VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace, eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will default to the `default` VaultAuth, configured in its own Kubernetes namespace.
-        :param pulumi.Input[_builtins.int] version: Version of the secret to fetch. Only valid for type kv-v2. Corresponds to version query parameter: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#version
+        :param pulumi.Input[_builtins.str] vault_auth_ref: VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace,
+               eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to the
+               namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will
+               default to the `default` VaultAuth, configured in the operator's namespace.
+        :param pulumi.Input[_builtins.int] version: Version of the secret to fetch. Only valid for type kv-v2. Corresponds to version query parameter:
+               https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#version
         """
         if destination is not None:
             pulumi.set(__self__, "destination", destination)
@@ -5172,6 +10529,8 @@ class VaultStaticSecretSpecArgs:
             pulumi.set(__self__, "refresh_after", refresh_after)
         if rollout_restart_targets is not None:
             pulumi.set(__self__, "rollout_restart_targets", rollout_restart_targets)
+        if sync_config is not None:
+            pulumi.set(__self__, "sync_config", sync_config)
         if type is not None:
             pulumi.set(__self__, "type", type)
         if vault_auth_ref is not None:
@@ -5192,7 +10551,11 @@ class VaultStaticSecretSpecArgs:
     @pulumi.getter(name="hmacSecretData")
     def hmac_secret_data(self) -> Optional[pulumi.Input[_builtins.bool]]:
         """
-        HMACSecretData determines whether the Operator computes the HMAC of the Secret's data. The MAC value will be stored in the resource's Status.SecretMac field, and will be used for drift detection and during incoming Vault secret comparison. Enabling this feature is recommended to ensure that Secret's data stays consistent with Vault.
+        HMACSecretData determines whether the Operator computes the
+        HMAC of the Secret's data. The MAC value will be stored in
+        the resource's Status.SecretMac field, and will be used for drift detection
+        and during incoming Vault secret comparison.
+        Enabling this feature is recommended to ensure that Secret's data stays consistent with Vault.
         """
         return pulumi.get(self, "hmac_secret_data")
 
@@ -5216,7 +10579,8 @@ class VaultStaticSecretSpecArgs:
     @pulumi.getter
     def namespace(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        Namespace to get the secret from in Vault
+        Namespace of the secrets engine mount in Vault. If not set, the namespace that's
+        part of VaultAuth resource will be inferred.
         """
         return pulumi.get(self, "namespace")
 
@@ -5228,7 +10592,9 @@ class VaultStaticSecretSpecArgs:
     @pulumi.getter
     def path(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        Path of the secret in Vault, corresponds to the `path` parameter for, kv-v1: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v1#read-secret kv-v2: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#read-secret-version
+        Path of the secret in Vault, corresponds to the `path` parameter for:
+        kv-v1: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v1#read-secret
+        kv-v2: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#read-secret-version
         """
         return pulumi.get(self, "path")
 
@@ -5240,7 +10606,7 @@ class VaultStaticSecretSpecArgs:
     @pulumi.getter(name="refreshAfter")
     def refresh_after(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        RefreshAfter a period of time, in duration notation
+        RefreshAfter a period of time, in duration notation e.g. 30s, 1m, 24h
         """
         return pulumi.get(self, "refresh_after")
 
@@ -5252,13 +10618,27 @@ class VaultStaticSecretSpecArgs:
     @pulumi.getter(name="rolloutRestartTargets")
     def rollout_restart_targets(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecRolloutRestartTargetsArgs']]]]:
         """
-        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does not support dynamically reloading a rotated secret. In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events. All configured targets wil be ignored if HMACSecretData is set to false. See RolloutRestartTarget for more details.
+        RolloutRestartTargets should be configured whenever the application(s) consuming the Vault secret does
+        not support dynamically reloading a rotated secret.
+        In that case one, or more RolloutRestartTarget(s) can be configured here. The Operator will
+        trigger a "rollout-restart" for each target whenever the Vault secret changes between reconciliation events.
+        All configured targets will be ignored if HMACSecretData is set to false.
+        See RolloutRestartTarget for more details.
         """
         return pulumi.get(self, "rollout_restart_targets")
 
     @rollout_restart_targets.setter
     def rollout_restart_targets(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretSpecRolloutRestartTargetsArgs']]]]):
         pulumi.set(self, "rollout_restart_targets", value)
+
+    @_builtins.property
+    @pulumi.getter(name="syncConfig")
+    def sync_config(self) -> Optional[pulumi.Input['VaultStaticSecretSpecSyncConfigArgs']]:
+        return pulumi.get(self, "sync_config")
+
+    @sync_config.setter
+    def sync_config(self, value: Optional[pulumi.Input['VaultStaticSecretSpecSyncConfigArgs']]):
+        pulumi.set(self, "sync_config", value)
 
     @_builtins.property
     @pulumi.getter
@@ -5276,7 +10656,10 @@ class VaultStaticSecretSpecArgs:
     @pulumi.getter(name="vaultAuthRef")
     def vault_auth_ref(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace, eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will default to the `default` VaultAuth, configured in its own Kubernetes namespace.
+        VaultAuthRef to the VaultAuth resource, can be prefixed with a namespace,
+        eg: `namespaceA/vaultAuthRefB`. If no namespace prefix is provided it will default to the
+        namespace of the VaultAuth CR. If no value is specified for VaultAuthRef the Operator will
+        default to the `default` VaultAuth, configured in the operator's namespace.
         """
         return pulumi.get(self, "vault_auth_ref")
 
@@ -5288,7 +10671,8 @@ class VaultStaticSecretSpecArgs:
     @pulumi.getter
     def version(self) -> Optional[pulumi.Input[_builtins.int]]:
         """
-        Version of the secret to fetch. Only valid for type kv-v2. Corresponds to version query parameter: https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#version
+        Version of the secret to fetch. Only valid for type kv-v2. Corresponds to version query parameter:
+        https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2#version
         """
         return pulumi.get(self, "version")
 
@@ -5298,45 +10682,334 @@ class VaultStaticSecretSpecArgs:
 
 
 if not MYPY:
+    class VaultStaticSecretStatusConditionsArgsDict(TypedDict):
+        """
+        Condition contains details for one aspect of the current state of this API Resource.
+        """
+        last_transition_time: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        lastTransitionTime is the last time the condition transitioned from one status to another.
+        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+        """
+        message: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        message is a human readable message indicating details about the transition.
+        This may be an empty string.
+        """
+        observed_generation: NotRequired[pulumi.Input[_builtins.int]]
+        """
+        observedGeneration represents the .metadata.generation that the condition was set based upon.
+        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+        with respect to the current state of the instance.
+        """
+        reason: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+        Producers of specific condition types may define expected values and meanings for this field,
+        and whether the values are considered a guaranteed API.
+        The value should be a CamelCase string.
+        This field may not be empty.
+        """
+        status: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        status of the condition, one of True, False, Unknown.
+        """
+        type: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        type of condition in CamelCase or in foo.example.com/CamelCase.
+        """
+elif False:
+    VaultStaticSecretStatusConditionsArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultStaticSecretStatusConditionsArgs:
+    def __init__(__self__, *,
+                 last_transition_time: Optional[pulumi.Input[_builtins.str]] = None,
+                 message: Optional[pulumi.Input[_builtins.str]] = None,
+                 observed_generation: Optional[pulumi.Input[_builtins.int]] = None,
+                 reason: Optional[pulumi.Input[_builtins.str]] = None,
+                 status: Optional[pulumi.Input[_builtins.str]] = None,
+                 type: Optional[pulumi.Input[_builtins.str]] = None):
+        """
+        Condition contains details for one aspect of the current state of this API Resource.
+        :param pulumi.Input[_builtins.str] last_transition_time: lastTransitionTime is the last time the condition transitioned from one status to another.
+               This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+        :param pulumi.Input[_builtins.str] message: message is a human readable message indicating details about the transition.
+               This may be an empty string.
+        :param pulumi.Input[_builtins.int] observed_generation: observedGeneration represents the .metadata.generation that the condition was set based upon.
+               For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+               with respect to the current state of the instance.
+        :param pulumi.Input[_builtins.str] reason: reason contains a programmatic identifier indicating the reason for the condition's last transition.
+               Producers of specific condition types may define expected values and meanings for this field,
+               and whether the values are considered a guaranteed API.
+               The value should be a CamelCase string.
+               This field may not be empty.
+        :param pulumi.Input[_builtins.str] status: status of the condition, one of True, False, Unknown.
+        :param pulumi.Input[_builtins.str] type: type of condition in CamelCase or in foo.example.com/CamelCase.
+        """
+        if last_transition_time is not None:
+            pulumi.set(__self__, "last_transition_time", last_transition_time)
+        if message is not None:
+            pulumi.set(__self__, "message", message)
+        if observed_generation is not None:
+            pulumi.set(__self__, "observed_generation", observed_generation)
+        if reason is not None:
+            pulumi.set(__self__, "reason", reason)
+        if status is not None:
+            pulumi.set(__self__, "status", status)
+        if type is not None:
+            pulumi.set(__self__, "type", type)
+
+    @_builtins.property
+    @pulumi.getter(name="lastTransitionTime")
+    def last_transition_time(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        lastTransitionTime is the last time the condition transitioned from one status to another.
+        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+        """
+        return pulumi.get(self, "last_transition_time")
+
+    @last_transition_time.setter
+    def last_transition_time(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "last_transition_time", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def message(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        message is a human readable message indicating details about the transition.
+        This may be an empty string.
+        """
+        return pulumi.get(self, "message")
+
+    @message.setter
+    def message(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "message", value)
+
+    @_builtins.property
+    @pulumi.getter(name="observedGeneration")
+    def observed_generation(self) -> Optional[pulumi.Input[_builtins.int]]:
+        """
+        observedGeneration represents the .metadata.generation that the condition was set based upon.
+        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+        with respect to the current state of the instance.
+        """
+        return pulumi.get(self, "observed_generation")
+
+    @observed_generation.setter
+    def observed_generation(self, value: Optional[pulumi.Input[_builtins.int]]):
+        pulumi.set(self, "observed_generation", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def reason(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+        Producers of specific condition types may define expected values and meanings for this field,
+        and whether the values are considered a guaranteed API.
+        The value should be a CamelCase string.
+        This field may not be empty.
+        """
+        return pulumi.get(self, "reason")
+
+    @reason.setter
+    def reason(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "reason", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def status(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        status of the condition, one of True, False, Unknown.
+        """
+        return pulumi.get(self, "status")
+
+    @status.setter
+    def status(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "status", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def type(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        type of condition in CamelCase or in foo.example.com/CamelCase.
+        """
+        return pulumi.get(self, "type")
+
+    @type.setter
+    def type(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "type", value)
+
+
+if not MYPY:
+    class VaultStaticSecretStatusVaultClientMetaArgsDict(TypedDict):
+        """
+        VaultClientMeta contains the status of the Vault client and is used during
+        resource reconciliation.
+        """
+        cache_key: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        CacheKey is the unique key used to identify the client cache.
+        """
+        id: NotRequired[pulumi.Input[_builtins.str]]
+        """
+        ID is the Vault ID of the authenticated client. The ID should never contain
+        any sensitive information.
+        """
+elif False:
+    VaultStaticSecretStatusVaultClientMetaArgsDict: TypeAlias = Mapping[str, Any]
+
+@pulumi.input_type
+class VaultStaticSecretStatusVaultClientMetaArgs:
+    def __init__(__self__, *,
+                 cache_key: Optional[pulumi.Input[_builtins.str]] = None,
+                 id: Optional[pulumi.Input[_builtins.str]] = None):
+        """
+        VaultClientMeta contains the status of the Vault client and is used during
+        resource reconciliation.
+        :param pulumi.Input[_builtins.str] cache_key: CacheKey is the unique key used to identify the client cache.
+        :param pulumi.Input[_builtins.str] id: ID is the Vault ID of the authenticated client. The ID should never contain
+               any sensitive information.
+        """
+        if cache_key is not None:
+            pulumi.set(__self__, "cache_key", cache_key)
+        if id is not None:
+            pulumi.set(__self__, "id", id)
+
+    @_builtins.property
+    @pulumi.getter(name="cacheKey")
+    def cache_key(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        CacheKey is the unique key used to identify the client cache.
+        """
+        return pulumi.get(self, "cache_key")
+
+    @cache_key.setter
+    def cache_key(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "cache_key", value)
+
+    @_builtins.property
+    @pulumi.getter
+    def id(self) -> Optional[pulumi.Input[_builtins.str]]:
+        """
+        ID is the Vault ID of the authenticated client. The ID should never contain
+        any sensitive information.
+        """
+        return pulumi.get(self, "id")
+
+    @id.setter
+    def id(self, value: Optional[pulumi.Input[_builtins.str]]):
+        pulumi.set(self, "id", value)
+
+
+if not MYPY:
     class VaultStaticSecretStatusArgsDict(TypedDict):
         """
         VaultStaticSecretStatus defines the observed state of VaultStaticSecret
         """
+        conditions: NotRequired[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretStatusConditionsArgsDict']]]]
+        """
+        Conditions hold information that can be used by other apps to determine the
+        health of the resource instance.
+        """
+        last_generation: NotRequired[pulumi.Input[_builtins.int]]
+        """
+        LastGeneration is the Generation of the last reconciled resource.
+        """
         secret_mac: NotRequired[pulumi.Input[_builtins.str]]
         """
-        SecretMAC used when deciding whether new Vault secret data should be synced. 
-         The controller will compare the "new" Vault secret data to this value using HMAC, if they are different, then the data will be synced to the Destination. 
-         The SecretMac is also used to detect drift in the Destination Secret's Data. If drift is detected the data will be synced to the Destination.
+        SecretMAC used when deciding whether new Vault secret data should be synced.
+
+        The controller will compare the "new" Vault secret data to this value using HMAC,
+        if they are different, then the data will be synced to the Destination.
+
+        The SecretMac is also used to detect drift in the Destination Secret's Data.
+        If drift is detected the data will be synced to the Destination.
         """
+        vault_client_meta: NotRequired[pulumi.Input['VaultStaticSecretStatusVaultClientMetaArgsDict']]
 elif False:
     VaultStaticSecretStatusArgsDict: TypeAlias = Mapping[str, Any]
 
 @pulumi.input_type
 class VaultStaticSecretStatusArgs:
     def __init__(__self__, *,
-                 secret_mac: Optional[pulumi.Input[_builtins.str]] = None):
+                 conditions: Optional[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretStatusConditionsArgs']]]] = None,
+                 last_generation: Optional[pulumi.Input[_builtins.int]] = None,
+                 secret_mac: Optional[pulumi.Input[_builtins.str]] = None,
+                 vault_client_meta: Optional[pulumi.Input['VaultStaticSecretStatusVaultClientMetaArgs']] = None):
         """
         VaultStaticSecretStatus defines the observed state of VaultStaticSecret
-        :param pulumi.Input[_builtins.str] secret_mac: SecretMAC used when deciding whether new Vault secret data should be synced. 
-                The controller will compare the "new" Vault secret data to this value using HMAC, if they are different, then the data will be synced to the Destination. 
-                The SecretMac is also used to detect drift in the Destination Secret's Data. If drift is detected the data will be synced to the Destination.
+        :param pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretStatusConditionsArgs']]] conditions: Conditions hold information that can be used by other apps to determine the
+               health of the resource instance.
+        :param pulumi.Input[_builtins.int] last_generation: LastGeneration is the Generation of the last reconciled resource.
+        :param pulumi.Input[_builtins.str] secret_mac: SecretMAC used when deciding whether new Vault secret data should be synced.
+               
+               The controller will compare the "new" Vault secret data to this value using HMAC,
+               if they are different, then the data will be synced to the Destination.
+               
+               The SecretMac is also used to detect drift in the Destination Secret's Data.
+               If drift is detected the data will be synced to the Destination.
         """
+        if conditions is not None:
+            pulumi.set(__self__, "conditions", conditions)
+        if last_generation is not None:
+            pulumi.set(__self__, "last_generation", last_generation)
         if secret_mac is not None:
             pulumi.set(__self__, "secret_mac", secret_mac)
+        if vault_client_meta is not None:
+            pulumi.set(__self__, "vault_client_meta", vault_client_meta)
+
+    @_builtins.property
+    @pulumi.getter
+    def conditions(self) -> Optional[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretStatusConditionsArgs']]]]:
+        """
+        Conditions hold information that can be used by other apps to determine the
+        health of the resource instance.
+        """
+        return pulumi.get(self, "conditions")
+
+    @conditions.setter
+    def conditions(self, value: Optional[pulumi.Input[Sequence[pulumi.Input['VaultStaticSecretStatusConditionsArgs']]]]):
+        pulumi.set(self, "conditions", value)
+
+    @_builtins.property
+    @pulumi.getter(name="lastGeneration")
+    def last_generation(self) -> Optional[pulumi.Input[_builtins.int]]:
+        """
+        LastGeneration is the Generation of the last reconciled resource.
+        """
+        return pulumi.get(self, "last_generation")
+
+    @last_generation.setter
+    def last_generation(self, value: Optional[pulumi.Input[_builtins.int]]):
+        pulumi.set(self, "last_generation", value)
 
     @_builtins.property
     @pulumi.getter(name="secretMAC")
     def secret_mac(self) -> Optional[pulumi.Input[_builtins.str]]:
         """
-        SecretMAC used when deciding whether new Vault secret data should be synced. 
-         The controller will compare the "new" Vault secret data to this value using HMAC, if they are different, then the data will be synced to the Destination. 
-         The SecretMac is also used to detect drift in the Destination Secret's Data. If drift is detected the data will be synced to the Destination.
+        SecretMAC used when deciding whether new Vault secret data should be synced.
+
+        The controller will compare the "new" Vault secret data to this value using HMAC,
+        if they are different, then the data will be synced to the Destination.
+
+        The SecretMac is also used to detect drift in the Destination Secret's Data.
+        If drift is detected the data will be synced to the Destination.
         """
         return pulumi.get(self, "secret_mac")
 
     @secret_mac.setter
     def secret_mac(self, value: Optional[pulumi.Input[_builtins.str]]):
         pulumi.set(self, "secret_mac", value)
+
+    @_builtins.property
+    @pulumi.getter(name="vaultClientMeta")
+    def vault_client_meta(self) -> Optional[pulumi.Input['VaultStaticSecretStatusVaultClientMetaArgs']]:
+        return pulumi.get(self, "vault_client_meta")
+
+    @vault_client_meta.setter
+    def vault_client_meta(self, value: Optional[pulumi.Input['VaultStaticSecretStatusVaultClientMetaArgs']]):
+        pulumi.set(self, "vault_client_meta", value)
 
 
 if not MYPY:

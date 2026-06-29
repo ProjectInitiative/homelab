@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rclone-config
+  namespace: default
+data:
+  rclone.conf: |
+    [gdrive]
+    type = drive
+    scope = drive
+    use_app_default_credentials = true

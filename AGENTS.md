@@ -584,6 +584,13 @@ The Pulumi approach replaced this by centralizing all generation logic in `pulum
 
 ## 8. Development Workflow
 
+This project uses **devenv** (powered by flake-parts) for the development shell, and **uv2nix-style** Python dependency management via `pkgs.python3.withPackages`.
+
+### Prerequisites
+
+- [Nix](https://nixos.org/download) with flakes enabled
+- [direnv](https://direnv.net/) (recommended) or use `nix develop`
+
 ### Setup
 
 ```bash
@@ -592,6 +599,23 @@ nix develop
 # or if using direnv:
 direnv allow
 ```
+
+The dev shell provides:
+- `pulumi` CLI + Python SDK
+- `crd2pulumi` for CRD import
+- `uv` for Python tooling
+- `python3` with all required packages (including `pulumi_crds`)
+
+### Available Commands (in dev shell)
+
+| Command | Description |
+|---------|-------------|
+| `generate-manifests` | Generate Argo CD Application manifests |
+| `import-crds` | Import CRDs for Pulumi |
+| `setup-pulumi` | Setup Pulumi configuration |
+| `diff-manifests` | Diff generated manifests against current state |
+
+Or run outside the shell via `nix run .#<command>`.
 
 ### Generate Local Preview
 
@@ -617,6 +641,10 @@ nix run .#import-crds pulumi/crd-imports.json
 
 This regenerates the Pulumi CRD type stubs in `pulumi/crds/` using `crd2pulumi`.
 
+The `pulumi_crds` Python package is built as a proper Nix package
+(from `pulumi/crds/`) and included in the Python environment —
+no `sys.path` hacks needed.
+
 ### Commit and Deploy
 
 1. Edit `apps.yaml` and/or `clusters/*.yaml` (never `manifests/` directly)
@@ -631,6 +659,7 @@ This regenerates the Pulumi CRD type stubs in `pulumi/crds/` using `crd2pulumi`.
 - **Unexpected diff**: The Pulumi generator may have a bug or a shared config changed
 - **Vault secrets not syncing**: Verify the VaultAuth is correct, the ServiceAccount exists, and Vault has the role configured
 - **CRD imports failing**: Check `pulumi/crd-imports.json` URLs are reachable
+- **Python import errors**: Run `python3 -c "from pulumi_crds.argoproj.v1alpha1 import Application; print('OK')"` to verify the CRD package is installed
 
 ---
 

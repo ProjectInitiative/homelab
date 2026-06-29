@@ -36,3 +36,7 @@ dist/
 
 # cdk8s-specific ignores
 cdk.out/
+vendor/
+result
+.devenv
+pulumi/uv.lock

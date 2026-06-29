@@ -8,5 +8,5 @@ dependencies = [
     "semver",
     "pyyaml",
     "requests",
-    "typing-extensions"
+    "typing-extensions",
 ]

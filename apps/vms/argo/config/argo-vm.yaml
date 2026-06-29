@@ -1,0 +1,78 @@
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: argo
+  labels:
+    app: argo
+spec:
+  runStrategy: Halted
+  dataVolumeTemplates:
+    - metadata:
+        name: argo-root
+      spec:
+        pvc:
+          accessModes:
+            - ReadWriteMany
+          volumeMode: Block
+          resources:
+            requests:
+              storage: 32Gi
+          storageClassName: juicefs-sc
+        source:
+          s3:
+            url: "http://garage.garage:3900/iso/nixos.qcow2"
+            secretRef: argo-s3-creds
+  template:
+    metadata:
+      labels:
+        app: argo
+    spec:
+      domain:
+        cpu:
+          cores: 4
+          sockets: 1
+          threads: 1
+        memory:
+          guest: 4Gi
+        devices:
+          disks:
+            - name: root
+              disk:
+                bus: virtio
+              dedicatedIOThread: true
+            - name: cloudinit
+              disk:
+                bus: virtio
+          interfaces:
+            - name: default
+              masquerade: {}
+        ioThreadsPolicy: auto
+      networks:
+        - name: default
+          pod: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: root
+          dataVolume:
+            name: argo-root
+        - name: cloudinit
+          cloudInitNoCloud:
+            userData: |
+              #cloud-config
+              hostname: argo
+              users:
+                - name: kyle
+                  sudo: ALL=(ALL) NOPASSWD:ALL
+                  lock_passwd: false
+                  ssh_authorized_keys:
+                    - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAplaceholder"
+              ssh_pwauth: true
+              chpasswd:
+                expire: false
+                list: |
+                  kyle:changeme
+              packages:
+                - qemu-guest-agent
+              runcmd:
+                - [ systemctl, enable, --now, qemu-guest-agent ]

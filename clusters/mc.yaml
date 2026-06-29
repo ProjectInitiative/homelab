@@ -41,6 +41,8 @@ apps:
 
   - name: tpm-device-plugin
     namespace: kube-system
+  - name: kubevirt
+    namespace: kubevirt
   - name: tailscale-operator
     namespace: tailscale
   - name: openbao
@@ -147,6 +149,8 @@ apps:
         brokerK8sSecret: "submariner-broker-info"
         brokerK8sApiServer: "https://100.95.205.21:443"
 
+  - name: argo
+    namespace: argo
   - name: mcp-kubernetes
     namespace: mcp-system
     patch: |-

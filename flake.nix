@@ -1,167 +1,156 @@
 {
-  description = "A flake for a CDK8s Python development environment";
+  description = "Homelab — Pulumi manifest generator for Argo CD";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    pyproject-nix = {
-      url = "github:pyproject-nix/pyproject.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    flake-parts.url = "github:hercules-ci/flake-parts";
+    flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
+    devenv.url = "github:cachix/devenv";
+    devenv.inputs.nixpkgs.follows = "nixpkgs";
+    nix2container.url = "github:nlewo/nix2container";
+    nix2container.inputs.nixpkgs.follows = "nixpkgs";
+    mk-shell-bin.url = "github:rrbutani/nix-mk-shell-bin";
     ops-utils.url = "github:projectinitiative/ops-utils";
   };
 
-  outputs = { self, nixpkgs, pyproject-nix, ops-utils, ... }@inputs:
-    let
-      supportedSystems = [ "x86_64-linux" "aarch64-linux" ];
-      forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-      
-      # Import the overlay
-      overlays = [
-        (import ./overlays/default.nix)
+  nixConfig = {
+    extra-trusted-public-keys = "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=";
+    extra-substituters = "https://devenv.cachix.org";
+  };
+
+  outputs =
+    inputs@{ flake-parts, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      imports = [
+        inputs.devenv.flakeModule
       ];
 
-      # Native package sets
-      pkgsForSystem = system: import nixpkgs { inherit system; inherit overlays; };
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+      ];
 
-      # Dedicated Cross-Compilation set: Builds ARM on x86_64
-      # This is the "secret sauce" to avoid QEMU in CI
-      pkgsCrossARM = import nixpkgs {
-        system = "x86_64-linux";
-        crossSystem = { config = "aarch64-unknown-linux-gnu"; };
-        inherit overlays;
-      };
-
-      #####################################################################
-      # Shared pythonEnv constructor
-      #####################################################################
-      
-      # Helper function to build a python env for a given pkgs set
-      mkPythonEnv = pkgs:
+      perSystem =
+        { config, pkgs, lib, system, ... }:
         let
-          python = pkgs.python3;
-          pyproject = pyproject-nix.lib.project.loadPyproject {
-            projectRoot = ./pulumi;
+          # -------------------------------------------------------------------
+          # Helper: build pulumi_crds + python env from any pkgs set
+          # -------------------------------------------------------------------
+          mkPulumiEnv = pkgs':
+            let
+              pyPkgs = pkgs'.python3.pkgs;
+
+              # Core pulumi deps shared by pulumiCrds and pythonEnv
+              coreDeps = [
+                pyPkgs.pulumi
+                pyPkgs."pulumi-kubernetes"
+                pyPkgs.parver
+                pyPkgs.semver
+                pyPkgs.requests
+                pyPkgs."typing-extensions"
+              ];
+
+              pulumiCrds = pyPkgs.buildPythonPackage rec {
+                pname = "pulumi-crds";
+                version = "4.23.0";
+                src = ./pulumi/crds;
+                format = "pyproject";
+                nativeBuildInputs = with pyPkgs; [ setuptools ];
+                propagatedBuildInputs = coreDeps;
+                doCheck = false;
+              };
+
+              pythonEnv = pkgs'.python3.withPackages (_:
+                coreDeps ++ [ pyPkgs.pyyaml pyPkgs.pip pulumiCrds ]
+              );
+            in
+            { inherit pulumiCrds pythonEnv; };
+
+          # Native env
+          native = mkPulumiEnv pkgs;
+
+          # Cross-compiled env (ARM on x86_64 for CMP image)
+          pkgsCrossARM = import inputs.nixpkgs {
+            system = "x86_64-linux";
+            crossSystem = { config = "aarch64-unknown-linux-gnu"; };
           };
-          arg = pyproject.renderers.withPackages { inherit python; };
-        in python.withPackages arg;
+          cross = mkPulumiEnv pkgsCrossARM;
 
-      # Native python environments for each system
-      pythonEnvs = forAllSystems (system: mkPythonEnv (pkgsForSystem system));
+          ops = inputs.ops-utils.lib.mkUtils { inherit pkgs; };
 
-      # A specific cross-compiled python environment (ARM code, built on x86)
-      pythonEnvArmCross = mkPythonEnv pkgsCrossARM;
-
-    in
-    {
-      packages = forAllSystems (system:
-        let
-          pkgs = pkgsForSystem system;
-          ops = ops-utils.lib.mkUtils { inherit pkgs; };
         in
         {
-          # 1. The Native Plugin (Built for current system)
-          pulumi-cmp-plugin = import ./pulumi/cmp-image/image.nix { 
-            inherit pkgs;
-            pythonEnv = pythonEnvs.${system};
+          packages = {
+            pulumi-cmp-plugin = import ./pulumi/cmp-image/image.nix {
+              inherit pkgs;
+              pythonEnv = native.pythonEnv;
+            };
+
+            pulumi-cmp-plugin-arm-cross =
+              if system == "x86_64-linux"
+              then import ./pulumi/cmp-image/image.nix {
+                pkgs = pkgsCrossARM;
+                pythonEnv = cross.pythonEnv;
+              }
+              else config.packages.pulumi-cmp-plugin;
+
+            import-crds = import ./nix/scripts/import-crds.nix { inherit pkgs; };
+
+            generate-manifests = import ./nix/scripts/generate-manifests.nix {
+              inherit pkgs system;
+              pythonEnv = native.pythonEnv;
+            };
+
+            setup-pulumi = import ./nix/scripts/setup-pulumi.nix { inherit pkgs; };
+
+            diff-manifests = import ./nix/scripts/diff-manifests.nix { inherit pkgs; };
+
+            nixos-remote-builder = import ./nix/images/builder.nix { inherit pkgs; };
+
+            korb = pkgs.callPackage ./nix/pkgs/korb.nix {
+              inherit (pkgs) fetchFromGitHub;
+            };
+          } // ops;
+
+          devenv.shells.default = {
+            imports = [ ./devenv.nix ];
+            packages = [ native.pythonEnv ];
+            devenv.root = lib.mkForce (toString ./.);
           };
 
-          # 2. The Cross-Compiled Plugin (Bypasses QEMU on x86_64)
-          # On aarch64-linux, this just points to the native version.
-          # On x86_64-linux, this builds aarch64 binaries using cross-compilers.
-          pulumi-cmp-plugin-arm-cross = if system == "x86_64-linux" 
-            then import ./pulumi/cmp-image/image.nix { 
-              pkgs = pkgsCrossARM; 
-              pythonEnv = pythonEnvArmCross; 
-            }
-            else self.packages."aarch64-linux".pulumi-cmp-plugin;
+          apps = {
+            import-crds = {
+              type = "app";
+              program = "${config.packages.import-crds}/bin/import-crds";
+            };
+            generate-manifests = {
+              type = "app";
+              program = "${config.packages.generate-manifests}/bin/generate-manifests";
+            };
+            setup-pulumi = {
+              type = "app";
+              program = "${config.packages.setup-pulumi}/bin/setup-pulumi";
+            };
+            diff-manifests = {
+              type = "app";
+              program = "${config.packages.diff-manifests}/bin/diff-manifests";
+            };
+          } // builtins.mapAttrs (name: value: value) (inputs.ops-utils.lib.mkApps { inherit pkgs; } ops);
 
-          # Existing scripts and packages
-          import-crds = import ./nix/scripts/import-crds.nix { inherit pkgs; };
+          checks.formatting =
+            pkgs.runCommand "check-formatting"
+              {
+                nativeBuildInputs = [ pkgs.nixfmt ];
+                src = ./.;
+              }
+              ''
+                nixfmt --check $src/*.nix $src/devenv.nix
+                touch $out
+              '';
 
-          generate-manifests = import ./nix/scripts/generate-manifests.nix {  
-            inherit pkgs system; 
-            pythonEnv = pythonEnvs.${system};
-          };
+          formatter = pkgs.nixfmt;
+        };
 
-          setup-pulumi = import ./nix/scripts/setup-pulumi.nix { inherit pkgs; };
-          diff-manifests = import ./nix/scripts/diff-manifests.nix { inherit pkgs; };
-          nixos-remote-builder = import ./nix/images/builder.nix { inherit pkgs; };
-          korb = pkgs.callPackage ./nix/pkgs/korb.nix { inherit (pkgs) fetchFromGitHub; };
-          
-        } // ops);
-
-      apps = forAllSystems (system: 
-        let
-          pkgs = pkgsForSystem system;
-          ops = ops-utils.lib.mkUtils { inherit pkgs; };
-          opsApps = ops-utils.lib.mkApps { inherit pkgs; } ops;
-        in
-        {
-          import-crds = {
-            type = "app";
-            program = "${self.packages.${system}.import-crds}/bin/import-crds";
-          };
-
-          generate-manifests = {
-            type = "app";
-            program = "${self.packages.${system}.generate-manifests}/bin/generate-manifests";
-          };
-
-          setup-pulumi = {
-            type = "app";
-            program = "${self.packages.${system}.setup-pulumi}/bin/setup-pulumi";
-          };
-          
-          diff-manifests = {
-            type = "app";
-            program = "${self.packages.${system}.diff-manifests}/bin/diff-manifests";
-          };
-        } // opsApps);
-
-      devShells = forAllSystems (system:
-        let
-          pkgs = pkgsForSystem system;
-          pythonEnv = pythonEnvs.${system};
-        in {
-          default = pkgs.mkShell {
-            packages = [ pythonEnv ] ++ [
-              pkgs.pulumi
-              pkgs.crd2pulumi
-              pkgs.pulumiPackages.pulumi-python
-              pkgs.direnv
-              pkgs.nix-direnv
-              pkgs.uv
-              pkgs.python3Packages.deepdiff
-              self.packages.${system}.import-crds
-              self.packages.${system}.generate-manifests
-              self.packages.${system}.setup-pulumi
-
-              self.packages.${system}.build-image
-              self.packages.${system}.push-multi-arch
-              self.packages.${system}.push-insecure
-              self.packages.${system}.dev-push
-            ];
-            
-            shellHook = ''
-              export PULUMI_MANIFEST_OUTPUT_DIR=$(pwd)/.direnv/manifests
-              echo "Entering Pulumi development shell"
-              echo ""
-              echo "Available commands:"
-              echo "  generate-manifests  - Generate Argo CD Application manifests from apps.yaml and clusters/*.yaml"
-              echo "  import-crds         - Import CRDs for Pulumi"
-              echo "  setup-pulumi        - Setup Pulumi configuration"
-              echo "  diff-manifests      - Diff generated manifests against current state"
-              echo "  build-image         - Build the Pulumi CMP Docker image"
-              echo "  push-multi-arch     - Build and push multi-arch Pulumi CMP image"
-              echo "  push-insecure       - Push Pulumi CMP image to an insecure registry"
-              echo "  dev-push            - Build and push Pulumi CMP image for development"
-              echo ""
-            '';
-            
-            PULUMI_CONFIG_PASSPHRASE = "";
-            PULUMI_ACCESS_TOKEN = "";
-          };
-        }
-      );
+      flake = { };
     };
 }
