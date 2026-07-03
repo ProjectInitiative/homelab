@@ -1,6 +1,6 @@
 # Architecture & Workflow Guide
 
-This document is the single source of truth for how this repository works. It covers the architecture, the Pulumi-based manifest generation, the multi-layer patch system, and step-by-step instructions for adding new apps with secrets.
+This document is the single source of truth for how this repository works. It covers the architecture, the cdk8s-based manifest generation, the multi-layer patch system, and step-by-step instructions for adding new apps with secrets.
 
 ---
 
@@ -10,7 +10,7 @@ This document is the single source of truth for how this repository works. It co
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Argo CD (Control Cluster)                    │
 │                                                                 │
-│  root.yaml ──► Pulumi CMP ──► Generates Application CRDs        │
+│  root.yaml ──► cdk8s CMP ──► Generates Application CRDs         │
 │                     │                                           │
 │                     ▼                                           │
 │         apps.yaml + clusters/*.yaml                             │
@@ -27,7 +27,7 @@ This document is the single source of truth for how this repository works. It co
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Key design principle:** Pulumi is a *manifest generator*, not an infrastructure provisioner. It reads declarative YAML configs (`apps.yaml` + `clusters/*.yaml`) and produces Argo CD `Application` CRDs. Argo CD then syncs those Applications to target clusters. The `bootstrap/` directory contains Kustomize bases and templates that the generated Applications reference.
+**Key design principle:** The generator (cdk8s + Python) is a *manifest generator*, not an infrastructure provisioner. It reads declarative YAML configs (`apps.yaml` + `clusters/*.yaml`) and produces Argo CD `Application` CRDs. Argo CD then syncs those Applications to target clusters. The `bootstrap/` directory contains Kustomize bases and templates that the generated Applications reference.
 
 ---
 
@@ -39,16 +39,15 @@ This document is the single source of truth for how this repository works. It co
 ├── clusters/
 │   ├── mc.yaml                  # Main cluster (capstan) deployment config
 │   └── cc.yaml                  # Control cluster (homelab) deployment config
-├── pulumi/
-│   ├── __main__.py              # Pulumi generator engine
-│   ├── utils.py                 # camelCase → snake_case transformer
-│   ├── Pulumi.yaml
-│   ├── crd-imports.json         # CRD URLs for crd2pulumi
-│   ├── crds/                    # Auto-generated Pulumi CRD types
-│   │   └── pulumi_crds/
-│   │       ├── argoproj/v1alpha1/   # Argo CD CRDs (Application, AppProject)
-│   │       └── secrets/v1beta1/     # VSO CRDs (VaultAuth, VaultStaticSecret, etc.)
-│   └── cmp-image/image.nix      # Nix build for Pulumi CMP Docker image
+├── generator/
+│   ├── main.py                  # cdk8s generator engine
+│   ├── cdk8s.yaml               # cdk8s config + CRD import URLs
+│   ├── pyproject.toml           # Python deps (cdk8s, constructs, jsii, pyyaml)
+│   ├── uv.lock                  # Locked Python dependencies (uv2nix)
+│   ├── imports/                 # Auto-generated cdk8s CRD types
+│   │   ├── io/argoproj/             # Argo CD CRDs (Application, AppProject)
+│   │   └── com/hashicorp/secrets/   # VSO CRDs (VaultAuth, VaultStaticSecret, etc.)
+│   └── cmp-image/image.nix      # Nix build for cdk8s CMP Docker image
 ├── bootstrap/
 │   ├── base/
 │   │   ├── common/
@@ -74,7 +73,7 @@ This document is the single source of truth for how this repository works. It co
 │       ├── tailscale-proxy-groups/
 │       └── temp-egress/
 ├── parent-apps/
-│   ├── root.yaml                    # Root Argo CD Application (Pulumi source)
+│   ├── root.yaml                    # Root Argo CD Application
 │   └── argocd-deployment-app.yaml   # Manages Argo CD CMP plugins
 ├── argocd-deployment/               # CMP plugin configs (ConfigMaps)
 └── overlays/                        # LEGACY - old Kustomize approach (see §7)
@@ -82,9 +81,9 @@ This document is the single source of truth for how this repository works. It co
 
 ---
 
-## 3. The Pulumi Generation Engine
+## 3. The cdk8s Generation Engine
 
-`pulumi/__main__.py` reads two inputs and produces Argo CD `Application` CRDs:
+`generator/main.py` reads two inputs and produces Argo CD `Application` CRDs:
 
 ### Input: `apps.yaml` (The Catalog)
 
@@ -143,7 +142,7 @@ apps:
 
 ### Output: Argo CD `Application` CRDs
 
-The Pulumi engine:
+The cdk8s engine:
 1. For each (app, cluster) pair, constructs an `Application` CR
 2. Applies Helm values overrides from the cluster config
 3. Applies Kustomize patches for the `patch`/`patches` fields
@@ -157,9 +156,9 @@ The Pulumi engine:
 
 This is the most important concept to understand. The system uses **several layers of patching** to achieve modularity without code duplication:
 
-### Layer 1: Pulumi-Generated Kustomize Patches (in Application CR)
+### Layer 1: cdk8s-Generated Kustomize Patches (in Application CR)
 
-The Pulumi engine reads `vaultSecrets` from `apps.yaml` and generates Kustomize patches that are embedded **inside the Argo CD Application spec**:
+The cdk8s engine reads `vaultSecrets` from `apps.yaml` and generates Kustomize patches that are embedded **inside the Argo CD Application spec**:
 
 ```yaml
 # Generated Application CR (simplified)
@@ -235,7 +234,7 @@ spec:
       ...
 ```
 
-The key insight: **Pulumi generates Kustomize patches at code-generation time**, which are then applied by Argo CD's CMP at sync time against the placeholder template files in `bootstrap/base/common/vault-resources/`.
+The key insight: **cdk8s generates Kustomize patches at code-generation time**, which are then applied by Argo CD's CMP at sync time against the placeholder template files in `bootstrap/base/common/vault-resources/`.
 
 ### Layer 2: Kustomize in the CMP (at sync time)
 
@@ -300,7 +299,7 @@ apps.yaml (catalog)  ──►  clusters/*.yaml (deploy)
         │                          │
         ▼                          ▼
   ┌─────────────────────────────────────┐
-  │  Pulumi Generator (__main__.py)     │
+  │  cdk8s Generator (main.py)          │
   │  • Reads catalog + deployment       │
   │  • Generates Application CRD        │
   │  • Creates Kustomize patches for    │
@@ -494,9 +493,9 @@ catalog:
           # refreshInterval: 60s
 ```
 
-### What Pulumi Generates (Auto-Magic)
+### What cdk8s Generates (Auto-Magic)
 
-When `vaultSecrets.createAuth: true`, the Pulumi engine automatically:
+When `vaultSecrets.createAuth: true`, the cdk8s engine automatically:
 
 1. **Creates a dedicated ServiceAccount** (named `{auth_name}-sa`, e.g., `operator-auth-sa`)
 2. **Creates a dedicated VaultAuth** that uses Kubernetes auth with that SA
@@ -578,7 +577,7 @@ The old system:
 - Used **meta-patching**: patches on Argo CD Application CRs that injected more patches into their Kustomize config
 - Was complex, hard to follow, and required duplicating cluster-specific logic in multiple places
 
-The Pulumi approach replaced this by centralizing all generation logic in `pulumi/__main__.py`, making the system declarative and much easier to understand.
+The cdk8s approach replaced this by centralizing all generation logic in `generator/main.py`, making the system declarative and much easier to understand.
 
 ---
 
@@ -601,19 +600,19 @@ direnv allow
 ```
 
 The dev shell provides:
-- `pulumi` CLI + Python SDK
-- `crd2pulumi` for CRD import
+- `cdk8s` + `constructs` + `jsii` Python SDK via uv2nix
+- `cdk8s-cli` for CRD import
 - `uv` for Python tooling
-- `python3` with all required packages (including `pulumi_crds`)
+- `nodejs` for jsii runtime subprocess
+- `dyff` for structural YAML diffing
 
 ### Available Commands (in dev shell)
 
 | Command | Description |
 |---------|-------------|
 | `generate-manifests` | Generate Argo CD Application manifests |
-| `import-crds` | Import CRDs for Pulumi |
-| `setup-pulumi` | Setup Pulumi configuration |
-| `diff-manifests` | Diff generated manifests against current state |
+| `import-crds` | Import CRDs for cdk8s |
+| `diff-manifests` | Diff generated manifests against main |
 
 Or run outside the shell via `nix run .#<command>`.
 
@@ -623,7 +622,7 @@ Or run outside the shell via `nix run .#<command>`.
 nix run .#generate-manifests
 ```
 
-This runs the Pulumi generator and outputs manifest YAML to `.direnv/manifests/`.
+This runs the cdk8s generator and outputs manifest YAML to `.direnv/manifests/`.
 
 ### Diff Against Main
 
@@ -636,14 +635,10 @@ This compares the generated manifests against the `main` branch state.
 ### Import/Update CRDs (Rarely Needed)
 
 ```bash
-nix run .#import-crds pulumi/crd-imports.json
+nix run .#import-crds
 ```
 
-This regenerates the Pulumi CRD type stubs in `pulumi/crds/` using `crd2pulumi`.
-
-The `pulumi_crds` Python package is built as a proper Nix package
-(from `pulumi/crds/`) and included in the Python environment —
-no `sys.path` hacks needed.
+This regenerates the cdk8s CRD type stubs in `generator/imports/` using `cdk8s import`.
 
 ### Commit and Deploy
 
@@ -656,10 +651,10 @@ no `sys.path` hacks needed.
 ### Debugging
 
 - **Generation fails**: Check YAML syntax in `apps.yaml` and `clusters/*.yaml`
-- **Unexpected diff**: The Pulumi generator may have a bug or a shared config changed
+- **Unexpected diff**: The cdk8s generator may have a bug or a shared config changed
 - **Vault secrets not syncing**: Verify the VaultAuth is correct, the ServiceAccount exists, and Vault has the role configured
-- **CRD imports failing**: Check `pulumi/crd-imports.json` URLs are reachable
-- **Python import errors**: Run `python3 -c "from pulumi_crds.argoproj.v1alpha1 import Application; print('OK')"` to verify the CRD package is installed
+- **CRD imports failing**: Check `generator/cdk8s.yaml` URLs are reachable
+- **Python import errors**: Run `python3 -c "from imports.io.argoproj import Application; print('OK')"` to verify the CRD package is installed
 
 ---
 
