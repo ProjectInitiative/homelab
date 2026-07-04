@@ -10,7 +10,6 @@ resources:
 patches:
 - path: patch-kustomized-helm-cmp.yaml
 - path: patch-cdk8s-cmp.yaml
-- path: patch-reposerver-cmp-mount.yaml
 - path: patch-fsgroup.yaml
 
 images:
