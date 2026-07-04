@@ -4,9 +4,8 @@ let
   cdk8sGenerate = pkgs.writeShellScriptBin "cdk8s-generate" ''
     export HOME=/home/argocd
     export PATH=${pythonEnv}/bin:${pkgs.nodejs_22}/bin:$PATH
-    cd /app/generator
     ${pythonEnv}/bin/python main.py 1>&2
-    cat /app/generator/dist/*.k8s.yaml
+    cat dist/*.k8s.yaml
   '';
 
 in pkgs.dockerTools.buildLayeredImage {

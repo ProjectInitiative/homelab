@@ -27,13 +27,13 @@ spec:
           mountPath: /tmp
         - name: home
           mountPath: /home/argocd
-        - name: cdk8s-cmp-home
-          mountPath: /home/argocd/cmp-server/plugins/cdk8s
+        - name: cdk8s-cmp-plugins
+          mountPath: /home/argocd/cmp-server/plugins
       volumes:
       - name: cdk8s-plugin-config
         configMap:
           name: cdk8s-cmp-plugin
       - name: cdk8s-cmp-tmp
         emptyDir: {}
-      - name: cdk8s-cmp-home
+      - name: cdk8s-cmp-plugins
         emptyDir: {}
