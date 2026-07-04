@@ -1,5 +1,5 @@
 {
-  description = "Homelab — Pulumi manifest generator for Argo CD";
+  description = "Homelab — cdk8s manifest generator for Argo CD";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -11,6 +11,14 @@
     nix2container.inputs.nixpkgs.follows = "nixpkgs";
     mk-shell-bin.url = "github:rrbutani/nix-mk-shell-bin";
     ops-utils.url = "github:projectinitiative/ops-utils";
+    uv2nix.url = "github:pyproject-nix/uv2nix";
+    uv2nix.inputs.nixpkgs.follows = "nixpkgs";
+    pyproject-nix.url = "github:pyproject-nix/pyproject.nix";
+    pyproject-nix.inputs.nixpkgs.follows = "nixpkgs";
+    pyproject-build-systems.url = "github:pyproject-nix/build-system-pkgs";
+    pyproject-build-systems.inputs.nixpkgs.follows = "nixpkgs";
+    pyproject-build-systems.inputs.uv2nix.follows = "uv2nix";
+    pyproject-build-systems.inputs.pyproject-nix.follows = "pyproject-nix";
   };
 
   nixConfig = {
@@ -33,77 +41,70 @@
       perSystem =
         { config, pkgs, lib, system, ... }:
         let
-          # -------------------------------------------------------------------
-          # Helper: build pulumi_crds + python env from any pkgs set
-          # -------------------------------------------------------------------
-          mkPulumiEnv = pkgs':
-            let
-              pyPkgs = pkgs'.python3.pkgs;
+          ops = inputs.ops-utils.lib.mkUtils { inherit pkgs; };
 
-              # Core pulumi deps shared by pulumiCrds and pythonEnv
-              coreDeps = [
-                pyPkgs.pulumi
-                pyPkgs."pulumi-kubernetes"
-                pyPkgs.parver
-                pyPkgs.semver
-                pyPkgs.requests
-                pyPkgs."typing-extensions"
-              ];
+          # --- uv2nix: build a hermetic Python virtualenv from generator/uv.lock ---
+          # Used by flake packages (generate-manifests, diff-manifests, cmp-image).
+          # The devenv shell uses config.languages.python.import (same uv2nix under the hood).
+          workspace = inputs.uv2nix.lib.workspace.loadWorkspace {
+            workspaceRoot = ./generator;
+          };
+          overlay = workspace.mkPyprojectOverlay {
+            sourcePreference = "wheel";
+          };
+          python = pkgs.python311;
+          pythonBase = pkgs.callPackage inputs.pyproject-nix.build.packages {
+            inherit python;
+          };
+          pythonSet = pythonBase.overrideScope (
+            lib.composeManyExtensions [
+              inputs.pyproject-build-systems.overlays.default
+              overlay
+            ]
+          );
+          pythonEnv = pythonSet.mkVirtualEnv "homelab-generator-env" workspace.deps.default;
 
-              pulumiCrds = pyPkgs.buildPythonPackage rec {
-                pname = "pulumi-crds";
-                version = "4.23.0";
-                src = ./pulumi/crds;
-                format = "pyproject";
-                nativeBuildInputs = with pyPkgs; [ setuptools ];
-                propagatedBuildInputs = coreDeps;
-                doCheck = false;
-              };
-
-              pythonEnv = pkgs'.python3.withPackages (_:
-                coreDeps ++ [ pyPkgs.pyyaml pyPkgs.pip pulumiCrds ]
-              );
-            in
-            { inherit pulumiCrds pythonEnv; };
-
-          # Native env
-          native = mkPulumiEnv pkgs;
-
-          # Cross-compiled env (ARM on x86_64 for CMP image)
+          # Cross-compiled env for ARM CMP image
           pkgsCrossARM = import inputs.nixpkgs {
             system = "x86_64-linux";
             crossSystem = { config = "aarch64-unknown-linux-gnu"; };
           };
-          cross = mkPulumiEnv pkgsCrossARM;
-
-          ops = inputs.ops-utils.lib.mkUtils { inherit pkgs; };
+          pythonCross = pkgsCrossARM.python311;
+          pythonBaseCross = pkgsCrossARM.callPackage inputs.pyproject-nix.build.packages {
+            python = pythonCross;
+          };
+          pythonSetCross = pythonBaseCross.overrideScope (
+            lib.composeManyExtensions [
+              inputs.pyproject-build-systems.overlays.default
+              overlay
+            ]
+          );
+          pythonEnvCross = pythonSetCross.mkVirtualEnv "homelab-generator-env-cross" workspace.deps.default;
 
         in
         {
           packages = {
-            pulumi-cmp-plugin = import ./pulumi/cmp-image/image.nix {
-              inherit pkgs;
-              pythonEnv = native.pythonEnv;
+            cmp-image = import ./generator/cmp-image/image.nix {
+              inherit pkgs pythonEnv;
             };
 
-            pulumi-cmp-plugin-arm-cross =
+            cmp-image-arm-cross =
               if system == "x86_64-linux"
-              then import ./pulumi/cmp-image/image.nix {
+              then import ./generator/cmp-image/image.nix {
                 pkgs = pkgsCrossARM;
-                pythonEnv = cross.pythonEnv;
+                pythonEnv = pythonEnvCross;
               }
-              else config.packages.pulumi-cmp-plugin;
+              else config.packages.cmp-image;
 
             import-crds = import ./nix/scripts/import-crds.nix { inherit pkgs; };
 
             generate-manifests = import ./nix/scripts/generate-manifests.nix {
-              inherit pkgs system;
-              pythonEnv = native.pythonEnv;
+              inherit pkgs pythonEnv;
             };
 
-            setup-pulumi = import ./nix/scripts/setup-pulumi.nix { inherit pkgs; };
-
-            diff-manifests = import ./nix/scripts/diff-manifests.nix { inherit pkgs; };
+            diff-manifests = import ./nix/scripts/diff-manifests.nix {
+              inherit pkgs pythonEnv;
+            };
 
             nixos-remote-builder = import ./nix/images/builder.nix { inherit pkgs; };
 
@@ -114,8 +115,7 @@
 
           devenv.shells.default = {
             imports = [ ./devenv.nix ];
-            packages = [ native.pythonEnv ];
-            devenv.root = lib.mkForce (toString ./.);
+            devenv.root = toString ./.;
           };
 
           apps = {
@@ -126,10 +126,6 @@
             generate-manifests = {
               type = "app";
               program = "${config.packages.generate-manifests}/bin/generate-manifests";
-            };
-            setup-pulumi = {
-              type = "app";
-              program = "${config.packages.setup-pulumi}/bin/setup-pulumi";
             };
             diff-manifests = {
               type = "app";

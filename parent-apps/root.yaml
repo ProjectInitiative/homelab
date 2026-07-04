@@ -77,10 +77,9 @@ spec:
   source:
     repoURL: https://github.com/projectinitiative/homelab.git
     targetRevision: HEAD
-    path: pulumi
+    path: generator
     plugin:
-      # name: pulumi-python
-      name: pulumi-python-v1.0
+      name: cdk8s-v1.0
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

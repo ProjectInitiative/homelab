@@ -22,19 +22,11 @@ spec:
     storageClass: local-path-sticky
     size: 20Gi # Adjust size as needed
 
-  backup:
-    barmanObjectStore:
-      destinationPath: s3://postgres-backups/
-      endpointURL: http://garage.garage.svc.cluster.local:3900
-      s3Credentials:
-        accessKeyId:
-          name: postgres-cluster-s3
-          key: ACCESS_KEY_ID
-        secretAccessKey:
-          name: postgres-cluster-s3
-          key: SECRET_ACCESS_KEY
-      wal:
-        compression: gzip
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: postgres-backups
 
   # Enables the pg_stat_statements extension for better query analysis
   enableSuperuserAccess: true
@@ -43,13 +35,10 @@ spec:
       postInitSQL:
         - CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 
-  # Declarative User and Database Provisioning
+  # Declarative User Provisioning (databases managed via Database CRD after upgrade)
   managed:
     roles:
       - name: juicefs_user
         login: true
         passwordSecret:
           name: ai-juicefs-db-creds
-    databases:
-      - name: ai-juicefs
-        owner: juicefs_user

@@ -6,14 +6,12 @@ spec:
   template:
     spec:
       containers:
-      - name: pulumi-cmp
-        image: ghcr.io/projectinitiative/pulumi-cmp-plugin:latest
+      - name: cdk8s-cmp
+        image: ghcr.io/projectinitiative/cdk8s-cmp-plugin:latest
         command: ["/var/run/argocd/argocd-cmp-server"]
         env:
         - name: HOME
           value: /home/argocd
-        - name: PULUMI_HOME
-          value: /home/argocd/.pulumi
         - name: USER
           value: argocd
         securityContext:
@@ -22,20 +20,20 @@ spec:
         volumeMounts:
         - name: var-files
           mountPath: /var/run/argocd
-        - name: pulumi-plugin-config
+        - name: cdk8s-plugin-config
           mountPath: /home/argocd/cmp-server/config/plugin.yaml
           subPath: plugin.yaml
-        - name: pulumi-cmp-tmp
+        - name: cdk8s-cmp-tmp
           mountPath: /tmp
         - name: home
           mountPath: /home/argocd
-        - name: pulumi-cmp-home
-          mountPath: /home/argocd/cmp-server/plugins/pulumi
+        - name: cdk8s-cmp-home
+          mountPath: /home/argocd/cmp-server/plugins/cdk8s
       volumes:
-      - name: pulumi-plugin-config
+      - name: cdk8s-plugin-config
         configMap:
-          name: pulumi-cmp-plugin
-      - name: pulumi-cmp-tmp
+          name: cdk8s-cmp-plugin
+      - name: cdk8s-cmp-tmp
         emptyDir: {}
-      - name: pulumi-cmp-home
+      - name: cdk8s-cmp-home
         emptyDir: {}

@@ -1,0 +1,14 @@
+# Uncomment after CNPG operator upgrade completes (requires operator >= 1.25.0)
+# Declaratively creates the ai-juicefs database owned by juicefs_user
+# The juicefs_user role is created via spec.managed.roles in postgres-cluster.yaml
+# ---
+# apiVersion: postgresql.cnpg.io/v1
+# kind: Database
+# metadata:
+#   name: ai-juicefs
+#   namespace: postgres-db
+# spec:
+#   cluster:
+#     name: postgres-cluster
+#   name: ai-juicefs
+#   owner: juicefs_user

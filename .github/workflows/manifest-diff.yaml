@@ -3,7 +3,7 @@ name: Manifest Diff
 on:
   pull_request:
     paths:
-      - 'pulumi/**'
+      - 'generator/**'
       - 'apps.yaml'
       - 'clusters/**'
       - 'flake.nix'
@@ -12,7 +12,7 @@ on:
     branches:
       - dev
     paths:
-      - 'pulumi/**'
+      - 'generator/**'
       - 'apps.yaml'
       - 'clusters/**'
       - 'flake.nix'
@@ -26,17 +26,9 @@ jobs:
   diff:
     runs-on: ubuntu-22.04
     steps:
-      - name: Install QEMU
-        run: sudo apt-get update && sudo apt-get install -y qemu-user-static
-
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v16
-        with:
-          extra-conf: |
-            extra-platforms = aarch64-linux
-            extra-sandbox-paths = /usr/bin/qemu-aarch64-static
 
-      # 1. Checkout Code
       - name: Checkout Main
         uses: actions/checkout@v4
         with:
@@ -48,58 +40,43 @@ jobs:
         with:
           path: pr-branch
 
-      # 2. Generate Manifests
       - name: Generate Main Manifests
         working-directory: main-branch
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ""
-          # PULUMI_BACKEND_URL: "file://${{ github.workspace }}/.pulumi"
-          # PULUMI_HOME: "${{ github.workspace }}/.pulumi"
         run: |
-          nix run ../pr-branch#setup-pulumi
           nix run ../pr-branch#generate-manifests
-          # Move result to a safe place outside the repo dir
           mkdir -p ../manifests-main
           cp -r .direnv/manifests/* ../manifests-main/
 
       - name: Generate PR Manifests
         working-directory: pr-branch
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ""
-          # PULUMI_BACKEND_URL: "file://${{ github.workspace }}/.pulumi"
-          # PULUMI_HOME: "${{ github.workspace }}/.pulumi"
         run: |
-          nix run .#setup-pulumi
           nix run .#generate-manifests
           mkdir -p ../manifests-pr
           cp -r .direnv/manifests/* ../manifests-pr/
 
-      # 3. Diff
       - name: Compare Manifests
         id: diff
         shell: bash
         run: |
           echo "Generating Diff..."
-          
+
           set +e
-          # Use diff -r -u for recursive unified diff
-          OUTPUT=$(diff -r -u manifests-main manifests-pr)
+          nix run nixpkgs#dyff -- between -b --ignore-order-changes manifests-main/ manifests-pr/ > diff.txt 2>&1
           EXIT_CODE=$?
           set -e
-          
-          if [ $EXIT_CODE -eq 0 ]; then
+
+          # dyff returns non-zero only on errors, not on differences
+          if grep -q "returned no differences" diff.txt; then
             echo "No changes detected."
             echo "has_changes=false" >> $GITHUB_OUTPUT
-          else
+          elif [ -s diff.txt ]; then
             echo "Changes detected!"
             echo "has_changes=true" >> $GITHUB_OUTPUT
-            
-            # Write output to file for commenting
-            # Escape potentially problematic characters for script reading
-            echo "$OUTPUT" > diff.txt
+          else
+            echo "No changes detected."
+            echo "has_changes=false" >> $GITHUB_OUTPUT
           fi
 
-      # 4. Comment
       - name: Comment PR
         if: steps.diff.outputs.has_changes == 'true' && github.event_name == 'pull_request'
         uses: actions/github-script@v7
@@ -108,8 +85,7 @@ jobs:
             const fs = require('fs');
             try {
               const diff = fs.readFileSync('diff.txt', 'utf8');
-              
-              // Truncate if too long (GitHub comment limit is ~65k)
+
               const maxLen = 60000;
               let displayDiff = diff;
               if (diff.length > maxLen) {

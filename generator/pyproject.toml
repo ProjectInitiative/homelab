@@ -1,0 +1,13 @@
+[project]
+name = "homelab-generator"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "cdk8s>=2.0.0",
+    "constructs>=10.0.0",
+    "jsii>=1.0.0",
+    "pyyaml>=6.0",
+]
+
+[tool.uv]
+dev-dependencies = []
