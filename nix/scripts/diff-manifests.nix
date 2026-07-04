@@ -24,8 +24,19 @@ pkgs.writeShellScriptBin "diff-manifests" ''
   cd "$ROOT/generator"
   MANIFEST_OUTPUT_DIR="$COMPARE/manifests-current" ${pythonEnv}/bin/python main.py
 
-  echo "Diffing manifests..."
+  echo ""
+  echo "============================================"
+  echo "# Generated Manifests"
+  echo "============================================"
   ${pkgs.dyff}/bin/dyff between -b --ignore-order-changes \
     "$COMPARE/manifests-main/" "$COMPARE/manifests-current/"
+
+  echo ""
+  echo "============================================"
+  echo "# Static Config Changes"
+  echo "============================================"
+  git -C "$ROOT" diff "$WORKTREE" HEAD -- \
+    'bootstrap/' 'apps/' 'argocd-deployment/' 'parent-apps/' \
+    ':!.direnv' 2>/dev/null || true
   echo "Diff complete."
 ''
