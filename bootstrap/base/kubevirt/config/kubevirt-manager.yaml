@@ -365,7 +365,7 @@ spec:
     spec:
       containers:
         - name: kubevirtmgr
-          image: kubevirtmanager/kubevirt-manager:v1.5.4
+          image: kubevirt-manager/kubevirt-manager:v1.5.4
           imagePullPolicy: IfNotPresent
           ports:
           - name: http
