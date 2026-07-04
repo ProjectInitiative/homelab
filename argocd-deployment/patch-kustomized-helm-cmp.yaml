@@ -51,3 +51,5 @@ spec:
           name: kustomized-git-helm-plugin
       - name: helm-cmp-tmp
         emptyDir: {}
+      - name: home
+        emptyDir: {}

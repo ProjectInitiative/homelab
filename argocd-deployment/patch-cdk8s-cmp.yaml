@@ -35,3 +35,5 @@ spec:
           name: cdk8s-cmp-plugin
       - name: cdk8s-cmp-tmp
         emptyDir: {}
+      - name: home
+        emptyDir: {}
