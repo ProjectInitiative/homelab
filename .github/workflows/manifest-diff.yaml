@@ -13,20 +13,6 @@ on:
       - '.github/workflows/**'
       - 'flake.nix'
       - 'flake.lock'
-  push:
-    branches:
-      - dev
-    paths:
-      - 'generator/**'
-      - 'apps.yaml'
-      - 'clusters/**'
-      - 'argocd-deployment/**'
-      - 'bootstrap/**'
-      - 'apps/**'
-      - 'parent-apps/**'
-      - '.github/workflows/**'
-      - 'flake.nix'
-      - 'flake.lock'
 
 permissions:
   contents: read
