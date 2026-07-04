@@ -35,8 +35,8 @@ pkgs.writeShellScriptBin "diff-manifests" ''
   echo "============================================"
   echo "# Static Config Changes"
   echo "============================================"
-  git -C "$ROOT" diff "$WORKTREE" HEAD -- \
+  git -C "$ROOT" diff origin/main HEAD -- \
     'bootstrap/' 'apps/' 'argocd-deployment/' 'parent-apps/' \
-    ':!.direnv' 2>/dev/null || true
+    '.github/workflows/' 2>/dev/null || true
   echo "Diff complete."
 ''

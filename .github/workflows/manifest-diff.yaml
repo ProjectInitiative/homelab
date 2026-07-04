@@ -54,44 +54,39 @@ jobs:
         id: diff
         shell: bash
         run: |
-          # Pre-build dyff to suppress Nix build log
-          nix build nixpkgs#dyff --no-link 2>/dev/null
-
-          # 1. cdk8s-generated manifest diff
-          nix run nixpkgs#dyff -- between -b --ignore-order-changes \
-            manifests-main/ manifests-pr/ > manifest-diff.txt 2>/dev/null
-
-          if grep -q "returned no differences" manifest-diff.txt; then
-            CUSTOM_DIFF="No changes to generated manifests."
-          elif [ -s manifest-diff.txt ]; then
-            CUSTOM_DIFF="$(cat manifest-diff.txt)"
-          else
-            CUSTOM_DIFF="No changes to generated manifests."
-          fi
-
-          # 2. Git diff for static deployment configs
-          cd pr-branch
-          git diff ../main-branch HEAD -- \
-            'bootstrap/' 'apps/' 'argocd-deployment/' 'parent-apps/' \
-            '.github/workflows/' \
-            > ../git-diff.txt 2>/dev/null || true
-          cd ..
-
-          # Build combined diff output
           {
             echo '# Generated Manifests'
-            echo "$CUSTOM_DIFF"
+            echo '```diff'
+            diff -ruN manifests-main/ manifests-pr/ 2>/dev/null || true
+            echo '```'
             echo ''
             echo '# Static Config Changes'
-            if [ -s git-diff.txt ]; then
-              cat git-diff.txt
-            else
-              echo "No changes to static configs."
-            fi
+            echo '```diff'
+            MAIN_SHA=$(git -C main-branch rev-parse HEAD)
+            git -C pr-branch diff "$MAIN_SHA" HEAD -- \
+              'bootstrap/' 'apps/' 'argocd-deployment/' 'parent-apps/' \
+              '.github/workflows/' 2>/dev/null || true
+            echo '```'
           } > diff.txt
 
-          # Check if there's real content
-          if echo "$CUSTOM_DIFF" | grep -qv "No changes" || [ -s git-diff.txt ]; then
+          # Check for real content (non-empty diff blocks)
+          HAS_MANIFEST=false
+          HAS_STATIC=false
+
+          # Check if manifest diff has actual changes (not just headers)
+          if diff -ruN manifests-main/ manifests-pr/ 2>/dev/null | grep -q '^[+-]'; then
+            HAS_MANIFEST=true
+          fi
+
+          # Check if git diff has actual changes
+          MAIN_SHA=$(git -C main-branch rev-parse HEAD)
+          if git -C pr-branch diff "$MAIN_SHA" HEAD -- \
+            'bootstrap/' 'apps/' 'argocd-deployment/' 'parent-apps/' \
+            '.github/workflows/' 2>/dev/null | grep -q '^[+-]'; then
+            HAS_STATIC=true
+          fi
+
+          if $HAS_MANIFEST || $HAS_STATIC; then
             echo "has_changes=true" >> $GITHUB_OUTPUT
           else
             echo "has_changes=false" >> $GITHUB_OUTPUT
@@ -116,7 +111,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
-                body: '### Manifest Changes Detected\n\n<details>\n<summary>Click to expand diff</summary>\n\n```diff\n' + displayDiff + '\n```\n</details>'
+                body: '### Manifest Changes Detected\n\n<details>\n<summary>Click to expand diff</summary>\n\n' + displayDiff + '\n</details>'
               });
             } catch (error) {
               console.error("Error reading diff file or posting comment:", error);
