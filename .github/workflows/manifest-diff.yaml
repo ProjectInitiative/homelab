@@ -7,9 +7,9 @@ on:
       - 'apps.yaml'
       - 'clusters/**'
       - 'argocd-deployment/**'
+      - 'parent-apps/**'
       - 'bootstrap/**'
       - 'apps/**'
-      - 'parent-apps/**'
       - '.github/workflows/**'
       - 'flake.nix'
       - 'flake.lock'
@@ -50,29 +50,50 @@ jobs:
           mkdir -p ../manifests-pr
           cp -r .direnv/manifests/* ../manifests-pr/
 
-      - name: Compare Manifests
+      - name: Generate Diff
         id: diff
         shell: bash
         run: |
-          echo "Generating Diff..."
-
-          # Pre-build dyff to suppress Nix build log in the diff output
+          # Pre-build dyff to suppress Nix build log
           nix build nixpkgs#dyff --no-link 2>/dev/null
 
-          set +e
-          nix run nixpkgs#dyff -- between -b --ignore-order-changes manifests-main/ manifests-pr/ > diff.txt 2>/dev/null
-          EXIT_CODE=$?
-          set -e
+          # 1. cdk8s-generated manifest diff
+          nix run nixpkgs#dyff -- between -b --ignore-order-changes \
+            manifests-main/ manifests-pr/ > manifest-diff.txt 2>/dev/null
 
-          # dyff returns non-zero only on errors, not on differences
-          if grep -q "returned no differences" diff.txt; then
-            echo "No changes detected."
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-          elif [ -s diff.txt ]; then
-            echo "Changes detected!"
+          if grep -q "returned no differences" manifest-diff.txt; then
+            CUSTOM_DIFF="No changes to generated manifests."
+          elif [ -s manifest-diff.txt ]; then
+            CUSTOM_DIFF="$(cat manifest-diff.txt)"
+          else
+            CUSTOM_DIFF="No changes to generated manifests."
+          fi
+
+          # 2. Git diff for static deployment configs
+          cd pr-branch
+          git diff ../main-branch HEAD -- \
+            'bootstrap/' 'apps/' 'argocd-deployment/' 'parent-apps/' \
+            '.github/workflows/' \
+            > ../git-diff.txt 2>/dev/null || true
+          cd ..
+
+          # Build combined diff output
+          {
+            echo '# Generated Manifests'
+            echo "$CUSTOM_DIFF"
+            echo ''
+            echo '# Static Config Changes'
+            if [ -s git-diff.txt ]; then
+              cat git-diff.txt
+            else
+              echo "No changes to static configs."
+            fi
+          } > diff.txt
+
+          # Check if there's real content
+          if echo "$CUSTOM_DIFF" | grep -qv "No changes" || [ -s git-diff.txt ]; then
             echo "has_changes=true" >> $GITHUB_OUTPUT
           else
-            echo "No changes detected."
             echo "has_changes=false" >> $GITHUB_OUTPUT
           fi
 
