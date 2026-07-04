@@ -1,0 +1,17 @@
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: postgres-backups
+spec:
+  configuration:
+    destinationPath: s3://postgres-backups/
+    endpointURL: http://garage.garage.svc.cluster.local:3900
+    s3Credentials:
+      accessKeyId:
+        name: postgres-cluster-s3
+        key: ACCESS_KEY_ID
+      secretAccessKey:
+        name: postgres-cluster-s3
+        key: SECRET_ACCESS_KEY
+    wal:
+      compression: gzip

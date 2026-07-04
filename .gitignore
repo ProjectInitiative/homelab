@@ -3,19 +3,12 @@
 
 .direnv
 
-# Pulumi
-pulumi/manifests/
-pulumi/.pulumi/
-pulumi/Pulumi.*.yaml
-!pulumi/Pulumi.yaml
-
-# cdk8s
-.venv
-cdk8s/.venv
-cdk8s/dist
-# cdk8s/imports
-# cdk8s/help
-# cdk8s/uv.lock
+# cdk8s / generator
+generator/dist/
+generator/.venv/
+generator/imports/
+.direnv/manifests/
+.direnv/compare/
 
 __pycache__/
 *.pyc
@@ -34,9 +27,13 @@ pip-delete-this-directory.txt
 build/
 dist/
 
-# cdk8s-specific ignores
-cdk.out/
-vendor/
+# Nix
 result
 .devenv
-pulumi/uv.lock
+
+# Vendored submodules / repos
+vendor/
+
+# Snapshots (for migration verification)
+snapshot-baseline/
+snapshot-cdk8s/
