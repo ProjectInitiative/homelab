@@ -6,6 +6,11 @@ on:
       - 'generator/**'
       - 'apps.yaml'
       - 'clusters/**'
+      - 'argocd-deployment/**'
+      - 'bootstrap/**'
+      - 'apps/**'
+      - 'parent-apps/**'
+      - '.github/workflows/**'
       - 'flake.nix'
       - 'flake.lock'
   push:
@@ -15,6 +20,11 @@ on:
       - 'generator/**'
       - 'apps.yaml'
       - 'clusters/**'
+      - 'argocd-deployment/**'
+      - 'bootstrap/**'
+      - 'apps/**'
+      - 'parent-apps/**'
+      - '.github/workflows/**'
       - 'flake.nix'
       - 'flake.lock'
 
