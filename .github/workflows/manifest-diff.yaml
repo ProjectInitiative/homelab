@@ -50,45 +50,32 @@ jobs:
           mkdir -p ../manifests-pr
           cp -r .direnv/manifests/* ../manifests-pr/
 
-      - name: Generate Diff
+      - name: Compare Manifests
         id: diff
         shell: bash
         run: |
-          {
-            echo '# Generated Manifests'
-            echo '```diff'
-            diff -ruN manifests-main/ manifests-pr/ 2>/dev/null || true
-            echo '```'
-            echo ''
-            echo '# Static Config Changes'
-            echo '```diff'
-            MAIN_SHA=$(git -C main-branch rev-parse HEAD)
-            git -C pr-branch diff "$MAIN_SHA" HEAD -- \
-              'bootstrap/' 'apps/' 'argocd-deployment/' 'parent-apps/' \
-              '.github/workflows/' 2>/dev/null || true
-            echo '```'
-          } > diff.txt
+          echo "Generating Diff..."
 
-          # Check for real content (non-empty diff blocks)
-          HAS_MANIFEST=false
-          HAS_STATIC=false
+          # Pre-build dyff to suppress build log from output
+          nix build nixpkgs#dyff --no-link 2>/dev/null
 
-          # Check if manifest diff has actual changes (not just headers)
-          if diff -ruN manifests-main/ manifests-pr/ 2>/dev/null | grep -q '^[+-]'; then
-            HAS_MANIFEST=true
-          fi
+          nix run nixpkgs#dyff -- between -b --ignore-order-changes \
+            manifests-main/ manifests-pr/ > diff.txt 2>/dev/null
 
-          # Check if git diff has actual changes
-          MAIN_SHA=$(git -C main-branch rev-parse HEAD)
-          if git -C pr-branch diff "$MAIN_SHA" HEAD -- \
-            'bootstrap/' 'apps/' 'argocd-deployment/' 'parent-apps/' \
-            '.github/workflows/' 2>/dev/null | grep -q '^[+-]'; then
-            HAS_STATIC=true
-          fi
-
-          if $HAS_MANIFEST || $HAS_STATIC; then
-            echo "has_changes=true" >> $GITHUB_OUTPUT
+          if grep -q "returned no differences" diff.txt; then
+            echo "No changes detected."
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          elif [ -s diff.txt ]; then
+            # Strip blank/whitespace-only lines then check if anything remains
+            if sed '/^[[:space:]]*$/d' diff.txt | grep -q .; then
+              echo "Changes detected!"
+              echo "has_changes=true" >> $GITHUB_OUTPUT
+            else
+              echo "No changes detected."
+              echo "has_changes=false" >> $GITHUB_OUTPUT
+            fi
           else
+            echo "No changes detected."
             echo "has_changes=false" >> $GITHUB_OUTPUT
           fi
 
