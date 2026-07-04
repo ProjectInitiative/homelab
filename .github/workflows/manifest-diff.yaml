@@ -56,8 +56,11 @@ jobs:
         run: |
           echo "Generating Diff..."
 
+          # Pre-build dyff to suppress Nix build log in the diff output
+          nix build nixpkgs#dyff --no-link 2>/dev/null
+
           set +e
-          nix run nixpkgs#dyff -- between -b --ignore-order-changes manifests-main/ manifests-pr/ > diff.txt 2>&1
+          nix run nixpkgs#dyff -- between -b --ignore-order-changes manifests-main/ manifests-pr/ > diff.txt 2>/dev/null
           EXIT_CODE=$?
           set -e
 
