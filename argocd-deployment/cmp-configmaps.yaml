@@ -1,24 +1,20 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: pulumi-cmp-plugin
+  name: cdk8s-cmp-plugin
   namespace: argocd
 data:
   plugin.yaml: |
     apiVersion: argoproj.io/v1alpha1
     kind: ConfigManagementPlugin
     metadata:
-      name: pulumi-python
+      name: cdk8s
     spec:
       version: v1.0
-      init:
-        command: ["/bin/sh", "-c"]
-        args: ["pulumi-init"]
       generate:
-        command: ["/bin/sh", "-c"]
-        args: ["pulumi-generate"]
+        command: ["cdk8s-generate"]
       discover:
-        fileName: "Pulumi.yaml"
+        fileName: "cdk8s.yaml"
 ---
 apiVersion: v1
 kind: ConfigMap
