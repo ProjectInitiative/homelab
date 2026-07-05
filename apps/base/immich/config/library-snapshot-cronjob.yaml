@@ -1,0 +1,61 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: immich-library-snapshot
+  namespace: immich
+spec:
+  schedule: "0 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: immich-snapshot
+          containers:
+          - name: snapshot
+            image: bitnami/kubectl:latest
+            command:
+            - /bin/sh
+            - -c
+            - |
+              cat <<EOF | kubectl create -f -
+              apiVersion: snapshot.storage.k8s.io/v1
+              kind: VolumeSnapshot
+              metadata:
+                name: immich-library-$(date +%Y%m%d%H%M)
+                namespace: immich
+              spec:
+                volumeSnapshotClassName: juicefs-snapshot-class
+                source:
+                  persistentVolumeClaimName: immich-library
+              EOF
+          restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: immich-snapshot
+  namespace: immich
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: immich-snapshot
+  namespace: immich
+rules:
+- apiGroups: ["snapshot.storage.k8s.io"]
+  resources: ["volumesnapshots"]
+  verbs: ["create", "get", "list", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: immich-snapshot
+  namespace: immich
+subjects:
+- kind: ServiceAccount
+  name: immich-snapshot
+  namespace: immich
+roleRef:
+  kind: Role
+  name: immich-snapshot
+  apiGroup: rbac.authorization.k8s.io

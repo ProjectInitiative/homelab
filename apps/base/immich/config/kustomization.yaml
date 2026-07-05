@@ -35,3 +35,4 @@ helmCharts:
 
 resources:
 - library-pvc.yaml
+- library-snapshot-cronjob.yaml
