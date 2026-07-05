@@ -54,10 +54,10 @@ deployment:
 
 persistence:
   meta:
-    storageClass: "host-local-path-sticky"
+    storageClass: "local-path"
     size: 1Gi
   data:
-    storageClass: "host-local-path-sticky"
+    storageClass: "local-path"
     size: 5Gi
 
 monitoring:
