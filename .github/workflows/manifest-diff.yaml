@@ -56,24 +56,17 @@ jobs:
         run: |
           echo "Generating Diff..."
 
-          # Pre-build dyff to suppress build log from output
-          nix build nixpkgs#dyff --no-link 2>/dev/null
+          set +e
+          diff -r -u manifests-main manifests-pr > diff.txt
+          EXIT_CODE=$?
+          set -e
 
-          nix run nixpkgs#dyff -- between -b --ignore-order-changes \
-            manifests-main/ manifests-pr/ > diff.txt 2>/dev/null
-
-          if grep -q "returned no differences" diff.txt; then
+          if [ $EXIT_CODE -eq 0 ]; then
             echo "No changes detected."
             echo "has_changes=false" >> $GITHUB_OUTPUT
           elif [ -s diff.txt ]; then
-            # Strip blank/whitespace-only lines then check if anything remains
-            if sed '/^[[:space:]]*$/d' diff.txt | grep -q .; then
-              echo "Changes detected!"
-              echo "has_changes=true" >> $GITHUB_OUTPUT
-            else
-              echo "No changes detected."
-              echo "has_changes=false" >> $GITHUB_OUTPUT
-            fi
+            echo "Changes detected!"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
           else
             echo "No changes detected."
             echo "has_changes=false" >> $GITHUB_OUTPUT
@@ -98,7 +91,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
-                body: '### Manifest Changes Detected\n\n<details>\n<summary>Click to expand diff</summary>\n\n' + displayDiff + '\n</details>'
+                 body: '### Manifest Changes Detected\n\n<details>\n<summary>Click to expand diff</summary>\n\n```diff\n' + displayDiff + '\n```\n</details>'
               });
             } catch (error) {
               console.error("Error reading diff file or posting comment:", error);
