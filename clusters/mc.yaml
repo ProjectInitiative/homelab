@@ -80,6 +80,11 @@ apps:
     namespace: tikv-cluster
   - name: juicefs-csi-driver
     namespace: kube-system
+    helm_values: |
+      snapshot:
+        enabled: true
+  - name: csi-snapshotter
+    namespace: kube-system
   - name: juicefs-platform
     namespace: juicefs-platform
   - name: postgres-cluster

@@ -128,6 +128,13 @@ catalog:
         defaultVaultConnection:
           enabled: false
   
+  csi-snapshotter:
+    path: bootstrap/base/csi-snapshotter/config
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
   cnpg-operator:
     annotations:
       argocd.argoproj.io/sync-wave: "30"
@@ -464,6 +471,25 @@ catalog:
   
   docker-registry:
     path: apps/base/docker-registry/config
+
+  immich:
+    path: apps/base/immich/config
+    critical: true
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      namespace: production
+      audiences:
+        - vault
+      secrets:
+        - name: immich-postgres
+          mount: k8s
+          path: "immich/postgres"
+          destination: "immich-postgres-creds"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
 
   kubevirt:
     path: bootstrap/base/kubevirt/config
