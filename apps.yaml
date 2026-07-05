@@ -451,8 +451,11 @@ catalog:
     syncPolicy:
       syncOptions: []
   
-  temp-egress:
-    path: apps/base/temp-egress/config
+  temp-egress-mc:
+    path: apps/base/temp-egress-mc/config
+
+  temp-egress-cc:
+    path: apps/base/temp-egress-cc/config
     syncPolicy:
       syncOptions: []
   

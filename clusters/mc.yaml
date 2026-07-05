@@ -129,7 +129,7 @@ apps:
     patchTarget:
       kind: ProxyGroup
       name: placeholder-name
-  - name: temp-egress
+  - name: temp-egress-mc
     namespace: default
   - name: dnsutils
     namespace: dnsutils

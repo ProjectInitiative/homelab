@@ -118,3 +118,6 @@ apps:
     patchTarget:
       kind: Service
       name: mcp-ts-placeholder
+
+  - name: temp-egress-cc
+    namespace: default
