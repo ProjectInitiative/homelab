@@ -120,6 +120,22 @@ apps:
                   resources:
                     requests:
                       storage: "20Gi"
+  - name: garage-migrate
+    namespace: garage-migrate
+    plugin:
+      name: kustomized-git-helm-v1.0
+      env:
+        - name: VALUES_FILE
+          value: garage-values.yaml
+        - name: HELM_VALUES
+          value: |
+            persistence:
+              meta:
+                storageClass: "host-local-path-sticky"
+                size: 1Gi
+              data:
+                storageClass: "host-local-path-sticky"
+                size: 5Gi
   - name: sc-local-path
     namespace: default
   - name: tailscale-proxy-groups

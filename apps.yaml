@@ -312,6 +312,15 @@ catalog:
   garage-mem:
     path: bootstrap/mc/garage-mem
 
+  garage-migrate:
+    path: bootstrap/base/garage-migrate
+    plugin:
+      name: kustomized-git-helm-v1.0
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
   prometheus-operator-crds:
     annotations:
       argocd.argoproj.io/sync-wave: "10"
