@@ -1,0 +1,67 @@
+---
+garage:
+  existingRpcSecret: "garage-migrate-rpc-secret"
+  replicationFactor: 3
+  consistencyMode: "consistent"
+  dbEngine: "lmdb"
+  blockSize: "10M"
+  compressionLevel: "'none'"
+  rpcBindAddr: "[::]:3901"
+  bootstrapPeers: []
+  kubernetesSkipCrd: false
+  s3:
+    api:
+      region: "us-east-1"
+      rootDomain: ".s3-migrate.moonwake.io"
+    web:
+      rootDomain: ".garage-web-migrate.moonwake.io"
+      index: "index.html"
+  garageTomlString: |-
+    metadata_dir = "/mnt/meta"
+    data_dir = "/mnt/data"
+    metadata_fsync = false
+    data_fsync = false
+    db_engine = "lmdb"
+    block_size = "10M"
+    block_ram_buffer_max = "5120MiB"
+    replication_factor = 3
+    consistency_mode = "consistent"
+    compression_level = "none"
+    rpc_bind_addr = "[::]:3901"
+    rpc_secret = "__RPC_SECRET_REPLACE__"
+    bootstrap_peers = []
+    [kubernetes_discovery]
+    namespace = "garage-migrate"
+    service_name = "garage-migrate"
+    skip_crd = false
+    [s3_api]
+    s3_region = "us-east-1"
+    api_bind_addr = "[::]:3900"
+    root_domain = ".s3-migrate.moonwake.io"
+    [s3_web]
+    bind_addr = "[::]:3902"
+    root_domain = ".garage-web-migrate.moonwake.io"
+    index = "index.html"
+    [admin]
+    api_bind_addr = "[::]:3903"
+    [k2v_api]
+    api_bind_addr = "[::]:3904"
+
+deployment:
+  kind: StatefulSet
+  podManagementPolicy: Parallel
+  replicaCount: 3
+
+persistence:
+  meta:
+    storageClass: "host-local-path-sticky"
+    size: 1Gi
+  data:
+    storageClass: "host-local-path-sticky"
+    size: 5Gi
+
+monitoring:
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: false
