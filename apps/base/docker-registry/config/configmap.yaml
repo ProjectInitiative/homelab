@@ -24,5 +24,6 @@ data:
         secure: false
         v4auth: true
         rootdirectory: /
-        chunksize: 5368709120
+        forcepathstyle: true
+        chunksize: 104857600
         maxretries: 5
