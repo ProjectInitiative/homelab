@@ -13,6 +13,9 @@ data:
       secret: localdevsecret
       headers:
         X-Content-Type-Options: [nosniff]
+      readtimeout: 300s
+      writetimeout: 600s
+      idletimeout: 120s
     storage:
       s3:
         region: us-east-1
@@ -21,3 +24,5 @@ data:
         secure: false
         v4auth: true
         rootdirectory: /
+        chunksize: 50MB
+        maxretries: 5
