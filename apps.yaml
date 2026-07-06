@@ -480,6 +480,10 @@ catalog:
   
   docker-registry:
     path: apps/base/docker-registry/config
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: false
 
   immich:
     path: apps/base/immich/config
