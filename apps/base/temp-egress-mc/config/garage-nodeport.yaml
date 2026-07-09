@@ -40,7 +40,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: garage-s3-tailscale
+  name: s3
   namespace: garage
 spec:
   selector:
