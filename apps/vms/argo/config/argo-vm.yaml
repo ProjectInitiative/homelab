@@ -14,7 +14,7 @@ spec:
         pvc:
           accessModes:
             - ReadWriteMany
-          volumeMode: Block
+          volumeMode: Filesystem
           resources:
             requests:
               storage: 32Gi
