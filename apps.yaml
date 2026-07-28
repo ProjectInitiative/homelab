@@ -424,9 +424,9 @@ catalog:
     annotations:
       argocd.argoproj.io/sync-wave: "40"
     sources:
-      - repoURL: https://github.com/submariner-io/submariner-charts
-        targetRevision: v0.24.0
-        path: submariner-k8s-broker
+      - repoURL: https://submariner-io.github.io/submariner-charts/charts
+        chart: submariner-k8s-broker
+        targetRevision: 0.7.0
     syncPolicy:
       syncOptions:
         - CreateNamespace=true
@@ -436,9 +436,9 @@ catalog:
     annotations:
       argocd.argoproj.io/sync-wave: "50"
     sources:
-      - repoURL: https://github.com/submariner-io/submariner-charts
-        targetRevision: v0.24.0
-        path: submariner-operator
+      - repoURL: https://submariner-io.github.io/submariner-charts/charts
+        chart: submariner-operator
+        targetRevision: 0.24.0
     helm:
       values: |
         submariner:
