@@ -97,17 +97,20 @@ apps:
       name: karmada
   - name: karmada-member
     namespace: kube-system
-  - name: submariner-k8s-broker
-    namespace: submariner-k8s-broker
   - name: submariner-operator
     namespace: submariner-operator
     helm_values: |
+      broker:
+        server: https://kubernetes.default.svc
+        namespace: submariner-k8s-broker
+        globalnet: true
+        insecure: false
       submariner:
         clusterID: "cc"
         clusterCIDR: "10.42.0.0/16"
         serviceCIDR: "10.43.0.0/16"
-        brokerK8sSecret: "submariner-broker-info"
-        brokerK8sApiServer: "https://kubernetes.default.svc:443"
+        globalnetEnabled: true
+        natEnabled: true
 
   - name: mcp-kubernetes
     namespace: mcp-system
