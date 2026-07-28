@@ -426,7 +426,7 @@ catalog:
     sources:
       - repoURL: https://github.com/submariner-io/submariner-charts
         targetRevision: v0.24.0
-        path: charts/submariner-k8s-broker
+        path: submariner-k8s-broker
     syncPolicy:
       syncOptions:
         - CreateNamespace=true
@@ -438,7 +438,7 @@ catalog:
     sources:
       - repoURL: https://github.com/submariner-io/submariner-charts
         targetRevision: v0.24.0
-        path: charts/submariner-operator
+        path: submariner-operator
     helm:
       values: |
         submariner:
