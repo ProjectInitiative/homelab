@@ -13,17 +13,14 @@ data:
       secret: localdevsecret
       headers:
         X-Content-Type-Options: [nosniff]
-      readtimeout: 300s
-      writetimeout: 600s
-      idletimeout: 120s
     storage:
       s3:
         region: us-east-1
-        regionendpoint: http://10.43.202.112:3900
+        regionendpoint: http://garage.garage.svc.cluster.local:3900
         bucket: docker-dev
         secure: false
         v4auth: true
         rootdirectory: /
         forcepathstyle: true
-        chunksize: 104857600
-        maxretries: 5
+        chunksize: 5242880
+        maxretries: 3
