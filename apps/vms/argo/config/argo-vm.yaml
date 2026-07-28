@@ -68,6 +68,7 @@ spec:
                   ssh_authorized_keys:
                     - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAplaceholder"
               ssh_pwauth: true
+              ssh_import_id: none
               chpasswd:
                 expire: false
                 list: |
