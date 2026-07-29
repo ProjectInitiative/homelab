@@ -109,6 +109,7 @@ apps:
         insecure: true
       ipsec:
         psk: "placeholder-change-me"
+        debug: false
       submariner:
         clusterId: "cc"
         clusterCidr: "10.42.0.0/16"
