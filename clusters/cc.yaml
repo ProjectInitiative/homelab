@@ -103,8 +103,12 @@ apps:
       broker:
         server: https://kubernetes.default.svc
         namespace: submariner-k8s-broker
+        token: ""
+        ca: ""
         globalnet: true
-        insecure: false
+        insecure: true
+      ipsec:
+        psk: "placeholder-change-me"
       submariner:
         clusterId: "cc"
         clusterCidr: "10.42.0.0/16"
