@@ -3,84 +3,88 @@
 ## Architecture
 
 ```
-┌────────────────────────┐       ┌────────────────────────┐
-│  cc (control cluster)  │       │  mc (main cluster)     │
-│                        │       │                        │
-│  submariner-k8s-broker │◄─────►│  submariner-operator   │
-│  submariner-operator   │  VPN  │  pod CIDR: 10.42.0.0/16│
-│  pod CIDR: 10.42.0.0/16│       │  svc CIDR: 10.43.0.0/16│
-│  svc CIDR: 10.43.0.0/16│       │                        │
-└────────────────────────┘       └────────────────────────┘
+cc (control cluster)          mc (main cluster)
+┌────────────────────┐        ┌────────────────────┐
+│ submariner-operator│        │ submariner-operator│
+│   (broker mode)    │◄──────►│   (join mode)      │
+│ pod: 10.42.0.0/16  │  VPN   │ pod: 10.42.0.0/16  │
+│ svc: 10.43.0.0/16  │        │ svc: 10.43.0.0/16  │
+└────────────────────┘        └────────────────────┘
 ```
 
-Both clusters share the same pod/service CIDRs — `globalnet: true` assigns unique per-cluster global IPs to avoid conflicts.
+Both clusters share the same CIDRs — `globalnet: true` assigns unique global IPs.
 
-## Deployment Sequence
+## Deployed Apps
 
-### Step 1 — Merge and sync (automatic)
+| App | Cluster | Chart | Type |
+|-----|---------|-------|------|
+| `submariner-operator` | cc | `submariner-operator` 0.24.0 | Broker + operator |
+| `submariner-operator` | mc | `submariner-operator` 0.24.0 | Join operator |
 
-The broker and operator are defined in `apps.yaml` + `clusters/*.yaml`.
-The Argo CD CMP plugin generates the Application CRDs on sync.
+## Vault Secrets
 
-| App | Cluster | Type |
-|-----|---------|------|
-| `submariner-k8s-broker` | cc | Broker (API + RBAC) |
-| `submariner-operator` | cc | Operator (gateway, route-agent) |
-| `submariner-operator` | mc | Operator (gateway, route-agent) |
+The operator creates two VaultStaticSecrets via VaultSecrets abstraction:
 
-### Step 2 — Extract broker info → store in Vault (manual bootstrap)
+| Vault Path | K8s Secret | Purpose |
+|------------|-----------|---------|
+| `submariner/broker-info` | `submariner-broker-info` | Broker connection info (token, CA, URL) |
+| `submariner/ipsec-psk` | `submariner-ipsec-psk` | Shared IPsec pre-shared key |
 
-After the broker deploys on **cc**, it creates a connection-info secret.
-That secret must be extracted and stored in Vault so both operators can connect.
+## Bootstrap Steps
+
+### Step 1 — Deploy the operator on cc
+
+The cc operator deploys with `broker.server` set → the operator's `BrokerReconciler` creates broker resources automatically (namespace, RBAC, service account, CRDs).
+
+After it deploys, a `Submariner` CR is created. The operator connects to itself as the broker using the placeholder token/CA values.
+
+### Step 2 — Extract broker info and generate PSK
 
 ```bash
-# 1. Find the broker secret
-kubectl get secrets -n submariner-k8s-broker
+# Extract broker connection info
+kubectl get secrets -n submariner-k8s-broker -o jsonpath='{.items[0].data}' | \
+  jq '{brokerURL: ."broker-url" | @base64d, token: .token | @base64d, ca: ."ca.crt" | @base64d}'
 
-# 2. Extract fields and store in Vault
-SECRET=$(kubectl get secrets -n submariner-k8s-broker -o name | head -1)
-
-BROKER_URL=$(kubectl get "$SECRET" -n submariner-k8s-broker -o json | jq -r '.data.brokerURL // .data."broker-url" | @base64d')
-CA_CRT=$(kubectl get "$SECRET" -n submariner-k8s-broker -o json | jq -r '.data."ca.crt" // .data."ca" | @base64d')
-TOKEN=$(kubectl get "$SECRET" -n submariner-k8s-broker -o json | jq -r '.data.token | @base64d')
-IPSec_PSK=$(kubectl get "$SECRET" -n submariner-k8s-broker -o json | jq -r '.data."ipsec.psk" // .data."IPsecPSK" // "" | @base64d')
+# Store in Vault
+BROKER_URL=$(kubectl get endpoints kubernetes -n default -o jsonpath='{.subsets[0].addresses[0].ip}:{.subsets[0].ports[?(@.name=="https")].port}')
+CA_CRT=$(kubectl get secrets -n submariner-k8s-broker -o jsonpath='{.items[?(@.metadata.annotations.kubernetes\.io/service-account\.name)].data.ca\.crt}' | base64 -d)
+TOKEN=$(kubectl get secrets -n submariner-k8s-broker -o jsonpath='{.items[?(@.metadata.annotations.kubernetes\.io/service-account\.name)].data.token}' | base64 -d)
 
 vault kv put k8s/submariner/broker-info \
   brokerURL="$BROKER_URL" \
   ca.crt="$CA_CRT" \
-  token="$TOKEN" \
-  ipsec.psk="$IPSec_PSK"
+  token="$TOKEN"
+
+# Generate and store IPsec PSK
+PSK=$(LC_CTYPE=C tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 64 | head -n 1)
+vault kv put k8s/submariner/ipsec-psk \
+  psk="$PSK"
 ```
 
-### Step 3 — Operators connect (automatic)
+### Step 3 — VaultStaticSecret syncs (automatic)
 
-The VaultStaticSecret on each cluster syncs the broker info from Vault to a K8s secret named `submariner-broker-info`. The operators detect it and establish tunnels.
+The VaultStaticSecret on each cluster creates:
+- `submariner-broker-info` — from `submariner/broker-info`
+- `submariner-ipsec-psk` — from `submariner/ipsec-psk`
+
+These secrets appear as `submariner-broker-info` and `submariner-ipsec-psk` in the `submariner-operator` namespace on both clusters.
+
+### Step 4 — Verify
 
 ```bash
-# Verify on cc
-kubectl get secret submariner-broker-info -n submariner-operator
-
-# Verify on mc
-kubectl get secret submariner-broker-info -n submariner-operator --context mc
-
 # Check gateway status
-kubectl get subgateways -n submariner-operator
-kubectl get gateway -n submariner-operator
+kubectl get subgateways -n submariner-operator -o wide
+
+# Check clusters registered with broker
+kubectl get clusters -n submariner-k8s-broker
+
+# Check operator logs
+kubectl logs -n submariner-operator deployment/submariner-operator
 ```
 
 ## Using cross-cluster services
 
-After Submariner is healthy, you can reach services across clusters via:
-
-```
-# From mc, reach a service on cc
-curl http://<service>.<namespace>.svc.clusterset.local:<port>
-
-# From cc, reach a service on mc
-curl http://<service>.<namespace>.svc.clusterset.local:<port>
-```
-
-Services need to be explicitly exported:
+Services need to be exported:
 
 ```yaml
 apiVersion: submariner.io/v1
@@ -90,27 +94,7 @@ metadata:
   namespace: my-namespace
 ```
 
-This can be applied alongside the Service itself.
-
-## Troubleshooting
-
-```bash
-# Check Submariner pods
-kubectl get pods -n submariner-operator -o wide
-
-# Check gateway connections
-kubectl get subgateways -n submariner-operator -o yaml
-
-# Check route agent
-kubectl get daemonsets -n submariner-operator
-
-# Check broker resources
-kubectl get endpoints -n submariner-k8s-broker
-kubectl get clusters -n submariner-k8s-broker
-
-# Submariner diagnostics
-kubectl get subctl diagnose
-
-# If globalnet is on, services get a global IP
-kubectl get globalingressips -A
+Then reachable from the other cluster at:
+```
+<service>.<namespace>.svc.clusterset.local:<port>
 ```
