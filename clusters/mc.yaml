@@ -166,7 +166,7 @@ apps:
     namespace: submariner-operator
     helm_values: |
       ipsec:
-        psk: "placeholder-change-me"
+        pskSecret: submariner-ipsec-psk
       submariner:
         clusterId: "mc"
         clusterCidr: "10.42.0.0/16"

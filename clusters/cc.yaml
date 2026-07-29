@@ -108,7 +108,7 @@ apps:
         globalnet: true
         insecure: true
       ipsec:
-        psk: "placeholder-change-me"
+        pskSecret: submariner-ipsec-psk
         debug: false
       submariner:
         clusterId: "cc"

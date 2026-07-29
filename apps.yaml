@@ -446,6 +446,8 @@ catalog:
           brokerK8sRemoteNamespace: "submariner-k8s-broker"
           natEnabled: true
           globalnetEnabled: true
+        ipsec:
+          pskSecret: submariner-ipsec-psk
     vaultSecrets:
       createAuth: true
       role: openbao-secrets-operator
@@ -456,6 +458,10 @@ catalog:
           mount: k8s
           path: "submariner/broker-info"
           destination: "submariner-broker-info"
+        - name: submariner-ipsec-psk
+          mount: k8s
+          path: "submariner/ipsec-psk"
+          destination: "submariner-ipsec-psk"
     syncPolicy:
       syncOptions:
         - CreateNamespace=true
