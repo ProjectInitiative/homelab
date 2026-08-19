@@ -176,9 +176,9 @@ snapshotAgent:
     s3Host: "garage.garage.svc.cluster.local:3900"
     s3Bucket: "openbao-snapshots"
     s3Uri: "s3://openbao-snapshots"
-    s3Region: "us-east-1"
     s3ExpireDays: "30"
-    baoAuthPath: "kubernetes"
+    s3cmdExtraFlag: "--no-ssl"
+    baoAuthPath: "kubernetes_cluster_mc"
     baoRole: "snapshot"
   extraEnvironmentVars:
-    AWS_DISABLE_SSL: "true"
+    BAO_NAMESPACE: "production"

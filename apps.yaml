@@ -86,7 +86,7 @@ catalog:
     sources:
       - repoURL: https://openbao.github.io/openbao-helm
         chart: openbao
-        targetRevision: 0.16.1
+        targetRevision: 0.28.6
         helm:
           valueFiles:
             - $values/bootstrap/base/openbao/openbao-values.yaml
@@ -291,7 +291,7 @@ catalog:
     sources:
       - repoURL: https://pkgs.tailscale.com/helmcharts
         chart: tailscale-operator
-        targetRevision: 1.92.4
+        targetRevision: 1.92.5
         helm:
           values: |
             apiServerProxyConfig:
@@ -446,6 +446,8 @@ catalog:
           brokerK8sRemoteNamespace: "submariner-k8s-broker"
           natEnabled: true
           globalnetEnabled: true
+        ipsec:
+          pskSecret: submariner-ipsec-psk
     vaultSecrets:
       createAuth: true
       role: openbao-secrets-operator
@@ -456,6 +458,10 @@ catalog:
           mount: k8s
           path: "submariner/broker-info"
           destination: "submariner-broker-info"
+        - name: submariner-ipsec-psk
+          mount: k8s
+          path: "submariner/ipsec-psk"
+          destination: "submariner-ipsec-psk"
     syncPolicy:
       syncOptions:
         - CreateNamespace=true
