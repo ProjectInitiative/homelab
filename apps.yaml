@@ -86,7 +86,7 @@ catalog:
     sources:
       - repoURL: https://openbao.github.io/openbao-helm
         chart: openbao
-        targetRevision: 0.16.1
+        targetRevision: 0.28.6
         helm:
           valueFiles:
             - $values/bootstrap/base/openbao/openbao-values.yaml
@@ -291,7 +291,7 @@ catalog:
     sources:
       - repoURL: https://pkgs.tailscale.com/helmcharts
         chart: tailscale-operator
-        targetRevision: 1.92.4
+        targetRevision: 1.92.5
         helm:
           values: |
             apiServerProxyConfig:
