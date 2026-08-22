@@ -357,7 +357,17 @@ catalog:
 
                   loki.source.kubernetes "pod_logs" {
                     targets    = discovery.kubernetes.pods.targets
+                    forward_to = [loki.relabel.cluster.receiver]
+                  }
+
+                  loki.relabel "cluster" {
                     forward_to = [loki.write.default.receiver]
+
+                    rule {
+                      action        = "replace"
+                      target_label  = "cluster"
+                      replacement   = sys.env("CLUSTER_NAME")
+                    }
                   }
 
                   loki.write "default" {
@@ -371,14 +381,24 @@ catalog:
                     clustering {
                         enabled = true
                     }
-                    forward_to = [prometheus.remote_write.default.receiver]
+                    forward_to = [prometheus.relabel.cluster.receiver]
                   }
 
                   prometheus.operator.podmonitors "primary_pm" {
                     clustering {
                         enabled = true
                     }
+                    forward_to = [prometheus.relabel.cluster.receiver]
+                  }
+
+                  prometheus.relabel "cluster" {
                     forward_to = [prometheus.remote_write.default.receiver]
+
+                    rule {
+                      action        = "replace"
+                      target_label  = "cluster"
+                      replacement   = sys.env("CLUSTER_NAME")
+                    }
                   }
 
                   prometheus.remote_write "default" {

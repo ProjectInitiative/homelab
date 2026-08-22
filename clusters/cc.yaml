@@ -57,6 +57,11 @@ apps:
     namespace: monitoring
   - name: grafana-alloy
     namespace: monitoring
+    helm_values: |
+      alloy:
+        extraEnv:
+          - name: CLUSTER_NAME
+            value: cc
   - name: karmada-operator
     namespace: karmada-system
   - name: karmada-instance

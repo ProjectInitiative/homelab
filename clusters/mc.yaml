@@ -160,6 +160,11 @@ apps:
     namespace: monitoring
   - name: grafana-alloy
     namespace: monitoring
+    helm_values: |
+      alloy:
+        extraEnv:
+          - name: CLUSTER_NAME
+            value: mc
   - name: nixos-remote-builder
     namespace: nixos-builder
   - name: submariner-operator
