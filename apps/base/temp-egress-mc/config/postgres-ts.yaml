@@ -5,6 +5,7 @@ metadata:
   namespace: postgres-db
   annotations:
     tailscale.com/hostname: "postgres-rw"
+    tailscale.com/proxy-group: ingress-proxy
 spec:
   type: LoadBalancer
   loadBalancerClass: tailscale
@@ -24,6 +25,7 @@ metadata:
   namespace: postgres-db
   annotations:
     tailscale.com/hostname: "postgres-ro"
+    tailscale.com/proxy-group: ingress-proxy
 spec:
   type: LoadBalancer
   loadBalancerClass: tailscale

@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: ts
   namespace: argocd # Ensure this matches the namespace of your argocd-server
+  annotations:
+    tailscale.com/proxy-group: ingress-proxy
 spec:
   selector:
     app.kubernetes.io/name: argocd-server # This is the selector from your argocd-server service

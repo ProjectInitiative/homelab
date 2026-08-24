@@ -42,6 +42,8 @@ kind: Service
 metadata:
   name: s3
   namespace: garage
+  annotations:
+    tailscale.com/proxy-group: ingress-proxy
 spec:
   selector:
     app.kubernetes.io/name: garage

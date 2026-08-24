@@ -32,6 +32,8 @@ kind: Service
 metadata:
   name: local-registry-tailscale
   namespace: registry
+  annotations:
+    tailscale.com/proxy-group: ingress-proxy
 spec:
   selector:
     app: local-registry

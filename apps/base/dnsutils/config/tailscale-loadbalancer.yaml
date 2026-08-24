@@ -5,6 +5,7 @@ metadata:
   namespace: dnsutils
   annotations:
     tailscale.com/expose: "true"
+    tailscale.com/proxy-group: ingress-proxy
     tailscale.com/hostname: "dnsutils"
 spec:
   type: LoadBalancer
