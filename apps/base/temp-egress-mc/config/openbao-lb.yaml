@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: ts
   namespace: openbao
+  annotations:
+    tailscale.com/proxy-group: ingress-proxy
 spec:
   selector:
     app.kubernetes.io/name: openbao
