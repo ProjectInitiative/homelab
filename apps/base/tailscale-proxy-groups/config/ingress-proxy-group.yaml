@@ -4,7 +4,7 @@ metadata:
   name: ingress-proxy
 spec:
   type: ingress
-  replicas: 2
+  replicas: 3
   proxyClass: ingress-ha
   tags:
     - tag:k8s

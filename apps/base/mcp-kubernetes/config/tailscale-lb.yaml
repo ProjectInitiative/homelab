@@ -5,6 +5,8 @@ metadata:
   name: mcp-ts-placeholder
   labels:
     app: mcp-kubernetes
+  annotations:
+    tailscale.com/proxy-group: ingress-proxy
 spec:
   type: LoadBalancer
   loadBalancerClass: tailscale
