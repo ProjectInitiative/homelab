@@ -83,6 +83,32 @@ apps:
     helm_values: |
       snapshot:
         enabled: true
+      globalConfig:
+        enabled: true
+        manageByHelm: true
+        enableNodeSelector: true
+        mountPodPatch:
+          - nodeSelector:
+              kubernetes.io/hostname: astrolabe
+            pvcSelector:
+              matchStorageClassName: juicefs-sc
+            mountOptions:
+              - cache-dir=/mnt/pool/juicefs
+              - cache-size=1500000
+          - nodeSelector:
+              kubernetes.io/hostname: chronometer
+            pvcSelector:
+              matchStorageClassName: juicefs-sc
+            mountOptions:
+              - cache-dir=/mnt/pool/juicefs
+              - cache-size=550000
+          - nodeSelector:
+              kubernetes.io/hostname: sextant
+            pvcSelector:
+              matchStorageClassName: juicefs-sc
+            mountOptions:
+              - cache-dir=/mnt/pool/juicefs
+              - cache-size=550000
   - name: csi-snapshotter
     namespace: kube-system
   - name: juicefs-platform

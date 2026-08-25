@@ -198,6 +198,34 @@ catalog:
       - repoURL: https://juicedata.github.io/charts/
         chart: juicefs-csi-driver
         targetRevision: 0.31.9
+        helm:
+          values: |
+            globalConfig:
+              enabled: true
+              manageByHelm: true
+              enableNodeSelector: true
+              mountPodPatch:
+                - nodeSelector:
+                    kubernetes.io/hostname: astrolabe
+                  pvcSelector:
+                    matchStorageClassName: juicefs-sc
+                  mountOptions:
+                    - cache-dir=/mnt/pool/juicefs
+                    - cache-size=1500000
+                - nodeSelector:
+                    kubernetes.io/hostname: chronometer
+                  pvcSelector:
+                    matchStorageClassName: juicefs-sc
+                  mountOptions:
+                    - cache-dir=/mnt/pool/juicefs
+                    - cache-size=550000
+                - nodeSelector:
+                    kubernetes.io/hostname: sextant
+                  pvcSelector:
+                    matchStorageClassName: juicefs-sc
+                  mountOptions:
+                    - cache-dir=/mnt/pool/juicefs
+                    - cache-size=550000
     syncPolicy:
       syncOptions:
         - CreateNamespace=true
