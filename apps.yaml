@@ -319,7 +319,7 @@ catalog:
     sources:
       - repoURL: https://pkgs.tailscale.com/helmcharts
         chart: tailscale-operator
-        targetRevision: 1.92.5
+        targetRevision: 1.102.3
         helm:
           values: |
             apiServerProxyConfig:
