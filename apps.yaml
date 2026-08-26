@@ -169,7 +169,7 @@ catalog:
     annotations:
       argocd.argoproj.io/sync-wave: "30"
     sources:
-      - repoURL: https://charts.pingcap.org/
+      - repoURL: https://charts.pingcap.com/
         chart: tidb-operator
         targetRevision: v1.6.3
       - repoURL: https://github.com/pingcap/tidb-operator.git
