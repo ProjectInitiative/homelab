@@ -264,7 +264,11 @@ class ClusterAppsChart(Chart):
                         "mount": secret_item.get("mount", "secret"),
                         "type": secret_item.get("type", "kv-v2"),
                         "path": secret_item["path"],
-                        "destination": {"name": secret_item["destination"], "create": True},
+                        "destination": {
+                            "name": secret_item["destination"],
+                            "create": True,
+                            **({"overwrite": secret_item["overwrite"]} if "overwrite" in secret_item else {}),
+                        },
                     },
                 }
                 if "refreshInterval" in secret_item:
