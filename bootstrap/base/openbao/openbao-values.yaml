@@ -165,7 +165,7 @@ server:
 
 # --- Snapshot Agent for Raft backups to Garage S3 ---
 snapshotAgent:
-  enabled: true
+  enabled: false
   schedule: "0 */6 * * *"
   restartPolicy: OnFailure
   image:
