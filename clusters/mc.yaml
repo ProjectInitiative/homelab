@@ -61,6 +61,17 @@ apps:
     patchTarget:
       kind: VaultAuth
       name: operator-auth
+    patches:
+      - patch: |-
+          apiVersion: secrets.hashicorp.com/v1beta1
+          kind: VaultConnection
+          metadata:
+            name: default
+          spec:
+            address: http://openbao.openbao.svc.cluster.local:8200
+        target:
+          kind: VaultConnection
+          name: default
   - name: openbao-secrets-operator
     namespace: openbao-secrets-operator
     helm_values: |
