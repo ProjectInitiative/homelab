@@ -19,6 +19,9 @@ spec:
       containers:
         - name: mcp-server
           image: ghcr.io/azure/mcp-kubernetes:v0.0.14
+          env:
+            - name: USE_LEGACY_TOOLS
+              value: "true"
           args:
             - "--transport"
             - "sse"
