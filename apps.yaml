@@ -336,6 +336,7 @@ catalog:
           mount: k8s
           path: "tailscale-operator"
           destination: "operator-oauth"
+          overwrite: true
   
   garage-mem:
     path: bootstrap/mc/garage-mem
