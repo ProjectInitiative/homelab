@@ -52,6 +52,16 @@ catalog:
     syncPolicy:
       syncOptions:
         - ServerSideApply=true
+
+  coredns-custom:
+    path: apps/base/coredns-custom/config
+    annotations:
+      argocd.argoproj.io/sync-wave: "5"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=false
+        - ServerSideApply=true
+        - ApplyOutOfSyncOnly=true
   
   tpm-device-plugin:
     path: bootstrap/base/tpm-device-plugin/plugin
