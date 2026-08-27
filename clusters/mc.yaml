@@ -39,6 +39,8 @@ apps:
   - name: policies
     namespace: kube-system # VAPs are cluster-wide, but resource lives in a namespace
 
+  - name: coredns-custom
+    namespace: kube-system
   - name: tpm-device-plugin
     namespace: kube-system
   - name: kubevirt

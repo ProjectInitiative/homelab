@@ -11,6 +11,8 @@ apps:
     patchTarget: {}
   - name: admin-access
     namespace: kube-system
+  - name: coredns-custom
+    namespace: kube-system
   - name: tailscale-operator
     namespace: tailscale
     patchTarget: {}
