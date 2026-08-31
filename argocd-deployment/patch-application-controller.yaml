@@ -1,0 +1,8 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: argocd-application-controller
+spec:
+  # Run multiple controller replicas so Argo CD remains available during a
+  # node failure. Argo CD coordinates controller replicas through sharding.
+  replicas: 2
