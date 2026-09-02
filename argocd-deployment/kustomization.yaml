@@ -8,6 +8,7 @@ resources:
 - cmp-configmaps.yaml
 
 patches:
+- path: patch-application-controller.yaml
 - path: patch-kustomized-helm-cmp.yaml
 - path: patch-cdk8s-cmp.yaml
 - path: patch-fsgroup.yaml

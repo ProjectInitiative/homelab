@@ -24,6 +24,10 @@ server:
       pod:
         supplementalGroups: [995]
 
+  # OpenBao replicas can start and recover independently; waiting for lower
+  # ordinals is harmful when a node is unreachable.
+  podManagementPolicy: "Parallel"
+
   # HA is required for this setup.
   standalone:
     enabled: false

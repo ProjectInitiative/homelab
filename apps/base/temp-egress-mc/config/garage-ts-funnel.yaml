@@ -6,7 +6,6 @@ metadata:
   annotations:
     # 🌟 Enable Tailscale Funnel for public internet access
     tailscale.com/funnel: "true"
-    tailscale.com/proxy-group: ingress-proxy
 spec:
   ingressClassName: tailscale 
   tls:
