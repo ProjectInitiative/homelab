@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - storage-class.yaml
   - job-format.yaml
+  - node-config.yaml
 namespace: juicefs-platform
 
 patches:

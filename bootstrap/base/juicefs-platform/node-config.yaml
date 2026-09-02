@@ -9,17 +9,16 @@ data:
   config.yaml: |
     # These settings are applied to JuiceFS mount pods, rather than to the
     # application pods.  Keep the StorageClass selector on every rule so a
-    # different filesystem cannot accidentally join the cache group.
+    # different filesystem cannot accidentally inherit node-specific cache settings.
     mountPodPatch:
-      # Default: local cache on nodes that are not part of a cache group.
+      # Default: local cache for JuiceFS volumes.
       - pvcSelector:
           matchStorageClassName: juicefs-sc
         mountOptions:
           - cache-dir=/mnt/pool/juicefs
           - cache-size=102400
 
-      # Astrolabe has no fast east-west network, so don't make it a member of
-      # the DGX cache group.  Its 1.5 TB NVMe cache remains entirely local.
+      # Astrolabe has a larger local cache on its NVMe volume.
       - nodeSelector:
           matchLabels:
             kubernetes.io/hostname: astrolabe
@@ -29,9 +28,8 @@ data:
           - cache-dir=/mnt/pool/juicefs
           - cache-size=1500000
 
-      # Chronometer and Sextant share a distributed cache over the ConnectX
-      # fabric.  Both nodes intentionally use the same cache size: JuiceFS'
-      # consistent-hash ring assumes homogeneous cache members.
+      # Chronometer and Sextant each use an independent local cache of the
+      # shared JuiceFS volume. Keep the cache sizes identical for comparison.
       - nodeSelector:
           matchLabels:
             kubernetes.io/hostname: chronometer
@@ -39,10 +37,7 @@ data:
           matchStorageClassName: juicefs-sc
         mountOptions:
           - cache-dir=/mnt/pool/juicefs
-          - cache-size=102400
-          - cache-group=dgx-spark
-          # Add the ConnectX subnet/prefix here once it is known, e.g.
-          # - group-ip=10.6.0.0
+          - cache-size=550000
 
       - nodeSelector:
           matchLabels:
@@ -51,7 +46,4 @@ data:
           matchStorageClassName: juicefs-sc
         mountOptions:
           - cache-dir=/mnt/pool/juicefs
-          - cache-size=102400
-          - cache-group=dgx-spark
-          # Add the ConnectX subnet/prefix here once it is known, e.g.
-          # - group-ip=10.6.0.0
+          - cache-size=550000
