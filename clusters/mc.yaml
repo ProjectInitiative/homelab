@@ -43,6 +43,8 @@ apps:
     namespace: kube-system
   - name: tpm-device-plugin
     namespace: kube-system
+  - name: nvidia-device-plugin
+    namespace: kube-system
   - name: kubevirt
     namespace: kubevirt
   - name: tailscale-operator
