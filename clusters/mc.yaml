@@ -47,6 +47,23 @@ apps:
     namespace: kubevirt
   - name: tailscale-operator
     namespace: tailscale
+    patches:
+      - patch: |-
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: operator
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: operator
+                    env:
+                      - name: OPERATOR_HOSTNAME
+                        value: mc-tailscale-operator
+        target:
+          kind: Deployment
+          name: operator
   - name: openbao
     namespace: openbao
   - name: openbao-auth-config
@@ -189,12 +206,41 @@ apps:
     patchTarget:
       kind: ProxyGroup
       name: placeholder-name
+    patches:
+      - patch: |-
+          - op: replace
+            path: /metadata/name
+            value: mc-ingress-proxy
+        target:
+          kind: ProxyGroup
+          name: ingress-proxy
   - name: temp-egress-mc
+    patches:
+      - patch: |-
+          - op: replace
+            path: /metadata/annotations/tailscale.com~1proxy-group
+            value: mc-ingress-proxy
+        target:
+          annotationSelector: tailscale.com/proxy-group=ingress-proxy
     namespace: default
   - name: dnsutils
     namespace: dnsutils
+    patches:
+      - patch: |-
+          - op: replace
+            path: /metadata/annotations/tailscale.com~1proxy-group
+            value: mc-ingress-proxy
+        target:
+          annotationSelector: tailscale.com/proxy-group=ingress-proxy
   - name: docker-registry
     namespace: registry
+    patches:
+      - patch: |-
+          - op: replace
+            path: /metadata/annotations/tailscale.com~1proxy-group
+            value: mc-ingress-proxy
+        target:
+          annotationSelector: tailscale.com/proxy-group=ingress-proxy
   - name: prometheus-operator-crds
     namespace: monitoring
   - name: grafana-alloy
@@ -229,3 +275,11 @@ apps:
     patchTarget:
       kind: Service
       name: mcp-ts-placeholder
+    patches:
+      - patch: |-
+          - op: replace
+            path: /metadata/annotations/tailscale.com~1proxy-group
+            value: mc-ingress-proxy
+        target:
+          kind: Service
+          annotationSelector: tailscale.com/proxy-group=ingress-proxy
