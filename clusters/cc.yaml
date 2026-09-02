@@ -16,6 +16,23 @@ apps:
   - name: tailscale-operator
     namespace: tailscale
     patchTarget: {}
+    patches:
+      - patch: |-
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: operator
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: operator
+                    env:
+                      - name: OPERATOR_HOSTNAME
+                        value: cc-tailscale-operator
+        target:
+          kind: Deployment
+          name: operator
   - name: cert-manager
     namespace: cert-manager
   - name: openbao-auth-config
@@ -53,8 +70,23 @@ apps:
     patchTarget:
       kind: ProxyGroup
       name: placeholder-name
+    patches:
+      - patch: |-
+          - op: replace
+            path: /metadata/name
+            value: cc-ingress-proxy
+        target:
+          kind: ProxyGroup
+          name: ingress-proxy
   - name: dnsutils
     namespace: dnsutils
+    patches:
+      - patch: |-
+          - op: replace
+            path: /metadata/annotations/tailscale.com~1proxy-group
+            value: cc-ingress-proxy
+        target:
+          annotationSelector: tailscale.com/proxy-group=ingress-proxy
   - name: prometheus-operator-crds
     namespace: monitoring
   - name: grafana-alloy
@@ -68,6 +100,13 @@ apps:
     namespace: karmada-system
   - name: karmada-instance
     namespace: karmada-system
+    patches:
+      - patch: |-
+          - op: replace
+            path: /metadata/annotations/tailscale.com~1proxy-group
+            value: cc-ingress-proxy
+        target:
+          annotationSelector: tailscale.com/proxy-group=ingress-proxy
     patch: |-
       apiVersion: operator.karmada.io/v1alpha1
       kind: Karmada
@@ -132,6 +171,21 @@ apps:
     patchTarget:
       kind: Service
       name: mcp-ts-placeholder
+    patches:
+      - patch: |-
+          - op: replace
+            path: /metadata/annotations/tailscale.com~1proxy-group
+            value: cc-ingress-proxy
+        target:
+          kind: Service
+          annotationSelector: tailscale.com/proxy-group=ingress-proxy
 
   - name: temp-egress-cc
+    patches:
+      - patch: |-
+          - op: replace
+            path: /metadata/annotations/tailscale.com~1proxy-group
+            value: cc-ingress-proxy
+        target:
+          annotationSelector: tailscale.com/proxy-group=ingress-proxy
     namespace: default
