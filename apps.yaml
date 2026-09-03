@@ -69,35 +69,7 @@ catalog:
       argocd.argoproj.io/sync-wave: "10"
     syncPolicy:
       syncOptions: []
-
-  nvidia-device-plugin:
-    annotations:
-      argocd.argoproj.io/sync-wave: "10"
-    sources:
-      - repoURL: https://nvidia.github.io/k8s-device-plugin
-        chart: nvidia-device-plugin
-        targetRevision: 0.19.3
-        helm:
-          values: |
-            # Drivers and NVIDIA Container Toolkit are installed on the GB10 hosts.
-            # Limit the plugin to the two GPU nodes for now.
-            affinity:
-              nodeAffinity:
-                requiredDuringSchedulingIgnoredDuringExecution:
-                  nodeSelectorTerms:
-                    - matchExpressions:
-                        - key: kubernetes.io/hostname
-                          operator: In
-                          values: [chronometer, sextant, capstan1]
-            tolerations: []
-            gfd:
-              enabled: false
-            nfd:
-              enabled: false
-    syncPolicy:
-      syncOptions:
-        - ServerSideApply=true
-
+  
   cert-manager:
     annotations:
       argocd.argoproj.io/sync-wave: "50"
