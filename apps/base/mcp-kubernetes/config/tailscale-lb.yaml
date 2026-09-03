@@ -15,5 +15,8 @@ spec:
       protocol: TCP
       port: 80
       targetPort: 8080
+  # The MCP SSE transport keeps sessions in process memory. Keep the SSE
+  # connection and subsequent /message requests on the same backend pod.
+  sessionAffinity: ClientIP
   selector:
     app: mcp-kubernetes
