@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: local-registry
+  namespace: registry
+  annotations:
+    tailscale.com/proxy-group: ingress-proxy
+spec:
+  ingressClassName: tailscale
+  tls:
+    - hosts:
+        - registry
+  rules:
+    - host: registry
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: local-registry
+                port:
+                  number: 5000
