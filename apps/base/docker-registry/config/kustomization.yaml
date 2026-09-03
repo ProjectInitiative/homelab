@@ -4,4 +4,5 @@ resources:
   - namespace.yaml
   - configmap.yaml
   - service.yaml
+  - registry-ingress.yaml
   - deployment.yaml
