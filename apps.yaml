@@ -592,6 +592,18 @@ catalog:
   
   docker-registry:
     path: apps/base/docker-registry/config
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      namespace: production
+      audiences:
+        - vault
+      secrets:
+        - name: registry-s3-creds
+          mount: k8s
+          path: "docker-registry/s3"
+          destination: "registry-s3-creds"
+          overwrite: true
     syncPolicy:
       automated:
         prune: true
