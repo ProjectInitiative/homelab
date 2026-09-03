@@ -89,6 +89,9 @@ catalog:
                         - key: kubernetes.io/hostname
                           operator: In
                           values: [chronometer, sextant, capstan1]
+            # The plugin must run with the NVIDIA runtime so NVML and driver
+            # libraries are injected into the container.
+            runtimeClassName: nvidia
             tolerations: []
             gfd:
               enabled: false
