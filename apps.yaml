@@ -98,21 +98,6 @@ catalog:
       syncOptions:
         - ServerSideApply=true
 
-  amd-device-plugin:
-    annotations:
-      argocd.argoproj.io/sync-wave: "10"
-    sources:
-      - repoURL: https://rocm.github.io/k8s-device-plugin/
-        chart: amd-gpu
-        targetRevision: 0.22.0
-        helm:
-          values: |
-            nodeSelector:
-              kubernetes.io/hostname: astrolabe
-    syncPolicy:
-      syncOptions:
-        - ServerSideApply=true
-
   cert-manager:
     annotations:
       argocd.argoproj.io/sync-wave: "50"
