@@ -15,6 +15,11 @@ subjects:
   - kind: ServiceAccount
     name: vault-reviewer
     namespace: kube-system
+  # When OpenBao uses its local Kubernetes JWT, the server SA performs
+  # namespace lookups during Kubernetes auth validation.
+  - kind: ServiceAccount
+    name: openbao
+    namespace: openbao
 roleRef:
   kind: ClusterRole
   name: vault-reviewer-namespace-access
