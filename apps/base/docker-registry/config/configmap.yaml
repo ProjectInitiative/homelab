@@ -24,3 +24,5 @@ data:
         forcepathstyle: true
         chunksize: 5242880
         maxretries: 3
+      redirect:
+        disable: true
