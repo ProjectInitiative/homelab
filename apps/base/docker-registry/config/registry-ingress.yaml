@@ -10,14 +10,8 @@ spec:
   tls:
     - hosts:
         - registry
-  rules:
-    - host: registry
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: local-registry
-                port:
-                  number: 5000
+  defaultBackend:
+    service:
+      name: local-registry
+      port:
+        number: 5000
