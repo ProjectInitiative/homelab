@@ -255,6 +255,15 @@ class ClusterAppsChart(Chart):
                     sources.append(auth_source)
 
             for secret_item in secrets_list:
+                destination = {
+                    "name": secret_item["destination"],
+                    "create": True,
+                    **({"type": secret_item["destinationType"]} if "destinationType" in secret_item else {}),
+                    **({"overwrite": secret_item["overwrite"]} if "overwrite" in secret_item else {}),
+                }
+                if "destinationIncludes" in secret_item:
+                    destination["transformation"] = {"includes": secret_item["destinationIncludes"]}
+
                 vss_manifest = {
                     "apiVersion": "secrets.hashicorp.com/v1beta1",
                     "kind": "VaultStaticSecret",
@@ -264,11 +273,7 @@ class ClusterAppsChart(Chart):
                         "mount": secret_item.get("mount", "secret"),
                         "type": secret_item.get("type", "kv-v2"),
                         "path": secret_item["path"],
-                        "destination": {
-                            "name": secret_item["destination"],
-                            "create": True,
-                            **({"overwrite": secret_item["overwrite"]} if "overwrite" in secret_item else {}),
-                        },
+                        "destination": destination,
                     },
                 }
                 if "refreshInterval" in secret_item:

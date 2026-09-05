@@ -327,10 +327,17 @@ catalog:
           mount: k8s
           path: "cnpg/s3"
           destination: "postgres-cluster-s3"
-        - name: ai-juicefs-db-creds
+        - name: juicefs-postgres-creds
           mount: k8s
-          path: "cnpg/ai-juicefs-db-creds"
-          destination: "ai-juicefs-db-creds"
+          # Project the same OpenBao source used by JuiceFS into a CNPG
+          # basic-auth Secret. OpenBao must provide username and password.
+          path: "juicefs/config"
+          destination: "juicefs-postgres-creds"
+          destinationType: "kubernetes.io/basic-auth"
+          destinationIncludes:
+            - username
+            - password
+          overwrite: true
     syncPolicy:
       syncOptions:
         - CreateNamespace=true

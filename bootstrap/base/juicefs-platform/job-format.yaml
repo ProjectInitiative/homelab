@@ -7,6 +7,10 @@ metadata:
     argocd.argoproj.io/hook: PostSync
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
 spec:
+  # Retry indefinitely through transient metadata/backend failures. The Job
+  # still never formats unless status explicitly reports an unformatted DB.
+  # Kubernetes applies its normal capped exponential backoff between retries.
+  backoffLimit: 2147483647
   template:
     spec:
       restartPolicy: OnFailure
@@ -17,10 +21,17 @@ spec:
             - /bin/sh
             - -c
             - |
-              # Check if already formatted
-              if juicefs status "$metaurl" >/dev/null 2>&1; then
+              # Only format when the metadata engine explicitly reports that
+              # the filesystem is unformatted. A metadata timeout or outage
+              # must never be treated as an unformatted filesystem.
+              if status_output=$(juicefs status "$metaurl" 2>&1); then
                 echo "JuiceFS filesystem '$name' is already formatted."
                 exit 0
+              fi
+              if ! printf '%s\n' "$status_output" | grep -qi 'database is not formatted'; then
+                echo "JuiceFS metadata status failed; refusing to format '$name'."
+                printf '%s\n' "$status_output"
+                exit 1
               fi
 
               echo "Formatting JuiceFS filesystem '$name'..."
