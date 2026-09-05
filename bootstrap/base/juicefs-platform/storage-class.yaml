@@ -3,6 +3,7 @@ kind: StorageClass
 metadata:
   name: juicefs-sc
 provisioner: csi.juicefs.com
+allowVolumeExpansion: true
 reclaimPolicy: Retain
 volumeBindingMode: Immediate
 parameters:
@@ -16,6 +17,8 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: juicefs-platform
   csi.storage.k8s.io/node-publish-secret-name: juicefs-creds
   csi.storage.k8s.io/node-publish-secret-namespace: juicefs-platform
+  csi.storage.k8s.io/controller-expand-secret-name: juicefs-creds
+  csi.storage.k8s.io/controller-expand-secret-namespace: juicefs-platform
   
   # Metadata engine (PostgreSQL)
   # metaurl is provided in the Secret, not here, to avoid exposing credentials.
