@@ -7,6 +7,10 @@ metadata:
     argocd.argoproj.io/hook: PostSync
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
 spec:
+  # Retry indefinitely through transient metadata/backend failures. The Job
+  # still never formats unless status explicitly reports an unformatted DB.
+  # Kubernetes applies its normal capped exponential backoff between retries.
+  backoffLimit: 2147483647
   template:
     spec:
       restartPolicy: OnFailure
