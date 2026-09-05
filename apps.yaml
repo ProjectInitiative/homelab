@@ -222,32 +222,6 @@ catalog:
         - CreateNamespace=true
         - ServerSideApply=true
   
-  tidb-operator:
-    annotations:
-      argocd.argoproj.io/sync-wave: "30"
-    sources:
-      - repoURL: https://charts.pingcap.com/
-        chart: tidb-operator
-        targetRevision: v1.6.3
-      - repoURL: https://github.com/pingcap/tidb-operator.git
-        targetRevision: v1.6.3
-        path: manifests
-        directory:
-            include: 'crd.yaml'
-    syncPolicy:
-      syncOptions:
-        - CreateNamespace=true
-        - ServerSideApply=true
-
-  tikv-cluster:
-    path: bootstrap/base/tikv-cluster
-    annotations:
-      argocd.argoproj.io/sync-wave: "40"
-    syncPolicy:
-      syncOptions:
-        - CreateNamespace=true
-        - ServerSideApply=true
-
   juicefs-csi-driver:
     annotations:
       argocd.argoproj.io/sync-wave: "30"
