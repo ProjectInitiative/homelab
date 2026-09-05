@@ -339,6 +339,9 @@ catalog:
             - password
           overwrite: true
     syncPolicy:
+      automated:
+        prune: false
+        selfHeal: true
       syncOptions:
         - CreateNamespace=true
         - ServerSideApply=true
