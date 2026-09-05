@@ -17,8 +17,8 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-name: juicefs-creds
   csi.storage.k8s.io/node-publish-secret-namespace: juicefs-platform
   
-  # Metadata engine (TiKV)
-  # metaurl is usually provided in the Secret, not here, to avoid exposing it.
+  # Metadata engine (PostgreSQL)
+  # metaurl is provided in the Secret, not here, to avoid exposing credentials.
   # But we can refer to it here if we want.
   # Better to put 'metaurl' in the secret.
 

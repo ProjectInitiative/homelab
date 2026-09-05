@@ -1,0 +1,13 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: juicefs-user
+  namespace: postgres-db
+spec:
+  cluster:
+    name: postgres-cluster
+  name: juicefs_user
+  ensure: present
+  login: true
+  passwordSecret:
+    name: juicefs-postgres-creds

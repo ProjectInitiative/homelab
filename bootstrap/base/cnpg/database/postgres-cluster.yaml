@@ -35,10 +35,3 @@ spec:
       postInitSQL:
         - CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 
-  # Declarative User Provisioning (databases managed via Database CRD after upgrade)
-  managed:
-    roles:
-      - name: juicefs_user
-        login: true
-        passwordSecret:
-          name: ai-juicefs-db-creds
