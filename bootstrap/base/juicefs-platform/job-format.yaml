@@ -17,10 +17,17 @@ spec:
             - /bin/sh
             - -c
             - |
-              # Check if already formatted
-              if juicefs status "$metaurl" >/dev/null 2>&1; then
+              # Only format when the metadata engine explicitly reports that
+              # the filesystem is unformatted. A metadata timeout or outage
+              # must never be treated as an unformatted filesystem.
+              if status_output=$(juicefs status "$metaurl" 2>&1); then
                 echo "JuiceFS filesystem '$name' is already formatted."
                 exit 0
+              fi
+              if ! printf '%s\n' "$status_output" | grep -qi 'database is not formatted'; then
+                echo "JuiceFS metadata status failed; refusing to format '$name'."
+                printf '%s\n' "$status_output"
+                exit 1
               fi
 
               echo "Formatting JuiceFS filesystem '$name'..."
