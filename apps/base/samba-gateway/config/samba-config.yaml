@@ -34,7 +34,9 @@ data:
             "printing": "bsd",
             "printcap name": "/dev/null",
             "disable spoolss": "yes",
-            "map to guest": "never"
+            "map to guest": "never",
+            "unix extensions": "yes",
+            "follow symlinks": "yes"
           }
         }
       },
