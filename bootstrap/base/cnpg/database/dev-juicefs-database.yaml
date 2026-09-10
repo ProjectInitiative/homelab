@@ -1,0 +1,19 @@
+# Declarative CNPG Database for the dev JuiceFS metadata engine.
+# This is a separate database in the existing postgres-cluster, owned by
+# juicefs_user (credentialed via the juicefs-postgres-creds secret produced by
+# VSO/OpenBao). The dev JuiceFS filesystem will use this DB as its metadata
+# engine and a separate S3 bucket (see the JuiceFS dev share config).
+#
+# NOTE: CNPG declarative Database CRs require the operator to be >= 1.25.0.
+# If the operator is older, comment this out like the ai-juicefs example and
+# create the DB manually via `psql -c 'CREATE DATABASE ...'` on the cluster.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: dev-juicefs
+  namespace: postgres-db
+spec:
+  cluster:
+    name: postgres-cluster
+  name: dev-juicefs
+  owner: juicefs_user

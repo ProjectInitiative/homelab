@@ -282,15 +282,6 @@ catalog:
         - CreateNamespace=true
         - ServerSideApply=true
 
-  nfs-gateway:
-    path: apps/base/nfs-gateway/config
-    annotations:
-      argocd.argoproj.io/sync-wave: "60"
-    syncPolicy:
-      syncOptions:
-        - CreateNamespace=true
-        - ServerSideApply=true
-
   juicefs-platform:
     path: bootstrap/base/juicefs-platform
     annotations:
