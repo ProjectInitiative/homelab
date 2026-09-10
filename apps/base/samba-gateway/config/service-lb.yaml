@@ -1,0 +1,22 @@
+---
+# Expose SMB on the LAN via the kube-vip LoadBalancer (full bandwidth — no tailscale).
+# kube-vip-cloud-controller assigns a VIP from the pool in the `kubevip` ConfigMap
+# (range-global: 172.16.1.60-172.16.1.70). Connect from clients on that subnet at:
+#   smb://<assigned-vip>/data   (or \\<vip>\data on Windows)
+# NB: because the VIP is in the /24 on the 172.16.1.0/24 LAN, SMB is reachable
+# only from that L2 subnet unless you route/firewall it elsewhere.
+apiVersion: v1
+kind: Service
+metadata:
+  name: samba-lb
+  labels:
+    app: samba-gateway
+spec:
+  type: LoadBalancer
+  ports:
+    - name: smb
+      protocol: TCP
+      port: 445
+      targetPort: 445
+  selector:
+    app: samba-gateway

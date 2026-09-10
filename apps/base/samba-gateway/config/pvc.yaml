@@ -1,0 +1,18 @@
+---
+# Samba-backed share. Backed by the JuiceFS pool via the juicefs-sc StorageClass.
+# ReadWriteMany so the Samba gateway (and future replicas) share one filesystem.
+# The `storage` request is a soft quota on JuiceFS, not a hard carve-out — the
+# pool is what actually bounds usage. Bump this up if you're offloading a big node.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: samba-share
+  labels:
+    app: samba-gateway
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: juicefs-sc
+  resources:
+    requests:
+      storage: 2Ti

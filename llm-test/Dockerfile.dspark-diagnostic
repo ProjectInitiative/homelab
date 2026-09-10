@@ -1,0 +1,9 @@
+FROM ghcr.io/anemll/dspark-vllm-gx10:0.1.1
+
+# Diagnostic-only escape hatch for the Anemll vLLM 0.25 startup guard.
+# Patch at container startup because the base image is linux/arm64 and this
+# repository's build host is not. Normal request_memory behavior is unchanged
+# unless VLLM_SKIP_INIT_MEMORY_CHECK=1 is explicitly set.
+COPY patch-skip-init-memory-check.py /tmp/patch-skip-init-memory-check.py
+COPY diagnostic-entrypoint.sh /usr/local/bin/diagnostic-entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/diagnostic-entrypoint.sh"]

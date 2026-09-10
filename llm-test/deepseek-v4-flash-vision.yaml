@@ -1,0 +1,247 @@
+# Experimental, intentionally outside GitOps. Apply directly to the MC cluster:
+#   kubectl apply -f deepseek-v4-flash-vision.yaml
+#
+# Prerequisites:
+#   1. Create Secret/huggingface in this namespace (see the note at the bottom).
+#   2. The NVIDIA device plugin must advertise nvidia.com/gpu on chronometer/sextant.
+#
+# This first cut uses one Ray head/vLLM driver on chronometer and one Ray worker on
+# sextant.  It uses PP=2 (one GPU per node) and a shared RWX JuiceFS volume.  The
+# JuiceFS CSI mount pods should inherit the existing chronometer/sextant cache
+# rules from the MC cluster config (currently 550000 MiB in the Helm values).
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: llm-test
+  labels:
+    purpose: experimental-llm
+    vault-auth: enabled
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vllm
+  namespace: llm-test
+---
+# VSO authentication and secret material for this temporary workload.
+# The token is stored in OpenBao at k8s/llm-test/huggingface; VSO creates
+# Secret/huggingface from it at runtime.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: operator-auth-sa
+  namespace: llm-test
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: llm-test-auth
+  namespace: llm-test
+spec:
+  method: kubernetes
+  mount: kubernetes_cluster_mc
+  namespace: production
+  vaultConnectionRef: default
+  kubernetes:
+    role: openbao-secrets-operator
+    serviceAccount: operator-auth-sa
+    audiences:
+      - vault
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: huggingface
+  namespace: llm-test
+spec:
+  type: kv-v2
+  mount: k8s
+  namespace: production
+  path: llm-test/huggingface
+  vaultAuthRef: llm-test-auth
+  destination:
+    name: huggingface
+    create: true
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-cache
+  namespace: llm-test
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: juicefs-sc
+  resources:
+    requests:
+      storage: 500Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: deepseek-ray-head
+  namespace: llm-test
+spec:
+  clusterIP: None
+  selector:
+    app: deepseek-ray-head
+  ports:
+    - name: ray-client
+      port: 6379
+      targetPort: 6379
+    - name: ray-gcs
+      port: 6380
+      targetPort: 6380
+    - name: ray-dashboard
+      port: 8265
+      targetPort: 8265
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: deepseek
+  namespace: llm-test
+spec:
+  selector:
+    app: deepseek-ray-head
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deepseek-ray-head
+  namespace: llm-test
+  labels:
+    app: deepseek-ray-head
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: deepseek-ray-head
+  template:
+    metadata:
+      labels:
+        app: deepseek-ray-head
+    spec:
+      serviceAccountName: vllm
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:deepseekv4-flash-vision
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface
+                  key: HF_TOKEN
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            - name: VLLM_WORKER_MULTIPROC_METHOD
+              value: spawn
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              ray start --head --node-ip-address="$(hostname -i | awk '{print $1}')" \
+                --port=6379 --node-manager-port=6380 --dashboard-host=0.0.0.0
+              exec vllm serve deepseek-ai/DeepSeek-V4-Flash-Vision-Exp \
+                --host 0.0.0.0 --port 8000 \
+                --distributed-executor-backend ray \
+                --tensor-parallel-size 1 \
+                --pipeline-parallel-size 2 \
+                --kv-cache-dtype fp8 \
+                --block-size 256 \
+                --max-model-len 32768 \
+                --speculative-config '{"method":"dspark","model":"deepseek-ai/DeepSeek-V4-Flash-Vision-Exp","num_speculative_tokens":3,"draft_sample_method":"probabilistic","enable_adaptive_verification":true}' \
+                --allowed-local-media-path /models
+          ports:
+            - name: http
+              containerPort: 8000
+            - name: ray-client
+              containerPort: 6379
+            - name: ray-gcs
+              containerPort: 6380
+            - name: ray-dashboard
+              containerPort: 8265
+          resources:
+            requests:
+              cpu: "16"
+              memory: 64Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "32"
+              memory: 128Gi
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deepseek-ray-worker
+  namespace: llm-test
+  labels:
+    app: deepseek-ray-worker
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: deepseek-ray-worker
+  template:
+    metadata:
+      labels:
+        app: deepseek-ray-worker
+    spec:
+      serviceAccountName: vllm
+      nodeSelector:
+        kubernetes.io/hostname: sextant
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: ray-worker
+          image: vllm/vllm-openai:deepseekv4-flash-vision
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              until ray start --address=deepseek-ray-head.llm-test.svc.cluster.local:6379 \
+                --node-ip-address="$(hostname -i | awk '{print $1}')"; do
+                sleep 5
+              done
+              trap 'ray stop || true' TERM INT EXIT
+              sleep infinity
+          resources:
+            requests:
+              cpu: "16"
+              memory: 64Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "32"
+              memory: 128Gi
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+
+# Do not put the token in this file. VSO reads it from OpenBao and creates
+# Secret/huggingface above. Expected OpenBao KV-v2 location/key:
+# k8s/llm-test/huggingface, HF_TOKEN.

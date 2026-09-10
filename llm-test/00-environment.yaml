@@ -1,0 +1,87 @@
+# Experimental, intentionally outside GitOps. Apply directly to the MC cluster:
+#   kubectl apply -f deepseek-v4-flash-vision.yaml
+#
+# Prerequisites:
+#   1. Create Secret/huggingface in this namespace (see the note at the bottom).
+#   2. The NVIDIA device plugin must advertise nvidia.com/gpu on chronometer/sextant.
+#
+# Native vLLM multiprocessing across chronometer and sextant. It uses TP=2
+# (one GPU per node) and a shared RWX JuiceFS volume. The JuiceFS CSI mount pods
+# should inherit the existing chronometer/sextant cache
+# rules from the MC cluster config (currently 550000 MiB in the Helm values).
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: llm-test
+  labels:
+    purpose: experimental-llm
+    vault-auth: enabled
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vllm
+  namespace: llm-test
+---
+# VSO authentication and secret material for this temporary workload.
+# The token is stored in OpenBao at k8s/llm-test/huggingface; VSO creates
+# Secret/huggingface from it at runtime.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: operator-auth-sa
+  namespace: llm-test
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultConnection
+metadata:
+  name: default
+  namespace: llm-test
+spec:
+  address: http://openbao.openbao.svc.cluster.local:8200
+  skipTLSVerify: true
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: llm-test-auth
+  namespace: llm-test
+spec:
+  method: kubernetes
+  mount: kubernetes_cluster_mc
+  namespace: production
+  vaultConnectionRef: default
+  kubernetes:
+    role: openbao-secrets-operator
+    serviceAccount: operator-auth-sa
+    audiences:
+      - vault
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: huggingface
+  namespace: llm-test
+spec:
+  type: kv-v2
+  mount: k8s
+  namespace: production
+  path: llm-test/huggingface
+  vaultAuthRef: llm-test-auth
+  destination:
+    name: huggingface
+    create: true
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-cache
+  namespace: llm-test
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: juicefs-sc
+  volumeName: pvc-afa2ecdd-04ae-4af9-9e08-e1ea1c6d1947
+  resources:
+    requests:
+      storage: 1Ti

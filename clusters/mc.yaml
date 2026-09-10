@@ -143,6 +143,10 @@ apps:
     namespace: kube-system
   - name: juicefs-platform
     namespace: juicefs-platform
+  # MVP network share over JuiceFS. Single user + password until wired to Keycloak.
+  # A tailscale LoadBalancer exposes \\<host>\data on the tailnet.
+  - name: samba-gateway
+    namespace: samba
   - name: postgres-cluster
     namespace: postgres-db
   - name: garage
