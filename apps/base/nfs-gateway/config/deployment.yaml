@@ -1,0 +1,74 @@
+---
+# NFS-Ganesha (userspace NFS v4) exporting a JuiceFS RWX volume.
+# Ganesha runs NFS in userspace and uses FSAL VFS on the mounted JuiceFS dir,
+# so it works over the CSI FUSE mount without kernel nfsd. This is the POSIX-
+# correct choice for Linux dev work (real locks, modes, symlinks, POSIX ACLs).
+#
+# MVP: single replica (NFSv4 server state — locks/grace — isn't shared across
+# replicas without extra clustering). Scale out later if you need HA.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nfs-gateway
+  labels:
+    app: nfs-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nfs-gateway
+  template:
+    metadata:
+      labels:
+        app: nfs-gateway
+    spec:
+      containers:
+        - name: nfs
+          image: janeczku/nfs-ganesha:latest
+          env:
+            - name: EXPORT_PATH
+              value: /data/nfs
+            - name: PSEUDO_PATH
+              value: /
+            - name: EXPORT_ID
+              value: "0"
+            - name: PROTOCOLS
+              value: "4"
+            - name: TRANSPORTS
+              value: "TCP"
+            # No_Root_Squash so the client's UID/GID map straight through.
+            # For a harder security posture later, switch to Root_Id_Squash or
+            # use sec=krb5 with Kerberos when you wire up Keycloak/LDAP.
+            - name: SQUASH_MODE
+              value: "No_Root_Squash"
+            - name: GRACELESS
+              value: "true"
+          ports:
+            - containerPort: 2049
+              name: nfs
+          readinessProbe:
+            tcpSocket:
+              port: 2049
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "500m"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: true
+            capabilities:
+              add:
+                - SYS_ADMIN
+                - DAC_READ_SEARCH
+                - NET_BIND_SERVICE
+          volumeMounts:
+            - name: share
+              mountPath: /data/nfs
+      volumes:
+        - name: share
+          persistentVolumeClaim:
+            claimName: nfs-share

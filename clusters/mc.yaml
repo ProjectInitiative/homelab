@@ -147,6 +147,10 @@ apps:
   # A tailscale LoadBalancer exposes \\<host>\data on the tailnet.
   - name: samba-gateway
     namespace: samba
+  # NFS (NFS-Ganesha) gateway over JuiceFS for Linux dev workstore — POSIX-correct
+  # alternative to SMB. Exposed via kube-vip LB on 2049.
+  - name: nfs-gateway
+    namespace: nfs
   - name: postgres-cluster
     namespace: postgres-db
   - name: garage
