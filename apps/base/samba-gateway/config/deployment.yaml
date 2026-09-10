@@ -1,15 +1,13 @@
 ---
-# Minimal single-user Samba gateway over a JuiceFS RWX volume.
-# MVP: one replica, one user (via secret `samba-credentials`), one share `data`.
+# Linux-friendly Samba gateway over a JuiceFS RWX volume.
+# Uses the k8s-native samba-server container with a fully-controlled smb.conf
+# (see samba-config.yaml) so NO Apple/recycle vfs modules are loaded — deletes and
+# renames work correctly over JuiceFS for Linux clients.
 #
-# Credentials come from Kubernetes Secret `samba-credentials` (key `user`),
-# which is created either by the VaultStaticSecret declared in apps.yaml, or
-# (for a same-day POC with no Vault path yet) by:
-#   kubectl create secret generic samba-credentials -n samba \
-#     --from-literal='user=kyle;REPLACE_ME'
-#
-# The value must be "<username>;<password>" because dperson/samba's `-u`/
-# USER takes that format. Update the username in the SHARE below to match.
+# Password comes from the VSO-created secret `samba-credentials` (key `user`,
+# value "kyle;<password>"). An initContainer splits it and writes a users.json
+# that sambacc merges with the ConfigMap config. This keeps the password out of
+# git and lets the account be re-provisioned on every restart.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -26,26 +24,48 @@ spec:
       labels:
         app: samba-gateway
     spec:
+      initContainers:
+        # Stage a users.json from the secret, then let sambacc provision it.
+        - name: samba-init
+          image: quay.io/samba.org/samba-server:latest
+          env:
+            - name: SAMBACC_VERSION
+              value: "0.1"
+            - name: SAMBACC_CONFIG
+              value: /etc/samba-container-base/config.json:/etc/samba-container/users.json
+            - name: SAMBA_CONTAINER_ID
+              value: samba-gateway
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              ULINE=$(cat /run/secrets/samba/user)     # kyle;<password>
+              NAME=${ULINE%%;*}
+              PW=${ULINE#*;}
+              printf '{"samba-container-config":"v0","users":{"all_entries":[{"name":"%s","password":"%s"}]}}' "$NAME" "$PW" > /etc/samba-container/users.json
+              samba-container init
+          volumeMounts:
+            - name: samba-config
+              mountPath: /etc/samba-container-base
+              readOnly: true
+            - name: samba-users
+              mountPath: /etc/samba-container
+            - name: samba-state
+              mountPath: /var/lib/samba
+            - name: samba-credentials
+              mountPath: /run/secrets/samba
+              readOnly: true
       containers:
         - name: samba
-          image: dperson/samba:latest
-          # -p = set ownership/permissions on the share so smbd can chdir into it.
-          args:
-            - "-p"
+          image: quay.io/samba.org/samba-server:latest
+          command: ["samba-container", "run", "smbd"]
           env:
-            # USER maps to dperson/samba's `-u "<username>;<password>"`.
-            # Split is read from the secret so the password is never in git.
-            - name: USER
-              valueFrom:
-                secretKeyRef:
-                  name: samba-credentials
-                  key: user
-            # SHARE maps to `-s "<name>;</path>[;browse;readonly;guest;users]"`.
-            # name=data, path=/share, browse=yes, readonly=no, guest=no, users=kyle
-            - name: SHARE
-              value: "data;/share;yes;no;no;kyle"
-            - name: TZ
-              value: "America/Los_Angeles"
+            - name: SAMBACC_VERSION
+              value: "0.1"
+            - name: SAMBACC_CONFIG
+              value: /etc/samba-container-base/config.json:/etc/samba-container/users.json
+            - name: SAMBA_CONTAINER_ID
+              value: samba-gateway
           ports:
             - containerPort: 445
               name: smb
@@ -54,7 +74,7 @@ spec:
           readinessProbe:
             tcpSocket:
               port: 445
-            initialDelaySeconds: 10
+            initialDelaySeconds: 15
             periodSeconds: 15
           resources:
             requests:
@@ -62,13 +82,31 @@ spec:
               memory: 256Mi
             limits:
               cpu: "500m"
-              memory: "1Gi"
+              memory: 1Gi
           volumeMounts:
+            - name: samba-config
+              mountPath: /etc/samba-container-base
+              readOnly: true
+            - name: samba-users
+              mountPath: /etc/samba-container
+            - name: samba-state
+              mountPath: /var/lib/samba
             - name: share
               mountPath: /share
-      # MVP keeps this privileged (smbd needs root + the JuiceFS FUSE mount).
-      # Tighten with a non-root securityContext once you move to LDAP/Keycloak.
       volumes:
+        - name: samba-config
+          configMap:
+            name: samba-gateway-config
+        - name: samba-users
+          emptyDir: {}
+        - name: samba-state
+          emptyDir: {}
+        - name: samba-credentials
+          secret:
+            secretName: samba-credentials
+            items:
+              - key: user
+                path: user
         - name: share
           persistentVolumeClaim:
             claimName: samba-share

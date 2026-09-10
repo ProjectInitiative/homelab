@@ -3,5 +3,6 @@ kind: Kustomization
 namespace: samba
 resources:
   - pvc.yaml
+  - samba-config.yaml
   - deployment.yaml
   - service-lb.yaml
