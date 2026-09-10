@@ -1,0 +1,753 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: deepseek
+  namespace: llm-test
+spec:
+  selector:
+    app: deepseek-head
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: deepseek-worker
+  namespace: llm-test
+spec:
+  selector:
+    app: deepseek-worker
+  ports:
+    - name: startup
+      port: 9090
+      targetPort: 9090
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai
+  namespace: llm-test
+  annotations:
+    tailscale.com/hostname: "deepseek-vllm"
+    tailscale.com/proxy-group: mc-ingress-proxy
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  selector:
+    app: deepseek
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deepseek-head
+  namespace: llm-test
+  labels:
+    app: deepseek-head
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: deepseek-head
+  template:
+    metadata:
+      labels:
+        app: deepseek-head
+    spec:
+      runtimeClassName: nvidia
+      hostNetwork: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      serviceAccountName: vllm
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      terminationGracePeriodSeconds: 10
+      initContainers:
+        - name: stage-local-model
+          image: ghcr.io/anemll/dspark-vllm-gx10:0.1.1
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              SRC=/models/.cache/huggingface/models--deepseek-ai--DeepSeek-V4-Flash-Vision-Exp/snapshots/86f746b36186f0e567729a5c06a8c918caba82a9
+              DST=/local-models/deepseek-v4-flash-vision-exp
+              if [ ! -f /local-models/.deepseek-v4-flash-vision-exp.complete ]; then
+                test -f "$SRC/config.json"
+                find "$DST.partial" -mindepth 1 -delete 2>/dev/null || true
+                mkdir -p "$DST.partial"
+                echo "Staging pinned checkpoint to node-local storage"
+                cp -aL "$SRC"/. "$DST.partial"/
+                mv "$DST.partial" "$DST"
+                touch /local-models/.deepseek-v4-flash-vision-exp.complete
+              else
+                echo "Node-local checkpoint already staged"
+              fi
+              test -f "$DST/config.json"
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: local-models
+              mountPath: /local-models
+        - name: install-vision-exp-patches
+          image: ghcr.io/anemll/dspark-vllm-gx10:0.1.1
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              mkdir -p /vision-runtime/vision_exp
+              cp /patch-root/hotfix-dsv4-vision-exp.py /vision-runtime/vision-exp-hotfix.py
+              cp /patch-root/vision-exp-apply.sh /vision-runtime/vision-exp-apply.sh
+              cp /patch-deps/*.py /vision-runtime/vision_exp/
+          volumeMounts:
+            - name: vision-runtime
+              mountPath: /vision-runtime
+            - name: vision-patch-root
+              mountPath: /patch-root
+            - name: vision-patch-deps
+              mountPath: /patch-deps
+        - name: wait-for-worker
+          image: ghcr.io/anemll/dspark-vllm-gx10:0.1.1
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              until curl -fsS http://172.16.5.56:9090/ >/dev/null; do
+                echo "waiting for rank-1 worker to start"
+                sleep 2
+              done
+      containers:
+        - name: vllm
+          image: ghcr.io/anemll/dspark-vllm-gx10:0.1.1
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface
+                  key: HF_TOKEN
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            - name: VLLM_WORKER_MULTIPROC_METHOD
+              value: spawn
+            - name: HF_HUB_OFFLINE
+              value: "1"
+            - name: VLLM_HOST_IP
+              value: 172.16.5.55
+            - name: CUTE_DSL_ARCH
+              value: sm_121a
+            - name: VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS
+              value: "1800"
+            - name: TILELANG_CACHE_DIR
+              value: /cache/jit/tilelang
+            - name: TRITON_CACHE_DIR
+              value: /cache/jit/triton
+            - name: B12X_CUTE_COMPILE_CACHE_DIR
+              value: /cache/jit/b12x-cute
+            - name: TORCH_CUDA_ARCH_LIST
+              value: 12.1a
+            - name: FLASHINFER_CUDA_ARCH_LIST
+              value: 12.1a
+            - name: FLASHINFER_DISABLE_VERSION_CHECK
+              value: "1"
+            - name: TILELANG_CLEANUP_TEMP_FILES
+              value: "1"
+            - name: VLLM_USE_B12X_MOE
+              value: "1"
+            - name: PYTORCH_CUDA_ALLOC_CONF
+              value: expandable_segments:True
+            - name: NCCL_NET
+              value: IB
+            - name: NCCL_IB_DISABLE
+              value: "0"
+            - name: NCCL_IB_HCA
+              value: "=mlx5_1:1"
+            - name: NCCL_IB_ADDR_FAMILY
+              value: AF_INET
+            - name: NCCL_IB_ROCE_VERSION_NUM
+              value: "2"
+            - name: NCCL_CROSS_NIC
+              value: "1"
+            - name: NCCL_CUMEM_ENABLE
+              value: "0"
+            - name: NCCL_SOCKET_IFNAME
+              value: enp1s0f1np1
+            - name: GLOO_SOCKET_IFNAME
+              value: enp1s0f1np1
+            - name: TP_SOCKET_IFNAME
+              value: enp1s0f1np1
+            - name: NCCL_IGNORE_CPU_AFFINITY
+              value: "1"
+            - name: NCCL_DEBUG
+              value: WARN
+            - name: NCCL_NVLS_ENABLE
+              value: "0"
+            - name: VLLM_USE_BREAKABLE_CUDAGRAPH
+              value: "0"
+            - name: VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS
+              value: "0"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: PYTHONFAULTHANDLER
+              value: "1"
+            - name: VLLM_LOGGING_LEVEL
+              value: DEBUG
+            - name: TORCH_SHOW_CPP_STACKTRACES
+              value: "1"
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              exec > >(stdbuf -oL -eL tee -a /diagnostics/chronometer-vllm.log) 2>&1
+              export PYTHONUNBUFFERED=1 PYTHONFAULTHANDLER=1 VLLM_LOGGING_LEVEL=DEBUG TORCH_SHOW_CPP_STACKTRACES=1
+              set -euo pipefail
+              MAIN_PID=$$
+              CGROUP_REL=$(sed 's/^[^:]*:[^:]*://' /proc/self/cgroup)
+              CGROUP=/sys/fs/cgroup${CGROUP_REL}
+              printf 'cgroup_path=%s\n' "$CGROUP" | tee -a /diagnostics/chronometer-cgroup.log
+              (
+                while true; do
+                  date -Ins
+                  grep -E '^(MemTotal|MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|Active\(anon\)|Inactive\(anon\)|AnonPages|Mapped|Shmem|Slab|SReclaimable|SUnreclaim|KReclaimable|Unevictable|Mlocked|SwapFree):' /proc/meminfo
+                  sleep 1
+                done
+              ) >> /diagnostics/chronometer-memory.log 2>&1 &
+              (
+                while true; do
+                  date -Ins
+                  for f in memory.current memory.peak memory.max memory.high memory.events memory.events.local memory.stat; do
+                    echo "--- $f ---"
+                    cat "$CGROUP/$f" 2>&1 || true
+                  done
+                  sleep 1
+                done
+              ) >> /diagnostics/chronometer-cgroup.log 2>&1 &
+              ulimit -l unlimited || true
+              ulimit -s 65536 || true
+              MODEL_ROOT=/local-models/deepseek-v4-flash-vision-exp
+              MODEL_REVISION=86f746b36186f0e567729a5c06a8c918caba82a9
+              MODEL_DIR="$MODEL_ROOT"
+              test -f "$MODEL_DIR/config.json"
+              test -f "$MODEL_DIR/encoding/encoding_dsv4.py"
+              cp "$MODEL_DIR/encoding/encoding_dsv4.py" /usr/local/lib/python3.12/dist-packages/vllm/tokenizers/deepseek_v4_encoding.py
+              mkdir -p /opt/dspark-patches/vision_exp
+              cp /vision-runtime/vision-exp-hotfix.py /opt/vision-exp-hotfix.py
+              cp /vision-runtime/vision_exp/*.py /opt/dspark-patches/vision_exp/
+              bash /vision-runtime/vision-exp-apply.sh
+              echo "Loading DeepSeek Vision-Exp from local snapshot $MODEL_DIR"
+              echo "Memory before unconditional cache reclamation:"
+              grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|AnonPages|Mapped|SReclaimable):' /proc/meminfo
+              sync
+              echo 3 > /proc/sys/vm/drop_caches
+              echo "Memory after unconditional cache reclamation:"
+              grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|AnonPages|Mapped|SReclaimable):' /proc/meminfo
+              python3 - <<'PY'
+              import torch
+              free, total = torch.cuda.mem_get_info()
+              print(
+                  f"CUDA immediately before vLLM: "
+                  f"free={free/2**30:.2f} GiB "
+                  f"total={total/2**30:.2f} GiB"
+              )
+              PY
+              export PATH="/usr/local/cuda/bin:${PATH:-}"
+              export CUDA_HOME="${CUDA_HOME:-/usr/local/cuda}"
+              export CUDA_PATH="${CUDA_PATH:-$CUDA_HOME}"
+              export CUDAToolkit_ROOT="${CUDAToolkit_ROOT:-$CUDA_HOME}"
+              export LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-}"
+              REAL_LIBCUDA=/usr/lib/aarch64-linux-gnu/libcuda.so.1
+              test -f "$REAL_LIBCUDA"
+              test "$(readlink -f "$REAL_LIBCUDA")" != */stubs/libcuda.so
+              mkdir -p /run/triton-cuda-driver
+              ln -sfn "$REAL_LIBCUDA" /run/triton-cuda-driver/libcuda.so.1
+              ln -sfn "$REAL_LIBCUDA" /run/triton-cuda-driver/libcuda.so
+              export TRITON_LIBCUDA_PATH=/run/triton-cuda-driver
+              export LD_LIBRARY_PATH="/run/triton-cuda-driver:/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-}"
+              {
+                echo "CUDA runtime environment before vLLM"; date -Ins
+                printf 'PATH=%s\nCUDA_HOME=%s\nCUDA_PATH=%s\nCUDAToolkit_ROOT=%s\nLD_LIBRARY_PATH=%s\nTRITON_LIBCUDA_PATH=%s\n' "$PATH" "$CUDA_HOME" "$CUDA_PATH" "$CUDAToolkit_ROOT" "$LD_LIBRARY_PATH" "$TRITON_LIBCUDA_PATH"
+                echo '=== driver links ==='; ls -l /run/triton-cuda-driver
+                echo '=== ldconfig ==='; /sbin/ldconfig -p 2>/dev/null | grep -E 'libcuda\\.so' || true
+                echo '=== filesystem ==='; find /usr /lib /usr/local -type f -o -type l 2>/dev/null | grep -E '/libcuda\\.so(\\.|$)' | sort -u || true
+                python3 - <<'PY'
+              import ctypes, pathlib, triton
+              for name in ('libcuda.so.1', 'libcuda.so'):
+                  try: print(name, 'OK', ctypes.CDLL(name))
+                  except Exception as e: print(name, 'FAILED', repr(e)); raise
+              print('triton:', triton.__version__)
+              root = pathlib.Path(triton.__file__).resolve().parent
+              for p in root.rglob('driver.py'):
+                  text = p.read_text(errors='ignore')
+                  if 'libcuda' in text:
+                      print('triton driver:', p)
+                      for i, line in enumerate(text.splitlines(), 1):
+                          if any(x in line for x in ('libcuda', 'TRITON_LIBCUDA_PATH', 'ldconfig')): print(f'{i}: {line}')
+              PY
+              } >> /diagnostics/chronometer-cuda-libs.log 2>&1
+              export TILELANG_CACHE_DIR=/cache/jit/tilelang
+              export TRITON_CACHE_DIR=/cache/jit/triton
+              export B12X_CUTE_COMPILE_CACHE_DIR=/cache/jit/b12x-cute
+              mkdir -p "$TILELANG_CACHE_DIR" "$TRITON_CACHE_DIR" "$B12X_CUTE_COMPILE_CACHE_DIR"
+              {
+                echo "JIT cache environment before vLLM"; date -Ins
+                printf 'TILELANG_CACHE_DIR=%s\nTRITON_CACHE_DIR=%s\nB12X_CUTE_COMPILE_CACHE_DIR=%s\n' "$TILELANG_CACHE_DIR" "$TRITON_CACHE_DIR" "$B12X_CUTE_COMPILE_CACHE_DIR"
+                find /cache/jit -maxdepth 2 -type f | head -100 || true
+              } >> /diagnostics/chronometer-jit-cache.log 2>&1
+              exec vllm serve "$MODEL_DIR" \
+                --host 0.0.0.0 --port 8000 \
+                --trust-remote-code \
+                --tokenizer-mode deepseek_v4 \
+                --moe-backend flashinfer_b12x \
+                --safetensors-load-strategy lazy \
+                --distributed-executor-backend mp \
+                --tensor-parallel-size 2 \
+                --nnodes 2 \
+                --node-rank 0 \
+                --master-addr 172.16.5.55 \
+                --master-port 25000 \
+                --gpu-memory-utilization 0.82 \
+                --kv-cache-dtype nvfp4_ds_mla \
+                --block-size 256 \
+                --max-model-len 1048576 \
+                --max-num-seqs 6 \
+                --max-num-batched-tokens 8192 \
+                --enable-prefix-caching --enable-chunked-prefill \
+                --speculative-config '{"method":"dspark","num_speculative_tokens":6,"draft_sample_method":"probabilistic"}' \
+                --allowed-local-media-path /models
+          ports:
+            - name: http
+              containerPort: 8000
+          resources:
+            requests:
+              cpu: "16"
+              memory: 64Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "32"
+              memory: 128Gi
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: local-models
+              mountPath: /local-models
+            - name: dshm
+              mountPath: /dev/shm
+            - name: diagnostics
+              mountPath: /diagnostics
+            - name: vision-runtime
+              mountPath: /vision-runtime
+            - name: infiniband
+              mountPath: /dev/infiniband
+            - name: jit-cache
+              mountPath: /cache/jit
+      volumes:
+        - name: vision-runtime
+          emptyDir: {}
+        - name: vision-patch-root
+          configMap:
+            name: miaai-vision-exp-root
+        - name: vision-patch-deps
+          configMap:
+            name: miaai-vision-exp-deps
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+        - name: local-models
+          hostPath:
+            path: /var/lib/llm-test/deepseek-local
+            type: DirectoryOrCreate
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Gi
+        - name: diagnostics
+          hostPath:
+            path: /var/lib/llm-test/diagnostics
+            type: DirectoryOrCreate
+        - name: infiniband
+          hostPath:
+            path: /dev/infiniband
+            type: Directory
+        - name: jit-cache
+          hostPath:
+            path: /var/lib/llm-test/jit-cache
+            type: DirectoryOrCreate
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deepseek-worker
+  namespace: llm-test
+  labels:
+    app: deepseek-worker
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: deepseek-worker
+  template:
+    metadata:
+      labels:
+        app: deepseek-worker
+    spec:
+      runtimeClassName: nvidia
+      hostNetwork: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      serviceAccountName: vllm
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+      nodeSelector:
+        kubernetes.io/hostname: sextant
+      terminationGracePeriodSeconds: 10
+      initContainers:
+        - name: stage-local-model
+          image: ghcr.io/anemll/dspark-vllm-gx10:0.1.1
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              SRC=/models/.cache/huggingface/models--deepseek-ai--DeepSeek-V4-Flash-Vision-Exp/snapshots/86f746b36186f0e567729a5c06a8c918caba82a9
+              DST=/local-models/deepseek-v4-flash-vision-exp
+              if [ ! -f /local-models/.deepseek-v4-flash-vision-exp.complete ]; then
+                test -f "$SRC/config.json"
+                find "$DST.partial" -mindepth 1 -delete 2>/dev/null || true
+                mkdir -p "$DST.partial"
+                echo "Staging pinned checkpoint to node-local storage"
+                cp -aL "$SRC"/. "$DST.partial"/
+                mv "$DST.partial" "$DST"
+                touch /local-models/.deepseek-v4-flash-vision-exp.complete
+              else
+                echo "Node-local checkpoint already staged"
+              fi
+              test -f "$DST/config.json"
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: local-models
+              mountPath: /local-models
+        - name: install-vision-exp-patches
+          image: ghcr.io/anemll/dspark-vllm-gx10:0.1.1
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              mkdir -p /vision-runtime/vision_exp
+              cp /patch-root/hotfix-dsv4-vision-exp.py /vision-runtime/vision-exp-hotfix.py
+              cp /patch-root/vision-exp-apply.sh /vision-runtime/vision-exp-apply.sh
+              cp /patch-deps/*.py /vision-runtime/vision_exp/
+          volumeMounts:
+            - name: vision-runtime
+              mountPath: /vision-runtime
+            - name: vision-patch-root
+              mountPath: /patch-root
+            - name: vision-patch-deps
+              mountPath: /patch-deps
+        - name: wait-for-model
+          image: ghcr.io/anemll/dspark-vllm-gx10:0.1.1
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              until test -f /models/.deepseek-vision-exp-download-complete; do
+                echo "waiting for pinned Vision-Exp cache"
+                sleep 5
+              done
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      containers:
+        - name: vllm-worker
+          image: ghcr.io/anemll/dspark-vllm-gx10:0.1.1
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          env:
+            - name: CUTE_DSL_ARCH
+              value: sm_121a
+            - name: VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS
+              value: "1800"
+            - name: TILELANG_CACHE_DIR
+              value: /cache/jit/tilelang
+            - name: TRITON_CACHE_DIR
+              value: /cache/jit/triton
+            - name: B12X_CUTE_COMPILE_CACHE_DIR
+              value: /cache/jit/b12x-cute
+            - name: TORCH_CUDA_ARCH_LIST
+              value: 12.1a
+            - name: FLASHINFER_CUDA_ARCH_LIST
+              value: 12.1a
+            - name: FLASHINFER_DISABLE_VERSION_CHECK
+              value: "1"
+            - name: TILELANG_CLEANUP_TEMP_FILES
+              value: "1"
+            - name: VLLM_USE_B12X_MOE
+              value: "1"
+            - name: PYTORCH_CUDA_ALLOC_CONF
+              value: expandable_segments:True
+            - name: NCCL_NET
+              value: IB
+            - name: NCCL_IB_DISABLE
+              value: "0"
+            - name: NCCL_IB_HCA
+              value: "=mlx5_1:1"
+            - name: NCCL_IB_ADDR_FAMILY
+              value: AF_INET
+            - name: NCCL_IB_ROCE_VERSION_NUM
+              value: "2"
+            - name: NCCL_CROSS_NIC
+              value: "1"
+            - name: NCCL_CUMEM_ENABLE
+              value: "0"
+            - name: NCCL_SOCKET_IFNAME
+              value: enp1s0f1np1
+            - name: GLOO_SOCKET_IFNAME
+              value: enp1s0f1np1
+            - name: TP_SOCKET_IFNAME
+              value: enp1s0f1np1
+            - name: NCCL_IGNORE_CPU_AFFINITY
+              value: "1"
+            - name: NCCL_DEBUG
+              value: WARN
+            - name: NCCL_NVLS_ENABLE
+              value: "0"
+            - name: VLLM_USE_BREAKABLE_CUDAGRAPH
+              value: "0"
+            - name: VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS
+              value: "0"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: PYTHONFAULTHANDLER
+              value: "1"
+            - name: VLLM_LOGGING_LEVEL
+              value: DEBUG
+            - name: TORCH_SHOW_CPP_STACKTRACES
+              value: "1"
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              exec > >(stdbuf -oL -eL tee -a /diagnostics/sextant-vllm.log) 2>&1
+              export PYTHONUNBUFFERED=1 PYTHONFAULTHANDLER=1 VLLM_LOGGING_LEVEL=DEBUG TORCH_SHOW_CPP_STACKTRACES=1
+              set -euo pipefail
+              MAIN_PID=$$
+              CGROUP_REL=$(sed 's/^[^:]*:[^:]*://' /proc/self/cgroup)
+              CGROUP=/sys/fs/cgroup${CGROUP_REL}
+              printf 'cgroup_path=%s\n' "$CGROUP" | tee -a /diagnostics/sextant-cgroup.log
+              (
+                while true; do
+                  date -Ins
+                  grep -E '^(MemTotal|MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|Active\(anon\)|Inactive\(anon\)|AnonPages|Mapped|Shmem|Slab|SReclaimable|SUnreclaim|KReclaimable|Unevictable|Mlocked|SwapFree):' /proc/meminfo
+                  sleep 1
+                done
+              ) >> /diagnostics/sextant-memory.log 2>&1 &
+              (
+                while true; do
+                  date -Ins
+                  for f in memory.current memory.peak memory.max memory.high memory.events memory.events.local memory.stat; do
+                    echo "--- $f ---"
+                    cat "$CGROUP/$f" 2>&1 || true
+                  done
+                  sleep 1
+                done
+              ) >> /diagnostics/sextant-cgroup.log 2>&1 &
+              ulimit -l unlimited || true
+              ulimit -s 65536 || true
+              rm -f /coordination/rank1-starting
+              touch /coordination/rank1-starting
+              trap 'rm -f /coordination/rank1-starting' EXIT
+              MODEL_ROOT=/local-models/deepseek-v4-flash-vision-exp
+              MODEL_REVISION=86f746b36186f0e567729a5c06a8c918caba82a9
+              MODEL_DIR="$MODEL_ROOT"
+              test -f "$MODEL_DIR/config.json"
+              test -f "$MODEL_DIR/encoding/encoding_dsv4.py"
+              cp "$MODEL_DIR/encoding/encoding_dsv4.py" /usr/local/lib/python3.12/dist-packages/vllm/tokenizers/deepseek_v4_encoding.py
+              mkdir -p /opt/dspark-patches/vision_exp
+              cp /vision-runtime/vision-exp-hotfix.py /opt/vision-exp-hotfix.py
+              cp /vision-runtime/vision_exp/*.py /opt/dspark-patches/vision_exp/
+              bash /vision-runtime/vision-exp-apply.sh
+              echo "Loading DeepSeek Vision-Exp from local snapshot $MODEL_DIR"
+              echo "Memory before unconditional cache reclamation:"
+              grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|AnonPages|Mapped|SReclaimable):' /proc/meminfo
+              sync
+              echo 3 > /proc/sys/vm/drop_caches
+              echo "Memory after unconditional cache reclamation:"
+              grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|AnonPages|Mapped|SReclaimable):' /proc/meminfo
+              python3 - <<'PY'
+              import torch
+              free, total = torch.cuda.mem_get_info()
+              print(
+                  f"CUDA immediately before vLLM: "
+                  f"free={free/2**30:.2f} GiB "
+                  f"total={total/2**30:.2f} GiB"
+              )
+              PY
+              export PATH="/usr/local/cuda/bin:${PATH:-}"
+              export CUDA_HOME="${CUDA_HOME:-/usr/local/cuda}"
+              export CUDA_PATH="${CUDA_PATH:-$CUDA_HOME}"
+              export CUDAToolkit_ROOT="${CUDAToolkit_ROOT:-$CUDA_HOME}"
+              export LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-}"
+              REAL_LIBCUDA=/usr/lib/aarch64-linux-gnu/libcuda.so.1
+              test -f "$REAL_LIBCUDA"
+              test "$(readlink -f "$REAL_LIBCUDA")" != */stubs/libcuda.so
+              mkdir -p /run/triton-cuda-driver
+              ln -sfn "$REAL_LIBCUDA" /run/triton-cuda-driver/libcuda.so.1
+              ln -sfn "$REAL_LIBCUDA" /run/triton-cuda-driver/libcuda.so
+              export TRITON_LIBCUDA_PATH=/run/triton-cuda-driver
+              export LD_LIBRARY_PATH="/run/triton-cuda-driver:/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-}"
+              {
+                echo "CUDA runtime environment before vLLM"; date -Ins
+                printf 'PATH=%s\nCUDA_HOME=%s\nCUDA_PATH=%s\nCUDAToolkit_ROOT=%s\nLD_LIBRARY_PATH=%s\nTRITON_LIBCUDA_PATH=%s\n' "$PATH" "$CUDA_HOME" "$CUDA_PATH" "$CUDAToolkit_ROOT" "$LD_LIBRARY_PATH" "$TRITON_LIBCUDA_PATH"
+                echo '=== driver links ==='; ls -l /run/triton-cuda-driver
+                echo '=== ldconfig ==='; /sbin/ldconfig -p 2>/dev/null | grep -E 'libcuda\\.so' || true
+                echo '=== filesystem ==='; find /usr /lib /usr/local -type f -o -type l 2>/dev/null | grep -E '/libcuda\\.so(\\.|$)' | sort -u || true
+                python3 - <<'PY'
+              import ctypes, pathlib, triton
+              for name in ('libcuda.so.1', 'libcuda.so'):
+                  try: print(name, 'OK', ctypes.CDLL(name))
+                  except Exception as e: print(name, 'FAILED', repr(e)); raise
+              print('triton:', triton.__version__)
+              root = pathlib.Path(triton.__file__).resolve().parent
+              for p in root.rglob('driver.py'):
+                  text = p.read_text(errors='ignore')
+                  if 'libcuda' in text:
+                      print('triton driver:', p)
+                      for i, line in enumerate(text.splitlines(), 1):
+                          if any(x in line for x in ('libcuda', 'TRITON_LIBCUDA_PATH', 'ldconfig')): print(f'{i}: {line}')
+              PY
+              } >> /diagnostics/sextant-cuda-libs.log 2>&1
+              export TILELANG_CACHE_DIR=/cache/jit/tilelang
+              export TRITON_CACHE_DIR=/cache/jit/triton
+              export B12X_CUTE_COMPILE_CACHE_DIR=/cache/jit/b12x-cute
+              mkdir -p "$TILELANG_CACHE_DIR" "$TRITON_CACHE_DIR" "$B12X_CUTE_COMPILE_CACHE_DIR"
+              {
+                echo "JIT cache environment before vLLM"; date -Ins
+                printf 'TILELANG_CACHE_DIR=%s\nTRITON_CACHE_DIR=%s\nB12X_CUTE_COMPILE_CACHE_DIR=%s\n' "$TILELANG_CACHE_DIR" "$TRITON_CACHE_DIR" "$B12X_CUTE_COMPILE_CACHE_DIR"
+                find /cache/jit -maxdepth 2 -type f | head -100 || true
+              } >> /diagnostics/sextant-jit-cache.log 2>&1
+              exec vllm serve "$MODEL_DIR" \
+                --trust-remote-code \
+                --tokenizer-mode deepseek_v4 \
+                --moe-backend flashinfer_b12x \
+                --safetensors-load-strategy lazy \
+                --distributed-executor-backend mp \
+                --tensor-parallel-size 2 \
+                --nnodes 2 \
+                --node-rank 1 \
+                --master-addr 172.16.5.55 \
+                --master-port 25000 \
+                --headless \
+                --gpu-memory-utilization 0.82 \
+                --kv-cache-dtype nvfp4_ds_mla \
+                --block-size 256 \
+                --max-model-len 1048576 \
+                --max-num-seqs 6 \
+                --max-num-batched-tokens 8192 \
+                --enable-prefix-caching --enable-chunked-prefill \
+                --speculative-config '{"method":"dspark","num_speculative_tokens":6,"draft_sample_method":"probabilistic"}' \
+                --allowed-local-media-path /models
+          resources:
+            requests:
+              cpu: "16"
+              memory: 64Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "32"
+              memory: 128Gi
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: local-models
+              mountPath: /local-models
+            - name: dshm
+              mountPath: /dev/shm
+            - name: diagnostics
+              mountPath: /diagnostics
+            - name: vision-runtime
+              mountPath: /vision-runtime
+            - name: infiniband
+              mountPath: /dev/infiniband
+            - name: jit-cache
+              mountPath: /cache/jit
+            - name: coordination
+              mountPath: /coordination
+        - name: startup-marker
+          image: ghcr.io/anemll/dspark-vllm-gx10:0.1.1
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              while test ! -f /coordination/rank1-starting; do sleep 1; done
+              python3 -m http.server 9090 --directory /coordination --bind 0.0.0.0 &
+              server=$!
+              while test -f /coordination/rank1-starting; do sleep 1; done
+              kill "$server" 2>/dev/null || true
+              wait "$server" 2>/dev/null || true
+              exit 1
+          ports:
+            - name: startup
+              containerPort: 9090
+          volumeMounts:
+            - name: coordination
+              mountPath: /coordination
+      volumes:
+        - name: vision-runtime
+          emptyDir: {}
+        - name: vision-patch-root
+          configMap:
+            name: miaai-vision-exp-root
+        - name: vision-patch-deps
+          configMap:
+            name: miaai-vision-exp-deps
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+        - name: local-models
+          hostPath:
+            path: /var/lib/llm-test/deepseek-local
+            type: DirectoryOrCreate
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Gi
+        - name: diagnostics
+          hostPath:
+            path: /var/lib/llm-test/diagnostics
+            type: DirectoryOrCreate
+        - name: infiniband
+          hostPath:
+            path: /dev/infiniband
+            type: Directory
+        - name: coordination
+          emptyDir: {}
+        - name: jit-cache
+          hostPath:
+            path: /var/lib/llm-test/jit-cache
+            type: DirectoryOrCreate
+
+# Do not put the token in this file. VSO reads it from OpenBao and creates
+# Secret/huggingface above. Expected OpenBao KV-v2 location/key:
+# k8s/llm-test/huggingface, HF_TOKEN.

@@ -1,0 +1,23 @@
+---
+# Expose SMB over the tailnet. Matches the mcp-kubernetes pattern: a
+# tailscale LoadBalancer that fronts the service at \\<tailscale-host>\data.
+# If the proxy-group name differs for mc, patch it in clusters/mc.yaml like
+# the other tailscale services.
+apiVersion: v1
+kind: Service
+metadata:
+  name: samba-lb
+  labels:
+    app: samba-gateway
+  annotations:
+    tailscale.com/proxy-group: ingress-proxy
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  ports:
+    - name: smb
+      protocol: TCP
+      port: 445
+      targetPort: 445
+  selector:
+    app: samba-gateway

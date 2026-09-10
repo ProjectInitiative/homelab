@@ -37,3 +37,6 @@ vendor/
 # Snapshots (for migration verification)
 snapshot-baseline/
 snapshot-cdk8s/
+
+# pi session artifacts
+.pi-subagents/

@@ -262,6 +262,26 @@ catalog:
         - CreateNamespace=true
         - ServerSideApply=true
 
+  samba-gateway:
+    path: apps/base/samba-gateway/config
+    annotations:
+      argocd.argoproj.io/sync-wave: "60"
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      namespace: production
+      audiences:
+        - vault
+      secrets:
+        - name: samba-creds
+          mount: k8s
+          path: "samba/password"
+          destination: "samba-credentials"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
   juicefs-platform:
     path: bootstrap/base/juicefs-platform
     annotations:

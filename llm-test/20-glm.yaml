@@ -1,0 +1,80 @@
+# GLM-5.3-Flash-NVFP4 weight puller.
+#
+# This is intentionally suspended until DeepSeek is complete. Apply once:
+#   kubectl apply -f glm53-flash-download.yaml
+# Then, after DeepSeek is finished and overnight bandwidth is available:
+#   kubectl patch job glm53-flash-download -n llm-test \
+#     --type=merge -p '{"spec":{"suspend":false}}'
+#
+# The model is public. If Hugging Face rate limits anonymous downloads, add an
+# HF_TOKEN envFrom reference before unsuspending. The model is downloaded into
+# its own Hugging Face cache directory on the shared JuiceFS volume and does
+# not touch the DeepSeek checkpoint.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: glm53-flash-download
+  namespace: llm-test
+  labels:
+    app: glm53-flash-download
+    purpose: model-cache-preload
+spec:
+  suspend: true
+  backoffLimit: 2147483647
+  template:
+    metadata:
+      labels:
+        app: glm53-flash-download
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      containers:
+        - name: download
+          image: ghcr.io/miaai-lab/glm53-flash-spark:mm-ray-v1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            - name: HF_HUB_DISABLE_XET
+              value: "1"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              MODEL_ROOT="$HF_HOME/hub/models--LibertAIDAI--GLM-5.3-Flash-NVFP4"
+              # HF progress bars are often suppressed/buffered in Kubernetes logs.
+              # Report durable progress from the shared cache instead.
+              (
+                while true; do
+                  size=$(du -sh "$MODEL_ROOT" 2>/dev/null | awk '{print $1}')
+                  shards=$(find "$MODEL_ROOT/snapshots" -name '*.safetensors' 2>/dev/null | wc -l)
+                  echo "[$(date -u +%H:%M:%S)Z] GLM cache=${size:-unknown} safetensor_shards=${shards}"
+                  sleep 60
+                done
+              ) &
+              PROGRESS_PID=$!
+              trap 'kill "$PROGRESS_PID" 2>/dev/null || true' EXIT
+              python3 -u - <<'PY'
+              import os
+              from huggingface_hub import snapshot_download
+
+              snapshot_download(
+                  repo_id="LibertAIDAI/GLM-5.3-Flash-NVFP4",
+                  cache_dir=os.environ["HF_HOME"],
+                  token=os.environ.get("HF_TOKEN") or None,
+                  max_workers=1,
+                  resume_download=True,
+              )
+              print("GLM-5.3-Flash-NVFP4 download complete", flush=True)
+              PY
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache

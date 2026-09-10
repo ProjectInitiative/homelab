@@ -1,0 +1,116 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: llm-head
+  namespace: llm-test
+spec:
+  selector:
+    app: deepseek-parity-head # 👈 Kept target app selector intact
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llm-worker
+  namespace: llm-test
+spec:
+  selector:
+    app: deepseek-parity-worker # 👈 Kept target app selector intact
+  ports:
+    - name: startup
+      protocol: TCP
+      port: 9090
+      targetPort: 9090
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-proxy-config
+  namespace: llm-test
+data:
+  haproxy.cfg: |
+    global
+      log stdout format raw local0
+    defaults
+      mode tcp
+      timeout connect 5s
+      timeout client 1h
+      timeout server 1h
+    frontend vllm_api
+      bind :8000
+      default_backend vllm_head
+    backend vllm_head
+      server chronometer 172.16.4.55:8000 check
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-proxy
+  namespace: llm-test
+  labels:
+    app: ai-proxy
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ai-proxy
+  template:
+    metadata:
+      labels:
+        app: ai-proxy
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      containers:
+        - name: haproxy
+          image: haproxy:3.2-alpine
+          ports:
+            - name: http
+              containerPort: 8000
+          volumeMounts:
+            - name: config
+              mountPath: /usr/local/etc/haproxy/haproxy.cfg
+              subPath: haproxy.cfg
+      volumes:
+        - name: config
+          configMap:
+            name: ai-proxy-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-proxy
+  namespace: llm-test
+spec:
+  selector:
+    app: ai-proxy
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai
+  namespace: llm-test
+  annotations:
+    tailscale.com/hostname: "ai"
+    tailscale.com/proxy-group: mc-ingress-proxy
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  selector:
+    app: ai-proxy
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8000

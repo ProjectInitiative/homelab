@@ -1,0 +1,74 @@
+---
+# Minimal single-user Samba gateway over a JuiceFS RWX volume.
+# MVP: one replica, one user (via secret `samba-credentials`), one share `data`.
+#
+# Credentials come from Kubernetes Secret `samba-credentials` (key `user`),
+# which is created either by the VaultStaticSecret declared in apps.yaml, or
+# (for a same-day POC with no Vault path yet) by:
+#   kubectl create secret generic samba-credentials -n samba \
+#     --from-literal='user=kyle;REPLACE_ME'
+#
+# The value must be "<username>;<password>" because dperson/samba's `-u`/
+# USER takes that format. Update the username in the SHARE below to match.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: samba-gateway
+  labels:
+    app: samba-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: samba-gateway
+  template:
+    metadata:
+      labels:
+        app: samba-gateway
+    spec:
+      containers:
+        - name: samba
+          image: dperson/samba:latest
+          # -p = set ownership/permissions on the share so smbd can chdir into it.
+          args:
+            - "-p"
+          env:
+            # USER maps to dperson/samba's `-u "<username>;<password>"`.
+            # Split is read from the secret so the password is never in git.
+            - name: USER
+              valueFrom:
+                secretKeyRef:
+                  name: samba-credentials
+                  key: user
+            # SHARE maps to `-s "<name>;</path>[;browse;readonly;guest;users]"`.
+            # name=data, path=/share, browse=yes, readonly=no, guest=no, users=kyle
+            - name: SHARE
+              value: "data;/share;yes;no;no;kyle"
+            - name: TZ
+              value: "America/Los_Angeles"
+          ports:
+            - containerPort: 445
+              name: smb
+            - containerPort: 139
+              name: netbios
+          readinessProbe:
+            tcpSocket:
+              port: 445
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+          volumeMounts:
+            - name: share
+              mountPath: /share
+      # MVP keeps this privileged (smbd needs root + the JuiceFS FUSE mount).
+      # Tighten with a non-root securityContext once you move to LDAP/Keycloak.
+      volumes:
+        - name: share
+          persistentVolumeClaim:
+            claimName: samba-share

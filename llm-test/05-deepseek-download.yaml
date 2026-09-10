@@ -1,0 +1,55 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: deepseek-vision-download
+  namespace: llm-test
+  labels:
+    app: deepseek-vision-download
+spec:
+  backoffLimit: 20
+  template:
+    metadata:
+      labels:
+        app: deepseek-vision-download
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: download
+          image: ghcr.io/anemll/dspark-vllm-gx10:0.1.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            - name: HF_HUB_DISABLE_XET
+              value: "1"
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface
+                  key: HF_TOKEN
+                  optional: true
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              python3 -u -c '
+              import os
+              from huggingface_hub import snapshot_download
+              snapshot_download(
+                  repo_id="deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+                  revision="86f746b36186f0e567729a5c06a8c918caba82a9",
+                  cache_dir=os.environ["HF_HOME"],
+                  token=os.environ.get("HF_TOKEN") or None,
+                  max_workers=2,
+                  resume_download=True,
+              )
+              '
+              test -f /models/.cache/huggingface/models--deepseek-ai--DeepSeek-V4-Flash-Vision-Exp/snapshots/86f746b36186f0e567729a5c06a8c918caba82a9/tokenizer.json
+              touch /models/.deepseek-vision-exp-download-complete
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
