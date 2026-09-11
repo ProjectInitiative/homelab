@@ -2,15 +2,28 @@
 """Generic Hugging Face cache puller/deleter for the shared model volume.
 
 Model-agnostic: declare repos to pull and/or delete as parameters. Downloads are
-streamed by this script and rate-limited *in code* (a single token bucket shared
-across all files), so a large preload caps at RATE bytes/sec and leaves the rest
-of the site's bandwidth for work / household. No tc or iproute2 needed.
+streamed by this script and rate-limited *in code* (a single thread-safe token
+bucket shared across every file and every repo), so a large preload caps at RATE
+bytes/sec and leaves the rest of the site's bandwidth for work / household.
+
+Concurrency:
+  - Repos are pulled in parallel (bounded by MAX_REPO_WORKERS).
+  - Within each repo the files download in parallel (bounded by MAX_FILE_WORKERS).
+  - All workers share one RateLimiter, so aggregate bandwidth never exceeds RATE
+    no matter how many threads run.
+  - Deletes also run in parallel (bounded by MAX_DELETE_WORKERS).
+  Note: HuggingFace's snapshot_download itself parallelises files (max_workers),
+  but we replaced it with a custom streaming downloader to enforce the in-code
+  rate cap, so we re-add file-level concurrency here.
 
 Parameters (env):
   HF_HOME            required   HF cache root (default /models/.cache/huggingface)
   PULL_MODELS        optional   comma-separated 'repo@revision' entries (revision optional)
   DELETE_MODELS      optional   comma-separated HF repo ids (or bare cache dirs like models--org--name)
   RATE               optional   max bytes/sec across all pulls (default 104857600 = 100 MiB/s; 0 = unlimited)
+  MAX_FILE_WORKERS   optional   concurrent file downloads total (default 8)
+  MAX_REPO_WORKERS   optional   concurrent repos being pulled (default 2)
+  MAX_DELETE_WORKERS optional   concurrent deletes (default 4)
   HF_TOKEN           optional   token for gated / rate-limited repos
   HF_ENDPOINT        optional   override the Hugging Face endpoint
 """
@@ -18,12 +31,21 @@ import os
 import sys
 import time
 import shutil
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 DEFAULT_RATE = 104857600  # 100 MiB/s
 
 
 def log(*a):
     print("[puller]", *a, flush=True)
+
+
+def env_int(name, default):
+    try:
+        return int(os.environ.get(name, default))
+    except ValueError:
+        return default
 
 
 def cache_dirname(ref):
@@ -33,55 +55,92 @@ def cache_dirname(ref):
 
 
 class RateLimiter:
-    """Single token bucket shared across every file in the run."""
+    """Thread-safe aggregate rate limiter (pacing).
+
+    Each chunk reserves `n/rate` seconds on a shared virtual timeline; the worker
+    sleeps until its slot. This caps the *aggregate* throughput at `rate` bytes/sec
+    no matter how many threads are downloading concurrently, and avoids the
+    overshoot a naive shared credit bucket gets under concurrency.
+    """
 
     def __init__(self, rate):
         self.rate = float(rate)
-        self.credits = self.rate
-        self.last = time.monotonic()
+        self.lock = threading.Lock()
+        self.next_ok = 0.0  # monotonic deadline for the next byte budget
 
     def wait(self, n):
-        now = time.monotonic()
-        self.credits = min(self.rate, self.credits + (now - self.last) * self.rate)
-        self.last = now
-        if self.credits < n:
-            time.sleep((n - self.credits) / self.rate)
-            self.credits = 0.0
-        else:
-            self.credits -= n
+        budget = n / self.rate if n > 0 else 0.0
+        with self.lock:
+            now = time.monotonic()
+            if now > self.next_ok:
+                self.next_ok = now
+            self.next_ok += budget
+            deadline = self.next_ok
+        delay = deadline - time.monotonic()
+        if delay > 0:
+            time.sleep(delay)
 
 
-def delete_models(cache_root, specs):
+def _delete_one(cache_root, ref):
+    d = cache_dirname(ref)
+    hit = False
+    for base in (os.path.join(cache_root, "hub"), cache_root):
+        p = os.path.join(base, d)
+        if os.path.isdir(p):
+            log("deleting", p)
+            shutil.rmtree(p, ignore_errors=True)
+            hit = True
+    return (ref, d, hit)
+
+
+def delete_models(cache_root, specs, workers):
+    if not specs:
+        return 0
     total = 0
-    for ref in specs:
-        d = cache_dirname(ref)
-        hit = False
-        for base in (os.path.join(cache_root, "hub"), cache_root):
-            p = os.path.join(base, d)
-            if os.path.isdir(p):
-                log("deleting", p)
-                shutil.rmtree(p, ignore_errors=True)
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        futs = {ex.submit(_delete_one, cache_root, s): s for s in specs}
+        for fut in as_completed(futs):
+            ref, d, hit = fut.result()
+            if hit:
                 total += 1
-                hit = True
-        if not hit:
-            log("no cache dir for", ref, "(nothing to delete)")
+            else:
+                log("no cache dir for", ref, "(nothing to delete)")
     return total
 
 
-def pull_models(cache_root, specs, token, rate, endpoint):
+def _download_file(job, limiter, headers, base_host):
+    """job = (url, dest, rel). Returns (rel, bytes)."""
+    url, dest, rel, part = job
+    got = 0
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    if os.path.exists(part):
+        os.remove(part)
     import httpx
+    with httpx.stream("GET", url, headers=headers, follow_redirects=True, timeout=600) as r:
+        r.raise_for_status()
+        with open(part, "wb") as fh:
+            for chunk in r.iter_bytes(chunk_size=1 << 20):
+                if limiter:
+                    limiter.wait(len(chunk))
+                fh.write(chunk)
+                got += len(chunk)
+    os.replace(part, dest)
+    return (rel, got)
+
+
+def pull_models(cache_root, specs, token, rate, endpoint, file_workers, repo_workers):
+    import httpx  # noqa: F401
     from huggingface_hub import HfApi
 
     api = HfApi(token=token, endpoint=endpoint)
     limiter = RateLimiter(rate) if rate > 0 else None
     headers = {"Authorization": f"Bearer {token}"} if token else {}
-    base_host = "https://huggingface.co"
-    if endpoint:
-        base_host = endpoint.rstrip("/")
+    base_host = (endpoint or "https://huggingface.co").rstrip("/")
 
-    total_bytes = 0
-    for spec in specs:
-        repo, rev = (spec.rsplit("@", 1) if "@" in spec else (spec, None))
+    jobs = []  # (url, dest, rel, part)
+    refs = {}  # dname -> resolved rev (for refs/main after)
+
+    def resolve(repo, rev):
         log("resolving", repo, rev or "(default)")
         info = api.model_info(repo_id=repo, revision=rev or None, files_metadata=True)
         resolved = rev or info.sha
@@ -89,40 +148,52 @@ def pull_models(cache_root, specs, token, rate, endpoint):
         snap = os.path.join(cache_root, "hub", dname, "snapshots", resolved)
         os.makedirs(snap, exist_ok=True)
         base = f"{base_host}/{repo}/resolve/{resolved}"
-        n_files = 0
+        file_jobs = []
         for f in info.siblings:
             rel = f.rfilename
             size = getattr(f, "size", None)
             dest = os.path.join(snap, rel)
-            # Skip files that are already present and the expected size.
+            # Skip files already present and the expected size.
             if size is not None and os.path.isfile(dest) and os.path.getsize(dest) == size:
-                n_files += 1
                 continue
-            os.makedirs(os.path.dirname(dest), exist_ok=True)
-            part = dest + ".part"
-            if os.path.exists(part):
-                os.remove(part)
-            url = f"{base}/{rel}"
-            got = 0
-            with httpx.stream("GET", url, headers=headers, follow_redirects=True, timeout=600) as r:
-                r.raise_for_status()
-                with open(part, "wb") as fh:
-                    for chunk in r.iter_bytes(chunk_size=1 << 20):
-                        if limiter:
-                            limiter.wait(len(chunk))
-                        fh.write(chunk)
-                        got += len(chunk)
-            os.replace(part, dest)
+            file_jobs.append((f"{base}/{rel}", dest, rel, dest + ".part"))
+        refs[dname] = resolved
+        return file_jobs
+
+    # Resolve repos in parallel, then gather all file jobs.
+    all_jobs = []
+    with ThreadPoolExecutor(max_workers=repo_workers) as ex:
+        futs = {}
+        for spec in specs:
+            repo, rev = (spec.rsplit("@", 1) if "@" in spec else (spec, None))
+            futs[ex.submit(resolve, repo, rev)] = (repo, rev)
+        for fut in as_completed(futs):
+            repo, rev = futs[fut]
+            fjobs = fut.result()
+            log("queued", len(fjobs), "file job(s) for", repo, "@", rev or "")
+            all_jobs.extend(fjobs)
+
+    # Download all files in parallel; the shared limiter caps aggregate rate.
+    done = 0
+    total_bytes = 0
+    with ThreadPoolExecutor(max_workers=file_workers) as ex:
+        futs = {ex.submit(_download_file, j, limiter, headers, base_host): j for j in all_jobs}
+        for fut in as_completed(futs):
+            rel, got = fut.result()
+            done += 1
             total_bytes += got
-            n_files += 1
-            log(f"  {rel} -> {got} bytes" + (" (rate-limited)" if limiter else ""))
-        # Write refs/main so the parity serve / vllm resolution finds the snapshot.
+            if done % 10 == 0 or got == 0:
+                log(f"  {done}/{len(all_jobs)} files, {total_bytes/1e6:.1f} MB "
+                    + ("(rate-limited)" if limiter else ""))
+
+    # Write refs/main per repo so vllm / start.sh resolution works.
+    for dname, resolved in refs.items():
         refsdir = os.path.join(cache_root, "hub", dname, "refs")
         os.makedirs(refsdir, exist_ok=True)
         with open(os.path.join(refsdir, "main"), "w") as fh:
             fh.write(resolved)
-        log(f"complete {repo}@{resolved}: {n_files} files, {total_bytes} bytes total")
 
+    log(f"pulled {len(specs)} repo(s): {done} files, {total_bytes/1e6:.1f} MB")
     return total_bytes
 
 
@@ -131,19 +202,24 @@ def main():
     os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
     token = os.environ.get("HF_TOKEN")
     endpoint = os.environ.get("HF_ENDPOINT")
-    rate = int(os.environ.get("RATE", DEFAULT_RATE))
+    rate = env_int("RATE", DEFAULT_RATE)
+    file_workers = env_int("MAX_FILE_WORKERS", 8)
+    repo_workers = env_int("MAX_REPO_WORKERS", 2)
+    del_workers = env_int("MAX_DELETE_WORKERS", 4)
 
     pull = [s.strip() for s in os.environ.get("PULL_MODELS", "").split(",") if s.strip()]
     delete = [s.strip() for s in os.environ.get("DELETE_MODELS", "").split(",") if s.strip()]
 
-    log("cache_root=", cache_root, "rate=", rate)
+    log("cache_root=", cache_root, "rate=", rate,
+        "file_workers=", file_workers, "repo_workers=", repo_workers,
+        "del_workers=", del_workers)
     log("PULL:", pull)
     log("DELETE:", delete)
 
     if delete:
-        delete_models(cache_root, delete)
+        delete_models(cache_root, delete, del_workers)
     if pull:
-        pull_models(cache_root, pull, token, rate, endpoint)
+        pull_models(cache_root, pull, token, rate, endpoint, file_workers, repo_workers)
     if not pull and not delete:
         log("nothing to do (set PULL_MODELS and/or DELETE_MODELS)")
         sys.exit(2)

@@ -31,9 +31,9 @@ spec:
         kubernetes.io/hostname: chronometer
       containers:
         - name: puller
-          # v1 tag of the generic cache-puller; bumped on change (digest pinning is
-          # unreliable against this registry's stored digests).
-          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:v1
+          # v3: pacing-based rate limiter that holds the aggregate cap under
+          # concurrent workers (v2's credit bucket overshot). Bumped on change.
+          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:v3
           imagePullPolicy: IfNotPresent
           env:
             - name: HF_HOME
