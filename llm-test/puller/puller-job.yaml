@@ -1,0 +1,70 @@
+# llm-test/cache-puller — generic Hugging Face model cache puller/deleter.
+#
+# Reusable, model-agnostic image that preloads (or evicts) model caches on the
+# shared `model-cache` volume. Declare what to do purely via Job parameters;
+# throttling is enforced *in code* (token bucket on the HTTP session), so the
+# image stays tiny (python + huggingface_hub + requests + certs) and is fully
+# controllable at Job time without needing tc/iproute2 in either the image or the node.
+#
+# Build / push (arm64 node, e.g. chronometer):
+#   scp -r llm-test/puller chronometer:/tmp/puller-build
+#   ssh chronometer 'cd /tmp/puller-build && podman build -t \
+#       registry.taildeab2.ts.net/homelab/glm53-cache-puller:latest .'
+#   ssh chronometer 'podman push registry.taildeab2.ts.net/homelab/glm53-cache-puller:latest'
+#
+# Use (see puller-job.yaml for the concrete GLM example):
+#   PULL_MODELS   = comma-separated 'repo@revision' (revision optional)
+#   DELETE_MODELS = comma-separated repo ids (or cache dirs like models--org--name)
+#   RATE          = max bytes/sec across all pulls (default 104857600 = 100 MiB/s; 0 = unlimited)
+#   HF_HOME       = HF cache root (e.g. /models/.cache/huggingface)
+#
+# This is a *tool* image — DIFFERENT from the serve/caching image
+# (ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3) that the parity Deployments
+# run. The puller only populates the shared volume; the serve image only reads it.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # Rename per use, e.g. glm53-cache-pull or qwen-cache-pull.
+  name: cache-pull
+  namespace: llm-test
+  labels:
+    purpose: model-cache-preload
+spec:
+  backoffLimit: 2147483647
+  template:
+    metadata:
+      labels:
+        app: cache-pull
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      containers:
+        - name: puller
+          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            - name: RATE
+              value: "100000000"     # 100 MB/s (80% of a 1G link). 0 = unlimited.
+            - name: PULL_MODELS
+              value: "org/Model-Name@commit"
+            - name: DELETE_MODELS
+              value: "org/Old-Model"
+            - name: HF_HUB_DISABLE_XET
+              value: "1"
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface
+                  key: HF_TOKEN
+                  optional: true
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache

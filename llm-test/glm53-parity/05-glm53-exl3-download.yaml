@@ -1,0 +1,64 @@
+# GLM-5.3-Flash EXL3 (2x DGX-Spark) cache pull, using the generic cache-puller
+# image (llm-test/puller/). This is the reusable model-agnostic importer: declare
+# what to pull / delete as parameters; throttling is done in-code via RATE.
+#
+# Pulls:
+#   - Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw @ 25a44fd… (EXL3/TR3 4bpw ~164 GiB)
+#   - incoai/GLM-5.3-Flash-DFlash2 @ dc77ff1c… (k=7 draft ~2.3 GiB)
+# Deletes the stale NVFP4 variant (LibertAIDAI) from the shared cache.
+# RATE = 100,000,000 B/s (100 MB/s = 80% of the 1G site link), leaving bandwidth
+# for work / household. Set RATE=0 for unlimited.
+#
+# Reuse for any other model: change PULL_MODELS / DELETE_MODELS / RATE only.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: glm53-cache-pull
+  namespace: llm-test
+  labels:
+    app: glm53-cache-pull
+    purpose: model-cache-preload
+spec:
+  backoffLimit: 2147483647
+  template:
+    metadata:
+      labels:
+        app: glm53-cache-pull
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      containers:
+        - name: puller
+          # v1 tag of the generic cache-puller; bumped on change (digest pinning is
+          # unreliable against this registry's stored digests).
+          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:v1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            # 100 MB/s cap (~80% of the gigabit site link); adjust per-site.
+            - name: RATE
+              value: "100000000"
+            - name: PULL_MODELS
+              value: >-
+                Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw@25a44fdbf16862a46b7cc9921142c6c81350af2f,
+                incoai/GLM-5.3-Flash-DFlash2@dc77ff1c99eeb2df044ee3d4f0094eb033fee410
+            - name: DELETE_MODELS
+              value: "LibertAIDAI/GLM-5.3-Flash-NVFP4"
+            - name: HF_HUB_DISABLE_XET
+              value: "1"
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface
+                  key: HF_TOKEN
+                  optional: true
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
