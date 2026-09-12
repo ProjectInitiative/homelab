@@ -18,7 +18,8 @@ upstream MiaAI Lab recipe
   (`patch_adaptive_k.py`, `patch_dense_fp8.py`) that are NOT baked into the image.
 - `12-glm53-parity.yaml` — parity Deployments (`glm53-exl3-head` on chronometer,
   `glm53-exl3-worker` on sextant), `replicas: 0`.
-- `services.yaml` — internal Services + HAProxy relay + Tailscale `glm` endpoint.
+- `services.yaml` — internal Services + HAProxy relay + Tailscale endpoint.
+- `13-glm53-warmup.yaml` — upstream DFlash/sampler/kpool post-ready warmup.
 - `12-glm53-profile.env` — the full resolved runtime profile (documentation).
 - `12-glm53-parity-diff.md` — parity comparison record.
 
@@ -63,20 +64,22 @@ You should see `models--Mia-AiLab--GLM-5.3-Flash-EXL3-TR3-4bpw` and
 
 ```bash
 kubectl apply --server-side -f llm-test/glm53-parity/12-glm53-assets.yaml
+kubectl apply --server-side -f llm-test/glm53-parity/13-glm53-warmup.yaml
 kubectl apply --server-side -f llm-test/glm53-parity/12-glm53-parity.yaml
 kubectl get deploy,cm -n llm-test | grep glm53
 ```
 
-## Step 3 — scale up (head rank 0 first, then worker rank 1)
+## Step 3 — scale up (worker rank 1 first, then head rank 0)
 
-vLLM multi-node uses the head (rank 0) as the coordinator; bring it up first so
-the worker can rendezvous via `--master-addr 172.16.5.55:29521`.
+This matches upstream `start.sh`: start the headless worker, then start the head
+coordinator/API. The head remains Kubernetes-unready until the API is healthy and
+the upstream boot-shape warmup completes.
 
 ```bash
-kubectl scale deploy glm53-exl3-head -n llm-test --replicas=1
-kubectl wait --for=condition=Ready pod -l app=glm53-exl3-head -n llm-test --timeout=1800s
 kubectl scale deploy glm53-exl3-worker -n llm-test --replicas=1
-kubectl wait --for=condition=Ready pod -l app=glm53-exl3-worker -n llm-test --timeout=1800s
+sleep 15
+kubectl scale deploy glm53-exl3-head -n llm-test --replicas=1
+kubectl wait --for=condition=Ready pod -l app=glm53-exl3-head -n llm-test --timeout=3600s
 ```
 
 ## Step 4 — expose (optional, only once running)
@@ -106,11 +109,16 @@ curl http://172.16.4.55:8000/v1/models
   delivered via `glm53-parity-overlay` and are **off by default**
   (`GLM53_ADAPTIVE_K=off`, `GLM53_DENSE_FP8=off`). The overlay loop guards each
   with `[ -f /opt/glm53/$p ]`.
-- Boot-shape warmup (`scripts/boot-shape-warmup.sh`) runs post-`/health` in
-  `start.sh` but is **nonfatal** and is not (yet) wired into this lane. It can be
-  added as a post-ready Job/sidecar if uncovered JIT shapes are a concern.
+- Boot-shape warmup is mounted from `13-glm53-warmup.yaml`, starts automatically
+  after `/health`, and gates the head pod's Kubernetes readiness. JIT warnings
+  emitted while this sweep runs are expected; successful readiness means its
+  DFlash, rejection-sampler, and kpool-tail shape requests completed.
 - The API key is read by vLLM natively via `VLLM_API_KEY` (never argv). Set it in
   the Deployment env or a Secret before scaling; empty = unauthenticated.
+- The validated headroom profile is `MAX_MODEL_LEN=256000` with
+  `GPU_MEM_UTIL=0.88` and an explicit 10 GiB KV cap. This leaves approximately
+  10–13 GiB host `MemAvailable` after warmup instead of exhausting GB10 unified
+  memory. DFlash2 remains TP-sharded with `DFLASH_DRAFT_TP=2`.
 - `EXTRA_ARGS` ships the default DFlash2 CUDA-graph capture list
   `--cudagraph-capture-sizes 1 2 4 8 16 24 32`. The adaptive-k / FP8-dense
   fast paths need a longer list and a KV cap; see the upstream `.env.example`.

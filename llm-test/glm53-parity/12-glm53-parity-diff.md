@@ -13,16 +13,16 @@
 
 | Area | Classification | Details |
 |---|---|---|
-| Image, overlay patches, vLLM argv, env | IDENTICAL | Resolved from the pinned `start.sh` launch (docker run env + in-container serve script) |
+| Image, overlay patches, vLLM argv, env | PROFILE OVERRIDE | Pinned `start.sh` launch with API port 8000 and the upstream-tested 500k/0.84 headroom profile |
 | Model preparation | MODEL PREP EXCEPTION | No downloader/prepare runs in the parity pod; the pinned snapshots are mounted from the shared `model-cache` PVC and fail-closed via `test -f` |
 | RuntimeClass/GPU, host network/IPC, node pinning, Services, rank startup, InfiniBand | K8S PLATFORM ADAPTER | Required Kubernetes orchestration translation |
 | Runtime-only patches (`patch_adaptive_k.py`, `patch_dense_fp8.py`) | K8S PLATFORM ADAPTER | Delivered via ConfigMap (the image does not bake them; `start.sh` bind-mounts them). Guarded `[ -f ]` — OFF by default |
-| Boot-shape warmup | K8S PLATFORM ADAPTER (NOT WIRED) | `scripts/boot-shape-warmup.sh` post-`/health` is nonfatal and not yet added to this lane |
+| Boot-shape warmup | K8S PLATFORM ADAPTER | Upstream `scripts/boot-shape-warmup.sh` runs post-`/health`; successful completion gates head pod readiness |
 
 ## Pinned profile (default `.env` resolution)
 
-- `PORT=8888`, `TP=2`, `NNODES=2`, `MASTER_PORT=29521`
-- `MAX_MODEL_LEN=850000`, `GPU_MEM_UTIL=0.85`, `MAX_NUM_SEQS=4`, `MAX_NUM_BATCHED_TOKENS=7168`
+- `PORT=8000`, `TP=2`, `NNODES=2`, `MASTER_PORT=29521`
+- `MAX_MODEL_LEN=256000`, `GPU_MEM_UTIL=0.88`, `MAX_NUM_SEQS=4`, `MAX_NUM_BATCHED_TOKENS=7168`
 - `KV_CACHE_DTYPE=fp8`, `QUANTIZATION=exl3`, `SPEC_METHOD=dflash`, `DFLASH_TOKENS=7`, `DFLASH_DRAFT_TP=2`
 - `LANGUAGE_MODEL_ONLY=0`, `SKIP_MM_PROFILING=1`, `LIMIT_MM={"image":100,"video":1}`
 - `EXL3_FAT_GROUPED=1` (E3 grouped fat-expert), `EXL3_FAT_KERNEL=1`
@@ -34,13 +34,13 @@
 ```
 vllm serve <MODEL_DIR>
   --served-model-name GLM-5.3-Flash-EXL3
-  --host 0.0.0.0 --port 8888
+  --host 0.0.0.0 --port 8000
   --tensor-parallel-size 2 --nnodes 2 --node-rank 0
   --master-addr 172.16.5.55 --master-port 29521
   --distributed-executor-backend mp
   --tool-call-parser glm47 --enable-auto-tool-choice --reasoning-parser glm45
   --enable-prefix-caching --no-enable-flashinfer-autotune
-  --quantization exl3 --max-model-len 850000 --gpu-memory-utilization 0.85
+  --quantization exl3 --max-model-len 256000 --gpu-memory-utilization 0.88
   --max-num-seqs 4 --max-num-batched-tokens 7168 --kv-cache-dtype fp8
   --speculative-config '{"method":"dflash","model":<DFLASH_MODEL_DIR>,"num_speculative_tokens":7,
      "kv_cache_dtype":"auto","draft_sample_method":"probabilistic",
@@ -48,6 +48,7 @@ vllm serve <MODEL_DIR>
   --chat-template /opt/glm53/chat_template.jinja
   --limit-mm-per-prompt '{"image":100,"video":1}' --skip-mm-profiling
   --cudagraph-capture-sizes 1 2 4 8 16 24 32
+  --kv-cache-memory-bytes 10737418240
 ```
 
 Worker (rank 1) is identical except `--node-rank 1` and `--headless` immediately

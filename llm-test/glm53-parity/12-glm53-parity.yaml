@@ -185,6 +185,23 @@ spec:
               else
                 say "ablit: off — stock o_proj weights"
               fi
+              # Mirror upstream's post-ready DFlash/sampler/kpool warmup. Keep the
+              # pod unready until all cold-JIT shapes complete successfully.
+              rm -f /tmp/glm53-warmup-ready
+              (
+                until curl -fsS --max-time 10 "http://127.0.0.1:${PORT}/health" >/dev/null 2>&1; do sleep 5; done
+                say "API healthy; running boot shape warmup"
+                if GLM53_WARMUP_MAX_CONCURRENCY="${MAX_NUM_SEQS}" \
+                   GLM53_WARMUP_REQ_TIMEOUT=300 \
+                   GLM53_WARMUP_DFLASH_K="${DFLASH_TOKENS}" \
+                   GLM53_WARMUP_TRITON_CACHE_DIR="${TRITON_CACHE_DIR}" \
+                   bash /opt/glm53/boot-shape-warmup.sh "http://127.0.0.1:${PORT}" "${SERVED_MODEL_NAME}"; then
+                  touch /tmp/glm53-warmup-ready
+                  say "boot shape warmup complete; pod ready"
+                else
+                  say "ERROR: boot shape warmup failed; pod remains unready"
+                fi
+              ) &
               say "launching: vllm serve ${MODEL_DIR} ${ARGS[*]}"
               exec vllm serve "${MODEL_DIR}" "${ARGS[@]}"
           env:
@@ -210,8 +227,8 @@ spec:
             - {name: HEAD_IP, value: 172.16.5.55}
             - {name: MASTER_PORT, value: "29521"}
             - {name: QUANTIZATION, value: exl3}
-            - {name: MAX_MODEL_LEN, value: "850000"}
-            - {name: GPU_MEM_UTIL, value: "0.90"}
+            - {name: MAX_MODEL_LEN, value: "256000"}
+            - {name: GPU_MEM_UTIL, value: "0.88"}
             - {name: MAX_NUM_SEQS, value: "4"}
             - {name: MAX_NUM_BATCHED_TOKENS, value: "7168"}
             - {name: LONG_PREFILL_TOKEN_THRESHOLD, value: ""}
@@ -219,13 +236,13 @@ spec:
             - {name: MTP_TOKENS, value: "0"}
             - {name: SPEC_METHOD, value: dflash}
             - {name: DFLASH_TOKENS, value: "7"}
-            - {name: DFLASH_DRAFT_TP, value: ""}
+            - {name: DFLASH_DRAFT_TP, value: "2"}
             - {name: LANGUAGE_MODEL_ONLY, value: "0"}
             - {name: SKIP_MM_PROFILING, value: "1"}
             - {name: LIMIT_MM, value: '{"image":100,"video":1}'}
             - {name: CHAT_TEMPLATE, value: /opt/glm53/chat_template.jinja}
             - {name: ENFORCE_EAGER, value: "0"}
-            - {name: EXTRA_ARGS, value: "--cudagraph-capture-sizes 1 2 4 8 16 24 32"}
+            - {name: EXTRA_ARGS, value: "--cudagraph-capture-sizes 1 2 4 8 16 24 32 --kv-cache-memory-bytes 10737418240"}
             # exl3 fat-moe
             - {name: EXL3_FUSED_MOE, value: "1"}
             - {name: EXL3_MOE_ROW_TILE, value: "0"}
@@ -275,7 +292,16 @@ spec:
           ports:
             - name: http
               containerPort: 8000
+          readinessProbe:
+            exec:
+              command: ["/bin/bash", "-lc", "test -f /tmp/glm53-warmup-ready"]
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
           volumeMounts:
+            - name: warmup
+              mountPath: /opt/glm53/boot-shape-warmup.sh
+              subPath: boot-shape-warmup.sh
             - name: models
               mountPath: /cache/huggingface
               subPath: .cache/huggingface
@@ -306,6 +332,10 @@ spec:
         - name: models
           persistentVolumeClaim:
             claimName: model-cache
+        - name: warmup
+          configMap:
+            name: glm53-boot-warmup
+            defaultMode: 0555
         - name: overlay
           configMap:
             name: glm53-parity-overlay
@@ -522,8 +552,8 @@ spec:
             - {name: HEAD_IP, value: 172.16.5.55}
             - {name: MASTER_PORT, value: "29521"}
             - {name: QUANTIZATION, value: exl3}
-            - {name: MAX_MODEL_LEN, value: "850000"}
-            - {name: GPU_MEM_UTIL, value: "0.90"}
+            - {name: MAX_MODEL_LEN, value: "256000"}
+            - {name: GPU_MEM_UTIL, value: "0.88"}
             - {name: MAX_NUM_SEQS, value: "4"}
             - {name: MAX_NUM_BATCHED_TOKENS, value: "7168"}
             - {name: LONG_PREFILL_TOKEN_THRESHOLD, value: ""}
@@ -531,13 +561,13 @@ spec:
             - {name: MTP_TOKENS, value: "0"}
             - {name: SPEC_METHOD, value: dflash}
             - {name: DFLASH_TOKENS, value: "7"}
-            - {name: DFLASH_DRAFT_TP, value: ""}
+            - {name: DFLASH_DRAFT_TP, value: "2"}
             - {name: LANGUAGE_MODEL_ONLY, value: "0"}
             - {name: SKIP_MM_PROFILING, value: "1"}
             - {name: LIMIT_MM, value: '{"image":100,"video":1}'}
             - {name: CHAT_TEMPLATE, value: /opt/glm53/chat_template.jinja}
             - {name: ENFORCE_EAGER, value: "0"}
-            - {name: EXTRA_ARGS, value: "--cudagraph-capture-sizes 1 2 4 8 16 24 32"}
+            - {name: EXTRA_ARGS, value: "--cudagraph-capture-sizes 1 2 4 8 16 24 32 --kv-cache-memory-bytes 10737418240"}
             - {name: EXL3_FUSED_MOE, value: "1"}
             - {name: EXL3_MOE_ROW_TILE, value: "0"}
             - {name: EXL3_TEMP_ROWS_FUSED, value: "32"}
