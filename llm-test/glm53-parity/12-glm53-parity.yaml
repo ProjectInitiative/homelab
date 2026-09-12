@@ -227,7 +227,7 @@ spec:
             - {name: HEAD_IP, value: 172.16.5.55}
             - {name: MASTER_PORT, value: "29521"}
             - {name: QUANTIZATION, value: exl3}
-            - {name: MAX_MODEL_LEN, value: "256000"}
+            - {name: MAX_MODEL_LEN, value: "512000"}
             - {name: GPU_MEM_UTIL, value: "0.88"}
             - {name: MAX_NUM_SEQS, value: "4"}
             - {name: MAX_NUM_BATCHED_TOKENS, value: "7168"}
@@ -242,7 +242,7 @@ spec:
             - {name: LIMIT_MM, value: '{"image":100,"video":1}'}
             - {name: CHAT_TEMPLATE, value: /opt/glm53/chat_template.jinja}
             - {name: ENFORCE_EAGER, value: "0"}
-            - {name: EXTRA_ARGS, value: "--cudagraph-capture-sizes 1 2 4 8 16 24 32 --kv-cache-memory-bytes 10737418240"}
+            - {name: EXTRA_ARGS, value: "--cudagraph-capture-sizes 1 2 4 8 16 24 32 --kv-cache-memory-bytes 12884901888"}
             # exl3 fat-moe
             - {name: EXL3_FUSED_MOE, value: "1"}
             - {name: EXL3_MOE_ROW_TILE, value: "0"}
@@ -552,7 +552,7 @@ spec:
             - {name: HEAD_IP, value: 172.16.5.55}
             - {name: MASTER_PORT, value: "29521"}
             - {name: QUANTIZATION, value: exl3}
-            - {name: MAX_MODEL_LEN, value: "256000"}
+            - {name: MAX_MODEL_LEN, value: "512000"}
             - {name: GPU_MEM_UTIL, value: "0.88"}
             - {name: MAX_NUM_SEQS, value: "4"}
             - {name: MAX_NUM_BATCHED_TOKENS, value: "7168"}
@@ -567,7 +567,7 @@ spec:
             - {name: LIMIT_MM, value: '{"image":100,"video":1}'}
             - {name: CHAT_TEMPLATE, value: /opt/glm53/chat_template.jinja}
             - {name: ENFORCE_EAGER, value: "0"}
-            - {name: EXTRA_ARGS, value: "--cudagraph-capture-sizes 1 2 4 8 16 24 32 --kv-cache-memory-bytes 10737418240"}
+            - {name: EXTRA_ARGS, value: "--cudagraph-capture-sizes 1 2 4 8 16 24 32 --kv-cache-memory-bytes 12884901888"}
             - {name: EXL3_FUSED_MOE, value: "1"}
             - {name: EXL3_MOE_ROW_TILE, value: "0"}
             - {name: EXL3_TEMP_ROWS_FUSED, value: "32"}

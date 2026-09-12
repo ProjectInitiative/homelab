@@ -115,10 +115,10 @@ curl http://172.16.4.55:8000/v1/models
   DFlash, rejection-sampler, and kpool-tail shape requests completed.
 - The API key is read by vLLM natively via `VLLM_API_KEY` (never argv). Set it in
   the Deployment env or a Secret before scaling; empty = unauthenticated.
-- The validated headroom profile is `MAX_MODEL_LEN=256000` with
-  `GPU_MEM_UTIL=0.88` and an explicit 10 GiB KV cap. This leaves approximately
-  10–13 GiB host `MemAvailable` after warmup instead of exhausting GB10 unified
-  memory. DFlash2 remains TP-sharded with `DFLASH_DRAFT_TP=2`.
+- The serving profile is `MAX_MODEL_LEN=512000` with `GPU_MEM_UTIL=0.88` and an
+  explicit 12 GiB KV cap. This increases context while retaining several GiB of
+  GB10 unified-memory headroom. DFlash2 remains TP-sharded with
+  `DFLASH_DRAFT_TP=2`.
 - `EXTRA_ARGS` ships the default DFlash2 CUDA-graph capture list
   `--cudagraph-capture-sizes 1 2 4 8 16 24 32`. The adaptive-k / FP8-dense
   fast paths need a longer list and a KV cap; see the upstream `.env.example`.
