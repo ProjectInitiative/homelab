@@ -7,7 +7,7 @@
 # delivered from the `glm53-parity-overlay` ConfigMap (see 12-glm53-assets.yaml).
 #
 # PRE-DEPLOY convention: both Deployments start at `replicas: 0`. Nothing is
-# started until you explicitly scale the worker rank first, then the head rank.
+# started until you explicitly scale the head rank first, then the worker rank.
 #
 # Upstream pin: GitHub MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks @ commit 9348755.
 # Image (public): ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3
@@ -15,7 +15,7 @@
 # Model: Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw @ 25a44fdbf16862a46b7cc9921142c6c81350af2f
 # Draft: incoai/GLM-5.3-Flash-DFlash2 (k=7) @ dc77ff1c99eeb2df044ee3d4f0094eb033fee410
 # Served model id: GLM-5.3-Flash-EXL3
-# API: http://<node>:8888 (host network); Tailscale endpoint in services.yaml.
+# API: http://<node>:8000 (host network); Tailscale endpoint in services.yaml.
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -45,10 +45,19 @@ spec:
         - name: stage-model-cache
           image: ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3@sha256:eecb36e14dc34c92d46827fde7b09f7e0bf27e27c426ece126376c02dea6cd2f
           imagePullPolicy: IfNotPresent
+          securityContext: {privileged: true}
           command: ["/bin/bash", "-lc"]
           args:
             - |
               set -euo pipefail
+              # GB10 uses unified memory: reclaim host page cache before vLLM's
+              # CUDA free-memory check, matching the validated DeepSeek preflight.
+              echo "Memory before cache reclamation:"
+              grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
+              sync
+              echo 3 > /proc/sys/vm/drop_caches
+              echo "Memory after cache reclamation:"
+              grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
               mkdir -p /cache/huggingface
               # Modern huggingface_hub places the model under hub/ (a real dir).
               # If the cache was built with the older flat layout, expose the
@@ -97,6 +106,15 @@ spec:
               export MODEL_DIR
               DFLASH_MODEL_DIR="$(find_snap "$DFLASH_CACHE" "$DFLASH_REV")" || { say "FATAL: DFlash2 snapshot $DFLASH_REV missing"; exit 1; }
               export DFLASH_MODEL_DIR
+              # The image's Triton registry must resolve the real NVIDIA driver,
+              # not a stub. This is part of upstream start.sh's container setup.
+              export TRITON_LIBCUDA_PATH=/run/triton-cuda-driver
+              REAL_LIBCUDA=/usr/lib/aarch64-linux-gnu/libcuda.so.1
+              test -f "$REAL_LIBCUDA"
+              test "$(readlink -f "$REAL_LIBCUDA")" != */stubs/libcuda.so
+              mkdir -p /run/triton-cuda-driver
+              ln -sfn "$REAL_LIBCUDA" /run/triton-cuda-driver/libcuda.so.1
+              ln -sfn "$REAL_LIBCUDA" /run/triton-cuda-driver/libcuda.so
 
               ARGS=(
                 --served-model-name "${SERVED_MODEL_NAME}"
@@ -186,22 +204,22 @@ spec:
             - {name: VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS, value: "1"}
             # serve / model
             - {name: SERVED_MODEL_NAME, value: GLM-5.3-Flash-EXL3}
-            - {name: PORT, value: "8888"}
+            - {name: PORT, value: "8000"}
             - {name: TP, value: "2"}
             - {name: NNODES, value: "2"}
             - {name: HEAD_IP, value: 172.16.5.55}
             - {name: MASTER_PORT, value: "29521"}
             - {name: QUANTIZATION, value: exl3}
             - {name: MAX_MODEL_LEN, value: "850000"}
-            - {name: GPU_MEM_UTIL, value: "0.85"}
+            - {name: GPU_MEM_UTIL, value: "0.90"}
             - {name: MAX_NUM_SEQS, value: "4"}
             - {name: MAX_NUM_BATCHED_TOKENS, value: "7168"}
             - {name: LONG_PREFILL_TOKEN_THRESHOLD, value: ""}
             - {name: KV_CACHE_DTYPE, value: fp8}
-            - {name: MTP_TOKENS, value: "2"}
+            - {name: MTP_TOKENS, value: "0"}
             - {name: SPEC_METHOD, value: dflash}
             - {name: DFLASH_TOKENS, value: "7"}
-            - {name: DFLASH_DRAFT_TP, value: "2"}
+            - {name: DFLASH_DRAFT_TP, value: ""}
             - {name: LANGUAGE_MODEL_ONLY, value: "0"}
             - {name: SKIP_MM_PROFILING, value: "1"}
             - {name: LIMIT_MM, value: '{"image":100,"video":1}'}
@@ -224,14 +242,14 @@ spec:
             - {name: ABLIT_ALPHA, value: "3.0"}
             - {name: ABLIT_INCLUDE_MTP, value: "1"}
             # GLM53 decode knobs
-            - {name: GLM53_ADAPTIVE_K, value: off}
+            - {name: GLM53_ADAPTIVE_K, value: "off"}
             - {name: GLM53_ADAPTIVE_K_SET, value: "2,4,7"}
             - {name: GLM53_ADAPTIVE_K_ALPHA, value: "0.25"}
             - {name: GLM53_ADAPTIVE_K_MARGIN, value: "1.0"}
             - {name: GLM53_ADAPTIVE_K_MIN_STEPS, value: "4"}
             - {name: GLM53_ADAPTIVE_K_SATURATE, value: max}
             - {name: GLM53_ADAPTIVE_K_HIST, value: "200"}
-            - {name: GLM53_DENSE_FP8, value: off}
+            - {name: GLM53_DENSE_FP8, value: "off"}
             - {name: GLM53_SUPPRESS_STOPS_IN_REASONING, value: "1"}
             - {name: GLM53_MIXED_PREFILL_CHUNK, value: skip}
             - {name: GLM53_DEFAULT_REASONING_EFFORT, value: ""}
@@ -250,12 +268,13 @@ spec:
             - {name: NCCL_DEBUG, value: WARN}
             - {name: NCCL_SOCKET_IFNAME, value: enp1s0f1np1}
             - {name: GLOO_SOCKET_IFNAME, value: enp1s0f1np1}
-            - {name: NCCL_IB_HCA, value: enp1s0f1np1}
+            # NCCL_IB_HCA names the RDMA device, not the Linux netdev.
+            - {name: NCCL_IB_HCA, value: "mlx5_1:1"}
             - {name: NCCL_IB_GID_INDEX, value: "2"}
             - {name: VLLM_HOST_IP, value: 172.16.5.55}
           ports:
             - name: http
-              containerPort: 8888
+              containerPort: 8000
           volumeMounts:
             - name: models
               mountPath: /cache/huggingface
@@ -266,6 +285,9 @@ spec:
             - name: overlay
               mountPath: /opt/glm53/patch_dense_fp8.py
               subPath: patch_dense_fp8.py
+            - name: overlay
+              mountPath: /opt/glm53/exl3.py
+              subPath: exl3.py
             - name: triton-cache
               mountPath: /root/.triton/cache
             - name: tilelang-cache
@@ -344,10 +366,19 @@ spec:
         - name: stage-model-cache
           image: ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3@sha256:eecb36e14dc34c92d46827fde7b09f7e0bf27e27c426ece126376c02dea6cd2f
           imagePullPolicy: IfNotPresent
+          securityContext: {privileged: true}
           command: ["/bin/bash", "-lc"]
           args:
             - |
               set -euo pipefail
+              # GB10 uses unified memory: reclaim host page cache before vLLM's
+              # CUDA free-memory check, matching the validated DeepSeek preflight.
+              echo "Memory before cache reclamation:"
+              grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
+              sync
+              echo 3 > /proc/sys/vm/drop_caches
+              echo "Memory after cache reclamation:"
+              grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
               mkdir -p /cache/huggingface
               if [ ! -e /cache/huggingface/hub ]; then
                 ln -sfn . /cache/huggingface/hub
@@ -391,6 +422,15 @@ spec:
               export MODEL_DIR
               DFLASH_MODEL_DIR="$(find_snap "$DFLASH_CACHE" "$DFLASH_REV")" || { say "FATAL: DFlash2 snapshot $DFLASH_REV missing"; exit 1; }
               export DFLASH_MODEL_DIR
+              # The image's Triton registry must resolve the real NVIDIA driver,
+              # not a stub. This is part of upstream start.sh's container setup.
+              export TRITON_LIBCUDA_PATH=/run/triton-cuda-driver
+              REAL_LIBCUDA=/usr/lib/aarch64-linux-gnu/libcuda.so.1
+              test -f "$REAL_LIBCUDA"
+              test "$(readlink -f "$REAL_LIBCUDA")" != */stubs/libcuda.so
+              mkdir -p /run/triton-cuda-driver
+              ln -sfn "$REAL_LIBCUDA" /run/triton-cuda-driver/libcuda.so.1
+              ln -sfn "$REAL_LIBCUDA" /run/triton-cuda-driver/libcuda.so
 
               ARGS=(
                 --served-model-name "${SERVED_MODEL_NAME}"
@@ -476,22 +516,22 @@ spec:
             - {name: DO_NOT_TRACK, value: "1"}
             - {name: VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS, value: "1"}
             - {name: SERVED_MODEL_NAME, value: GLM-5.3-Flash-EXL3}
-            - {name: PORT, value: "8888"}
+            - {name: PORT, value: "8000"}
             - {name: TP, value: "2"}
             - {name: NNODES, value: "2"}
             - {name: HEAD_IP, value: 172.16.5.55}
             - {name: MASTER_PORT, value: "29521"}
             - {name: QUANTIZATION, value: exl3}
             - {name: MAX_MODEL_LEN, value: "850000"}
-            - {name: GPU_MEM_UTIL, value: "0.85"}
+            - {name: GPU_MEM_UTIL, value: "0.90"}
             - {name: MAX_NUM_SEQS, value: "4"}
             - {name: MAX_NUM_BATCHED_TOKENS, value: "7168"}
             - {name: LONG_PREFILL_TOKEN_THRESHOLD, value: ""}
             - {name: KV_CACHE_DTYPE, value: fp8}
-            - {name: MTP_TOKENS, value: "2"}
+            - {name: MTP_TOKENS, value: "0"}
             - {name: SPEC_METHOD, value: dflash}
             - {name: DFLASH_TOKENS, value: "7"}
-            - {name: DFLASH_DRAFT_TP, value: "2"}
+            - {name: DFLASH_DRAFT_TP, value: ""}
             - {name: LANGUAGE_MODEL_ONLY, value: "0"}
             - {name: SKIP_MM_PROFILING, value: "1"}
             - {name: LIMIT_MM, value: '{"image":100,"video":1}'}
@@ -511,14 +551,14 @@ spec:
             - {name: ABLIT_LAYERS, value: "15-45"}
             - {name: ABLIT_ALPHA, value: "3.0"}
             - {name: ABLIT_INCLUDE_MTP, value: "1"}
-            - {name: GLM53_ADAPTIVE_K, value: off}
+            - {name: GLM53_ADAPTIVE_K, value: "off"}
             - {name: GLM53_ADAPTIVE_K_SET, value: "2,4,7"}
             - {name: GLM53_ADAPTIVE_K_ALPHA, value: "0.25"}
             - {name: GLM53_ADAPTIVE_K_MARGIN, value: "1.0"}
             - {name: GLM53_ADAPTIVE_K_MIN_STEPS, value: "4"}
             - {name: GLM53_ADAPTIVE_K_SATURATE, value: max}
             - {name: GLM53_ADAPTIVE_K_HIST, value: "200"}
-            - {name: GLM53_DENSE_FP8, value: off}
+            - {name: GLM53_DENSE_FP8, value: "off"}
             - {name: GLM53_SUPPRESS_STOPS_IN_REASONING, value: "1"}
             - {name: GLM53_MIXED_PREFILL_CHUNK, value: skip}
             - {name: GLM53_DEFAULT_REASONING_EFFORT, value: ""}
@@ -536,12 +576,13 @@ spec:
             - {name: NCCL_DEBUG, value: WARN}
             - {name: NCCL_SOCKET_IFNAME, value: enp1s0f1np1}
             - {name: GLOO_SOCKET_IFNAME, value: enp1s0f1np1}
-            - {name: NCCL_IB_HCA, value: enp1s0f1np1}
+            # NCCL_IB_HCA names the RDMA device, not the Linux netdev.
+            - {name: NCCL_IB_HCA, value: "mlx5_1:1"}
             - {name: NCCL_IB_GID_INDEX, value: "2"}
             - {name: VLLM_HOST_IP, value: 172.16.5.56}
           ports:
             - name: http
-              containerPort: 8888
+              containerPort: 8000
           volumeMounts:
             - name: models
               mountPath: /cache/huggingface
@@ -552,6 +593,9 @@ spec:
             - name: overlay
               mountPath: /opt/glm53/patch_dense_fp8.py
               subPath: patch_dense_fp8.py
+            - name: overlay
+              mountPath: /opt/glm53/exl3.py
+              subPath: exl3.py
             - name: triton-cache
               mountPath: /root/.triton/cache
             - name: tilelang-cache

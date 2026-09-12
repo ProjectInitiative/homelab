@@ -32,7 +32,7 @@ upstream MiaAI Lab recipe
 | Weight model | `Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw` @ `25a44fdbf16862a46b7cc9921142c6c81350af2f` (~164 GiB, 120 shards) |
 | Draft model | `incoai/GLM-5.3-Flash-DFlash2` (k=7) @ `dc77ff1c99eeb2df044ee3d4f0094eb033fee410` (~2.3 GiB) |
 | Served model id | `GLM-5.3-Flash-EXL3` |
-| API port | **8888** (GLM) vs 8000 (DeepSeek) |
+| API port | **8000** (GLM) vs 8000 (DeepSeek) |
 | KV cache dtype | `fp8` (fp8_ds_mla) |
 | Quantization | `exl3` |
 
@@ -40,12 +40,14 @@ upstream MiaAI Lab recipe
 
 The previous `llm-test/20-glm.yaml` puller fetches
 `LibertAIDAI/GLM-5.3-Flash-NVFP4`, which is a **different (NVFP4/Ray) variant** and
-is NOT what this EXL3 lane serves. As of writing, the EXL3 weights and the
-DFlash2 draft are **absent** from the shared JuiceFS `model-cache`.
+is NOT what this EXL3 lane serves. The cache-preload Job is `glm53-cache-pull`; do not scale the lane unless its
+completion is confirmed and the pinned EXL3 and DFlash2 snapshot files pass the
+init-container checks. A missing stale NVFP4 directory is a successful delete
+no-op.
 
 ```bash
 kubectl apply -f llm-test/glm53-parity/05-glm53-exl3-download.yaml
-kubectl wait --for=condition=Complete job/glm53-exl3-download -n llm-test --timeout=1h
+kubectl wait --for=condition=Complete job/glm53-cache-pull -n llm-test --timeout=1h
 ```
 
 Verify on the shared volume (RWX JuiceFS, reachable on the nodes):
@@ -83,8 +85,8 @@ kubectl wait --for=condition=Ready pod -l app=glm53-exl3-worker -n llm-test --ti
 kubectl apply --server-side -f llm-test/glm53-parity/services.yaml
 ```
 
-Endpoint: `http://glm.taildeab2.ts.net/` (relay → `172.16.4.55:8888`). The vLLM
-API itself listens on the head node's host network at `0.0.0.0:8888`.
+Endpoint: `http://glm.taildeab2.ts.net/` (relay → `172.16.4.55:8000`). The vLLM
+API itself listens on the head node's host network at `0.0.0.0:8000`.
 
 ## Verify
 
@@ -92,8 +94,8 @@ API itself listens on the head node's host network at `0.0.0.0:8888`.
 kubectl get pods,deploy,svc -n llm-test -o wide | grep glm53
 kubectl logs -n llm-test deploy/glm53-exl3-head -c vllm --tail=100
 kubectl logs -n llm-test deploy/glm53-exl3-worker -c vllm --tail=100
-curl -i http://172.16.4.55:8888/health   # from a node / via tailnet
-curl http://172.16.4.55:8888/v1/models
+curl -i http://172.16.4.55:8000/health   # from a node / via tailnet
+curl http://172.16.4.55:8000/v1/models
 ```
 
 ## Notes / caveats

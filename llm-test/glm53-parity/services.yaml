@@ -3,8 +3,8 @@
 #
 # These are NEW, GLM-specific endpoints (no overlap with the running
 # deepseek-parity `ai`/`ai-proxy`/`llm-*`). The GLM API is served on the head
-# node's host network at port 8888 (node IP 172.16.4.55); the API itself is on
-# the ConnectX backplane hostNetwork (0.0.0.0:8888), and the HAProxy relay keeps
+# node's host network at port 8000 (node IP 172.16.4.55); the API itself is on
+# the ConnectX backplane hostNetwork (0.0.0.0:8000), and the HAProxy relay keeps
 # it out of Kubernetes/Tailscale routing, mirroring the deepseek lane.
 #
 # NOTE: this file is NOT applied during the pre-deploy stage. Apply it only when
@@ -21,8 +21,8 @@ spec:
   ports:
     - name: http
       protocol: TCP
-      port: 8888
-      targetPort: 8888
+      port: 8000
+      targetPort: 8000
 ---
 apiVersion: v1
 kind: Service
@@ -35,8 +35,8 @@ spec:
   ports:
     - name: http
       protocol: TCP
-      port: 8888
-      targetPort: 8888
+      port: 8000
+      targetPort: 8000
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -53,10 +53,10 @@ data:
       timeout client 1h
       timeout server 1h
     frontend vllm_api
-      bind :8888
+      bind :8000
       default_backend vllm_head
     backend vllm_head
-      server chronometer 172.16.4.55:8888 check
+      server chronometer 172.16.4.55:8000 check
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -84,7 +84,7 @@ spec:
           image: haproxy:3.2-alpine
           ports:
             - name: http
-              containerPort: 8888
+              containerPort: 8000
           volumeMounts:
             - name: config
               mountPath: /usr/local/etc/haproxy/haproxy.cfg
@@ -105,8 +105,8 @@ spec:
   ports:
     - name: http
       protocol: TCP
-      port: 8888
-      targetPort: 8888
+      port: 8000
+      targetPort: 8000
 ---
 apiVersion: v1
 kind: Service
@@ -125,4 +125,4 @@ spec:
     - name: http
       protocol: TCP
       port: 80
-      targetPort: 8888
+      targetPort: 8000

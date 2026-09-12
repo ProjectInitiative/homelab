@@ -27,7 +27,7 @@
 - `LANGUAGE_MODEL_ONLY=0`, `SKIP_MM_PROFILING=1`, `LIMIT_MM={"image":100,"video":1}`
 - `EXL3_FAT_GROUPED=1` (E3 grouped fat-expert), `EXL3_FAT_KERNEL=1`
 - HF cache mounted from PVC subPath `.cache/huggingface` at `/cache/huggingface`
-- CX7 backplane: `enp1s0f1np1` (`mlx5_1`, GID index 2); head `172.16.5.55`, worker `172.16.5.56`
+- CX7 backplane: socket/Gloo interface `enp1s0f1np1`; NCCL RDMA device `mlx5_1:1`, GID index 2; head `172.16.5.55`, worker `172.16.5.56`
 
 ## Resolved serve argv (head / rank 0)
 
@@ -73,8 +73,10 @@ after `--distributed-executor-backend mp`.
 - The DeepSeek worker-first `rank1-starting` / `:9090` coordination probe is not
   needed here; vLLM multi-node rendezvouses over `--master-addr` (rank 0 coordinator).
 
-## Model download status (as of this build)
+## Model download status
 
-The shared JuiceFS cache contains the **NVFP4** variant
-(`models--LibertAIDAI--GLM-5.3-Flash-NVFP4`, 182 G) but **not** the EXL3 weights
-or the DFlash2 draft. Run `glm53-exl3-download` before scaling the lane.
+The `glm53-cache-pull` Job has completed. Its log reports zero files queued (all
+files were already present) and a successful no-op for the previously removed
+NVFP4 directory. The parity init containers remain the authoritative check: they
+require the pinned EXL3 `config.json` and DFlash2 `model.safetensors` before
+starting vLLM.
