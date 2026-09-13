@@ -678,6 +678,20 @@ catalog:
         - CreateNamespace=true
         - ServerSideApply=true
 
+  hermes-memory:
+    path: apps/base/hermes-memory/config
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
+  hermes-agent:
+    path: apps/base/hermes-agent/config
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
   # nixos-remote-builder:
   #   path: apps/base/nixos-remote-builder/config
   #   vaultSecrets:

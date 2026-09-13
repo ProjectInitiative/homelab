@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hermes-agent
+  namespace: hermes
+  labels:
+    app: hermes-agent
+spec:
+  # /opt/data holds SQLite state: never run two writers. Recreate avoids
+  # a rolling window with two pods on the same PVC.
+  strategy:
+    type: Recreate
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hermes-agent
+  template:
+    metadata:
+      labels:
+        app: hermes-agent
+    spec:
+      # The image's s6-overlay is PID 1 (/init prepares /opt/data, migrates
+      # config, reconciles profiles, supervises the gateway). Do NOT set a
+      # container command - only args. Ref: blog + upstream docker docs.
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: hermes-agent
+          image: nousresearch/hermes-agent:v2026.9.7
+          imagePullPolicy: IfNotPresent
+          args:
+            - gateway
+            - run
+          envFrom:
+            - configMapRef:
+                name: hermes-agent-env-v1
+          ports:
+            - name: api
+              containerPort: 8642
+              protocol: TCP
+          # Container runs as root briefly (s6 needs CAP_SETUID to drop to
+          # the bundled 'hermes' user); caps left at runtime defaults for
+          # the setuid drop to work. Hardened via read-only rootfs +
+          # seccomp + no privilege escalation.
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: data
+              mountPath: /opt/data
+            - name: managed-config
+              mountPath: /etc/hermes
+              readOnly: true
+            - name: run
+              mountPath: /run
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+          # First boot creates the home layout + SQLite DBs; be patient.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8642
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8642
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8642
+            periodSeconds: 30
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: hermes-agent-data
+        - name: managed-config
+          configMap:
+            name: hermes-agent-config-v1
+        - name: run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

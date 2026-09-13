@@ -1,0 +1,22 @@
+# Managed-scope config: mounted read-only at /etc/hermes, wins over
+# mutable /opt/data config key-by-key. Agents cannot override the
+# cluster-managed model provider. Immutable + versioned name: bump the
+# name here AND in deployment.yaml to roll the gateway via Argo CD.
+# Ref: https://hermes-agent.nousresearch.com/docs/user-guide/managed-scope
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hermes-agent-config-v1
+  namespace: hermes
+  labels:
+    app: hermes-agent
+immutable: true
+data:
+  config.yaml: |
+    model:
+      provider: custom
+      default: GLM-5.3-Flash-EXL3
+      base_url: http://ai-proxy.llm-test.svc.cluster.local:8000/v1
+      api_mode: chat_completions
+    security:
+      redact_secrets: true

@@ -287,3 +287,39 @@ apps:
         target:
           kind: Service
           annotationSelector: tailscale.com/proxy-group=ingress-proxy
+
+  - name: hermes-memory
+    namespace: hermes
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: hermes-lb-mc
+    patchTarget:
+      kind: Service
+      name: hermes-ts-placeholder
+    patches:
+      - patch: |-
+          - op: replace
+            path: /metadata/annotations/tailscale.com~1proxy-group
+            value: mc-ingress-proxy
+        target:
+          kind: Service
+          annotationSelector: tailscale.com/proxy-group=ingress-proxy
+
+  - name: hermes-agent
+    namespace: hermes
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: hermes-agent-lb-mc
+    patchTarget:
+      kind: Service
+      name: hermes-ts-placeholder
+    patches:
+      - patch: |-
+          - op: replace
+            path: /metadata/annotations/tailscale.com~1proxy-group
+            value: mc-ingress-proxy
+        target:
+          kind: Service
+          annotationSelector: tailscale.com/proxy-group=ingress-proxy

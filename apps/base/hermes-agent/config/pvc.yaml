@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: PVC
+metadata:
+  name: hermes-agent-data
+  namespace: hermes
+  labels:
+    app: hermes-agent
+spec:
+  # Hot agent state (/opt/data = HERMES_HOME): SQLite session DBs, memory,
+  # skills. Live SQLite deliberately NOT on JuiceFS (WAL-mode corruption
+  # risk on network FS + upstream forbids two containers on one home).
+  # Node-local NVMe with Retain; bcachefs replica-2 underneath.
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path-nvme-sticky
+  resources:
+    requests:
+      storage: 5Gi
