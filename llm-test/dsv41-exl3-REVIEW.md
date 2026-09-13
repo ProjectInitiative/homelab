@@ -1,8 +1,10 @@
 # DeepSeek-V4.1-Flash EXL3 (2.9 bpw) — download prep, handoff for review
 
-**Status: PREPARED, NOT APPLIED.** Nothing was deployed, nothing running was
-touched, no image was pushed. Every apply/build step below is deliberately left
-as a gate for the reviewer/operator.
+**Status: DOWNLOAD COMPLETE.** The cache-pull Job completed on 2026-09-13.
+Puller v5 preserves interrupted `.part` files for HTTP byte-range resume; the
+Job uses a versioned tag with `imagePullPolicy: Always` because this private
+registry does not resolve Podman's reported digest through containerd. No
+serving lane was changed.
 
 Reviewer: this doc + the two files listed in §3 are the whole change. The
 recipe clone lives at `/tmp/ds41-recipe` (upstream:
@@ -38,7 +40,7 @@ pulls, see §2).
 Total new cache data: **~385.3 GiB**. At the 100 MB/s RATE cap ≈ **70 min**;
 real-world will be longer.
 
-## 2. Why the puller was extended (v4) — decision record
+## 2. Why the puller was extended (v4/v5) — decision record
 
 The generic cache-puller (`llm-test/puller/puller.py`) queues **every** file of
 a repo; it had no partial-pull capability. Options considered:
@@ -60,22 +62,23 @@ a repo; it had no partial-pull capability. Options considered:
 - Rejected: pulling the full native repo (wastes ~287 GiB of a 1 Ti PVC).
 
 Gates before apply:
-1. [DONE 2026-09-13] v4 built on sextant (aarch64, podman 5.8.6) from the
-   reviewed `puller.py` and pushed — registry manifest digest
-   `sha256:e88d0573b9eec89883453fdbf3697483cc20745cd79a7a65c3b6825c2154d7ba`.
-   Smoke: entrypoint no-op path ok; `httpx` + `huggingface_hub 1.31.0` imports
-   ok. Anonymous push from the tailnet worked (no registry creds on the
-   nodes). `:v3` jobs in the repo are untouched — tag-pinned.
-2. [PENDING] Larger-model review of this doc.
-3. [RESOLVED] Storage: user confirms the PVC can be expanded; space is not a
-   concern.
+1. [DONE 2026-09-13] v5 built on sextant (aarch64, podman 5.8.6) from the
+   reviewed `puller.py` and pushed as `glm53-cache-puller:v5`. Podman reported
+   digest `sha256:e3205a77d0264cd1520fcc41c66005131ea0c589abe77b9a345eb73f59b76a02`,
+   but this private registry does not resolve that digest through containerd,
+   so the Job uses the versioned tag with `imagePullPolicy: Always`. v5 adds
+   tested HTTP byte-range resume and declares `httpx` directly.
+2. [DONE 2026-09-13] Larger-model download review completed; the pinned EXL3
+   repo and native Engram shards 47/48 plus index match the upstream recipe.
+3. [DONE 2026-09-13] The 1 TiB PVC had 572 GiB free before the ~385.3 GiB pull,
+   so expansion was not required.
 
 ## 3. Files changed / added
 
 | File | Change |
 |---|---|
-| `llm-test/puller/puller.py` | v4: `parse_spec()`; `resolve()` gains include-glob filtering + matched/skipped logging; `refs/main` only for full pulls; docstring updated. Additive; no behavior change for `#`-less specs. |
-| `llm-test/puller/Dockerfile` | Header note: v4 build/push commands + feature summary. |
+| `llm-test/puller/puller.py` | v4 adds partial include filters; v5 preserves `.part` files and resumes them with validated HTTP Range responses. |
+| `llm-test/puller/Dockerfile` | v5 build instructions and explicit `httpx` dependency. |
 | `llm-test/40-dsv41-flash-exl3-download.yaml` | **New** Job `dsv41-exl3-cache-pull`: both pulls via `PULL_MODELS` (full EXL3 + partial engram), `RATE=100000000`, pinned revisions, post-pull verification (39-shard count, required files, exact byte sizes for the 3 engram files), completion marker `/models/.dsv41-exl3-download-complete`, `nodeSelector: chronometer`, `backoffLimit: max` (resumable). Header states the NOT-APPLIED status and gates. |
 
 Not changed: `apps.yaml`, `clusters/*`, any running Deployment/Job, any image in

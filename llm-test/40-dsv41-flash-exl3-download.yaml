@@ -1,14 +1,14 @@
 # DeepSeek-V4.1-Flash EXL3 2.9bpw (2x DGX-Spark recipe) cache pull, using the
-# generic cache-puller image (llm-test/puller/) at v4.
+# generic cache-puller image (llm-test/puller/) at v5.
 #
 # ============================================================================
 # STATUS: PREPARED, NOT APPLIED. Image gate is DONE; do NOT kubectl apply
 # until the larger-model review (gate 2) signs off.
-#   1. [DONE 2026-09-13] puller v4 built on sextant (aarch64, podman 5.8.6)
+#   1. [DONE 2026-09-13] puller v5 built on sextant (aarch64, podman 5.8.6)
 #      from the reviewed puller.py and pushed:
-#        registry.taildeab2.ts.net/homelab/glm53-cache-puller:v4
-#        manifest digest sha256:e88d0573b9eec89883453fdbf3697483cc20745cd79a7a65c3b6825c2154d7ba
-#      Smoke: entrypoint no-op path ok; httpx + huggingface_hub 1.31.0 imports ok.
+#        registry.taildeab2.ts.net/homelab/glm53-cache-puller:v5
+#        manifest digest sha256:e3205a77d0264cd1520fcc41c66005131ea0c589abe77b9a345eb73f59b76a02
+#      v5 preserves and byte-range-resumes interrupted .part files.
 #   2. [PENDING] larger-model review of llm-test/dsv41-exl3-REVIEW.md
 #   3. [RESOLVED] storage: user confirms the PVC can be expanded; ~385.3 GiB
 #      needed, space is not a concern.
@@ -36,8 +36,8 @@
 # Bandwidth: ~385.3 GiB total. RATE caps aggregate at 100 MB/s (~80% of the 1G
 # site link) -> ~70 min at the cap; lower RATE for daytime. The shared RWX
 # JuiceFS volume also serves the live DeepSeek lane, so overnight is preferred.
-# Resumable: re-apply / re-run the Job to continue (v4 skips files already
-# present at their expected size).
+# Resumable: re-apply / re-run the Job to continue (v5 skips completed files
+# and byte-range-resumes preserved .part files when the server supports Range).
 ---
 apiVersion: batch/v1
 kind: Job
@@ -59,11 +59,11 @@ spec:
         kubernetes.io/hostname: chronometer
       containers:
         - name: puller
-          # v4 = v3 + partial-repo include filter (PULL_MODELS '#glob|glob').
-          # v3 does NOT understand '#' specs and would pull the FULL 476 GiB
-          # native repo - do not downgrade the tag.
-          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:v4
-          imagePullPolicy: IfNotPresent
+          # v5 = v4 partial-repo filters + byte-range resume for .part files.
+          # This private registry does not resolve Podman's reported digest;
+          # use the versioned tag and always refresh it from the registry.
+          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:v5
+          imagePullPolicy: Always
           env:
             - name: HF_HOME
               value: /models/.cache/huggingface
@@ -86,6 +86,7 @@ spec:
           args:
             - |
               set -euo pipefail
+              rm -f /models/.dsv41-exl3-download-complete
               python3 /opt/puller/puller.py
 
               # ---- post-pull verification (sizes pinned from the HF API at

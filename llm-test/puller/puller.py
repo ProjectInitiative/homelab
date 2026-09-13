@@ -131,21 +131,66 @@ def delete_models(cache_root, specs, workers):
 
 
 def _download_file(job, limiter, headers, base_host):
-    """job = (url, dest, rel, part). Returns (rel, bytes)."""
-    url, dest, rel, part = job
+    """Download one file, resuming a preserved ``.part`` with HTTP Range.
+
+    job = (url, dest, rel, part, expected_size). Returns (rel, downloaded bytes).
+    A server that ignores Range is handled safely by truncating and restarting
+    that file. Incomplete files remain in place when an exception is raised.
+    """
+    url, dest, rel, part, expected_size = job
     got = 0
     os.makedirs(os.path.dirname(dest), exist_ok=True)
-    if os.path.exists(part):
-        os.remove(part)
+
+    offset = os.path.getsize(part) if os.path.isfile(part) else 0
+    if expected_size is not None:
+        if offset == expected_size:
+            log("promoting complete partial", rel, f"({offset} bytes)")
+            os.replace(part, dest)
+            return (rel, 0)
+        if offset > expected_size:
+            log("discarding oversized partial", rel, offset, ">", expected_size)
+            os.remove(part)
+            offset = 0
+
+    request_headers = dict(headers)
+    if offset:
+        request_headers["Range"] = f"bytes={offset}-"
+        log("resuming", rel, "at", offset, "bytes")
+
     import httpx
-    with httpx.stream("GET", url, headers=headers, follow_redirects=True, timeout=600) as r:
+    with httpx.stream(
+        "GET", url, headers=request_headers, follow_redirects=True, timeout=600
+    ) as r:
+        if offset and r.status_code == 206:
+            content_range = r.headers.get("content-range", "")
+            if not content_range.startswith(f"bytes {offset}-"):
+                raise RuntimeError(
+                    f"invalid Content-Range for {rel}: {content_range!r}; "
+                    f"expected start {offset}"
+                )
+            mode = "ab"
+        elif offset and r.status_code == 200:
+            log("server ignored Range; restarting", rel)
+            offset = 0
+            mode = "wb"
+        else:
+            r.raise_for_status()
+            mode = "wb"
+
         r.raise_for_status()
-        with open(part, "wb") as fh:
+        with open(part, mode) as fh:
             for chunk in r.iter_bytes(chunk_size=1 << 20):
                 if limiter:
                     limiter.wait(len(chunk))
                 fh.write(chunk)
                 got += len(chunk)
+
+    final_size = offset + got
+    if expected_size is not None and final_size != expected_size:
+        raise RuntimeError(
+            f"incomplete download for {rel}: got {final_size} bytes, "
+            f"expected {expected_size}"
+        )
     os.replace(part, dest)
     return (rel, got)
 
@@ -159,7 +204,7 @@ def pull_models(cache_root, specs, token, rate, endpoint, file_workers, repo_wor
     headers = {"Authorization": f"Bearer {token}"} if token else {}
     base_host = (endpoint or "https://huggingface.co").rstrip("/")
 
-    jobs = []  # (url, dest, rel, part)
+    jobs = []  # (url, dest, rel, part, expected_size)
     refs = {}  # dname -> resolved rev (for refs/main after)
 
     def resolve(repo, rev, includes=()):
@@ -184,7 +229,9 @@ def pull_models(cache_root, specs, token, rate, endpoint, file_workers, repo_wor
             # Skip files already present and the expected size.
             if size is not None and os.path.isfile(dest) and os.path.getsize(dest) == size:
                 continue
-            file_jobs.append((f"{base}/{rel}", dest, rel, dest + ".part"))
+            file_jobs.append(
+                (f"{base}/{rel}", dest, rel, dest + ".part", size)
+            )
         if includes:
             log(f"include filter for {repo}@{resolved[:12]}: {matched} file(s) "
                 f"matched, {skipped} skipped")

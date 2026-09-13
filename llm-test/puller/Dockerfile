@@ -6,11 +6,13 @@
 # the RATE parameter at job time.
 #
 # Build (on an aarch64 node, native):
-#   podman build -t registry.taildeab2.ts.net/homelab/glm53-cache-puller:v4 .
-#   podman push registry.taildeab2.ts.net/homelab/glm53-cache-puller:v4
-# Reference the image by a versioned tag (e.g. :v4) in the Job and bump it on
-# change; digest pinning against this registry is unreliable (the registry stores
-# a different manifest digest than the local build).
+#   podman build -t registry.taildeab2.ts.net/homelab/glm53-cache-puller:v5 .
+#   podman push registry.taildeab2.ts.net/homelab/glm53-cache-puller:v5
+# Reference the image by a versioned tag (e.g. :v5) in the Job and bump it on
+# change. This private registry currently does not resolve Podman's reported
+# digest through containerd, so Jobs use versioned tags with pullPolicy Always.
+#
+# v5 (2026-09-13): preserve and byte-range-resume interrupted .part files.
 #
 # v4 (2026-09-13): PULL_MODELS specs gain an optional '#glob|glob' include
 # filter for PARTIAL repo pulls (e.g. single shards of a large checkpoint).
@@ -24,6 +26,7 @@ FROM python:3.12-slim
 
 RUN pip install --no-cache-dir \
         huggingface_hub \
+        httpx \
         requests \
     && rm -rf /root/.cache/pip
 
