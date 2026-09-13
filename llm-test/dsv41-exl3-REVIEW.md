@@ -6,6 +6,13 @@ Job uses a versioned tag with `imagePullPolicy: Always` because this private
 registry does not resolve Podman's reported digest through containerd. No
 serving lane was changed.
 
+**Serving lane: PREPARED in `llm-test/dsv41-parity/`** (README with the full
+recipe→K8s mapping, `05-prepare-model-tree.yaml` — hardlinks HF-cache
+snapshots into stable serving trees + builds the embed-only Engram index,
+`12-dsv41-parity.yaml` — profile/launch/warmup ConfigMaps + head/worker
+Deployments at `replicas: 0`, `services.yaml`). Next step after this review:
+apply the prep Job, then review the lane manifests before scaling anything.
+
 Reviewer: this doc + the two files listed in §3 are the whole change. The
 recipe clone lives at `/tmp/ds41-recipe` (upstream:
 <https://github.com/MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks>).

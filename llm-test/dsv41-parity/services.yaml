@@ -1,0 +1,46 @@
+# dsv41-exl3 lane Services. Apply only when the lane is being brought live
+# (after 05-prepare-model-tree.yaml succeeded and the Deployments are scaled).
+#
+# No ai-proxy / Tailscale LoadBalancer here yet: client exposure lands with
+# the LiteLLM router cutover (router/PLAN.md §2). The head answers on the
+# chronometer API/LAN IP 172.16.4.55:8000 (hostNetwork) for the router's
+# api_base; these Services are for in-cluster consumers and debugging.
+#
+# Port 8000 is a SLOT: never resident alongside another lane (scale the old
+# lane's head+worker down first — see dsv41-parity/README.md swap procedure).
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dsv41-head
+  namespace: llm-test
+  labels:
+    app: dsv41-head
+    lane: dsv41-exl3
+spec:
+  type: ClusterIP
+  selector:
+    app: dsv41-exl3-head
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dsv41-worker
+  namespace: llm-test
+  labels:
+    app: dsv41-worker
+    lane: dsv41-exl3
+spec:
+  type: ClusterIP
+  selector:
+    app: dsv41-exl3-worker
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP

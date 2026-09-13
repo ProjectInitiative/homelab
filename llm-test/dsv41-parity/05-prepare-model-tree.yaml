@@ -1,0 +1,143 @@
+# Builds the stable serving trees on the JuiceFS model-cache PVC from the
+# HF-cache snapshots pulled by 40-dsv41-flash-exl3-download.yaml:
+#
+#   /models/dsv41-exl3/model       <- EXL3 snapshot (49 files, 39 shards), hardlinked
+#   /models/dsv41-exl3/engram-src  <- shards 47+48 (hardlinked) + embed-only
+#                                     index + config.json (recipe
+#                                     scripts/prepare_engram_src.py semantics)
+#
+# Hardlinks are zero-extra-bytes on JuiceFS and decouple the serving pods'
+# mounts (subPath dsv41-exl3/model, dsv41-exl3/engram-src) from HF cache
+# layout and future revision re-pins.
+#
+# GATES (apply only when all hold):
+#   1. dsv41-exl3-cache-pull Job completed -> /models/.dsv41-exl3-download-complete
+#   2. larger-model review of llm-test/dsv41-parity/README.md
+# Writes only NEW paths under /models/dsv41-exl3/; deletes nothing.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dsv41-model-tree-prep
+  namespace: llm-test
+  labels:
+    app: dsv41-model-tree-prep
+    purpose: model-cache-preload
+spec:
+  backoffLimit: 20
+  template:
+    metadata:
+      labels:
+        app: dsv41-model-tree-prep
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      containers:
+        - name: prep
+          # small, already in the registry; needs only python3 stdlib here
+          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:v5
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: EXL3_SNAP
+              value: /models/.cache/huggingface/hub/models--Mia-AiLab--DeepSeek-V4.1-Flash-EXL3-2.9bpw/snapshots/64ba41b6c916a587db06eae2e19b7845f7be6e6b
+            - name: NATIVE_SNAP
+              value: /models/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-V4.1-Flash/snapshots/dba1be0a40aa45a94ad051997016db3960a90277
+            - name: OUT_ROOT
+              value: /models/dsv41-exl3
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              test -f /models/.dsv41-exl3-download-complete \
+                || { echo "FATAL: download not complete (.dsv41-exl3-download-complete missing)"; exit 1; }
+              python3 -u <<'PYEOF'
+              import json, os, shutil, sys
+              from pathlib import Path
+
+              exl3 = Path(os.environ["EXL3_SNAP"])
+              native = Path(os.environ["NATIVE_SNAP"])
+              out = Path(os.environ["OUT_ROOT"])
+              model_out = out / "model"
+              engram_out = out / "engram-src"
+              SHARDS = ("model-00047-of-00048.safetensors",
+                        "model-00048-of-00048.safetensors")
+              EXPECT = {"model-00047-of-00048.safetensors": 101535150936,
+                        "model-00048-of-00048.safetensors": 101537926640}
+              KEEP_SUFFIXES = (".engram.embed.weight", ".engram.embed.scale")
+
+              def link_or_copy(src: Path, dst: Path) -> str:
+                  if dst.exists() or dst.is_symlink():
+                      try:
+                          if dst.stat().st_ino == src.stat().st_ino and dst.stat().st_dev == src.stat().st_dev:
+                              return "exists"
+                      except OSError:
+                          pass
+                      dst.unlink()
+                  try:
+                      os.link(src, dst)
+                      return "hardlink"
+                  except OSError:
+                      shutil.copy2(src, dst)
+                      return "copy"
+
+              # ---- gates: snapshots must be complete
+              for f in ("config.json", "quantization_config.json",
+                        "model.safetensors.index.json", "tokenizer.json",
+                        "chat_template.jinja"):
+                  if not (exl3 / f).is_file():
+                      sys.exit(f"FATAL: EXL3 snapshot missing {f}")
+              n_shards = len(list(exl3.glob("model-*.safetensors")))
+              if n_shards != 39:
+                  sys.exit(f"FATAL: EXL3 snapshot has {n_shards} shards, want 39")
+              if not (native / "model.safetensors.index.json").is_file():
+                  sys.exit(f"FATAL: native snapshot missing index")
+              for s in SHARDS:
+                  if not (native / s).is_file():
+                      sys.exit(f"FATAL: native snapshot missing {s}")
+
+              model_out.mkdir(parents=True, exist_ok=True)
+              actions = {}
+              for f in sorted(p.name for p in exl3.iterdir() if p.is_file()):
+                  actions[f] = link_or_copy(exl3 / f, model_out / f)
+
+              # ---- embed-only Engram index (prepare_engram_src.py semantics)
+              raw = json.loads((native / "model.safetensors.index.json").read_text())
+              keep = {k: v for k, v in (raw.get("weight_map") or {}).items()
+                      if k.endswith(KEEP_SUFFIXES)}
+              if not keep:
+                  sys.exit("FATAL: no *.engram.embed.{weight,scale} keys in native index")
+              bad = sorted({v for v in keep.values() if v not in SHARDS})
+              if bad:
+                  sys.exit(f"FATAL: embed tables outside shards 47/48: {bad}")
+              engram_out.mkdir(parents=True, exist_ok=True)
+              for s in SHARDS:
+                  actions["engram:" + s] = link_or_copy(native / s, engram_out / s)
+                  got = (engram_out / s).stat().st_size
+                  if got != EXPECT[s]:
+                      sys.exit(f"FATAL: {s} is {got} bytes, expected {EXPECT[s]}")
+              slim = {"metadata": {"total_size": raw.get("metadata", {}).get("total_size"),
+                                   "dsv41_engram_src": "embed-only"},
+                      "weight_map": keep}
+              (engram_out / "model.safetensors.index.json").write_text(
+                  json.dumps(slim, indent=2) + "\n")
+              if (native / "config.json").is_file():
+                  shutil.copy2(native / "config.json", engram_out / "config.json")
+
+              (out / ".prep-complete").write_text(json.dumps(
+                  {"model_files": len(actions), "engram_tensors": len(keep)}, indent=2) + "\n")
+              print("prep complete:", json.dumps({k: v for k, v in actions.items() if v != "exists"}))
+              PYEOF
+              test -f "${OUT_ROOT}/.prep-complete"
+              echo "dsv41 model tree ready at /models/dsv41-exl3"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
