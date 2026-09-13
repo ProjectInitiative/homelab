@@ -6,11 +6,16 @@
 # the RATE parameter at job time.
 #
 # Build (on an aarch64 node, native):
-#   podman build -t registry.taildeab2.ts.net/homelab/glm53-cache-puller:v1 .
-#   podman push registry.taildeab2.ts.net/homelab/glm53-cache-puller:v1
-# Reference the image by a versioned tag (e.g. :v1) in the Job and bump it on
+#   podman build -t registry.taildeab2.ts.net/homelab/glm53-cache-puller:v4 .
+#   podman push registry.taildeab2.ts.net/homelab/glm53-cache-puller:v4
+# Reference the image by a versioned tag (e.g. :v4) in the Job and bump it on
 # change; digest pinning against this registry is unreliable (the registry stores
 # a different manifest digest than the local build).
+#
+# v4 (2026-09-13): PULL_MODELS specs gain an optional '#glob|glob' include
+# filter for PARTIAL repo pulls (e.g. single shards of a large checkpoint).
+# Backward compatible: specs without '#' behave exactly as v3. Full pulls still
+# write refs/main; partial pulls deliberately do not. See puller.py docstring.
 #
 # Or build for the puller from a registry host. The serve/caching image
 # (ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3) is a SEPARATE image; this

@@ -1,0 +1,124 @@
+# DeepSeek-V4.1-Flash EXL3 2.9bpw (2x DGX-Spark recipe) cache pull, using the
+# generic cache-puller image (llm-test/puller/) at v4.
+#
+# ============================================================================
+# STATUS: PREPARED, NOT APPLIED. Image gate is DONE; do NOT kubectl apply
+# until the larger-model review (gate 2) signs off.
+#   1. [DONE 2026-09-13] puller v4 built on sextant (aarch64, podman 5.8.6)
+#      from the reviewed puller.py and pushed:
+#        registry.taildeab2.ts.net/homelab/glm53-cache-puller:v4
+#        manifest digest sha256:e88d0573b9eec89883453fdbf3697483cc20745cd79a7a65c3b6825c2154d7ba
+#      Smoke: entrypoint no-op path ok; httpx + huggingface_hub 1.31.0 imports ok.
+#   2. [PENDING] larger-model review of llm-test/dsv41-exl3-REVIEW.md
+#   3. [RESOLVED] storage: user confirms the PVC can be expanded; ~385.3 GiB
+#      needed, space is not a concern.
+# This Job only WRITES new cache trees; it deletes nothing and does not touch
+# the running DeepSeek/GLM lanes or their processes (lanes are slots: only one
+# model resident at a time; the serving port can move to 8000 at serve time).
+# ============================================================================
+#
+# Recipe: https://github.com/MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks
+# (local clone: /tmp/ds41-recipe, download.sh is the reference implementation)
+#
+# This recipe needs TWO trees (confirmed from the recipe README + download.sh):
+#   1. EXL3 quantized weights - FULL repo pull (~196.2 GiB, 39 shards):
+#        Mia-AiLab/DeepSeek-V4.1-Flash-EXL3-2.9bpw @ 64ba41b6c916a587db06eae2e19b7845f7be6e6b
+#   2. Engram (n-gram) tables - PARTIAL pull (~189.1 GiB): the tables were never
+#      quantized and live ONLY in shards 47+48 of the ORIGINAL 48-shard
+#      checkpoint (~94.56 GiB each) plus the safetensors index:
+#        deepseek-ai/DeepSeek-V4.1-Flash @ dba1be0a40aa45a94ad051997016db3960a90277
+#          #model-00047-of-00048.safetensors|model-00048-of-00048.safetensors|model.safetensors.index.json
+#      The other 46 shards (~287 GiB) are never read by the recipe and are
+#      deliberately NOT pulled. v4's partial-pull feature makes this possible;
+#      note v4 does NOT write refs/main for the partial tree (by design) -
+#      serving must reference its snapshot dir by path, never by repo id.
+#
+# Bandwidth: ~385.3 GiB total. RATE caps aggregate at 100 MB/s (~80% of the 1G
+# site link) -> ~70 min at the cap; lower RATE for daytime. The shared RWX
+# JuiceFS volume also serves the live DeepSeek lane, so overnight is preferred.
+# Resumable: re-apply / re-run the Job to continue (v4 skips files already
+# present at their expected size).
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dsv41-exl3-cache-pull
+  namespace: llm-test
+  labels:
+    app: dsv41-exl3-cache-pull
+    purpose: model-cache-preload
+spec:
+  backoffLimit: 2147483647
+  template:
+    metadata:
+      labels:
+        app: dsv41-exl3-cache-pull
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      containers:
+        - name: puller
+          # v4 = v3 + partial-repo include filter (PULL_MODELS '#glob|glob').
+          # v3 does NOT understand '#' specs and would pull the FULL 476 GiB
+          # native repo - do not downgrade the tag.
+          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:v4
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            # 100 MB/s cap (~80% of the gigabit site link); adjust per-site.
+            - name: RATE
+              value: "100000000"
+            - name: PULL_MODELS
+              value: >-
+                Mia-AiLab/DeepSeek-V4.1-Flash-EXL3-2.9bpw@64ba41b6c916a587db06eae2e19b7845f7be6e6b,
+                deepseek-ai/DeepSeek-V4.1-Flash@dba1be0a40aa45a94ad051997016db3960a90277#model-00047-of-00048.safetensors|model-00048-of-00048.safetensors|model.safetensors.index.json
+            - name: HF_HUB_DISABLE_XET
+              value: "1"
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface
+                  key: HF_TOKEN
+                  optional: true
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              python3 /opt/puller/puller.py
+
+              # ---- post-pull verification (sizes pinned from the HF API at
+              # ---- prep time; the revision pins above make them stable)
+              EXL3_SNAP=/models/.cache/huggingface/hub/models--Mia-AiLab--DeepSeek-V4.1-Flash-EXL3-2.9bpw/snapshots/64ba41b6c916a587db06eae2e19b7845f7be6e6b
+              ENGRAM_SNAP=/models/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-V4.1-Flash/snapshots/dba1be0a40aa45a94ad051997016db3960a90277
+
+              shards=$(find "$EXL3_SNAP" -maxdepth 1 -name 'model-*.safetensors' | wc -l)
+              echo "EXL3 shards: $shards/39"
+              [ "$shards" -eq 39 ] || { echo "FAIL: expected 39 EXL3 shards"; exit 1; }
+              for f in config.json quantization_config.json model.safetensors.index.json tokenizer.json chat_template.jinja; do
+                test -f "$EXL3_SNAP/$f" || { echo "FAIL: missing $EXL3_SNAP/$f"; exit 1; }
+              done
+
+              # Engram: exact byte sizes for shards 47+48 + index
+              check_size() {
+                got=$(stat -c%s "$1")
+                [ "$got" -eq "$2" ] || { echo "FAIL: $1 is $got bytes, expected $2"; exit 1; }
+              }
+              check_size "$ENGRAM_SNAP/model-00047-of-00048.safetensors" 101535150936
+              check_size "$ENGRAM_SNAP/model-00048-of-00048.safetensors" 101537926640
+              check_size "$ENGRAM_SNAP/model.safetensors.index.json"     7470294
+
+              touch /models/.dsv41-exl3-download-complete
+              echo "dsv41-exl3 cache pull complete"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache

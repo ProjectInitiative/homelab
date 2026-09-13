@@ -18,7 +18,15 @@ Concurrency:
 
 Parameters (env):
   HF_HOME            required   HF cache root (default /models/.cache/huggingface)
-  PULL_MODELS        optional   comma-separated 'repo@revision' entries (revision optional)
+  PULL_MODELS        optional   comma-separated 'repo[@revision][#pattern|pattern]'
+                                entries. Optional '#'-delimited include patterns (fnmatch
+                                globs against repo-relative paths, '|' between them)
+                                enable PARTIAL repo pulls — e.g. two shards out of a
+                                48-shard checkpoint:
+                                  org/model@<sha>#model-00047-of-00048.safetensors|model-00048-of-00048.safetensors
+                                When patterns are present only matching files download and
+                                refs/main is NOT written (a partial tree must never be
+                                resolvable by repo id — reference the snapshot by path).
   DELETE_MODELS      optional   comma-separated HF repo ids (or bare cache dirs like models--org--name)
   RATE               optional   max bytes/sec across all pulls (default 104857600 = 100 MiB/s; 0 = unlimited)
   MAX_FILE_WORKERS   optional   concurrent file downloads total (default 8)
@@ -27,6 +35,7 @@ Parameters (env):
   HF_TOKEN           optional   token for gated / rate-limited repos
   HF_ENDPOINT        optional   override the Hugging Face endpoint
 """
+import fnmatch
 import os
 import sys
 import time
@@ -52,6 +61,19 @@ def cache_dirname(ref):
     if "/" in ref:
         return "models--" + ref.replace("/", "--")
     return ref
+
+
+def parse_spec(spec):
+    """'repo[@revision][#glob|glob]' -> (repo, revision_or_None, [include globs]).
+
+    '#' never appears in HF repo ids or commit SHAs, so it is a safe delimiter.
+    Backward compatible: a spec without '#' pulls the full repo, exactly as
+    before.
+    """
+    body, _, pat_str = spec.partition("#")
+    includes = [p.strip() for p in pat_str.split("|") if p.strip()]
+    repo, rev = (body.rsplit("@", 1) if "@" in body else (body, None))
+    return repo, rev, includes
 
 
 class RateLimiter:
@@ -109,7 +131,7 @@ def delete_models(cache_root, specs, workers):
 
 
 def _download_file(job, limiter, headers, base_host):
-    """job = (url, dest, rel). Returns (rel, bytes)."""
+    """job = (url, dest, rel, part). Returns (rel, bytes)."""
     url, dest, rel, part = job
     got = 0
     os.makedirs(os.path.dirname(dest), exist_ok=True)
@@ -140,8 +162,9 @@ def pull_models(cache_root, specs, token, rate, endpoint, file_workers, repo_wor
     jobs = []  # (url, dest, rel, part)
     refs = {}  # dname -> resolved rev (for refs/main after)
 
-    def resolve(repo, rev):
-        log("resolving", repo, rev or "(default)")
+    def resolve(repo, rev, includes=()):
+        log("resolving", repo, rev or "(default)",
+            f"[include filter: {len(includes)} pattern(s)]" if includes else "")
         info = api.model_info(repo_id=repo, revision=rev or None, files_metadata=True)
         resolved = rev or info.sha
         dname = "models--" + repo.replace("/", "--")
@@ -149,15 +172,31 @@ def pull_models(cache_root, specs, token, rate, endpoint, file_workers, repo_wor
         os.makedirs(snap, exist_ok=True)
         base = f"{base_host}/{repo}/resolve/{resolved}"
         file_jobs = []
+        matched = skipped = 0
         for f in info.siblings:
             rel = f.rfilename
+            if includes and not any(fnmatch.fnmatch(rel, p) for p in includes):
+                skipped += 1
+                continue
+            matched += 1
             size = getattr(f, "size", None)
             dest = os.path.join(snap, rel)
             # Skip files already present and the expected size.
             if size is not None and os.path.isfile(dest) and os.path.getsize(dest) == size:
                 continue
             file_jobs.append((f"{base}/{rel}", dest, rel, dest + ".part"))
-        refs[dname] = resolved
+        if includes:
+            log(f"include filter for {repo}@{resolved[:12]}: {matched} file(s) "
+                f"matched, {skipped} skipped")
+            if matched == 0:
+                raise RuntimeError(
+                    f"include filter matched no files for {repo}@{resolved[:12]} "
+                    f"(patterns: {list(includes)}) - typo or repo drift?")
+            # A partial snapshot must not be resolvable by repo id: another
+            # tool resolving the repo would assume config.json etc. exist.
+            # Callers reference the snapshot directory by path instead.
+        else:
+            refs[dname] = resolved
         return file_jobs
 
     # Resolve repos in parallel, then gather all file jobs.
@@ -165,8 +204,8 @@ def pull_models(cache_root, specs, token, rate, endpoint, file_workers, repo_wor
     with ThreadPoolExecutor(max_workers=repo_workers) as ex:
         futs = {}
         for spec in specs:
-            repo, rev = (spec.rsplit("@", 1) if "@" in spec else (spec, None))
-            futs[ex.submit(resolve, repo, rev)] = (repo, rev)
+            repo, rev, includes = parse_spec(spec)
+            futs[ex.submit(resolve, repo, rev, tuple(includes))] = (repo, rev)
         for fut in as_completed(futs):
             repo, rev = futs[fut]
             fjobs = fut.result()
@@ -186,7 +225,8 @@ def pull_models(cache_root, specs, token, rate, endpoint, file_workers, repo_wor
                 log(f"  {done}/{len(all_jobs)} files, {total_bytes/1e6:.1f} MB "
                     + ("(rate-limited)" if limiter else ""))
 
-    # Write refs/main per repo so vllm / start.sh resolution works.
+    # Write refs/main per repo (full pulls only — see resolve()) so vllm /
+    # start.sh resolution works.
     for dname, resolved in refs.items():
         refsdir = os.path.join(cache_root, "hub", dname, "refs")
         os.makedirs(refsdir, exist_ok=True)
