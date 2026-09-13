@@ -229,8 +229,9 @@ spec:
             - {name: QUANTIZATION, value: exl3}
             - {name: MAX_MODEL_LEN, value: "512000"}
             - {name: GPU_MEM_UTIL, value: "0.88"}
-            - {name: MAX_NUM_SEQS, value: "4"}
-            - {name: MAX_NUM_BATCHED_TOKENS, value: "7168"}
+            # Upstream's independently measured high-concurrency geometry.
+            - {name: MAX_NUM_SEQS, value: "16"}
+            - {name: MAX_NUM_BATCHED_TOKENS, value: "2048"}
             - {name: LONG_PREFILL_TOKEN_THRESHOLD, value: ""}
             - {name: KV_CACHE_DTYPE, value: fp8}
             - {name: MTP_TOKENS, value: "0"}
@@ -268,7 +269,8 @@ spec:
             - {name: GLM53_ADAPTIVE_K_HIST, value: "200"}
             - {name: GLM53_DENSE_FP8, value: "off"}
             - {name: GLM53_SUPPRESS_STOPS_IN_REASONING, value: "1"}
-            - {name: GLM53_MIXED_PREFILL_CHUNK, value: skip}
+            # Preserve vLLM continuous batching: allow prefills while peers decode.
+            - {name: GLM53_MIXED_PREFILL_CHUNK, value: "off"}
             - {name: GLM53_DEFAULT_REASONING_EFFORT, value: ""}
             - {name: GLM53_INDEXER_WORKSPACE, value: rightsize}
             - {name: GLM53_SPINWAIT_MS, value: stock}
@@ -554,8 +556,9 @@ spec:
             - {name: QUANTIZATION, value: exl3}
             - {name: MAX_MODEL_LEN, value: "512000"}
             - {name: GPU_MEM_UTIL, value: "0.88"}
-            - {name: MAX_NUM_SEQS, value: "4"}
-            - {name: MAX_NUM_BATCHED_TOKENS, value: "7168"}
+            # Upstream's independently measured high-concurrency geometry.
+            - {name: MAX_NUM_SEQS, value: "16"}
+            - {name: MAX_NUM_BATCHED_TOKENS, value: "2048"}
             - {name: LONG_PREFILL_TOKEN_THRESHOLD, value: ""}
             - {name: KV_CACHE_DTYPE, value: fp8}
             - {name: MTP_TOKENS, value: "0"}
@@ -590,7 +593,8 @@ spec:
             - {name: GLM53_ADAPTIVE_K_HIST, value: "200"}
             - {name: GLM53_DENSE_FP8, value: "off"}
             - {name: GLM53_SUPPRESS_STOPS_IN_REASONING, value: "1"}
-            - {name: GLM53_MIXED_PREFILL_CHUNK, value: skip}
+            # Preserve vLLM continuous batching: allow prefills while peers decode.
+            - {name: GLM53_MIXED_PREFILL_CHUNK, value: "off"}
             - {name: GLM53_DEFAULT_REASONING_EFFORT, value: ""}
             - {name: GLM53_INDEXER_WORKSPACE, value: rightsize}
             - {name: GLM53_SPINWAIT_MS, value: stock}

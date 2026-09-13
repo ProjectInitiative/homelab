@@ -119,6 +119,14 @@ curl http://172.16.4.55:8000/v1/models
   explicit 12 GiB KV cap. This increases context while retaining several GiB of
   GB10 unified-memory headroom. DFlash2 remains TP-sharded with
   `DFLASH_DRAFT_TP=2`.
+- The scheduler uses the upstream-tested high-concurrency geometry:
+  `MAX_NUM_SEQS=16` with `MAX_NUM_BATCHED_TOKENS=2048`. Sixteen is an admission
+  ceiling, not a reservation; paged/grouped KV allocation and the 12 GiB pool
+  determine how many active histories fit at runtime.
+- `GLM53_MIXED_PREFILL_CHUNK=off` preserves normal vLLM continuous batching:
+  newly arriving agent prefills may share engine steps with active decodes. The
+  upstream `skip` policy protects one stream's decode latency but can make other
+  agents appear stalled while their prompts remain deferred.
 - `EXTRA_ARGS` ships the default DFlash2 CUDA-graph capture list
   `--cudagraph-capture-sizes 1 2 4 8 16 24 32`. The adaptive-k / FP8-dense
   fast paths need a longer list and a KV cap; see the upstream `.env.example`.
@@ -126,3 +134,53 @@ curl http://172.16.4.55:8000/v1/models
   GID index 2) carrying `172.16.5.55` (head) / `172.16.5.56` (worker). The
   generic `.env.example` defaults (`rocep1s0f1`/`rocep1s0f0`) do **not** match
   this kit, so the lane pins the correct per-node values.
+
+## Continuous-batching load test
+
+`test-continuous-batching.py` starts a long anchor decode, waits for its first
+output token, then injects multiple unique large prompts. Its live table shows
+scheduler occupancy, queue reasons, KV usage, and prompt/generation progress in
+the same metrics interval. Its final report includes per-request effective prefill,
+decode, and delivered generation rates plus aggregate prompt/completion totals.
+
+```bash
+python3 llm-test/glm53-parity/test-continuous-batching.py \
+  --load-requests 2 \
+  --prompt-tokens 30000 \
+  --anchor-output-tokens 1200 \
+  --load-output-tokens 200 \
+  --output /tmp/glm53-continuous-batching.json
+```
+
+Interpretation:
+
+- `prompt_delta > 0` and `gen_delta > 0` in one row proves mixed prefill/decode
+  progress.
+- `defer > 0` means a policy blocked otherwise schedulable work; with
+  `GLM53_MIXED_PREFILL_CHUNK=off`, this should remain zero.
+- `wait`/`cap > 0` can still occur when sequence, token-budget, or KV capacity is
+  exhausted; continuous batching does not imply unlimited admission.
+- Prometheus counters include all endpoint traffic, so run the test while other
+  clients are idle for an isolated measurement.
+
+For a throughput-oriented test, `benchmark-concurrent-prompts.py` releases
+three or four complex coding requests from a barrier at the same instant. It
+reports each stream's effective prefill, TTFT, decode-only throughput, delivered
+throughput, total duration, and token counts, followed by shared-wall-clock
+aggregate totals:
+
+```bash
+python3 llm-test/glm53-parity/benchmark-concurrent-prompts.py \
+  --requests 4 \
+  --prompt-tokens 30000 \
+  --max-tokens 600 \
+  --output /tmp/glm53-concurrent-prompts.json
+```
+
+Pass `--thinking` to model reasoning-heavy agent traffic. Use `--prompts-json`
+with a JSON array of task strings to benchmark actual project prompts. Summed
+per-stream rates are diagnostic only; the shared-window aggregate fields are
+the hardware-throughput measurements.
+
+Both scripts read an optional bearer token from `OPENAI_API_KEY` or
+`VLLM_API_KEY`; neither accepts secrets as command-line arguments.

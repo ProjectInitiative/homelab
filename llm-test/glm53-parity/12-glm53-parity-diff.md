@@ -22,10 +22,11 @@
 ## Pinned profile (default `.env` resolution)
 
 - `PORT=8000`, `TP=2`, `NNODES=2`, `MASTER_PORT=29521`
-- `MAX_MODEL_LEN=512000`, `GPU_MEM_UTIL=0.88`, `MAX_NUM_SEQS=4`, `MAX_NUM_BATCHED_TOKENS=7168`
+- `MAX_MODEL_LEN=512000`, `GPU_MEM_UTIL=0.88`, `MAX_NUM_SEQS=16`, `MAX_NUM_BATCHED_TOKENS=2048`
 - `KV_CACHE_DTYPE=fp8`, `QUANTIZATION=exl3`, `SPEC_METHOD=dflash`, `DFLASH_TOKENS=7`, `DFLASH_DRAFT_TP=2`
 - `LANGUAGE_MODEL_ONLY=0`, `SKIP_MM_PROFILING=1`, `LIMIT_MM={"image":100,"video":1}`
 - `EXL3_FAT_GROUPED=1` (E3 grouped fat-expert), `EXL3_FAT_KERNEL=1`
+- `GLM53_MIXED_PREFILL_CHUNK=off` keeps continuous batching enabled instead of deferring new prefills behind active decodes
 - HF cache mounted from PVC subPath `.cache/huggingface` at `/cache/huggingface`
 - CX7 backplane: socket/Gloo interface `enp1s0f1np1`; NCCL RDMA device `mlx5_1:1`, GID index 2; head `172.16.5.55`, worker `172.16.5.56`
 
@@ -41,7 +42,7 @@ vllm serve <MODEL_DIR>
   --tool-call-parser glm47 --enable-auto-tool-choice --reasoning-parser glm45
   --enable-prefix-caching --no-enable-flashinfer-autotune
   --quantization exl3 --max-model-len 512000 --gpu-memory-utilization 0.88
-  --max-num-seqs 4 --max-num-batched-tokens 7168 --kv-cache-dtype fp8
+  --max-num-seqs 16 --max-num-batched-tokens 2048 --kv-cache-dtype fp8
   --speculative-config '{"method":"dflash","model":<DFLASH_MODEL_DIR>,"num_speculative_tokens":7,
      "kv_cache_dtype":"auto","draft_sample_method":"probabilistic",
      "rejection_sample_method":"standard","draft_tensor_parallel_size":2}'
