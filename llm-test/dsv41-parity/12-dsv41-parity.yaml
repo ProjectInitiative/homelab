@@ -53,8 +53,9 @@ data:
     # --- memory discipline (recipe shipped defaults; GB10 UMA)
     MAX_MODEL_LEN=600000
     GPU_MEM_UTIL=0.88
-    MAX_NUM_SEQS=2
-    MAX_NUM_BATCHED_TOKENS=1024
+    # Admit interactive requests concurrently; KV remains hard-capped below.
+    MAX_NUM_SEQS=8
+    MAX_NUM_BATCHED_TOKENS=2048
     KV_CACHE_MEMORY_BYTES=2684354560
     KV_BLOCK_SIZE=64
     KV_CACHE_DTYPE=
@@ -114,7 +115,7 @@ data:
     DSV41_WARMUP_REQ_TIMEOUT=240
     # The baked shape-warmer consumes the inherited GLM53_* variable names.
     GLM53_WARMUP_REQ_TIMEOUT=240
-    GLM53_WARMUP_MAX_CONCURRENCY=2
+    GLM53_WARMUP_MAX_CONCURRENCY=8
     GLM53_WARMUP_DSPARK_K=3
     GLM53_WARMUP_TRITON_CACHE_DIR=/root/.triton/cache
     VLLM_ENGINE_READY_TIMEOUT_S=3600

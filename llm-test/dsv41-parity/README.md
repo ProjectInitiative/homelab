@@ -105,23 +105,34 @@ only 380–434 IOPS (2.3–2.6 ms) despite ~1 GiB/s sequential throughput, and
 structured decode plateaued near 4.2 tok/s. Raw node-local NVMe measured
 12.8–13.4k IOPS (~0.076 ms). After attaching the per-rank packed local stores:
 
-- count 1→200: 400 completion tokens, 0.410 s TTFT, **42.39 tok/s** decode
+- count 1→200: 400 completion tokens, 0.434 s TTFT, **42.92 tok/s** decode
   (upstream reference ~40 tok/s);
 - 400-token technical prose: 0.724 s TTFT, **28.53 tok/s** decode
   (upstream reference 31.6 tok/s);
 - both ranks Ready with zero restarts; boot-shape warmup passed.
+
+The production profile admits eight sequences with a fixed 2.5 GiB KV cap.
+Using four/eight concurrent ~42k-prompt + 600-output-token requests:
+
+| clients | max running | shared decode | delivered completion | wall | peak KV |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 4 (old two-sequence limit) | 2 | 12.64 tok/s | 9.91 tok/s | 242.1 s | 13.0% |
+| 4 | 4 | **15.22 tok/s** | 11.28 tok/s | 212.8 s | 26.0% |
+| 8 | 8 | 14.27 tok/s | **12.70 tok/s** | 378.0 s | 47.6% |
+
+Four active long-context clients are the decode-efficiency sweet spot. Eight
+remain useful for burst throughput, but substantially increase per-request
+latency.
 
 JuiceFS `writeback` is intentionally not enabled: it affects write durability,
 not this read-only latency path. `cache-partial-only` is also unsuitable for the
 fully prewarmed model because it optimizes cache capacity when sequential object
 storage throughput exceeds local cache throughput, but does not bypass FUSE.
 
-## Open items for review
+## Operational notes
 
-- Verify `chat_template.jinja` in the EXL3 checkpoint renders reasoning
-  identically to the recipe's ported template (delta #3).
-- Confirm the fabric IPs from the GLM lane (`172.16.5.55/.56`) and CX7 pins
-  (`enp1s0f1np1`, `mlx5_1:1`, GID 2) hold for this kit — copied from
-  `glm53-parity` (K8s-proven) rather than the recipe's docker values
-  (GID 3 / different ifnames) on purpose.
-- Decide ai-proxy/LiteLLM exposure after first healthy boot.
+- Verify `chat_template.jinja` after future checkpoint/template updates.
+- The validated CX7 transport uses `172.16.5.55/.56`, `enp1s0f1np1`,
+  `mlx5_1:1`, GID 3, and RoCE v2.
+- The lane is exposed through the shared generic `ai-proxy`; only the active
+  model lane may own host port 8000.
