@@ -1,0 +1,27 @@
+# Lane-local Services only. The shared ai-proxy and Tailscale LoadBalancer are
+# intentionally not owned or modified by this scaffold. Port 8000 is the same
+# exclusive host slot used by the other dual-Spark lanes.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qwen38-dual-head
+  namespace: llm-test
+  labels: {app: qwen38-dual-head, lane: qwen38-dual}
+spec:
+  type: ClusterIP
+  selector: {app: qwen38-dual-head}
+  ports:
+    - {name: http, port: 8000, targetPort: 8000, protocol: TCP}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qwen38-dual-worker
+  namespace: llm-test
+  labels: {app: qwen38-dual-worker, lane: qwen38-dual}
+spec:
+  type: ClusterIP
+  selector: {app: qwen38-dual-worker}
+  ports:
+    - {name: http, port: 8000, targetPort: 8000, protocol: TCP}
