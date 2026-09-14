@@ -187,7 +187,7 @@ spec:
               fi
               # Mirror upstream's post-ready DFlash/sampler/kpool warmup. Keep the
               # pod unready until all cold-JIT shapes complete successfully.
-              rm -f /tmp/glm53-warmup-ready
+              rm -f /run/glm53/glm53-warmup-ready
               (
                 until curl -fsS --max-time 10 "http://127.0.0.1:${PORT}/health" >/dev/null 2>&1; do sleep 5; done
                 say "API healthy; running boot shape warmup"
@@ -196,7 +196,7 @@ spec:
                    GLM53_WARMUP_DFLASH_K="${DFLASH_TOKENS}" \
                    GLM53_WARMUP_TRITON_CACHE_DIR="${TRITON_CACHE_DIR}" \
                    bash /opt/glm53/boot-shape-warmup.sh "http://127.0.0.1:${PORT}" "${SERVED_MODEL_NAME}"; then
-                  touch /tmp/glm53-warmup-ready
+                  touch /run/glm53/glm53-warmup-ready
                   say "boot shape warmup complete; pod ready"
                 else
                   say "ERROR: boot shape warmup failed; pod remains unready"
@@ -294,16 +294,32 @@ spec:
           ports:
             - name: http
               containerPort: 8000
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 360
           readinessProbe:
             exec:
-              command: ["/bin/bash", "-lc", "test -f /tmp/glm53-warmup-ready"]
+              command: ["/bin/bash", "-lc", "test -f /run/glm53/glm53-warmup-ready && curl -fsS -m 2 http://127.0.0.1:8000/health >/dev/null"]
             periodSeconds: 10
-            timeoutSeconds: 2
+            timeoutSeconds: 3
             failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6
           volumeMounts:
             - name: warmup
               mountPath: /opt/glm53/boot-shape-warmup.sh
               subPath: boot-shape-warmup.sh
+            - name: readiness
+              mountPath: /run/glm53
             - name: models
               mountPath: /cache/huggingface
               subPath: .cache/huggingface
@@ -338,6 +354,8 @@ spec:
           configMap:
             name: glm53-boot-warmup
             defaultMode: 0555
+        - name: readiness
+          emptyDir: {}
         - name: overlay
           configMap:
             name: glm53-parity-overlay

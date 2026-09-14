@@ -1,0 +1,124 @@
+# Populate each GB10 node's independent JuiceFS block cache with every byte of
+# the prepared DSV41 EXL3 model and slim Engram trees. This uses JuiceFS's
+# native warmup command, so blocks go directly into the configured local NVMe
+# cache instead of relying on Linux page cache.
+#
+# Apply one node at a time to avoid doubling object-store traffic:
+#   kubectl apply -f 06-warm-juicefs-cache.yaml -l cache-node=sextant
+#   kubectl wait -n llm-test --for=condition=complete job/dsv41-cache-warm-sextant-v3 --timeout=2h
+#   kubectl apply -f 06-warm-juicefs-cache.yaml -l cache-node=chronometer
+#
+# The Jobs are intentionally versioned. Bump the suffix when the model revision
+# changes and a fresh controller-tracked cache pass is required.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dsv41-cache-warm-sextant-v3
+  namespace: llm-test
+  labels:
+    app: dsv41-cache-warmer
+    cache-node: sextant
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app: dsv41-cache-warmer
+        cache-node: sextant
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: sextant
+      containers:
+        - name: warm
+          image: juicedata/mount:ce-v1.3.1
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              root=/models/dsv41-exl3
+              test -f "$root/model/config.json"
+              test -f "$root/engram-src/model.safetensors.index.json"
+              echo "cache coverage before warmup"
+              juicefs warmup --check --threads 32 "$root/model" "$root/engram-src" || true
+              for pass in 1 2; do
+                echo "FIFO cache rotation pass $pass/2: model then Engram"
+                juicefs warmup --threads 32 "$root/model"
+                juicefs warmup --threads 32 "$root/engram-src"
+                juicefs warmup --check --threads 32 "$root/model" "$root/engram-src"
+              done
+              echo "cache coverage after warmup (separate trees)"
+              juicefs warmup --check --threads 32 "$root/model"
+              juicefs warmup --check --threads 32 "$root/engram-src"
+          resources:
+            requests:
+              cpu: "1"
+              memory: 512Mi
+            limits:
+              cpu: "4"
+              memory: 2Gi
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dsv41-cache-warm-chronometer-v3
+  namespace: llm-test
+  labels:
+    app: dsv41-cache-warmer
+    cache-node: chronometer
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app: dsv41-cache-warmer
+        cache-node: chronometer
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      containers:
+        - name: warm
+          image: juicedata/mount:ce-v1.3.1
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              root=/models/dsv41-exl3
+              test -f "$root/model/config.json"
+              test -f "$root/engram-src/model.safetensors.index.json"
+              echo "cache coverage before warmup"
+              juicefs warmup --check --threads 32 "$root/model" "$root/engram-src" || true
+              for pass in 1 2; do
+                echo "FIFO cache rotation pass $pass/2: model then Engram"
+                juicefs warmup --threads 32 "$root/model"
+                juicefs warmup --threads 32 "$root/engram-src"
+                juicefs warmup --check --threads 32 "$root/model" "$root/engram-src"
+              done
+              echo "cache coverage after warmup (separate trees)"
+              juicefs warmup --check --threads 32 "$root/model"
+              juicefs warmup --check --threads 32 "$root/engram-src"
+          resources:
+            requests:
+              cpu: "1"
+              memory: 512Mi
+            limits:
+              cpu: "4"
+              memory: 2Gi
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache

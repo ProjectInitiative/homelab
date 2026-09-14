@@ -1,0 +1,152 @@
+# Convert the two file-backed Engram tables into each TP rank's contiguous
+# hash-head row store on raw node-local NVMe. This bypasses JuiceFS/FUSE random
+# read latency while keeping the canonical shards on the model-cache PVC.
+# Output: about 94 GiB per node under the existing local-path-nvme-sticky
+# storage root. Static Local PVs adopt the prebuilt node-local directories;
+# the PVCs give the serving Deployments a controller-visible mount contract.
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: dsv41-engram-packed-sextant
+spec:
+  capacity: {storage: 110Gi}
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-path-nvme-sticky
+  volumeMode: Filesystem
+  local:
+    path: /mnt/local-provisioner/nvme-cache/dsv41-engram-packed
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - {key: kubernetes.io/hostname, operator: In, values: [sextant]}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dsv41-engram-packed-sextant
+  namespace: llm-test
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path-nvme-sticky
+  volumeName: dsv41-engram-packed-sextant
+  resources:
+    requests: {storage: 110Gi}
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: dsv41-engram-packed-chronometer
+spec:
+  capacity: {storage: 110Gi}
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-path-nvme-sticky
+  volumeMode: Filesystem
+  local:
+    path: /mnt/local-provisioner/nvme-cache/dsv41-engram-packed
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - {key: kubernetes.io/hostname, operator: In, values: [chronometer]}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dsv41-engram-packed-chronometer
+  namespace: llm-test
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path-nvme-sticky
+  volumeName: dsv41-engram-packed-chronometer
+  resources:
+    requests: {storage: 110Gi}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dsv41-engram-pack-sextant-v2
+  namespace: llm-test
+  labels:
+    app: dsv41-engram-packer
+    cache-node: sextant
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app: dsv41-engram-packer
+        cache-node: sextant
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: sextant
+      containers:
+        - name: pack
+          image: ghcr.io/miaai-lab/deepseek-v4.1-flash-exl3-2x-dgx-sparks:2.9bpw@sha256:2f0cf3adc0f989c1d446be274df864eb799630175f604c3b22b71b7205971dce
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              python3 /opt/dsv41/pack_engram.py --model /engram-src --rank 1 --tp 2 --out /engram-packed
+              test -s /engram-packed/engram-l1-r1of2.bin
+              test -s /engram-packed/engram-l14-r1of2.bin
+              sync
+          resources:
+            requests: {cpu: "2", memory: 2Gi}
+            limits: {cpu: "8", memory: 8Gi}
+          volumeMounts:
+            - {name: models, mountPath: /engram-src, subPath: dsv41-exl3/engram-src, readOnly: true}
+            - {name: packed, mountPath: /engram-packed}
+      volumes:
+        - name: models
+          persistentVolumeClaim: {claimName: model-cache}
+        - name: packed
+          persistentVolumeClaim: {claimName: dsv41-engram-packed-sextant}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dsv41-engram-pack-chronometer-v2
+  namespace: llm-test
+  labels:
+    app: dsv41-engram-packer
+    cache-node: chronometer
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app: dsv41-engram-packer
+        cache-node: chronometer
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      containers:
+        - name: pack
+          image: ghcr.io/miaai-lab/deepseek-v4.1-flash-exl3-2x-dgx-sparks:2.9bpw@sha256:2f0cf3adc0f989c1d446be274df864eb799630175f604c3b22b71b7205971dce
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              python3 /opt/dsv41/pack_engram.py --model /engram-src --rank 0 --tp 2 --out /engram-packed
+              test -s /engram-packed/engram-l1-r0of2.bin
+              test -s /engram-packed/engram-l14-r0of2.bin
+              sync
+          resources:
+            requests: {cpu: "2", memory: 2Gi}
+            limits: {cpu: "8", memory: 8Gi}
+          volumeMounts:
+            - {name: models, mountPath: /engram-src, subPath: dsv41-exl3/engram-src, readOnly: true}
+            - {name: packed, mountPath: /engram-packed}
+      volumes:
+        - name: models
+          persistentVolumeClaim: {claimName: model-cache}
+        - name: packed
+          persistentVolumeClaim: {claimName: dsv41-engram-packed-chronometer}

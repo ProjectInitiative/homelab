@@ -1,14 +1,14 @@
 # Builds the stable serving trees on the JuiceFS model-cache PVC from the
 # HF-cache snapshots pulled by 40-dsv41-flash-exl3-download.yaml:
 #
-#   /models/dsv41-exl3/model       <- EXL3 snapshot (49 files, 39 shards), hardlinked
-#   /models/dsv41-exl3/engram-src  <- shards 47+48 (hardlinked) + embed-only
+#   /models/dsv41-exl3/model       <- EXL3 snapshot (49 files, 39 shards)
+#   /models/dsv41-exl3/engram-src  <- shards 47+48 + embed-only
 #                                     index + config.json (recipe
 #                                     scripts/prepare_engram_src.py semantics)
 #
-# Hardlinks are zero-extra-bytes on JuiceFS and decouple the serving pods'
-# mounts (subPath dsv41-exl3/model, dsv41-exl3/engram-src) from HF cache
-# layout and future revision re-pins.
+# The prep attempts zero-byte hardlinks, but this JuiceFS quota rejects them;
+# it safely falls back to copies. Equal-size completed copies are retained on
+# retries, while truncated destinations are replaced.
 #
 # GATES (apply only when all hold):
 #   1. dsv41-exl3-cache-pull Job completed -> /models/.dsv41-exl3-download-complete
@@ -69,8 +69,12 @@ spec:
               def link_or_copy(src: Path, dst: Path) -> str:
                   if dst.exists() or dst.is_symlink():
                       try:
-                          if dst.stat().st_ino == src.stat().st_ino and dst.stat().st_dev == src.stat().st_dev:
-                              return "exists"
+                          src_stat, dst_stat = src.stat(), dst.stat()
+                          if (dst_stat.st_ino == src_stat.st_ino
+                                  and dst_stat.st_dev == src_stat.st_dev):
+                              return "exists-hardlink"
+                          if dst_stat.st_size == src_stat.st_size:
+                              return "exists-copy"
                       except OSError:
                           pass
                       dst.unlink()
@@ -121,12 +125,18 @@ spec:
                       "weight_map": keep}
               (engram_out / "model.safetensors.index.json").write_text(
                   json.dumps(slim, indent=2) + "\n")
-              if (native / "config.json").is_file():
-                  shutil.copy2(native / "config.json", engram_out / "config.json")
+              # The file backend requires architecture metadata to map table
+              # row counts to Engram layer IDs. Partial native pulls may omit
+              # config.json, so fall back to the equivalent EXL3 model config.
+              config_src = native / "config.json"
+              if not config_src.is_file():
+                  config_src = exl3 / "config.json"
+              shutil.copy2(config_src, engram_out / "config.json")
+              actions["engram:config.json"] = "copy"
 
               (out / ".prep-complete").write_text(json.dumps(
                   {"model_files": len(actions), "engram_tensors": len(keep)}, indent=2) + "\n")
-              print("prep complete:", json.dumps({k: v for k, v in actions.items() if v != "exists"}))
+              print("prep complete:", json.dumps({k: v for k, v in actions.items() if not v.startswith("exists-")}))
               PYEOF
               test -f "${OUT_ROOT}/.prep-complete"
               echo "dsv41 model tree ready at /models/dsv41-exl3"
