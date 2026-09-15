@@ -1,0 +1,214 @@
+# Approved, persistent benchmark profiles. Keeping these declarative avoids
+# granting a workload cluster-wide StorageClass create/delete permissions.
+# Each profile uses a distinct host-NVMe cache directory. Test data is unique
+# per run and explicitly evicted during cleanup. The CSI Mount Pod image is
+# pinned independently from the benchmark image.
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-bench-control
+  labels: {app: juicefs-cache-bench}
+provisioner: csi.juicefs.com
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+mountOptions:
+  - cache-dir=/mnt/pool/juicefs-bench/control
+  - cache-size=32768
+  - cache-expire=0
+  - free-space-ratio=0.05
+parameters:
+  juicefs/mount-image: juicedata/mount:ce-v1.3.1@sha256:ddba2917edee5af0e0dc367c79aae55f91de4666f8c13795d238b937d44e3b3c
+  juicefs/mount-cpu-request: 500m
+  juicefs/mount-cpu-limit: "8"
+  juicefs/mount-memory-request: 512Mi
+  juicefs/mount-memory-limit: 4Gi
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-creds
+  csi.storage.k8s.io/provisioner-secret-namespace: juicefs-platform
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-creds
+  csi.storage.k8s.io/node-publish-secret-namespace: juicefs-platform
+  csi.storage.k8s.io/controller-expand-secret-name: juicefs-creds
+  csi.storage.k8s.io/controller-expand-secret-namespace: juicefs-platform
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-bench-direct
+  labels: {app: juicefs-cache-bench}
+provisioner: csi.juicefs.com
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+mountOptions:
+  - cache-dir=/mnt/pool/juicefs-bench/direct
+  - cache-size=32768
+  - cache-expire=0
+  - free-space-ratio=0.05
+  - async_dio
+parameters:
+  juicefs/mount-image: juicedata/mount:ce-v1.3.1@sha256:ddba2917edee5af0e0dc367c79aae55f91de4666f8c13795d238b937d44e3b3c
+  juicefs/mount-cpu-request: 500m
+  juicefs/mount-cpu-limit: "8"
+  juicefs/mount-memory-request: 512Mi
+  juicefs/mount-memory-limit: 4Gi
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-creds
+  csi.storage.k8s.io/provisioner-secret-namespace: juicefs-platform
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-creds
+  csi.storage.k8s.io/node-publish-secret-namespace: juicefs-platform
+  csi.storage.k8s.io/controller-expand-secret-name: juicefs-creds
+  csi.storage.k8s.io/controller-expand-secret-namespace: juicefs-platform
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-bench-meta
+  labels: {app: juicefs-cache-bench}
+provisioner: csi.juicefs.com
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+mountOptions:
+  - cache-dir=/mnt/pool/juicefs-bench/meta
+  - cache-size=32768
+  - cache-expire=0
+  - free-space-ratio=0.05
+  - attr-cache=86400
+  - entry-cache=86400
+  - dir-entry-cache=86400
+  - open-cache=86400
+  - open-cache-limit=100000
+  - readdir-cache
+parameters:
+  juicefs/mount-image: juicedata/mount:ce-v1.3.1@sha256:ddba2917edee5af0e0dc367c79aae55f91de4666f8c13795d238b937d44e3b3c
+  juicefs/mount-cpu-request: 500m
+  juicefs/mount-cpu-limit: "8"
+  juicefs/mount-memory-request: 512Mi
+  juicefs/mount-memory-limit: 4Gi
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-creds
+  csi.storage.k8s.io/provisioner-secret-namespace: juicefs-platform
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-creds
+  csi.storage.k8s.io/node-publish-secret-namespace: juicefs-platform
+  csi.storage.k8s.io/controller-expand-secret-name: juicefs-creds
+  csi.storage.k8s.io/controller-expand-secret-namespace: juicefs-platform
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-bench-fuse1m
+  labels: {app: juicefs-cache-bench}
+provisioner: csi.juicefs.com
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+mountOptions:
+  - cache-dir=/mnt/pool/juicefs-bench/fuse1m
+  - cache-size=32768
+  - cache-expire=0
+  - free-space-ratio=0.05
+  - max-fuse-io=1M
+parameters:
+  juicefs/mount-image: juicedata/mount:ce-v1.3.1@sha256:ddba2917edee5af0e0dc367c79aae55f91de4666f8c13795d238b937d44e3b3c
+  juicefs/mount-cpu-request: 500m
+  juicefs/mount-cpu-limit: "8"
+  juicefs/mount-memory-request: 512Mi
+  juicefs/mount-memory-limit: 4Gi
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-creds
+  csi.storage.k8s.io/provisioner-secret-namespace: juicefs-platform
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-creds
+  csi.storage.k8s.io/node-publish-secret-namespace: juicefs-platform
+  csi.storage.k8s.io/controller-expand-secret-name: juicefs-creds
+  csi.storage.k8s.io/controller-expand-secret-namespace: juicefs-platform
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-bench-stripped
+  labels: {app: juicefs-cache-bench}
+provisioner: csi.juicefs.com
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+mountOptions:
+  - cache-dir=/mnt/pool/juicefs-bench/stripped
+  - cache-size=32768
+  - cache-expire=0
+  - free-space-ratio=0.05
+  - prefetch=0
+  - max-readahead=0
+parameters:
+  juicefs/mount-image: juicedata/mount:ce-v1.3.1@sha256:ddba2917edee5af0e0dc367c79aae55f91de4666f8c13795d238b937d44e3b3c
+  juicefs/mount-cpu-request: 500m
+  juicefs/mount-cpu-limit: "8"
+  juicefs/mount-memory-request: 512Mi
+  juicefs/mount-memory-limit: 4Gi
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-creds
+  csi.storage.k8s.io/provisioner-secret-namespace: juicefs-platform
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-creds
+  csi.storage.k8s.io/node-publish-secret-namespace: juicefs-platform
+  csi.storage.k8s.io/controller-expand-secret-name: juicefs-creds
+  csi.storage.k8s.io/controller-expand-secret-namespace: juicefs-platform
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-bench-meta-direct
+  labels: {app: juicefs-cache-bench}
+provisioner: csi.juicefs.com
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+mountOptions:
+  - cache-dir=/mnt/pool/juicefs-bench/meta-direct
+  - cache-size=32768
+  - cache-expire=0
+  - free-space-ratio=0.05
+  - async_dio
+  - attr-cache=86400
+  - entry-cache=86400
+  - dir-entry-cache=86400
+  - open-cache=86400
+  - open-cache-limit=100000
+  - readdir-cache
+parameters:
+  juicefs/mount-image: juicedata/mount:ce-v1.3.1@sha256:ddba2917edee5af0e0dc367c79aae55f91de4666f8c13795d238b937d44e3b3c
+  juicefs/mount-cpu-request: 500m
+  juicefs/mount-cpu-limit: "8"
+  juicefs/mount-memory-request: 512Mi
+  juicefs/mount-memory-limit: 4Gi
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-creds
+  csi.storage.k8s.io/provisioner-secret-namespace: juicefs-platform
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-creds
+  csi.storage.k8s.io/node-publish-secret-namespace: juicefs-platform
+  csi.storage.k8s.io/controller-expand-secret-name: juicefs-creds
+  csi.storage.k8s.io/controller-expand-secret-namespace: juicefs-platform
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-bench-combined
+  labels: {app: juicefs-cache-bench}
+provisioner: csi.juicefs.com
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+mountOptions:
+  - cache-dir=/mnt/pool/juicefs-bench/combined
+  - cache-size=32768
+  - cache-expire=0
+  - free-space-ratio=0.05
+  - async_dio
+  - attr-cache=86400
+  - entry-cache=86400
+  - dir-entry-cache=86400
+  - open-cache=86400
+  - open-cache-limit=100000
+  - readdir-cache
+  - max-fuse-io=1M
+  - prefetch=0
+  - max-readahead=0
+parameters:
+  juicefs/mount-image: juicedata/mount:ce-v1.3.1@sha256:ddba2917edee5af0e0dc367c79aae55f91de4666f8c13795d238b937d44e3b3c
+  juicefs/mount-cpu-request: 500m
+  juicefs/mount-cpu-limit: "8"
+  juicefs/mount-memory-request: 512Mi
+  juicefs/mount-memory-limit: 4Gi
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-creds
+  csi.storage.k8s.io/provisioner-secret-namespace: juicefs-platform
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-creds
+  csi.storage.k8s.io/node-publish-secret-namespace: juicefs-platform
+  csi.storage.k8s.io/controller-expand-secret-name: juicefs-creds
+  csi.storage.k8s.io/controller-expand-secret-namespace: juicefs-platform

@@ -74,6 +74,7 @@ metadata:
     app: dsv41-engram-packer
     cache-node: sextant
 spec:
+  ttlSecondsAfterFinished: 259200
   backoffLimit: 1
   template:
     metadata:
@@ -117,6 +118,7 @@ metadata:
     app: dsv41-engram-packer
     cache-node: chronometer
 spec:
+  ttlSecondsAfterFinished: 259200
   backoffLimit: 1
   template:
     metadata:

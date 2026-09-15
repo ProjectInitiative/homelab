@@ -16,6 +16,7 @@ metadata:
     lane: qwen38-dual
     purpose: model-cache-preload
 spec:
+  ttlSecondsAfterFinished: 259200
   suspend: true
   backoffLimit: 2147483647
   template:

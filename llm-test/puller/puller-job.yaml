@@ -31,6 +31,7 @@ metadata:
   labels:
     purpose: model-cache-preload
 spec:
+  ttlSecondsAfterFinished: 259200
   backoffLimit: 2147483647
   template:
     metadata:

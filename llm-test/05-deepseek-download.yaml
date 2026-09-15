@@ -6,6 +6,7 @@ metadata:
   labels:
     app: deepseek-vision-download
 spec:
+  ttlSecondsAfterFinished: 259200
   backoffLimit: 20
   template:
     metadata:
