@@ -298,6 +298,79 @@ class SyncTests(unittest.TestCase):
         with self.assertRaisesRegex(SYNC.Error, "before all gates and approval"):
             SYNC.check_lock(lock, "fixture")
 
+        lock["schemaVersion"] = 4
+        candidate["status"] = "gpu-gated-unqualified"
+        candidate["qualification"]["servingAB"] = "pending"
+        result = {
+            "bundleStaged": True,
+            "checks": 54,
+            "strictRawDifferences": 10,
+            "strictPostBf16Differences": 8,
+            "numericalScreenReferencePeakPercent": 0.3,
+            "distributedServingVerified": False,
+        }
+        candidate["gpuGateEvidence"] = {
+            "chronometer": dict(result), "sextant": dict(result),
+        }
+        SYNC.check_lock(lock, "fixture")
+        candidate["status"] = "qualified"
+        with self.assertRaisesRegex(SYNC.Error, "before all gates and approval"):
+            SYNC.check_lock(lock, "fixture")
+        candidate["qualification"]["servingAB"] = "pass"
+        with self.assertRaisesRegex(SYNC.Error, "before all gates and approval"):
+            SYNC.check_lock(lock, "fixture")
+        candidate["qualification"]["promotionApproved"] = True
+        SYNC.check_lock(lock, "fixture")
+        candidate["gpuGateEvidence"]["sextant"]["distributedServingVerified"] = True
+        with self.assertRaisesRegex(SYNC.Error, "must be staged and not serving-verified"):
+            SYNC.check_lock(lock, "fixture")
+
+        candidate["gpuGateEvidence"]["sextant"]["distributedServingVerified"] = False
+        lock["schemaVersion"] = 5
+        candidate["status"] = "serving-validated-unapproved"
+        candidate["qualification"]["promotionApproved"] = False
+        candidate["servingEvidence"] = {
+            "matchedStock": {
+                "c1MedianTokensPerSecond": 10.0, "c2MedianTokensPerSecond": 20.0,
+            },
+            "cooperative": {
+                "c1MedianTokensPerSecond": 12.0, "c2MedianTokensPerSecond": 25.0,
+            },
+            "supplementalStockOperational": {
+                "c1MedianTokensPerSecond": 11.0, "c2MedianTokensPerSecond": 19.0,
+            },
+            "matchedGainPercent": {
+                "c1MedianTokensPerSecond": 20.0, "c2MedianTokensPerSecond": 25.0,
+            },
+            "protocol": {
+                "repetitions": 3, "maxCompletionTokens": 400,
+                "streaming": True, "thinking": False,
+            },
+            "runtime": {
+                "selectedProfile": "cooperative", "bothRanksActivated": True,
+                "activationHashesLogged": True, "cooperativeRuntimeLogged": True,
+                "packedEngram": True, "readinessSucceeded": True, "zeroRestarts": True,
+                "externalHealthHttpStatus": 200, "externalModelsHttpStatus": 200,
+                "nonThinkingSmokeCompletionTokens": 323,
+            },
+        }
+        SYNC.check_lock(lock, "fixture")
+        candidate["qualification"]["servingAB"] = "pending"
+        with self.assertRaisesRegex(SYNC.Error, "serving-validated state is inconsistent"):
+            SYNC.check_lock(lock, "fixture")
+        candidate["qualification"]["servingAB"] = "pass"
+        candidate["qualification"]["chronometerGpu54"] = "pending"
+        with self.assertRaisesRegex(SYNC.Error, "before both GPU gates"):
+            SYNC.check_lock(lock, "fixture")
+        candidate["qualification"]["chronometerGpu54"] = "pass"
+        candidate["localCandidate"]["buildProvenance"]["compilerIdentity"] = None
+        with self.assertRaisesRegex(SYNC.Error, "serving-validated state is inconsistent"):
+            SYNC.check_lock(lock, "fixture")
+        candidate["localCandidate"]["buildProvenance"]["compilerIdentity"] = "nvcc fixture"
+        candidate["qualification"]["promotionApproved"] = True
+        with self.assertRaisesRegex(SYNC.Error, "serving-validated state is inconsistent"):
+            SYNC.check_lock(lock, "fixture")
+
     def test_drift_report_is_deterministic(self):
         SYNC.report_lane("fixture", False)
         first = (self.lanes / "fixture/drift.md").read_bytes()

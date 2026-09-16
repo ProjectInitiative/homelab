@@ -7,7 +7,7 @@ metadata:
   name: dsv41-coop-candidate-scripts-f083d7e
   namespace: llm-test
 data:
-  SHA256SUMS: |-
+  SHA256SUMS: |
     16191d208101a3a04b021f8a2d0da360c5ebb710c0145b2e312052a02ce40305  cooperative_moe.so
     2d33c5cd57c447b4d6545abfb59356ca7ee9cefe8aa2e4fe2c2023fe09bf35de  runtime.py
     b68bf2405d8d427407fcc18f728943cda964376a4c25637f5e9f5d791a3a6aac  exl3-cooperative.py
@@ -31,7 +31,7 @@ data:
     mkdir -p "$parent"
     trap 'rm -rf "$temporary"' EXIT
     mkdir "$temporary"
-    while read -r _ file; do
+    while read -r _ file || [ -n "${file:-}" ]; do
       install -m 0444 "$source_dir/$file" "$temporary/$file"
     done < "$sums"
     (cd "$temporary" && sha256sum -c "$sums")

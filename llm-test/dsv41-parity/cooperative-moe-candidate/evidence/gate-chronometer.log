@@ -1,0 +1,67 @@
+cooperative_moe.so: OK
+runtime.py: OK
+exl3-cooperative.py: OK
+test_cuda_integration.py: OK
+test_exl3_overlay.py: OK
+INFO 09-16 18:55:19 [runtime.py:198] Fixed-shape cooperative MoE enabled: K2/K3 mul1, 1..8 rows; other calls stay stock
+INFO 09-16 18:55:19 [exl3.py:603] exl3 e2 diag schema=2 configured_tier=grouped effective_tier=grouped tier_reason=grouped_ok shared_suh=1 shared_suh_layers=1/1 sym_exl3_moe=1 sym_fat_gemm=1 sym_fat_gemm_scatter=1 sym_fat_moe=1 grouped_eligible=1 grouped_calls=0 grouped_scratch_bytes=0 cap=12.1 cap_ok=1 tp_rank=-1 tp_size=1 prefill_layer_calls=0 thin_calls=0 row_tile_calls=0 fallback_calls=grouped=0,kernel=0,batched=0,sorted=0,legacy=0 fallback_reasons=none fat_expert_runs=0 direct_calls=0 scatter_calls=0 fat_layers=0 fat_expert_slots=0 max_rows=0 fused_temps_allocs=0 fused_temps_bytes=0 fat_scratch_allocs=0 fat_scratch_bytes=0 fat_scratch_peak_bytes=0
+INFO 09-16 18:55:19 [exl3.py:2401] EXL3 mul1 trellis engaged for routed experts: K=3 avg_bits=2.9 mcg=0 mul1=1 experts_local=32 hidden=5120 intermediate_local=1152 fused_moe=exl3_moe concurrency=6 (no BF16 expert reconstruct at load; E3 fat kernels are K4/MCG-only)
+{"stage": "fixture", "prefix": "model.layers.0.mlp.experts", "bits": 3, "rows": 1, "concentrated": false, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.0.mlp.experts", "bits": 3, "rows": 1, "concentrated": true, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.0.mlp.experts", "bits": 3, "rows": 2, "concentrated": false, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.0.mlp.experts", "bits": 3, "rows": 2, "concentrated": true, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.0.mlp.experts", "bits": 3, "rows": 3, "concentrated": false, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.0.mlp.experts", "bits": 3, "rows": 3, "concentrated": true, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.0.mlp.experts", "bits": 3, "rows": 4, "concentrated": false, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.0.mlp.experts", "bits": 3, "rows": 4, "concentrated": true, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.0.mlp.experts", "bits": 3, "rows": 5, "concentrated": false, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.0.mlp.experts", "bits": 3, "rows": 5, "concentrated": true, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.0.mlp.experts", "bits": 3, "rows": 6, "concentrated": false, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.0.mlp.experts", "bits": 3, "rows": 6, "concentrated": true, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.0.mlp.experts", "bits": 3, "rows": 7, "concentrated": false, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.0.mlp.experts", "bits": 3, "rows": 7, "concentrated": true, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.0.mlp.experts", "bits": 3, "rows": 8, "concentrated": false, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.0.mlp.experts", "bits": 3, "rows": 8, "concentrated": true, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.0.mlp.experts", "bits": 3, "rows": 12, "concentrated": false, "candidate_selected": false, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.0.mlp.experts", "bits": 3, "rows": 12, "concentrated": true, "candidate_selected": false, "status": "pass"}
+INFO 09-16 18:55:20 [exl3.py:2401] EXL3 mul1 trellis engaged for routed experts: K=2 avg_bits=2.9 mcg=0 mul1=1 experts_local=32 hidden=5120 intermediate_local=1152 fused_moe=exl3_moe concurrency=6 (no BF16 expert reconstruct at load; E3 fat kernels are K4/MCG-only)
+{"stage": "fixture", "prefix": "model.layers.18.mlp.experts", "bits": 2, "rows": 1, "concentrated": false, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.18.mlp.experts", "bits": 2, "rows": 1, "concentrated": true, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.18.mlp.experts", "bits": 2, "rows": 2, "concentrated": false, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.18.mlp.experts", "bits": 2, "rows": 2, "concentrated": true, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.18.mlp.experts", "bits": 2, "rows": 3, "concentrated": false, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.18.mlp.experts", "bits": 2, "rows": 3, "concentrated": true, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.18.mlp.experts", "bits": 2, "rows": 4, "concentrated": false, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.18.mlp.experts", "bits": 2, "rows": 4, "concentrated": true, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.18.mlp.experts", "bits": 2, "rows": 5, "concentrated": false, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.18.mlp.experts", "bits": 2, "rows": 5, "concentrated": true, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.18.mlp.experts", "bits": 2, "rows": 6, "concentrated": false, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.18.mlp.experts", "bits": 2, "rows": 6, "concentrated": true, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.18.mlp.experts", "bits": 2, "rows": 7, "concentrated": false, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.18.mlp.experts", "bits": 2, "rows": 7, "concentrated": true, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.18.mlp.experts", "bits": 2, "rows": 8, "concentrated": false, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.18.mlp.experts", "bits": 2, "rows": 8, "concentrated": true, "candidate_selected": true, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.18.mlp.experts", "bits": 2, "rows": 12, "concentrated": false, "candidate_selected": false, "status": "pass"}
+{"stage": "fixture", "prefix": "model.layers.18.mlp.experts", "bits": 2, "rows": 12, "concentrated": true, "candidate_selected": false, "status": "pass"}
+INFO 09-16 18:55:21 [exl3.py:2401] EXL3 mul1 trellis engaged for routed experts: K=4 avg_bits=2.9 mcg=0 mul1=1 experts_local=32 hidden=5120 intermediate_local=1152 fused_moe=exl3_moe concurrency=6 (no BF16 expert reconstruct at load; E3 fat kernels are K4/MCG-only)
+{"stage": "fixture", "prefix": "mtp.0.ffn.experts", "bits": 4, "rows": 1, "concentrated": false, "candidate_selected": false, "status": "pass"}
+{"stage": "fixture", "prefix": "mtp.0.ffn.experts", "bits": 4, "rows": 1, "concentrated": true, "candidate_selected": false, "status": "pass"}
+{"stage": "fixture", "prefix": "mtp.0.ffn.experts", "bits": 4, "rows": 2, "concentrated": false, "candidate_selected": false, "status": "pass"}
+{"stage": "fixture", "prefix": "mtp.0.ffn.experts", "bits": 4, "rows": 2, "concentrated": true, "candidate_selected": false, "status": "pass"}
+{"stage": "fixture", "prefix": "mtp.0.ffn.experts", "bits": 4, "rows": 3, "concentrated": false, "candidate_selected": false, "status": "pass"}
+{"stage": "fixture", "prefix": "mtp.0.ffn.experts", "bits": 4, "rows": 3, "concentrated": true, "candidate_selected": false, "status": "pass"}
+{"stage": "fixture", "prefix": "mtp.0.ffn.experts", "bits": 4, "rows": 4, "concentrated": false, "candidate_selected": false, "status": "pass"}
+{"stage": "fixture", "prefix": "mtp.0.ffn.experts", "bits": 4, "rows": 4, "concentrated": true, "candidate_selected": false, "status": "pass"}
+{"stage": "fixture", "prefix": "mtp.0.ffn.experts", "bits": 4, "rows": 5, "concentrated": false, "candidate_selected": false, "status": "pass"}
+{"stage": "fixture", "prefix": "mtp.0.ffn.experts", "bits": 4, "rows": 5, "concentrated": true, "candidate_selected": false, "status": "pass"}
+{"stage": "fixture", "prefix": "mtp.0.ffn.experts", "bits": 4, "rows": 6, "concentrated": false, "candidate_selected": false, "status": "pass"}
+{"stage": "fixture", "prefix": "mtp.0.ffn.experts", "bits": 4, "rows": 6, "concentrated": true, "candidate_selected": false, "status": "pass"}
+{"stage": "fixture", "prefix": "mtp.0.ffn.experts", "bits": 4, "rows": 7, "concentrated": false, "candidate_selected": false, "status": "pass"}
+{"stage": "fixture", "prefix": "mtp.0.ffn.experts", "bits": 4, "rows": 7, "concentrated": true, "candidate_selected": false, "status": "pass"}
+{"stage": "fixture", "prefix": "mtp.0.ffn.experts", "bits": 4, "rows": 8, "concentrated": false, "candidate_selected": false, "status": "pass"}
+{"stage": "fixture", "prefix": "mtp.0.ffn.experts", "bits": 4, "rows": 8, "concentrated": true, "candidate_selected": false, "status": "pass"}
+{"stage": "fixture", "prefix": "mtp.0.ffn.experts", "bits": 4, "rows": 12, "concentrated": false, "candidate_selected": false, "status": "pass"}
+{"stage": "fixture", "prefix": "mtp.0.ffn.experts", "bits": 4, "rows": 12, "concentrated": true, "candidate_selected": false, "status": "pass"}
+{"stage": "complete", "checks": 54, "status": "pass", "strict_raw_failed_elements_retained": 6124458, "strict_post_bf16_failed_elements_retained": 3912212, "numerical_screen": "0.3% of reference peak; strict differences retained", "distributed_serving_verified": false}
+{"stage": "complete", "checks": 54, "status": "pass", "strict_raw_failed_elements_retained": 6124458, "strict_post_bf16_failed_elements_retained": 3912212, "numerical_screen": "0.3% of reference peak; strict differences retained", "distributed_serving_verified": false}
+54-case candidate gate passed on chronometer; this does not qualify serving

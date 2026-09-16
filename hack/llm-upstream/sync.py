@@ -38,7 +38,10 @@ REQUIRED_RUNTIME_REFERENCES = {
     },
 }
 ADOPTION_STATUSES = {"pending-review", "provenance-blocked", "runtime-current"}
-CANDIDATE_STATUSES = {"source-review-required", "built-unqualified", "qualified"}
+CANDIDATE_STATUSES = {
+    "source-review-required", "built-unqualified", "gpu-gated-unqualified",
+    "serving-validated-unapproved", "qualified",
+}
 QUALIFICATION_STATUSES = {"pending", "pass", "fail"}
 
 LOCK_KEYS_V2 = {"schemaVersion", "lane", "recipe", "image", "models", "bundle", "adoption", "safety"}
@@ -59,6 +62,25 @@ ADOPTION_KEYS_V3 = ADOPTION_KEYS_V2 | {"reviewedOptionalRuntimeChanged"}
 CANDIDATE_KEYS = {
     "upstreamRevision", "mode", "status", "requiredFiles", "upstreamArtifact",
     "localCandidate", "qualification",
+}
+CANDIDATE_KEYS_V4 = CANDIDATE_KEYS | {"gpuGateEvidence"}
+CANDIDATE_KEYS_V5 = CANDIDATE_KEYS_V4 | {"servingEvidence"}
+GPU_GATE_EVIDENCE_KEYS = {"chronometer", "sextant"}
+GPU_GATE_RESULT_KEYS = {
+    "bundleStaged", "checks", "strictRawDifferences", "strictPostBf16Differences",
+    "numericalScreenReferencePeakPercent", "distributedServingVerified",
+}
+SERVING_EVIDENCE_KEYS = {
+    "matchedStock", "cooperative", "supplementalStockOperational",
+    "matchedGainPercent", "protocol", "runtime",
+}
+SERVING_PERFORMANCE_KEYS = {"c1MedianTokensPerSecond", "c2MedianTokensPerSecond"}
+SERVING_PROTOCOL_KEYS = {"repetitions", "maxCompletionTokens", "streaming", "thinking"}
+SERVING_RUNTIME_KEYS = {
+    "selectedProfile", "bothRanksActivated", "activationHashesLogged",
+    "cooperativeRuntimeLogged", "packedEngram", "readinessSucceeded", "zeroRestarts",
+    "externalHealthHttpStatus", "externalModelsHttpStatus",
+    "nonThinkingSmokeCompletionTokens",
 }
 UPSTREAM_ARTIFACT_KEYS = {"sha256", "availability"}
 LOCAL_CANDIDATE_KEYS = {
@@ -226,11 +248,11 @@ def normalize_repo_url(value: object) -> str:
 
 def check_lock(lock: dict, lane: str) -> None:
     schema = lock.get("schemaVersion")
-    if schema not in (2, 3) or lock.get("lane") != lane:
+    if schema not in (2, 3, 4, 5) or lock.get("lane") != lane:
         raise Error(f"{lane}: unsupported lock schema or lane")
-    exact_keys(lock, LOCK_KEYS_V3 if schema == 3 else LOCK_KEYS_V2, f"{lane} lock")
+    exact_keys(lock, LOCK_KEYS_V3 if schema >= 3 else LOCK_KEYS_V2, f"{lane} lock")
     recipe = exact_keys(
-        lock["recipe"], RECIPE_KEYS_V3 if schema == 3 else RECIPE_KEYS_V2,
+        lock["recipe"], RECIPE_KEYS_V3 if schema >= 3 else RECIPE_KEYS_V2,
         f"{lane} recipe",
     )
     normalize_repo_url(recipe["repo"])
@@ -254,7 +276,7 @@ def check_lock(lock: dict, lane: str) -> None:
     if required_references is not None and set(references) != required_references:
         raise Error(f"{lane}: required runtime references must be {sorted(required_references)}")
     optional_references: list[str] = []
-    if schema == 3:
+    if schema >= 3:
         optional_references = string_list(
             recipe["optionalRuntimeReferences"], f"{lane} optionalRuntimeReferences"
         )
@@ -298,7 +320,7 @@ def check_lock(lock: dict, lane: str) -> None:
         raise Error(f"{lane}: compatibility bundle does not match active recipe/image/models")
 
     adoption = exact_keys(
-        lock["adoption"], ADOPTION_KEYS_V3 if schema == 3 else ADOPTION_KEYS_V2,
+        lock["adoption"], ADOPTION_KEYS_V3 if schema >= 3 else ADOPTION_KEYS_V2,
         f"{lane} adoption",
     )
     if adoption["status"] not in ADOPTION_STATUSES:
@@ -306,7 +328,7 @@ def check_lock(lock: dict, lane: str) -> None:
     nonempty_string(adoption["reason"], f"{lane} adoption.reason")
     if not isinstance(adoption["reviewedRuntimeChanged"], bool):
         raise Error(f"{lane}: adoption.reviewedRuntimeChanged must be boolean")
-    if schema == 3 and not isinstance(adoption["reviewedOptionalRuntimeChanged"], bool):
+    if schema >= 3 and not isinstance(adoption["reviewedOptionalRuntimeChanged"], bool):
         raise Error(f"{lane}: adoption.reviewedOptionalRuntimeChanged must be boolean")
     if adoption["reviewedRevision"] != recipe["reviewedRevision"]:
         raise Error(f"{lane}: adoption reviewed revision is stale")
@@ -323,13 +345,16 @@ def check_lock(lock: dict, lane: str) -> None:
         if schema == 2 and recipe["vendorRevision"] != recipe["runtimeBaseline"]:
             raise Error(f"{lane}: runtime-current requires vendor/runtime baseline equality")
 
-    if schema == 3:
+    if schema >= 3:
         candidates = lock["runtimeCandidates"]
         if not isinstance(candidates, dict) or not candidates:
             raise Error(f"{lane}: runtimeCandidates must be a nonempty object")
         for name, candidate in candidates.items():
             nonempty_string(name, f"{lane} candidate name")
-            candidate = exact_keys(candidate, CANDIDATE_KEYS, f"{lane} candidate {name}")
+            candidate_keys = CANDIDATE_KEYS_V5 if schema >= 5 else (
+                CANDIDATE_KEYS_V4 if schema >= 4 else CANDIDATE_KEYS
+            )
+            candidate = exact_keys(candidate, candidate_keys, f"{lane} candidate {name}")
             if candidate["upstreamRevision"] != recipe["reviewedRevision"]:
                 raise Error(f"{lane}: candidate {name} revision is stale")
             if candidate["mode"] != "optional-off-by-default":
@@ -396,6 +421,72 @@ def check_lock(lock: dict, lane: str) -> None:
                 provenance["compilerIdentity"] is not None
                 and provenance["buildLogSha256"] is not None
             )
+            if schema >= 4:
+                evidence = exact_keys(
+                    candidate["gpuGateEvidence"], GPU_GATE_EVIDENCE_KEYS,
+                    f"{lane} candidate {name}.gpuGateEvidence",
+                )
+                for node, result in evidence.items():
+                    result = exact_keys(
+                        result, GPU_GATE_RESULT_KEYS, f"{lane} candidate {name} {node} gate"
+                    )
+                    if result["checks"] != 54 or result["numericalScreenReferencePeakPercent"] != 0.3:
+                        raise Error(f"{lane}: candidate {name} {node} gate evidence is not the locked 54-case screen")
+                    for field in ("strictRawDifferences", "strictPostBf16Differences"):
+                        if not isinstance(result[field], int) or result[field] < 0:
+                            raise Error(f"{lane}: candidate {name} {node} {field} is invalid")
+                    if result["bundleStaged"] is not True or result["distributedServingVerified"] is not False:
+                        raise Error(f"{lane}: candidate {name} {node} evidence must be staged and not serving-verified")
+                if candidate["status"] == "gpu-gated-unqualified" and not (
+                    gpu_complete and qualification["servingAB"] == "pending"
+                    and not qualification["promotionApproved"] and provenance_complete
+                ):
+                    raise Error(f"{lane}: candidate {name} GPU-gated state is inconsistent")
+            if schema >= 5:
+                serving = exact_keys(
+                    candidate["servingEvidence"], SERVING_EVIDENCE_KEYS,
+                    f"{lane} candidate {name}.servingEvidence",
+                )
+                performance = {}
+                for field in ("matchedStock", "cooperative", "supplementalStockOperational"):
+                    performance[field] = exact_keys(
+                        serving[field], SERVING_PERFORMANCE_KEYS,
+                        f"{lane} candidate {name}.servingEvidence.{field}",
+                    )
+                    if any(not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0
+                           for value in performance[field].values()):
+                        raise Error(f"{lane}: candidate {name} {field} serving medians are invalid")
+                gains = exact_keys(
+                    serving["matchedGainPercent"], SERVING_PERFORMANCE_KEYS,
+                    f"{lane} candidate {name}.servingEvidence.matchedGainPercent",
+                )
+                for metric in SERVING_PERFORMANCE_KEYS:
+                    expected = (performance["cooperative"][metric] / performance["matchedStock"][metric] - 1) * 100
+                    if not isinstance(gains[metric], (int, float)) or isinstance(gains[metric], bool) or abs(gains[metric] - expected) > 1e-12:
+                        raise Error(f"{lane}: candidate {name} {metric} serving gain is inconsistent")
+                protocol = exact_keys(
+                    serving["protocol"], SERVING_PROTOCOL_KEYS,
+                    f"{lane} candidate {name}.servingEvidence.protocol",
+                )
+                if protocol != {"repetitions": 3, "maxCompletionTokens": 400, "streaming": True, "thinking": False}:
+                    raise Error(f"{lane}: candidate {name} serving protocol is not the locked bounded protocol")
+                runtime = exact_keys(
+                    serving["runtime"], SERVING_RUNTIME_KEYS,
+                    f"{lane} candidate {name}.servingEvidence.runtime",
+                )
+                expected_runtime = {
+                    "selectedProfile": "cooperative", "bothRanksActivated": True,
+                    "activationHashesLogged": True, "cooperativeRuntimeLogged": True,
+                    "packedEngram": True, "readinessSucceeded": True, "zeroRestarts": True,
+                    "externalHealthHttpStatus": 200, "externalModelsHttpStatus": 200,
+                    "nonThinkingSmokeCompletionTokens": 323,
+                }
+                if runtime != expected_runtime:
+                    raise Error(f"{lane}: candidate {name} serving runtime evidence is incomplete")
+                if candidate["status"] == "serving-validated-unapproved" and not (
+                    complete and provenance_complete and not qualification["promotionApproved"]
+                ):
+                    raise Error(f"{lane}: candidate {name} serving-validated state is inconsistent")
             if candidate["status"] == "qualified" and not provenance_complete:
                 raise Error(f"{lane}: candidate {name} cannot be qualified with pending build provenance")
             if candidate["status"] == "qualified" and (not complete or not qualification["promotionApproved"]):
@@ -606,7 +697,7 @@ def update_lane(lane: str, revision: str, reviewed_revision: str | None, source:
         behind = git("rev-list", "--count", f"{reviewed_revision}..{baseline}", cwd=repository).decode().strip()
         changed = set(git("diff", "--name-only", baseline, reviewed_revision, cwd=repository).decode().splitlines())
         selected_changed = sorted(changed.intersection(paths))
-        if lock["schemaVersion"] == 3:
+        if lock["schemaVersion"] >= 3:
             default_changed = sorted(changed.intersection(lock["recipe"]["requiredRuntimeReferences"]))
             optional_changed = sorted(
                 changed.intersection(lock["recipe"]["optionalRuntimeReferences"])
@@ -647,9 +738,9 @@ def update_lane(lane: str, revision: str, reviewed_revision: str | None, source:
         lock["recipe"]["files"] = hashes
         adoption_update = {
             "reviewedRevision": reviewed_revision,
-            "reviewedRuntimeChanged": bool(default_changed) if lock["schemaVersion"] == 3 else True,
+            "reviewedRuntimeChanged": bool(default_changed) if lock["schemaVersion"] >= 3 else True,
         }
-        if lock["schemaVersion"] == 3:
+        if lock["schemaVersion"] >= 3:
             adoption_update["reviewedOptionalRuntimeChanged"] = bool(optional_changed)
             if optional_changed:
                 for candidate in lock["runtimeCandidates"].values():
@@ -706,7 +797,7 @@ def report_lane(lane: str, check: bool) -> None:
         f"- Runtime adoption: **{adoption_summary(lock)}**", "", "## Preserved local contract", "",
     ]
     lines.extend(f"- {item}" for item in contract["preservedPolicy"])
-    if lock["schemaVersion"] == 3:
+    if lock["schemaVersion"] >= 3:
         lines.extend(["", "## Optional runtime candidates", ""])
         for name, candidate in sorted(lock["runtimeCandidates"].items()):
             local = candidate["localCandidate"]
@@ -720,7 +811,25 @@ def report_lane(lane: str, check: bool) -> None:
                 f"  - Build capture: compiler={local['buildProvenance']['compilerIdentity'] or 'pending'}, log-sha256={local['buildProvenance']['buildLogSha256'] or 'pending'}",
                 f"  - Gates: chronometer-54={qualification['chronometerGpu54']}, sextant-54={qualification['sextantGpu54']}, serving-A/B={qualification['servingAB']}, promotion-approved={str(qualification['promotionApproved']).lower()}",
             ])
-    candidate_blocked = lock["schemaVersion"] == 3 and any(
+            if lock["schemaVersion"] >= 4:
+                for node, result in sorted(candidate["gpuGateEvidence"].items()):
+                    lines.append(
+                        f"  - {node} evidence: bundle-staged={str(result['bundleStaged']).lower()}, checks={result['checks']}, "
+                        f"strict-raw={result['strictRawDifferences']}, strict-post-bf16={result['strictPostBf16Differences']}, "
+                        f"numerical-screen={result['numericalScreenReferencePeakPercent']}% reference peak, "
+                        f"distributed-serving-verified={str(result['distributedServingVerified']).lower()}"
+                    )
+            if lock["schemaVersion"] >= 5:
+                serving = candidate["servingEvidence"]
+                lines.append(
+                    f"  - Matched serving medians: stock C1={serving['matchedStock']['c1MedianTokensPerSecond']}, "
+                    f"C2={serving['matchedStock']['c2MedianTokensPerSecond']}; cooperative "
+                    f"C1={serving['cooperative']['c1MedianTokensPerSecond']}, "
+                    f"C2={serving['cooperative']['c2MedianTokensPerSecond']}; gains "
+                    f"C1={serving['matchedGainPercent']['c1MedianTokensPerSecond']}%, "
+                    f"C2={serving['matchedGainPercent']['c2MedianTokensPerSecond']}%"
+                )
+    candidate_blocked = lock["schemaVersion"] >= 3 and any(
         candidate["status"] != "qualified"
         for candidate in lock["runtimeCandidates"].values()
     )

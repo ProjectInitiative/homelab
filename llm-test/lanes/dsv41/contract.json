@@ -1,9 +1,8 @@
 {
   "adoptionBlockers": [
-    "Upstream cooperative_moe.so pin a09a589cbdcecb5372991c7b091d732236d58bc5f5aea14ab91e38e426f08d78 is unavailable in Git and Releases.",
-    "Local candidate 16191d208101a3a04b021f8a2d0da360c5ebb710c0145b2e312052a02ce40305 is built but unqualified: independent 54-case GPU gates on chronometer and sextant and serving A/B remain pending.",
-    "Promotion requires an explicit reviewed manifest/profile change; the stock deployments do not select the candidate.",
-    "Candidate build provenance is incomplete: compiler identity and build-log SHA-256 remain null and must be captured before qualification or promotion."
+    "Upstream cooperative_moe.so pin a09a589cbdcecb5372991c7b091d732236d58bc5f5aea14ab91e38e426f08d78 is unavailable in Git and Releases; the locally built candidate remains a separately pinned artifact.",
+    "Serving A/B passed the exact bounded C1/C2 protocol, but long-context, sustained burn-in, and response-quality/regression checks remain pending.",
+    "Promotion remains false and requires explicit review approval; the default stock adoption remains current and all Git manifests remain replicas 0."
   ],
   "fileAssertions": [
     {
@@ -184,11 +183,6 @@
     {
       "count": 1,
       "path": "llm-test/lanes/dsv41/upstream.lock.json",
-      "text": "\"status\": \"built-unqualified\""
-    },
-    {
-      "count": 1,
-      "path": "llm-test/lanes/dsv41/upstream.lock.json",
       "text": "\"availability\": \"unavailable-in-git-and-releases\""
     },
     {
@@ -204,17 +198,7 @@
     {
       "count": 1,
       "path": "llm-test/lanes/dsv41/upstream.lock.json",
-      "text": "\"chronometerGpu54\": \"pending\""
-    },
-    {
-      "count": 1,
-      "path": "llm-test/lanes/dsv41/upstream.lock.json",
-      "text": "\"sextantGpu54\": \"pending\""
-    },
-    {
-      "count": 1,
-      "path": "llm-test/lanes/dsv41/upstream.lock.json",
-      "text": "\"servingAB\": \"pending\""
+      "text": "\"servingAB\": \"pass\""
     },
     {
       "count": 1,
@@ -267,16 +251,6 @@
       "text": "02aef45cd681b960a00afcd0749a4ab99e6c1bfe"
     },
     {
-      "count": 1,
-      "path": "llm-test/lanes/dsv41/upstream.lock.json",
-      "text": "\"compilerIdentity\": null"
-    },
-    {
-      "count": 1,
-      "path": "llm-test/lanes/dsv41/upstream.lock.json",
-      "text": "\"buildLogSha256\": null"
-    },
-    {
       "count": 4,
       "path": "llm-test/dsv41-parity/cooperative-moe-candidate/01-stage-and-gate.yaml",
       "text": "ttlSecondsAfterFinished: 259200"
@@ -300,14 +274,100 @@
       "count": 1,
       "path": "llm-test/lanes/dsv41/upstream.lock.json",
       "text": "\"buildScriptSha256\": \"0eca829cf4045ea35c2b0a7a422eeef8abdabdedc68834084aad4f64a1f4b048\""
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "\"status\": \"serving-validated-unapproved\""
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "\"chronometerGpu54\": \"pass\""
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "\"sextantGpu54\": \"pass\""
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "c3b122a7ddaf2aa684ce9a8326e6d385bb18ca1a17e0dbb25f91ec3a6c4f2059"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "6124458"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "3912212"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "6124464"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "3912165"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/cooperative-moe-candidate/serving/profile.env",
+      "text": "MAX_NUM_SEQS=2"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/cooperative-moe-candidate/serving/profile.env",
+      "text": "MAX_NUM_BATCHED_TOKENS=3072"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/cooperative-moe-candidate/serving/profile.env",
+      "text": "LONG_PREFILL_TOKEN_THRESHOLD=2816"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/dsv41-parity/cooperative-moe-candidate/serving/deployments-patch.yaml",
+      "text": "replicas: 0"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/dsv41-parity/cooperative-moe-candidate/serving/deployments-patch.yaml",
+      "text": "name: dsv41-exl3-coop-candidate-profile"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "39.78376644154133"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "27.778279206671197"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/dsv41-parity/cooperative-moe-candidate/stock-control/deployments-patch.yaml",
+      "text": "replicas: 0"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/dsv41-parity/cooperative-moe-candidate/stock-control/deployments-patch.yaml",
+      "text": "name: dsv41-exl3-stock-matched-profile"
     }
   ],
   "lane": "dsv41",
   "preservedPolicy": [
     "Stock serving Deployments remain replicas 0 with explicit worker -> head activation and port 8000; baked /opt/dsv41/exl3.py remains the default.",
-    "Digest/model pins, 600k context, eight-sequence/2048-token local concurrency, 2.5 GiB KV pool, text-only mode, and DSpark k=3 remain unchanged.",
+    "Digest/model pins, 600k context, stock eight-sequence/2048-token concurrency, 2.5 GiB KV pool, text-only mode, and DSpark k=3 remain unchanged.",
     "Fail-closed cache/model/Engram preflights, ordered cache warming, readiness warmup, and node/rank-matched packed Engram remain unchanged.",
-    "Cooperative-MoE staging and per-node GPU gates are separate suspended Jobs; no native binary is stored in Git or a ConfigMap."
+    "The separate cooperative-MoE serving overlay retains the original Deployment names and replicas 0, selects a distinct 2/3072 candidate profile on both ranks, and fails closed on all staged and baked-overlay hashes.",
+    "Cooperative-MoE staging and per-node GPU gates remain separate suspended Jobs; no native binary is stored in Git or a ConfigMap."
   ],
   "schemaVersion": 1,
   "servingManifests": [

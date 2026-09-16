@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dsv41-coop-activation
+  namespace: llm-test
+data:
+  SHA256SUMS: |
+    16191d208101a3a04b021f8a2d0da360c5ebb710c0145b2e312052a02ce40305  cooperative_moe.so
+    2d33c5cd57c447b4d6545abfb59356ca7ee9cefe8aa2e4fe2c2023fe09bf35de  runtime.py
+    b68bf2405d8d427407fcc18f728943cda964376a4c25637f5e9f5d791a3a6aac  exl3-cooperative.py
+    249934dddcded4977524d139e78f6ea9fbdc40cd147eb304a2ae5c01e78f0f00  test_cuda_integration.py
+    faecaeaf16b6142f020704cd3d003b0cc55611b2ad28886b4976d97322bd988b  test_exl3_overlay.py
+  activate.sh: |-
+    #!/bin/bash
+    set -euo pipefail
+    rank=${1:?head or worker rank is required}
+    case "$rank" in head|worker) ;; *) echo "FATAL: invalid rank: $rank" >&2; exit 64 ;; esac
+    stage=/root/.cache/vllm/dsv41-cooperative-moe/f083d7e-local-16191d2
+    sums=/opt/dsv41-candidate/SHA256SUMS
+    stock=/opt/dsv41/exl3.py
+    expected_stock=ccdc69bfa04bff4870c3e555736a990fde6448ddb329441c4e0a27d6fc41078d
+    test -d "$stage"
+    (cd "$stage" && sha256sum -c "$sums")
+    actual_stock=$(sha256sum "$stock" | awk '{print $1}')
+    test "$actual_stock" = "$expected_stock"
+    install -m 0444 "$stage/exl3-cooperative.py" "$stock"
+    actual_overlay=$(sha256sum "$stock" | awk '{print $1}')
+    test "$actual_overlay" = b68bf2405d8d427407fcc18f728943cda964376a4c25637f5e9f5d791a3a6aac
+    echo "candidate activation hashes rank=$rank stock_sha256=$actual_stock installed_overlay_sha256=$actual_overlay"
+    sha256sum \
+      "$stage/cooperative_moe.so" "$stage/runtime.py" "$stage/exl3-cooperative.py" \
+      "$stage/test_cuda_integration.py" "$stage/test_exl3_overlay.py"
+    exec "/opt/dsv41/launch/${rank}.sh"

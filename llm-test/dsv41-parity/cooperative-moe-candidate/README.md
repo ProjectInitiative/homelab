@@ -1,8 +1,12 @@
-# DSV41 cooperative-MoE candidate (built, unqualified, not deployed)
+# DSV41 cooperative-MoE candidate (serving-validated, promotion unapproved)
 
-This directory is an **off-by-default candidate workflow**, not a serving profile.
-The proven stock deployments in `../12-dsv41-parity.yaml` are unchanged and
-remain at `replicas: 0`; they still install baked `/opt/dsv41/exl3.py`.
+This directory contains an **off-by-default candidate workflow** and separate
+zero-replica serving and matched-stock overlays. The proven stock manifest in
+`../12-dsv41-parity.yaml` is byte-unchanged and remains the default adoption at
+`replicas: 0`; stock still installs baked `/opt/dsv41/exl3.py`. The candidate
+serving A/B passed and the candidate is currently observed live and ready, but
+promotion remains explicitly unapproved. Repository manifests remain at
+`replicas: 0`; this record does not apply or scale anything.
 
 ## Locked state
 
@@ -16,13 +20,22 @@ remain at `replicas: 0`; they still install baked `/opt/dsv41/exl3.py`.
 - exact pinned ExLlama checkout: `turboderp-org/exllamav3@02aef45cd681b960a00afcd0749a4ab99e6c1bfe`;
 - build-input archive `dsv41-coop-build-input.tgz`: `f0760e9cd4bd5019f87b38df6aa788123794fb541f2e58998eae52c8a0d5b32b`;
 - build script `extensions/cooperative_moe/build.sh`: `0eca829cf4045ea35c2b0a7a422eeef8abdabdedc68834084aad4f64a1f4b048`;
-- exact build command: `bash /work/input/extension/build.sh /work/input/upstream /work/output` in the pinned serving image (the archived `extension/build.sh` has the same hash).
+- exact build command: `bash /work/input/extension/build.sh /work/input/upstream /work/output` in the pinned serving image (the archived `extension/build.sh` has the same hash);
+- compiler identity: `nvcc: NVIDIA (R) Cuda compiler driver; Cuda compilation tools, release 13.0, V13.0.88; Build cuda_13.0.r13.0/compiler.36424714_0`;
+- build log SHA-256: `c3b122a7ddaf2aa684ce9a8326e6d385bb18ca1a17e0dbb25f91ec3a6c4f2059`.
 
-The local binary was built in the pinned serving image from the exact archived
-ExLlama headers/source. Compiler identity and build-log SHA-256 were not captured
-and remain explicit `null` provenance blockers in the lock. The candidate is
-**not qualified or promotable**. It intentionally does not replace the
-unavailable upstream artifact pin.
+The exact bundle staged successfully on both nodes. Chronometer passed 54/54
+with strict counts raw `6124458` and post-bf16 `3912212`; sextant passed 54/54
+with strict counts raw `6124464` and post-bf16 `3912165`. Both used the 0.3%
+reference-peak numerical screen. These are synthetic independent GPU gate
+results, not distributed serving verification: `distributed_serving_verified`
+is false on both nodes because those fixture gates did not themselves verify
+serving. Serving A/B passed separately and promotion remains false. The complete
+build log, compiler identity, and both gate logs are retained under
+`evidence/` and checksum-locked by `evidence/SHA256SUMS`; the unit tests parse
+those captures and compare their terminal records to `upstream.lock.json`.
+The candidate intentionally does not replace the unavailable upstream artifact
+pin or the current stock adoption.
 
 ## Offline bundle preparation
 
@@ -59,8 +72,11 @@ a hash to accept a different build.
 four versioned Jobs. Every Job has `spec.suspend: true`, a 30-minute active
 deadline, and a three-day finished-object TTL. The two stage Jobs copy verified
 bytes to each node's existing vLLM host cache; the two GPU Jobs verify the cache
-again and run the 54-case gate independently. Applying the manifest would not run
-a Job, but this repository update does not apply it.
+again and run the 54-case gate independently. The checksum ConfigMap deliberately
+uses `SHA256SUMS: |` to retain the final newline, and the copy loop uses
+`while read ... || [ -n ... ]` so a final record is never omitted even if a
+producer drops that newline. Applying the manifest would not run a Job, but this
+repository update does not apply it.
 
 The vendored `test_build.py` deliberately remains checksum-identical upstream and
 assumes Bash exists under `/usr/bin:/bin`, which is false on this Nix host. The
@@ -68,32 +84,82 @@ local `test_vendored_build_script_on_nix_with_resolved_bash` compatibility test
 resolves Bash explicitly and supplies an `NVCC` stub with that absolute shebang;
 it executes the unmodified vendored `build.sh`.
 
+## Zero-replica serving candidate
+
+`serving/` renders the stock parity resources with the original Deployment names,
+so a reviewed apply updates the stopped lane and retains existing Service routing.
+Both ranks select `dsv41-exl3-coop-candidate-profile` and execute the same
+fail-closed activation wrapper. The wrapper verifies all five staged hashes,
+verifies baked stock overlay `ccdc69bf…`, installs `exl3-cooperative.py`, verifies
+the installed hash, echoes the activation hashes, and only then execs the existing
+head or worker launch script. Both ranks use the already-staged node-local path
+under `/root/.cache/vllm`. There is no fallback to stock after candidate selection.
+
+The candidate profile preserves the pinned image/model resources, 600k context,
+packed rank-local Engram PVCs, host port 8000, DSpark k=3, readiness flow, and
+worker-first operation. Its reproduction settings are exactly
+`MAX_NUM_SEQS=2`, `MAX_NUM_BATCHED_TOKENS=3072`, `EXL3_TEMP_ROWS_FUSED=8`,
+`LONG_PREFILL_TOKEN_THRESHOLD=2816`, `GLM53_WARMUP_MAX_CONCURRENCY=2`,
+`DSV41_EXL3_SERIAL_STREAMS=1`, and `VLLM_DISABLE_SHARED_EXPERTS_STREAM=1`.
+Both Deployments remain `replicas: 0` after apply.
+
+From this directory, offline render and reviewed apply are:
+
+```bash
+kubectl kustomize serving --load-restrictor=LoadRestrictionsNone > /tmp/dsv41-coop-serving.yaml
+kubectl kustomize serving --load-restrictor=LoadRestrictionsNone | kubectl apply -f -
+```
+
+The upward stock resource requires `LoadRestrictionsNone`; do not use or imply
+`kubectl apply -k`. Applying the render still starts nothing.
+
+## Matched stock control and activation
+
+`stock-control/` renders the unchanged stock base and baked
+`/opt/dsv41/exl3.py`, but selects the exact same 2/3072 reproduction profile used
+by the candidate. Its distinct ConfigMap is
+`dsv41-exl3-stock-matched-profile`; both original Deployment names and zero
+replicas are preserved. Render and reviewed apply from this directory:
+
+```bash
+kubectl kustomize stock-control --load-restrictor=LoadRestrictionsNone > /tmp/dsv41-stock-matched.yaml
+kubectl kustomize stock-control --load-restrictor=LoadRestrictionsNone | kubectl apply -f -
+```
+
+Applying either overlay starts nothing. In an approved maintenance window,
+activate the selected overlay explicitly in worker-first order:
+
+```bash
+kubectl -n llm-test scale deployment/dsv41-exl3-worker --replicas=1
+kubectl -n llm-test rollout status deployment/dsv41-exl3-worker
+kubectl -n llm-test scale deployment/dsv41-exl3-head --replicas=1
+kubectl -n llm-test rollout status deployment/dsv41-exl3-head
+```
+
+## Recorded serving result
+
+The checksum-locked `evidence/` records three repetitions each of exact bounded
+streaming C1/C2. Matched stock medians are 30.842845123259174 / 48.11253629584001
+and cooperative medians are 43.113290591022924 / 61.47737096150947 tokens/s,
+for +39.78376644154133% / +27.778279206671197% C1/C2. Every measured request
+completed the 400-token bound. The old stock 8/2048 medians
+33.57196678872021 / 46.14851124739707 are supplemental, not the matched control.
+
+The live observation captured both rank activations, activation hashes,
+cooperative runtime, packed Engram, readiness, zero restarts, external `/health`
+and `/v1/models` HTTP 200, and exact nonthinking 323-token smoke. See
+`evidence/README.md`, `serving-summary.json`, and the repo-relative
+`evidence/benchmark.py` for the exact protocol and reproduction command.
+
 ## Remaining gate and promotion sequence
 
-1. Independent review of the vendored extension, candidate provenance, manifest,
-   and hashes.
-2. Capture the compiler identity and SHA-256 of the original build log, bind them
-   to this exact binary in the lock, and review them. If they cannot be recovered,
-   the candidate remains blocked (a rebuild is a new candidate requiring all gates).
-3. During an approved maintenance window with all GPU workloads stopped, stage
-   the exact bundle on **chronometer** and **sextant**.
-4. Unsuspend only the chronometer gate; require zero exit and final JSON
-   `{"stage":"complete","checks":54,"status":"pass",...}`. Preserve logs.
-5. Repeat independently on sextant and preserve its logs. A pass is
-   peak-normalized numerical screening, not bitwise equality.
-6. Create a separate reviewed serving candidate profile using the published
-   reproduction settings (`MAX_NUM_SEQS=2`, `EXL3_TEMP_ROWS_FUSED=8`,
-   `MAX_NUM_BATCHED_TOKENS=3072`, `LONG_PREFILL_TOKEN_THRESHOLD=2816`) while
-   preserving 600k context, packed Engram, port 8000, worker-first ordering, and
-   zero replicas in Git. Both ranks must select the same verified overlay path.
-7. In a maintenance window, run worker then head; require both activation logs,
-   installed-overlay hashes, health, `323` smoke, and zero restarts.
-8. Run repeated matched stock/cooperative C1 and C2 A/B, then local 4/8-client,
-   packed-Engram, 32K and near-600K prefill, memory-floor, sustained burn-in, and
-   response-quality/regression checks.
-9. Record both 54-case passes and serving A/B as `pass` in the lane lock, obtain
-   explicit review approval, and only then make a **separate** manifest/profile
-   promotion change. Do not reinterpret build success as qualification.
+1. Independently review the extension, build/GPU evidence, serving overlays,
+   checksum-locked A/B captures, and this state transition.
+2. Complete local 4/8-client, packed-Engram, 32K and near-600K prefill,
+   memory-floor, sustained burn-in, and response-quality/regression checks.
+3. Obtain explicit promotion approval. Only then mark the candidate `qualified`
+   or make a separate feature/profile promotion change. Serving A/B pass is not
+   approval and does not change the current stock adoption.
 
 The evidence locked in the vendored report is the paired reference pass: C1
 **+27.9%** and C2 aggregate **+33.1%**. The previously cited +25.3%/+35.2%
@@ -105,7 +171,10 @@ were not repeated, and the local 8-sequence profile is unqualified.
 ## Rollback
 
 Promotion must remain a profile-only choice. Drain requests, scale head down then
-worker, remove the candidate overlay selection, restore the stock 8/2048 profile,
-and restart worker then head. The immutable stock image/model pins and baked
+worker, run `kubectl apply -f ../12-dsv41-parity.yaml` from this directory to
+restore the stock 8/2048 profile at replicas zero, and restart worker then head
+only after approval. For a matched-control rollback, apply `stock-control/` with
+the same reviewed render pipeline; it also remains replicas zero until explicitly
+scaled worker then head. The immutable stock image/model pins and baked
 `/opt/dsv41/exl3.py` remain the rollback baseline. Staged cache files are inert
-when the stock overlay is selected and may remain for audit.
+when stock is selected and may remain for audit.

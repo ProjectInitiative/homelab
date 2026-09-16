@@ -14,6 +14,12 @@ LOCK_PATH = ROOT / "llm-test/lanes/dsv41/upstream.lock.json"
 STOCK_MANIFEST = ROOT / "llm-test/dsv41-parity/12-dsv41-parity.yaml"
 CANDIDATE_DIR = ROOT / "llm-test/dsv41-parity/cooperative-moe-candidate"
 CANDIDATE_MANIFEST = CANDIDATE_DIR / "01-stage-and-gate.yaml"
+SERVING_DIR = CANDIDATE_DIR / "serving"
+STOCK_CONTROL_DIR = CANDIDATE_DIR / "stock-control"
+EVIDENCE_DIR = CANDIDATE_DIR / "evidence"
+SERVING_PROFILE = SERVING_DIR / "profile.env"
+SERVING_ACTIVATION = SERVING_DIR / "activation.yaml"
+SERVING_PATCH = SERVING_DIR / "deployments-patch.yaml"
 PREPARE = CANDIDATE_DIR / "prepare_candidate.py"
 VENDORED_EXTENSION = ROOT / "llm-test/lanes/dsv41/vendor/extensions/cooperative_moe"
 
@@ -21,13 +27,13 @@ VENDORED_EXTENSION = ROOT / "llm-test/lanes/dsv41/vendor/extensions/cooperative_
 class Dsv41CandidateContractTests(unittest.TestCase):
     def test_candidate_is_separate_blocked_and_unqualified(self):
         lock = json.loads(LOCK_PATH.read_text())
-        self.assertEqual(lock["schemaVersion"], 3)
+        self.assertEqual(lock["schemaVersion"], 5)
         self.assertEqual(lock["recipe"]["reviewedRevision"], "f083d7e4ccc8cc1083ef739945a3114f54a8bef5")
         self.assertEqual(lock["adoption"]["status"], "runtime-current")
         self.assertFalse(lock["adoption"]["reviewedRuntimeChanged"])
         self.assertTrue(lock["adoption"]["reviewedOptionalRuntimeChanged"])
         candidate = lock["runtimeCandidates"]["cooperativeMoe"]
-        self.assertEqual(candidate["status"], "built-unqualified")
+        self.assertEqual(candidate["status"], "serving-validated-unapproved")
         self.assertEqual(candidate["mode"], "optional-off-by-default")
         self.assertEqual(candidate["upstreamArtifact"]["availability"], "unavailable-in-git-and-releases")
         local = candidate["localCandidate"]
@@ -43,13 +49,47 @@ class Dsv41CandidateContractTests(unittest.TestCase):
         self.assertEqual(provenance["buildScript"], "extensions/cooperative_moe/build.sh")
         self.assertEqual(provenance["buildScriptSha256"], "0eca829cf4045ea35c2b0a7a422eeef8abdabdedc68834084aad4f64a1f4b048")
         self.assertEqual(provenance["buildCommand"], "bash /work/input/extension/build.sh /work/input/upstream /work/output")
-        self.assertIsNone(provenance["compilerIdentity"])
-        self.assertIsNone(provenance["buildLogSha256"])
+        self.assertEqual(
+            provenance["compilerIdentity"],
+            "nvcc: NVIDIA (R) Cuda compiler driver; Cuda compilation tools, release 13.0, V13.0.88; Build cuda_13.0.r13.0/compiler.36424714_0",
+        )
+        self.assertEqual(
+            provenance["buildLogSha256"],
+            "c3b122a7ddaf2aa684ce9a8326e6d385bb18ca1a17e0dbb25f91ec3a6c4f2059",
+        )
         self.assertEqual(candidate["qualification"], {
-            "chronometerGpu54": "pending",
+            "chronometerGpu54": "pass",
             "promotionApproved": False,
-            "servingAB": "pending",
-            "sextantGpu54": "pending",
+            "servingAB": "pass",
+            "sextantGpu54": "pass",
+        })
+        self.assertEqual(candidate["gpuGateEvidence"], {
+            "chronometer": {
+                "bundleStaged": True, "checks": 54,
+                "distributedServingVerified": False,
+                "numericalScreenReferencePeakPercent": 0.3,
+                "strictPostBf16Differences": 3912212,
+                "strictRawDifferences": 6124458,
+            },
+            "sextant": {
+                "bundleStaged": True, "checks": 54,
+                "distributedServingVerified": False,
+                "numericalScreenReferencePeakPercent": 0.3,
+                "strictPostBf16Differences": 3912165,
+                "strictRawDifferences": 6124464,
+            },
+        })
+        serving = candidate["servingEvidence"]
+        self.assertEqual(serving["protocol"], {
+            "maxCompletionTokens": 400, "repetitions": 3,
+            "streaming": True, "thinking": False,
+        })
+        self.assertEqual(serving["runtime"], {
+            "activationHashesLogged": True, "bothRanksActivated": True,
+            "cooperativeRuntimeLogged": True, "externalHealthHttpStatus": 200,
+            "externalModelsHttpStatus": 200, "nonThinkingSmokeCompletionTokens": 323,
+            "packedEngram": True, "readinessSucceeded": True,
+            "selectedProfile": "cooperative", "zeroRestarts": True,
         })
 
     def test_stock_lane_and_pins_are_unchanged(self):
@@ -63,6 +103,186 @@ class Dsv41CandidateContractTests(unittest.TestCase):
         self.assertEqual(stock.count("spec:\n  replicas: 0"), 2)
         self.assertEqual(stock.count('cp /opt/dsv41/exl3.py "$SITE/model_executor/layers/quantization/exl3.py"'), 2)
         self.assertNotIn("exl3-cooperative.py", stock)
+        self.assertEqual(
+            hashlib.sha256(STOCK_MANIFEST.read_bytes()).hexdigest(),
+            "8a3f14eb5ffcab2ca280d41211bbc956c829b10d248c348a021e4916fc4544d8",
+        )
+
+    def test_recorded_evidence_matches_lock_and_checksums(self):
+        lock = json.loads(LOCK_PATH.read_text())
+        candidate = lock["runtimeCandidates"]["cooperativeMoe"]
+        sums = {}
+        for line in (EVIDENCE_DIR / "SHA256SUMS").read_text().splitlines():
+            digest, name = line.split(None, 1)
+            sums[name] = digest
+            self.assertEqual(hashlib.sha256((EVIDENCE_DIR / name).read_bytes()).hexdigest(), digest)
+        provenance = candidate["localCandidate"]["buildProvenance"]
+        self.assertEqual(sums["cooperative_moe-build.log"], provenance["buildLogSha256"])
+        compiler = (EVIDENCE_DIR / "compiler-identity.txt").read_text()
+        for fragment in provenance["compilerIdentity"].split("; "):
+            self.assertIn(fragment, compiler)
+        for node in ("chronometer", "sextant"):
+            records = []
+            for line in (EVIDENCE_DIR / f"gate-{node}.log").read_text().splitlines():
+                if line.startswith("{"):
+                    record = json.loads(line)
+                    if record.get("stage") == "complete":
+                        records.append(record)
+            self.assertTrue(records)
+            record = records[-1]
+            evidence = candidate["gpuGateEvidence"][node]
+            self.assertEqual(record["status"], "pass")
+            self.assertEqual(record["checks"], evidence["checks"])
+            self.assertEqual(record["strict_raw_failed_elements_retained"], evidence["strictRawDifferences"])
+            self.assertEqual(record["strict_post_bf16_failed_elements_retained"], evidence["strictPostBf16Differences"])
+            self.assertEqual(record["numerical_screen"], "0.3% of reference peak; strict differences retained")
+            self.assertFalse(record["distributed_serving_verified"])
+
+        summary = json.loads((EVIDENCE_DIR / "serving-summary.json").read_text())
+        serving = candidate["servingEvidence"]
+        profiles = {
+            "serving-stock-matched.jsonl": ("stock-matched", "stock_matched", "matchedStock"),
+            "serving-cooperative.jsonl": ("cooperative", "cooperative", "cooperative"),
+            "serving-stock-operational.jsonl": (
+                "stock-operational", "stock_operational", "supplementalStockOperational"
+            ),
+        }
+        for filename, (profile, summary_key, lock_key) in profiles.items():
+            records = [json.loads(line) for line in (EVIDENCE_DIR / filename).read_text().splitlines()]
+            c1 = [record for record in records if record["kind"] == "c1"]
+            c2 = [record for record in records if record["kind"] == "c2"]
+            self.assertEqual([record["rep"] for record in c1], [1, 2, 3])
+            self.assertEqual([record["rep"] for record in c2], [1, 2, 3])
+            self.assertTrue(all(record["result"]["completion_tokens"] == 400 for record in c1))
+            self.assertTrue(all(
+                result["completion_tokens"] == 400
+                for record in c2 for result in record["results"]
+            ))
+            recorded_summary = records[-1]
+            self.assertEqual(recorded_summary["kind"], "summary")
+            self.assertEqual(recorded_summary["profile"], profile)
+            self.assertEqual(recorded_summary["summary"], summary[summary_key])
+            self.assertEqual(recorded_summary["summary"]["c1"]["median"], serving[lock_key]["c1MedianTokensPerSecond"])
+            self.assertEqual(recorded_summary["summary"]["c2"]["median"], serving[lock_key]["c2MedianTokensPerSecond"])
+        self.assertEqual(summary["matched_change_percent"]["c1"], serving["matchedGainPercent"]["c1MedianTokensPerSecond"])
+        self.assertEqual(summary["matched_change_percent"]["c2"], serving["matchedGainPercent"]["c2MedianTokensPerSecond"])
+        self.assertEqual(set(sums), {
+            "benchmark.py", "compiler-identity.txt", "cooperative_moe-build.log",
+            "gate-chronometer.log", "gate-sextant.log", "README.md",
+            "serving-cooperative.jsonl", "serving-stock-matched.jsonl",
+            "serving-stock-operational.jsonl", "serving-summary.json",
+        })
+
+    def test_benchmark_is_repo_relative_and_exposes_auditable_options(self):
+        text = (EVIDENCE_DIR / "benchmark.py").read_text()
+        self.assertIn('parser.add_argument("--profile", required=True', text)
+        self.assertIn('parser.add_argument("--url", required=True', text)
+        self.assertIn('parser.add_argument("--output", required=True', text)
+        self.assertIn('SEEDS = (11, 23, 47)', text)
+        self.assertIn('max_tokens=400', text)
+        self.assertNotIn("/home/", text)
+
+    def test_serving_profile_has_exact_candidate_settings(self):
+        settings = {}
+        for line in SERVING_PROFILE.read_text().splitlines():
+            if line and not line.startswith("#"):
+                key, value = line.split("=", 1)
+                self.assertNotIn(key, settings)
+                settings[key] = value
+        expected = {
+            "MAX_NUM_SEQS": "2",
+            "MAX_NUM_BATCHED_TOKENS": "3072",
+            "EXL3_TEMP_ROWS_FUSED": "8",
+            "LONG_PREFILL_TOKEN_THRESHOLD": "2816",
+            "GLM53_WARMUP_MAX_CONCURRENCY": "2",
+            "DSV41_EXL3_SERIAL_STREAMS": "1",
+            "VLLM_DISABLE_SHARED_EXPERTS_STREAM": "1",
+        }
+        self.assertEqual({key: settings[key] for key in expected}, expected)
+        for key, value in {
+            "MAX_MODEL_LEN": "600000", "PORT": "8000", "DSPARK_TOKENS": "3",
+            "MODEL_DIR": "/model", "ENGRAM_MOUNT": "/engram-src",
+            "DSV41_PACKED_DIR": "/engram-packed",
+        }.items():
+            self.assertEqual(settings[key], value)
+
+    def test_serving_activation_is_fail_closed_and_hash_complete(self):
+        text = SERVING_ACTIVATION.read_text()
+        self.assertIn("set -euo pipefail", text)
+        self.assertIn("expected_stock=ccdc69bfa04bff4870c3e555736a990fde6448ddb329441c4e0a27d6fc41078d", text)
+        self.assertIn('(cd "$stage" && sha256sum -c "$sums")', text)
+        self.assertIn('install -m 0444 "$stage/exl3-cooperative.py" "$stock"', text)
+        self.assertIn('exec "/opt/dsv41/launch/${rank}.sh"', text)
+        self.assertIn("candidate activation hashes rank=$rank stock_sha256=", text)
+        self.assertIn('"$stage/test_cuda_integration.py" "$stage/test_exl3_overlay.py"', text)
+        for line in (CANDIDATE_DIR / "SHA256SUMS").read_text().splitlines():
+            self.assertIn(f"    {line}", text)
+        self.assertNotIn("WARN", text)
+        self.assertNotIn("|| cp", text)
+
+    def test_serving_patch_is_rank_symmetric_and_zero_replica(self):
+        text = SERVING_PATCH.read_text()
+        self.assertEqual(text.count("kind: Deployment"), 2)
+        self.assertEqual(text.count("replicas: 0"), 2)
+        self.assertEqual(text.count("name: dsv41-exl3-coop-candidate-profile"), 2)
+        self.assertEqual(text.count("name: dsv41-coop-activation"), 2)
+        self.assertEqual(text.count("mountPath: /opt/dsv41-candidate"), 2)
+        self.assertIn('["/bin/bash", "/opt/dsv41-candidate/activate.sh", "head"]', text)
+        self.assertIn('["/bin/bash", "/opt/dsv41-candidate/activate.sh", "worker"]', text)
+        self.assertEqual(text.count("args: []"), 2)
+        self.assertNotIn('["/bin/bash", "-lc"]', text)
+        self.assertNotIn('args: ["/opt/dsv41-candidate/activate.sh"', text)
+
+    def test_serving_overlay_renders_original_deployment_names(self):
+        kubectl = shutil.which("kubectl")
+        if kubectl is None:
+            self.skipTest("kubectl is unavailable")
+        proc = subprocess.run(
+            [kubectl, "kustomize", str(SERVING_DIR), "--load-restrictor=LoadRestrictionsNone"],
+            cwd=ROOT, capture_output=True, text=True,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        rendered = proc.stdout
+        self.assertEqual(rendered.count("name: dsv41-exl3-head\n"), 1)
+        self.assertEqual(rendered.count("name: dsv41-exl3-worker\n"), 1)
+        self.assertNotIn("dsv41-exl3-head-coop-candidate", rendered)
+        self.assertEqual(rendered.count("replicas: 0"), 2)
+        self.assertEqual(rendered.count("name: dsv41-exl3-coop-candidate-profile"), 3)
+        self.assertEqual(rendered.count("path: /var/lib/llm-test/jit-cache/vllm-cache"), 2)
+        self.assertEqual(rendered.count("claimName: dsv41-engram-packed-"), 2)
+        self.assertEqual(rendered.count("containerPort: 8000"), 2)
+        self.assertEqual(rendered.count("- /opt/dsv41-candidate/activate.sh"), 2)
+        self.assertIn(
+            "args: []\n        command:\n        - /bin/bash\n"
+            "        - /opt/dsv41-candidate/activate.sh\n        - head",
+            rendered,
+        )
+        self.assertIn(
+            "args: []\n        command:\n        - /bin/bash\n"
+            "        - /opt/dsv41-candidate/activate.sh\n        - worker",
+            rendered,
+        )
+        self.assertIn("readinessProbe:", rendered)
+
+    def test_stock_control_renders_matched_profile_without_candidate_activation(self):
+        kubectl = shutil.which("kubectl")
+        if kubectl is None:
+            self.skipTest("kubectl is unavailable")
+        proc = subprocess.run(
+            [kubectl, "kustomize", str(STOCK_CONTROL_DIR), "--load-restrictor=LoadRestrictionsNone"],
+            cwd=ROOT, capture_output=True, text=True,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        rendered = proc.stdout
+        self.assertEqual(rendered.count("name: dsv41-exl3-head\n"), 1)
+        self.assertEqual(rendered.count("name: dsv41-exl3-worker\n"), 1)
+        self.assertEqual(rendered.count("replicas: 0"), 2)
+        self.assertEqual(rendered.count("name: dsv41-exl3-stock-matched-profile"), 3)
+        self.assertNotIn("dsv41-coop-activation", rendered)
+        self.assertNotIn("/opt/dsv41-candidate/activate.sh", rendered)
+        self.assertEqual(rendered.count('cp /opt/dsv41/exl3.py "$SITE/model_executor/layers/quantization/exl3.py"'), 2)
+        for setting in ("MAX_NUM_SEQS=2", "MAX_NUM_BATCHED_TOKENS=3072", "LONG_PREFILL_TOKEN_THRESHOLD=2816"):
+            self.assertIn(setting, rendered)
 
     def test_candidate_jobs_are_suspended_fail_closed_and_node_symmetric(self):
         text = CANDIDATE_MANIFEST.read_text()
@@ -78,6 +298,9 @@ class Dsv41CandidateContractTests(unittest.TestCase):
         self.assertEqual(text.count('nvidia.com/gpu: "1"'), 4)
         self.assertIn("set -euo pipefail", text)
         self.assertIn("sha256sum -c", text)
+        self.assertIn("SHA256SUMS: |\n", text)
+        self.assertNotIn("SHA256SUMS: |-", text)
+        self.assertIn('while read -r _ file || [ -n "${file:-}" ]; do', text)
         self.assertIn("2d33c5cd57c447b4d6545abfb59356ca7ee9cefe8aa2e4fe2c2023fe09bf35de  runtime.py", text)
         for line in (CANDIDATE_DIR / "SHA256SUMS").read_text().splitlines():
             self.assertIn(f"    {line}", text)

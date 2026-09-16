@@ -11,31 +11,34 @@ This report is offline and does not authorize deployment.
 - Vendored comparison snapshot: `f083d7e4ccc8cc1083ef739945a3114f54a8bef5`
 - Serving image: `ghcr.io/miaai-lab/deepseek-v4.1-flash-exl3-2x-dgx-sparks:2.9bpw@sha256:2f0cf3adc0f989c1d446be274df864eb799630175f604c3b22b71b7205971dce`
 - Image provenance: **stock runtime baseline retained; reviewed HEAD adds only an off-by-default extension**
-- Runtime adoption: **CURRENT: default runtime/image/models remain current at e2944b34ebfd78f02b469423ea0490749515a396; cooperative-MoE is separately built but unqualified**
+- Runtime adoption: **CURRENT: default runtime/image/models remain current at e2944b34ebfd78f02b469423ea0490749515a396; cooperative-MoE serving A/B passed but promotion is unapproved**
 
 ## Preserved local contract
 
 - Stock serving Deployments remain replicas 0 with explicit worker -> head activation and port 8000; baked /opt/dsv41/exl3.py remains the default.
-- Digest/model pins, 600k context, eight-sequence/2048-token local concurrency, 2.5 GiB KV pool, text-only mode, and DSpark k=3 remain unchanged.
+- Digest/model pins, 600k context, stock eight-sequence/2048-token concurrency, 2.5 GiB KV pool, text-only mode, and DSpark k=3 remain unchanged.
 - Fail-closed cache/model/Engram preflights, ordered cache warming, readiness warmup, and node/rank-matched packed Engram remain unchanged.
-- Cooperative-MoE staging and per-node GPU gates are separate suspended Jobs; no native binary is stored in Git or a ConfigMap.
+- The separate cooperative-MoE serving overlay retains the original Deployment names and replicas 0, selects a distinct 2/3072 candidate profile on both ranks, and fails closed on all staged and baked-overlay hashes.
+- Cooperative-MoE staging and per-node GPU gates remain separate suspended Jobs; no native binary is stored in Git or a ConfigMap.
 
 ## Optional runtime candidates
 
-- `cooperativeMoe`: **built-unqualified**, `optional-off-by-default` at `f083d7e4ccc8cc1083ef739945a3114f54a8bef5`
+- `cooperativeMoe`: **serving-validated-unapproved**, `optional-off-by-default` at `f083d7e4ccc8cc1083ef739945a3114f54a8bef5`
   - Upstream artifact: `a09a589cbdcecb5372991c7b091d732236d58bc5f5aea14ab91e38e426f08d78` (unavailable-in-git-and-releases)
   - Local candidate binary: `16191d208101a3a04b021f8a2d0da360c5ebb710c0145b2e312052a02ce40305`; patched runtime: `2d33c5cd57c447b4d6545abfb59356ca7ee9cefe8aa2e4fe2c2023fe09bf35de`; pristine runtime: `9f1d10ffc39ac4433828a000c4932a4a773b00acadd80b46c7568f494a77b2fb`
   - Build input: `dsv41-coop-build-input.tgz` / `f0760e9cd4bd5019f87b38df6aa788123794fb541f2e58998eae52c8a0d5b32b` at ExLlama `02aef45cd681b960a00afcd0749a4ab99e6c1bfe`
   - Build script: `extensions/cooperative_moe/build.sh` / `0eca829cf4045ea35c2b0a7a422eeef8abdabdedc68834084aad4f64a1f4b048`
-  - Build capture: compiler=pending, log-sha256=pending
-  - Gates: chronometer-54=pending, sextant-54=pending, serving-A/B=pending, promotion-approved=false
+  - Build capture: compiler=nvcc: NVIDIA (R) Cuda compiler driver; Cuda compilation tools, release 13.0, V13.0.88; Build cuda_13.0.r13.0/compiler.36424714_0, log-sha256=c3b122a7ddaf2aa684ce9a8326e6d385bb18ca1a17e0dbb25f91ec3a6c4f2059
+  - Gates: chronometer-54=pass, sextant-54=pass, serving-A/B=pass, promotion-approved=false
+  - chronometer evidence: bundle-staged=true, checks=54, strict-raw=6124458, strict-post-bf16=3912212, numerical-screen=0.3% reference peak, distributed-serving-verified=false
+  - sextant evidence: bundle-staged=true, checks=54, strict-raw=6124464, strict-post-bf16=3912165, numerical-screen=0.3% reference peak, distributed-serving-verified=false
+  - Matched serving medians: stock C1=30.842845123259174, C2=48.11253629584001; cooperative C1=43.113290591022924, C2=61.47737096150947; gains C1=39.78376644154133%, C2=27.778279206671197%
 
 ## Optional candidate blockers
 
-- **BLOCKER:** Upstream cooperative_moe.so pin a09a589cbdcecb5372991c7b091d732236d58bc5f5aea14ab91e38e426f08d78 is unavailable in Git and Releases.
-- **BLOCKER:** Local candidate 16191d208101a3a04b021f8a2d0da360c5ebb710c0145b2e312052a02ce40305 is built but unqualified: independent 54-case GPU gates on chronometer and sextant and serving A/B remain pending.
-- **BLOCKER:** Promotion requires an explicit reviewed manifest/profile change; the stock deployments do not select the candidate.
-- **BLOCKER:** Candidate build provenance is incomplete: compiler identity and build-log SHA-256 remain null and must be captured before qualification or promotion.
+- **BLOCKER:** Upstream cooperative_moe.so pin a09a589cbdcecb5372991c7b091d732236d58bc5f5aea14ab91e38e426f08d78 is unavailable in Git and Releases; the locally built candidate remains a separately pinned artifact.
+- **BLOCKER:** Serving A/B passed the exact bounded C1/C2 protocol, but long-context, sustained burn-in, and response-quality/regression checks remain pending.
+- **BLOCKER:** Promotion remains false and requires explicit review approval; the default stock adoption remains current and all Git manifests remain replicas 0.
 
 ## Vendored files
 
