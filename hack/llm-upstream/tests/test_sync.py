@@ -124,7 +124,7 @@ class SyncTests(unittest.TestCase):
         lock = json.loads((lane / "upstream.lock.json").read_text())
         self.assertEqual(lock["adoption"]["status"], "pending-review")
         self.assertTrue(lock["adoption"]["reviewedRuntimeChanged"])
-        self.assertIn("selected runtime files changed: none", lock["recipe"]["reviewedChangeSummary"])
+        self.assertIn("default runtime files changed: none", lock["recipe"]["reviewedChangeSummary"])
         self.assertEqual(SYNC.verify_lane("fixture"), [])
 
     def test_rejects_traversal_and_symlinked_lane(self):
@@ -151,6 +151,15 @@ class SyncTests(unittest.TestCase):
         (vendor / "runtime.sh").symlink_to(self.source / "runtime.sh")
         with self.assertRaisesRegex(SYNC.Error, "symlinked vendor file"):
             SYNC.inventory_files(vendor)
+
+    def test_vendor_inventory_ignores_python_cache_artifacts(self):
+        vendor = self.lanes / "fixture/vendor"
+        cache = vendor / "nested/__pycache__"
+        cache.mkdir(parents=True)
+        (cache / "runtime.cpython-313.pyc").write_bytes(b"transient")
+        (vendor / "orphan.pyc").write_bytes(b"transient")
+        self.assertEqual(SYNC.inventory_files(vendor), {"runtime.sh"})
+        self.assertEqual(SYNC.verify_lane("fixture"), [])
 
     def test_wrong_remote_is_rejected(self):
         run("git", "remote", "set-url", "origin", "https://example.invalid/wrong.git", cwd=self.source)
@@ -229,6 +238,64 @@ class SyncTests(unittest.TestCase):
         lock = json.loads((self.lanes / "fixture/upstream.lock.json").read_text())
         lock["recipe"]["files"] = {"../escape": "0" * 64}
         with self.assertRaisesRegex(SYNC.Error, "unsafe inventory path"):
+            SYNC.check_lock(lock, "fixture")
+
+    def test_v3_candidate_cannot_skip_gpu_gates_or_approval(self):
+        lock = json.loads((self.lanes / "fixture/upstream.lock.json").read_text())
+        lock["schemaVersion"] = 3
+        lock["recipe"]["optionalRuntimeReferences"] = ["runtime.sh"]
+        lock["adoption"]["reviewedOptionalRuntimeChanged"] = True
+        lock["runtimeCandidates"] = {
+            "candidate": {
+                "upstreamRevision": self.reviewed_revision,
+                "mode": "optional-off-by-default",
+                "status": "built-unqualified",
+                "requiredFiles": ["runtime.sh"],
+                "upstreamArtifact": {
+                    "sha256": "3" * 64,
+                    "availability": "unavailable-in-git-and-releases",
+                },
+                "localCandidate": {
+                    "binarySha256": "4" * 64,
+                    "pristineRuntimeSha256": "5" * 64,
+                    "runtimeSha256": "6" * 64,
+                    "buildProvenance": {
+                        "exllamaRepo": "https://example.invalid/exllamav3.git",
+                        "exllamaRevision": "7" * 40,
+                        "archiveFilename": "input.tgz",
+                        "archiveSha256": "8" * 64,
+                        "imageDigest": "sha256:" + "9" * 64,
+                        "buildScript": "extension/build.sh",
+                        "buildScriptSha256": "b" * 64,
+                        "buildCommand": "bash extension/build.sh input output",
+                        "compilerIdentity": None,
+                        "buildLogSha256": None,
+                    },
+                },
+                "qualification": {
+                    "chronometerGpu54": "pending",
+                    "sextantGpu54": "pending",
+                    "servingAB": "pending",
+                    "promotionApproved": False,
+                },
+            }
+        }
+        SYNC.check_lock(lock, "fixture")
+        candidate = lock["runtimeCandidates"]["candidate"]
+        candidate["qualification"]["servingAB"] = "pass"
+        with self.assertRaisesRegex(SYNC.Error, "before both GPU gates"):
+            SYNC.check_lock(lock, "fixture")
+        candidate["qualification"].update({
+            "chronometerGpu54": "pass", "sextantGpu54": "pass",
+        })
+        candidate["status"] = "qualified"
+        with self.assertRaisesRegex(SYNC.Error, "pending build provenance"):
+            SYNC.check_lock(lock, "fixture")
+        candidate["localCandidate"]["buildProvenance"].update({
+            "compilerIdentity": "nvcc fixture",
+            "buildLogSha256": "a" * 64,
+        })
+        with self.assertRaisesRegex(SYNC.Error, "before all gates and approval"):
             SYNC.check_lock(lock, "fixture")
 
     def test_drift_report_is_deterministic(self):

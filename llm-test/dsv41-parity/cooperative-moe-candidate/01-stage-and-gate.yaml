@@ -1,0 +1,198 @@
+# UNQUALIFIED CANDIDATE WORKFLOW. Applying this file creates only suspended Jobs.
+# It does not alter or start the stock serving Deployments.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dsv41-coop-candidate-scripts-f083d7e
+  namespace: llm-test
+data:
+  SHA256SUMS: |-
+    16191d208101a3a04b021f8a2d0da360c5ebb710c0145b2e312052a02ce40305  cooperative_moe.so
+    2d33c5cd57c447b4d6545abfb59356ca7ee9cefe8aa2e4fe2c2023fe09bf35de  runtime.py
+    b68bf2405d8d427407fcc18f728943cda964376a4c25637f5e9f5d791a3a6aac  exl3-cooperative.py
+    249934dddcded4977524d139e78f6ea9fbdc40cd147eb304a2ae5c01e78f0f00  test_cuda_integration.py
+    faecaeaf16b6142f020704cd3d003b0cc55611b2ad28886b4976d97322bd988b  test_exl3_overlay.py
+  stage.sh: |-
+    #!/bin/bash
+    set -euo pipefail
+    source_dir=/models/dsv41-cooperative-moe/f083d7e-local-16191d2
+    destination=/root/.cache/vllm/dsv41-cooperative-moe/f083d7e-local-16191d2
+    sums=/opt/dsv41-coop/SHA256SUMS
+    test -d "$source_dir"
+    (cd "$source_dir" && sha256sum -c "$sums")
+    if [ -d "$destination" ]; then
+      (cd "$destination" && sha256sum -c "$sums")
+      echo "candidate already staged with exact hashes"
+      exit 0
+    fi
+    parent=${destination%/*}
+    temporary="${destination}.tmp.$$"
+    mkdir -p "$parent"
+    trap 'rm -rf "$temporary"' EXIT
+    mkdir "$temporary"
+    while read -r _ file; do
+      install -m 0444 "$source_dir/$file" "$temporary/$file"
+    done < "$sums"
+    (cd "$temporary" && sha256sum -c "$sums")
+    mv "$temporary" "$destination"
+    trap - EXIT
+    echo "staged inactive candidate at $destination"
+  gate.sh: |-
+    #!/bin/bash
+    set -euo pipefail
+    stage=/root/.cache/vllm/dsv41-cooperative-moe/f083d7e-local-16191d2
+    sums=/opt/dsv41-coop/SHA256SUMS
+    (cd "$stage" && sha256sum -c "$sums")
+    test "$(sha256sum /opt/dsv41/exl3.py | awk '{print $1}')" = ccdc69bfa04bff4870c3e555736a990fde6448ddb329441c4e0a27d6fc41078d
+    site=$(python3 -c 'import pathlib,vllm; print(pathlib.Path(vllm.__file__).resolve().parent)')
+    install -m 0444 "$stage/exl3-cooperative.py" "$site/model_executor/layers/quantization/exl3.py"
+    install -m 0444 "$stage/test_exl3_overlay.py" /opt/dsv41/test_exl3_overlay.py
+    output=/tmp/dsv41-coop-gate.jsonl
+    python3 "$stage/test_cuda_integration.py" | tee "$output"
+    grep -F '"stage": "complete"' "$output" | grep -F '"checks": 54' | grep -F '"status": "pass"'
+    echo "54-case candidate gate passed on ${NODE_NAME}; this does not qualify serving"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dsv41-coop-stage-chronometer-f083d7e
+  namespace: llm-test
+spec:
+  suspend: true
+  ttlSecondsAfterFinished: 259200
+  activeDeadlineSeconds: 1800
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      containers:
+        - name: stage
+          image: ghcr.io/miaai-lab/deepseek-v4.1-flash-exl3-2x-dgx-sparks:2.9bpw@sha256:2f0cf3adc0f989c1d446be274df864eb799630175f604c3b22b71b7205971dce
+          command: ["/bin/bash", "/opt/dsv41-coop/stage.sh"]
+          volumeMounts:
+            - {name: models, mountPath: /models, readOnly: true}
+            - {name: cache, mountPath: /root/.cache/vllm}
+            - {name: scripts, mountPath: /opt/dsv41-coop, readOnly: true}
+      volumes:
+        - name: models
+          persistentVolumeClaim: {claimName: model-cache}
+        - name: cache
+          hostPath: {path: /var/lib/llm-test/jit-cache/vllm-cache, type: DirectoryOrCreate}
+        - name: scripts
+          configMap: {name: dsv41-coop-candidate-scripts-f083d7e, defaultMode: 0555}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dsv41-coop-stage-sextant-f083d7e
+  namespace: llm-test
+spec:
+  suspend: true
+  ttlSecondsAfterFinished: 259200
+  activeDeadlineSeconds: 1800
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/hostname: sextant
+      containers:
+        - name: stage
+          image: ghcr.io/miaai-lab/deepseek-v4.1-flash-exl3-2x-dgx-sparks:2.9bpw@sha256:2f0cf3adc0f989c1d446be274df864eb799630175f604c3b22b71b7205971dce
+          command: ["/bin/bash", "/opt/dsv41-coop/stage.sh"]
+          volumeMounts:
+            - {name: models, mountPath: /models, readOnly: true}
+            - {name: cache, mountPath: /root/.cache/vllm}
+            - {name: scripts, mountPath: /opt/dsv41-coop, readOnly: true}
+      volumes:
+        - name: models
+          persistentVolumeClaim: {claimName: model-cache}
+        - name: cache
+          hostPath: {path: /var/lib/llm-test/jit-cache/vllm-cache, type: DirectoryOrCreate}
+        - name: scripts
+          configMap: {name: dsv41-coop-candidate-scripts-f083d7e, defaultMode: 0555}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dsv41-coop-gate-chronometer-f083d7e
+  namespace: llm-test
+spec:
+  suspend: true
+  ttlSecondsAfterFinished: 259200
+  activeDeadlineSeconds: 1800
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      runtimeClassName: nvidia
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      containers:
+        - name: gpu-gate
+          image: ghcr.io/miaai-lab/deepseek-v4.1-flash-exl3-2x-dgx-sparks:2.9bpw@sha256:2f0cf3adc0f989c1d446be274df864eb799630175f604c3b22b71b7205971dce
+          command: ["/bin/bash", "/opt/dsv41-coop/gate.sh"]
+          env:
+            - {name: NODE_NAME, value: chronometer}
+            - {name: DSV41_COOP_MAINTENANCE_TEST, value: "1"}
+            - {name: MAX_JOBS, value: "2"}
+            - {name: OMP_NUM_THREADS, value: "1"}
+            - {name: OPENBLAS_NUM_THREADS, value: "1"}
+            - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
+          resources:
+            requests: {cpu: "2", memory: 6Gi, nvidia.com/gpu: "1"}
+            limits: {cpu: "2", memory: 6Gi, nvidia.com/gpu: "1"}
+          volumeMounts:
+            - {name: cache, mountPath: /root/.cache/vllm, readOnly: true}
+            - {name: scripts, mountPath: /opt/dsv41-coop, readOnly: true}
+      volumes:
+        - name: cache
+          hostPath: {path: /var/lib/llm-test/jit-cache/vllm-cache, type: Directory}
+        - name: scripts
+          configMap: {name: dsv41-coop-candidate-scripts-f083d7e, defaultMode: 0555}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dsv41-coop-gate-sextant-f083d7e
+  namespace: llm-test
+spec:
+  suspend: true
+  ttlSecondsAfterFinished: 259200
+  activeDeadlineSeconds: 1800
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      runtimeClassName: nvidia
+      nodeSelector:
+        kubernetes.io/hostname: sextant
+      containers:
+        - name: gpu-gate
+          image: ghcr.io/miaai-lab/deepseek-v4.1-flash-exl3-2x-dgx-sparks:2.9bpw@sha256:2f0cf3adc0f989c1d446be274df864eb799630175f604c3b22b71b7205971dce
+          command: ["/bin/bash", "/opt/dsv41-coop/gate.sh"]
+          env:
+            - {name: NODE_NAME, value: sextant}
+            - {name: DSV41_COOP_MAINTENANCE_TEST, value: "1"}
+            - {name: MAX_JOBS, value: "2"}
+            - {name: OMP_NUM_THREADS, value: "1"}
+            - {name: OPENBLAS_NUM_THREADS, value: "1"}
+            - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
+          resources:
+            requests: {cpu: "2", memory: 6Gi, nvidia.com/gpu: "1"}
+            limits: {cpu: "2", memory: 6Gi, nvidia.com/gpu: "1"}
+          volumeMounts:
+            - {name: cache, mountPath: /root/.cache/vllm, readOnly: true}
+            - {name: scripts, mountPath: /opt/dsv41-coop, readOnly: true}
+      volumes:
+        - name: cache
+          hostPath: {path: /var/lib/llm-test/jit-cache/vllm-cache, type: Directory}
+        - name: scripts
+          configMap: {name: dsv41-coop-candidate-scripts-f083d7e, defaultMode: 0555}

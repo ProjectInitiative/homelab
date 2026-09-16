@@ -36,6 +36,8 @@ vendor/
 # Deliberately tracked, checksum-locked selective MiaAI source snapshots.
 !llm-test/lanes/*/vendor/
 !llm-test/lanes/*/vendor/**
+# Native runtime artifacts must be staged out-of-band, never vendored in Git.
+llm-test/lanes/*/vendor/**/*.so
 
 # Snapshots (for migration verification)
 snapshot-baseline/

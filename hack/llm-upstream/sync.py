@@ -38,19 +38,38 @@ REQUIRED_RUNTIME_REFERENCES = {
     },
 }
 ADOPTION_STATUSES = {"pending-review", "provenance-blocked", "runtime-current"}
+CANDIDATE_STATUSES = {"source-review-required", "built-unqualified", "qualified"}
+QUALIFICATION_STATUSES = {"pending", "pass", "fail"}
 
-LOCK_KEYS = {"schemaVersion", "lane", "recipe", "image", "models", "bundle", "adoption", "safety"}
-RECIPE_KEYS = {
+LOCK_KEYS_V2 = {"schemaVersion", "lane", "recipe", "image", "models", "bundle", "adoption", "safety"}
+LOCK_KEYS_V3 = LOCK_KEYS_V2 | {"runtimeCandidates"}
+RECIPE_KEYS_V2 = {
     "repo", "runtimeBaseline", "reviewedRevision", "vendorRevision",
     "reviewedChangeSummary", "files", "requiredRuntimeReferences",
 }
+RECIPE_KEYS_V3 = RECIPE_KEYS_V2 | {"optionalRuntimeReferences"}
 IMAGE_KEYS = {"ref", "digest", "provenanceStatus", "recipeRevision"}
 MODEL_KEYS = {"repo", "revision"}
 BUNDLE_KEYS = {"recipeRevision", "imageDigest", "modelRevisions"}
-ADOPTION_KEYS = {
+ADOPTION_KEYS_V2 = {
     "status", "reason", "reviewedRevision", "reviewedRuntimeChanged",
     "recipeRevision", "imageDigest", "modelRevisions",
 }
+ADOPTION_KEYS_V3 = ADOPTION_KEYS_V2 | {"reviewedOptionalRuntimeChanged"}
+CANDIDATE_KEYS = {
+    "upstreamRevision", "mode", "status", "requiredFiles", "upstreamArtifact",
+    "localCandidate", "qualification",
+}
+UPSTREAM_ARTIFACT_KEYS = {"sha256", "availability"}
+LOCAL_CANDIDATE_KEYS = {
+    "binarySha256", "pristineRuntimeSha256", "runtimeSha256", "buildProvenance",
+}
+BUILD_PROVENANCE_KEYS = {
+    "exllamaRepo", "exllamaRevision", "archiveFilename", "archiveSha256",
+    "imageDigest", "buildScript", "buildScriptSha256", "buildCommand",
+    "compilerIdentity", "buildLogSha256",
+}
+QUALIFICATION_KEYS = {"chronometerGpu54", "sextantGpu54", "servingAB", "promotionApproved"}
 SAFETY_KEYS = {"desiredReplicas", "activationOrder", "deploymentEnabled"}
 CONTRACT_KEYS = {
     "schemaVersion", "lane", "adoptionBlockers", "fileAssertions",
@@ -206,10 +225,14 @@ def normalize_repo_url(value: object) -> str:
 
 
 def check_lock(lock: dict, lane: str) -> None:
-    exact_keys(lock, LOCK_KEYS, f"{lane} lock")
-    if lock["schemaVersion"] != 2 or lock["lane"] != lane:
+    schema = lock.get("schemaVersion")
+    if schema not in (2, 3) or lock.get("lane") != lane:
         raise Error(f"{lane}: unsupported lock schema or lane")
-    recipe = exact_keys(lock["recipe"], RECIPE_KEYS, f"{lane} recipe")
+    exact_keys(lock, LOCK_KEYS_V3 if schema == 3 else LOCK_KEYS_V2, f"{lane} lock")
+    recipe = exact_keys(
+        lock["recipe"], RECIPE_KEYS_V3 if schema == 3 else RECIPE_KEYS_V2,
+        f"{lane} recipe",
+    )
     normalize_repo_url(recipe["repo"])
     for field in ("runtimeBaseline", "reviewedRevision", "vendorRevision"):
         if not isinstance(recipe[field], str) or not FULL_SHA.fullmatch(recipe[field]):
@@ -230,6 +253,18 @@ def check_lock(lock: dict, lane: str) -> None:
     required_references = REQUIRED_RUNTIME_REFERENCES.get(lane)
     if required_references is not None and set(references) != required_references:
         raise Error(f"{lane}: required runtime references must be {sorted(required_references)}")
+    optional_references: list[str] = []
+    if schema == 3:
+        optional_references = string_list(
+            recipe["optionalRuntimeReferences"], f"{lane} optionalRuntimeReferences"
+        )
+        if (
+            not optional_references
+            or len(optional_references) != len(set(optional_references))
+            or any(name not in files for name in optional_references)
+            or set(optional_references).intersection(references)
+        ):
+            raise Error(f"{lane}: optional runtime references must be unique, inventoried, and separate")
 
     image = exact_keys(lock["image"], IMAGE_KEYS, f"{lane} image")
     nonempty_string(image["ref"], f"{lane} image.ref")
@@ -262,12 +297,17 @@ def check_lock(lock: dict, lane: str) -> None:
     }:
         raise Error(f"{lane}: compatibility bundle does not match active recipe/image/models")
 
-    adoption = exact_keys(lock["adoption"], ADOPTION_KEYS, f"{lane} adoption")
+    adoption = exact_keys(
+        lock["adoption"], ADOPTION_KEYS_V3 if schema == 3 else ADOPTION_KEYS_V2,
+        f"{lane} adoption",
+    )
     if adoption["status"] not in ADOPTION_STATUSES:
         raise Error(f"{lane}: invalid adoption status")
     nonempty_string(adoption["reason"], f"{lane} adoption.reason")
     if not isinstance(adoption["reviewedRuntimeChanged"], bool):
         raise Error(f"{lane}: adoption.reviewedRuntimeChanged must be boolean")
+    if schema == 3 and not isinstance(adoption["reviewedOptionalRuntimeChanged"], bool):
+        raise Error(f"{lane}: adoption.reviewedOptionalRuntimeChanged must be boolean")
     if adoption["reviewedRevision"] != recipe["reviewedRevision"]:
         raise Error(f"{lane}: adoption reviewed revision is stale")
     adoption_binding = {
@@ -280,8 +320,88 @@ def check_lock(lock: dict, lane: str) -> None:
     if adoption["status"] == "runtime-current":
         if adoption["reviewedRuntimeChanged"]:
             raise Error(f"{lane}: runtime-current cannot claim reviewed runtime drift")
-        if recipe["vendorRevision"] != recipe["runtimeBaseline"]:
+        if schema == 2 and recipe["vendorRevision"] != recipe["runtimeBaseline"]:
             raise Error(f"{lane}: runtime-current requires vendor/runtime baseline equality")
+
+    if schema == 3:
+        candidates = lock["runtimeCandidates"]
+        if not isinstance(candidates, dict) or not candidates:
+            raise Error(f"{lane}: runtimeCandidates must be a nonempty object")
+        for name, candidate in candidates.items():
+            nonempty_string(name, f"{lane} candidate name")
+            candidate = exact_keys(candidate, CANDIDATE_KEYS, f"{lane} candidate {name}")
+            if candidate["upstreamRevision"] != recipe["reviewedRevision"]:
+                raise Error(f"{lane}: candidate {name} revision is stale")
+            if candidate["mode"] != "optional-off-by-default":
+                raise Error(f"{lane}: candidate {name} must remain optional-off-by-default")
+            if candidate["status"] not in CANDIDATE_STATUSES:
+                raise Error(f"{lane}: candidate {name} has invalid status")
+            required = string_list(candidate["requiredFiles"], f"{lane} candidate {name}.requiredFiles", nonempty=True)
+            if set(required) != set(optional_references):
+                raise Error(f"{lane}: candidate {name} required files do not match optional references")
+            upstream_artifact = exact_keys(
+                candidate["upstreamArtifact"], UPSTREAM_ARTIFACT_KEYS,
+                f"{lane} candidate {name}.upstreamArtifact",
+            )
+            if not SHA256.fullmatch(str(upstream_artifact["sha256"])):
+                raise Error(f"{lane}: candidate {name} upstream artifact hash is invalid")
+            if upstream_artifact["availability"] != "unavailable-in-git-and-releases":
+                raise Error(f"{lane}: candidate {name} upstream artifact availability must remain blocked")
+            local = exact_keys(
+                candidate["localCandidate"], LOCAL_CANDIDATE_KEYS,
+                f"{lane} candidate {name}.localCandidate",
+            )
+            for field in ("binarySha256", "pristineRuntimeSha256", "runtimeSha256"):
+                if not SHA256.fullmatch(str(local[field])):
+                    raise Error(f"{lane}: candidate {name} local artifact hash is invalid")
+            provenance = exact_keys(
+                local["buildProvenance"], BUILD_PROVENANCE_KEYS,
+                f"{lane} candidate {name}.buildProvenance",
+            )
+            normalize_repo_url(provenance["exllamaRepo"])
+            if not FULL_SHA.fullmatch(str(provenance["exllamaRevision"])):
+                raise Error(f"{lane}: candidate {name} ExLlama revision must be a full SHA")
+            checked_name = PurePosixPath(str(provenance["archiveFilename"]))
+            if checked_name.name != str(provenance["archiveFilename"]):
+                raise Error(f"{lane}: candidate {name} archiveFilename must be a direct filename")
+            if not SHA256.fullmatch(str(provenance["archiveSha256"])):
+                raise Error(f"{lane}: candidate {name} archive hash is invalid")
+            if not IMAGE_DIGEST.fullmatch(str(provenance["imageDigest"])):
+                raise Error(f"{lane}: candidate {name} build image digest is invalid")
+            nonempty_string(provenance["buildScript"], f"{lane} candidate {name}.buildScript")
+            if not SHA256.fullmatch(str(provenance["buildScriptSha256"])):
+                raise Error(f"{lane}: candidate {name} build script hash is invalid")
+            nonempty_string(provenance["buildCommand"], f"{lane} candidate {name}.buildCommand")
+            if provenance["compilerIdentity"] is not None:
+                nonempty_string(provenance["compilerIdentity"], f"{lane} candidate {name}.compilerIdentity")
+            if provenance["buildLogSha256"] is not None and not SHA256.fullmatch(str(provenance["buildLogSha256"])):
+                raise Error(f"{lane}: candidate {name} build log hash is invalid")
+            qualification = exact_keys(
+                candidate["qualification"], QUALIFICATION_KEYS,
+                f"{lane} candidate {name}.qualification",
+            )
+            for field in ("chronometerGpu54", "sextantGpu54", "servingAB"):
+                if qualification[field] not in QUALIFICATION_STATUSES:
+                    raise Error(f"{lane}: candidate {name} qualification {field} is invalid")
+            if not isinstance(qualification["promotionApproved"], bool):
+                raise Error(f"{lane}: candidate {name} promotionApproved must be boolean")
+            gpu_complete = all(
+                qualification[field] == "pass"
+                for field in ("chronometerGpu54", "sextantGpu54")
+            )
+            if qualification["servingAB"] == "pass" and not gpu_complete:
+                raise Error(f"{lane}: candidate {name} serving A/B cannot pass before both GPU gates")
+            complete = gpu_complete and qualification["servingAB"] == "pass"
+            provenance_complete = (
+                provenance["compilerIdentity"] is not None
+                and provenance["buildLogSha256"] is not None
+            )
+            if candidate["status"] == "qualified" and not provenance_complete:
+                raise Error(f"{lane}: candidate {name} cannot be qualified with pending build provenance")
+            if candidate["status"] == "qualified" and (not complete or not qualification["promotionApproved"]):
+                raise Error(f"{lane}: candidate {name} cannot be qualified before all gates and approval")
+            if candidate["status"] != "qualified" and qualification["promotionApproved"]:
+                raise Error(f"{lane}: candidate {name} cannot be approved while unqualified")
 
     safety = exact_keys(lock["safety"], SAFETY_KEYS, f"{lane} safety")
     if safety != {"desiredReplicas": 0, "activationOrder": ["worker", "head"], "deploymentEnabled": False}:
@@ -315,10 +435,13 @@ def inventory_files(vendor: Path) -> set[str]:
         for name in directories:
             if (directory_path / name).is_symlink():
                 raise Error(f"symlinked vendor directory is forbidden: {directory_path / name}")
+        directories[:] = [name for name in directories if name != "__pycache__"]
         for name in files:
             path = directory_path / name
             if path.is_symlink():
                 raise Error(f"symlinked vendor file is forbidden: {path}")
+            if name.endswith(".pyc"):
+                continue
             relative = path.relative_to(vendor).as_posix()
             if relative != "SOURCE.json":
                 found.add(relative)
@@ -483,10 +606,21 @@ def update_lane(lane: str, revision: str, reviewed_revision: str | None, source:
         behind = git("rev-list", "--count", f"{reviewed_revision}..{baseline}", cwd=repository).decode().strip()
         changed = set(git("diff", "--name-only", baseline, reviewed_revision, cwd=repository).decode().splitlines())
         selected_changed = sorted(changed.intersection(paths))
+        if lock["schemaVersion"] == 3:
+            default_changed = sorted(changed.intersection(lock["recipe"]["requiredRuntimeReferences"]))
+            optional_changed = sorted(
+                changed.intersection(lock["recipe"]["optionalRuntimeReferences"])
+            )
+        else:
+            # Schema v2 has no separate optional inventory; preserve its
+            # conservative behavior and require review for every export.
+            default_changed = selected_changed
+            optional_changed = []
         change_summary = (
-            f"{ahead} commits ahead, {behind} behind runtime baseline; selected runtime files changed: "
-            f"{', '.join(selected_changed) if selected_changed else 'none'}; "
-            f"{len(changed - set(paths))} other paths changed"
+            f"{ahead} commits ahead, {behind} behind runtime baseline; default runtime files changed: "
+            f"{', '.join(default_changed) if default_changed else 'none'}; optional runtime files changed: "
+            f"{', '.join(optional_changed) if optional_changed else 'none'}; "
+            f"{len(changed - set(paths))} unselected paths changed"
         )
         staged = Path(temporary) / "vendor"
         hashes: dict[str, str] = {}
@@ -511,14 +645,38 @@ def update_lane(lane: str, revision: str, reviewed_revision: str | None, source:
         lock["recipe"]["reviewedRevision"] = reviewed_revision
         lock["recipe"]["reviewedChangeSummary"] = change_summary
         lock["recipe"]["files"] = hashes
-        lock["adoption"].update({
-            "status": "pending-review",
-            "reason": "recipe export changed; explicit compatibility review is required",
+        adoption_update = {
             "reviewedRevision": reviewed_revision,
-            "reviewedRuntimeChanged": True,
-        })
+            "reviewedRuntimeChanged": bool(default_changed) if lock["schemaVersion"] == 3 else True,
+        }
+        if lock["schemaVersion"] == 3:
+            adoption_update["reviewedOptionalRuntimeChanged"] = bool(optional_changed)
+            if optional_changed:
+                for candidate in lock["runtimeCandidates"].values():
+                    candidate["upstreamRevision"] = reviewed_revision
+                    candidate["status"] = "source-review-required"
+                    candidate["qualification"] = {
+                        "chronometerGpu54": "pending",
+                        "sextantGpu54": "pending",
+                        "servingAB": "pending",
+                        "promotionApproved": False,
+                    }
+        if lock["schemaVersion"] == 2 or default_changed:
+            adoption_update.update({
+                "status": "pending-review",
+                "reason": "runtime export changed; explicit compatibility review is required",
+            })
+        elif optional_changed:
+            adoption_update.update({
+                "status": "runtime-current",
+                "reason": "default runtime unchanged; optional runtime candidate remains separately blocked",
+            })
+        lock["adoption"].update(adoption_update)
         dump_json(lock_path, lock)
-    print(f"updated {lane} vendor to {revision}; adoption reset to pending-review; no upstream content was executed")
+    print(
+        f"updated {lane} vendor to {revision}; default runtime adoption is "
+        f"{lock['adoption']['status']}; no upstream content was executed"
+    )
 
 
 def adoption_summary(lock: dict) -> str:
@@ -548,8 +706,31 @@ def report_lane(lane: str, check: bool) -> None:
         f"- Runtime adoption: **{adoption_summary(lock)}**", "", "## Preserved local contract", "",
     ]
     lines.extend(f"- {item}" for item in contract["preservedPolicy"])
-    lines.extend(["", "## " + ("Review notes" if current else "Runtime adoption blockers"), ""])
-    prefix = "NOTE" if current else "BLOCKER"
+    if lock["schemaVersion"] == 3:
+        lines.extend(["", "## Optional runtime candidates", ""])
+        for name, candidate in sorted(lock["runtimeCandidates"].items()):
+            local = candidate["localCandidate"]
+            qualification = candidate["qualification"]
+            lines.extend([
+                f"- `{name}`: **{candidate['status']}**, `{candidate['mode']}` at `{candidate['upstreamRevision']}`",
+                f"  - Upstream artifact: `{candidate['upstreamArtifact']['sha256']}` ({candidate['upstreamArtifact']['availability']})",
+                f"  - Local candidate binary: `{local['binarySha256']}`; patched runtime: `{local['runtimeSha256']}`; pristine runtime: `{local['pristineRuntimeSha256']}`",
+                f"  - Build input: `{local['buildProvenance']['archiveFilename']}` / `{local['buildProvenance']['archiveSha256']}` at ExLlama `{local['buildProvenance']['exllamaRevision']}`",
+                f"  - Build script: `{local['buildProvenance']['buildScript']}` / `{local['buildProvenance']['buildScriptSha256']}`",
+                f"  - Build capture: compiler={local['buildProvenance']['compilerIdentity'] or 'pending'}, log-sha256={local['buildProvenance']['buildLogSha256'] or 'pending'}",
+                f"  - Gates: chronometer-54={qualification['chronometerGpu54']}, sextant-54={qualification['sextantGpu54']}, serving-A/B={qualification['servingAB']}, promotion-approved={str(qualification['promotionApproved']).lower()}",
+            ])
+    candidate_blocked = lock["schemaVersion"] == 3 and any(
+        candidate["status"] != "qualified"
+        for candidate in lock["runtimeCandidates"].values()
+    )
+    lines.extend([
+        "", "## " + (
+            "Optional candidate blockers" if candidate_blocked
+            else ("Review notes" if current else "Runtime adoption blockers")
+        ), "",
+    ])
+    prefix = "BLOCKER" if candidate_blocked or not current else "NOTE"
     lines.extend(f"- **{prefix}:** {item}" for item in contract["adoptionBlockers"])
     lines.extend(["", "## Vendored files", ""])
     lines.extend(f"- `{name}` — `{digest}`" for name, digest in sorted(recipe["files"].items()))

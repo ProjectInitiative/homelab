@@ -6,31 +6,64 @@ This report is offline and does not authorize deployment.
 ## Provenance
 
 - Runtime baseline: `e2944b34ebfd78f02b469423ea0490749515a396`
-- Last reviewed upstream HEAD: `979e68a62c90b24d928f5638596e0ceed90e9f34`
-- Reviewed range: 3 commits ahead, 0 behind runtime baseline; selected runtime files changed: none; 1 other paths changed
-- Vendored comparison snapshot: `e2944b34ebfd78f02b469423ea0490749515a396`
+- Last reviewed upstream HEAD: `f083d7e4ccc8cc1083ef739945a3114f54a8bef5`
+- Reviewed range: 10 commits ahead, 0 behind runtime baseline; default runtime files changed: none; optional cooperative-MoE extension/docs/tests added; default image/model files unchanged
+- Vendored comparison snapshot: `f083d7e4ccc8cc1083ef739945a3114f54a8bef5`
 - Serving image: `ghcr.io/miaai-lab/deepseek-v4.1-flash-exl3-2x-dgx-sparks:2.9bpw@sha256:2f0cf3adc0f989c1d446be274df864eb799630175f604c3b22b71b7205971dce`
-- Image provenance: **runtime baseline retained; reviewed HEAD is documentation-only**
-- Runtime adoption: **CURRENT: reviewed HEAD changes documentation only; active runtime bundle remains current at e2944b34ebfd78f02b469423ea0490749515a396**
+- Image provenance: **stock runtime baseline retained; reviewed HEAD adds only an off-by-default extension**
+- Runtime adoption: **CURRENT: default runtime/image/models remain current at e2944b34ebfd78f02b469423ea0490749515a396; cooperative-MoE is separately built but unqualified**
 
 ## Preserved local contract
 
-- Serving Deployments remain replicas 0 with explicit worker -> head activation and port 8000.
+- Stock serving Deployments remain replicas 0 with explicit worker -> head activation and port 8000; baked /opt/dsv41/exl3.py remains the default.
 - Digest/model pins, 600k context, eight-sequence/2048-token local concurrency, 2.5 GiB KV pool, text-only mode, and DSpark k=3 remain unchanged.
 - Fail-closed cache/model/Engram preflights, ordered cache warming, readiness warmup, and node/rank-matched packed Engram remain unchanged.
+- Cooperative-MoE staging and per-node GPU gates are separate suspended Jobs; no native binary is stored in Git or a ConfigMap.
 
-## Review notes
+## Optional runtime candidates
 
-- **NOTE:** Reviewed HEAD 979e68a62c90b24d928f5638596e0ceed90e9f34 changes README only; there is no runtime candidate to adopt.
-- **NOTE:** The optional third-party abliterated sidecar documented upstream is not part of the stock lane and has not been downloaded, hashed, or qualified.
+- `cooperativeMoe`: **built-unqualified**, `optional-off-by-default` at `f083d7e4ccc8cc1083ef739945a3114f54a8bef5`
+  - Upstream artifact: `a09a589cbdcecb5372991c7b091d732236d58bc5f5aea14ab91e38e426f08d78` (unavailable-in-git-and-releases)
+  - Local candidate binary: `16191d208101a3a04b021f8a2d0da360c5ebb710c0145b2e312052a02ce40305`; patched runtime: `2d33c5cd57c447b4d6545abfb59356ca7ee9cefe8aa2e4fe2c2023fe09bf35de`; pristine runtime: `9f1d10ffc39ac4433828a000c4932a4a773b00acadd80b46c7568f494a77b2fb`
+  - Build input: `dsv41-coop-build-input.tgz` / `f0760e9cd4bd5019f87b38df6aa788123794fb541f2e58998eae52c8a0d5b32b` at ExLlama `02aef45cd681b960a00afcd0749a4ab99e6c1bfe`
+  - Build script: `extensions/cooperative_moe/build.sh` / `0eca829cf4045ea35c2b0a7a422eeef8abdabdedc68834084aad4f64a1f4b048`
+  - Build capture: compiler=pending, log-sha256=pending
+  - Gates: chronometer-54=pending, sextant-54=pending, serving-A/B=pending, promotion-approved=false
+
+## Optional candidate blockers
+
+- **BLOCKER:** Upstream cooperative_moe.so pin a09a589cbdcecb5372991c7b091d732236d58bc5f5aea14ab91e38e426f08d78 is unavailable in Git and Releases.
+- **BLOCKER:** Local candidate 16191d208101a3a04b021f8a2d0da360c5ebb710c0145b2e312052a02ce40305 is built but unqualified: independent 54-case GPU gates on chronometer and sextant and serving A/B remain pending.
+- **BLOCKER:** Promotion requires an explicit reviewed manifest/profile change; the stock deployments do not select the candidate.
+- **BLOCKER:** Candidate build provenance is incomplete: compiler identity and build-log SHA-256 remain null and must be captured before qualification or promotion.
 
 ## Vendored files
 
 - `.env.example` — `eb11c9405430524afb8e40cf848b7ebcc31a854d5d320161430e883ffa1256ca`
 - `Dockerfile` — `6fb975c93a1b2f9ee55cc7d65826668fe546b16abf7663d8804f32c9796c003a`
 - `LICENSE` — `8d56b405468aad11f87ab5763f901e276e08d9646ff5c8481b1762b6b789e9ed`
+- `docs/cooperative-moe-quickstart.md` — `4feac398f02b595b544975c4740ab5697858942d4461d4b9b41833c22799bba3`
+- `docs/cooperative-moe.md` — `bec6980173f851c28657ad559e67a0dfefdc5f6d8296c6263744c3c349efb4da`
+- `extensions/cooperative_moe/README.md` — `905d75f9ed792951f3a37a2ac23c1308aa55d0e05713a1c48e005c08130d3e8e`
+- `extensions/cooperative_moe/archive_upstream.sh` — `96ac525ffac1027a98cfee86710d44d38c24a1e151081809db92b176919ca140`
+- `extensions/cooperative_moe/artifacts/README.md` — `63f495458dffbcd4e8b71dc49dcb8899c8ad896a6a615eca080cda01c734928c`
+- `extensions/cooperative_moe/artifacts/SHA256SUMS` — `a88b4ffed493a7c78ac1fa325ea905efe9e887ba777c8ce959804f4215fb1309`
+- `extensions/cooperative_moe/benchmarks/results.json` — `77c83e556a320e76ec1f21bef6c197e4edc387c7fdc1fba47be39e67af86dd7f`
+- `extensions/cooperative_moe/benchmarks/workloads.json` — `435926d8b66241d43bb8b0d2c6c2dce8dd5e8fcd1a1fc476269a390f29d0d223`
+- `extensions/cooperative_moe/build.sh` — `0eca829cf4045ea35c2b0a7a422eeef8abdabdedc68834084aad4f64a1f4b048`
+- `extensions/cooperative_moe/native/LICENSE.exllamav3` — `93ccc2f4c97c03bc767c611c75f3bb16b97e49606f5cd3ca05d7f6201ff8f8de`
+- `extensions/cooperative_moe/native/cooperative_moe.cu` — `0e14e30fd693fc7759d6309695fa741fbf6d7fa6fd600541b403418135cabd6f`
+- `extensions/cooperative_moe/native/cooperative_moe_kernel.cuh` — `57e05f6f18f6713091e0b0717e7fca3f43f0525f99cc2b123a5da5d60616a248`
+- `extensions/cooperative_moe/native/exl3_moe_coop.cuh` — `6b0d214cd2813181596287e85f842850f1437a82b7de1b142171519c5188ce79`
+- `extensions/cooperative_moe/prepare_profile.py` — `bdfe4dca0c584821d2360a54d8bad3a2208f0beffac71527d6e2b707e92c1575`
+- `extensions/cooperative_moe/runtime.py` — `9f1d10ffc39ac4433828a000c4932a4a773b00acadd80b46c7568f494a77b2fb`
+- `extensions/cooperative_moe/test_build.py` — `8e264642b70c15f865359a1010940aac071ae8e03f65f71dae6fe811965098f9`
+- `extensions/cooperative_moe/test_cuda_integration.py` — `249934dddcded4977524d139e78f6ea9fbdc40cd147eb304a2ae5c01e78f0f00`
+- `extensions/cooperative_moe/test_dispatch.py` — `0862b9ea8193d3b6ce6cfb5513743dfbc368e3b1e2f695807aec288970029349`
+- `extensions/cooperative_moe/test_profile.py` — `9fc5cff6218a4e0d257ad32470e65c897b974d6a171b79aaf32b3e9fbbff7f2f`
 - `overlay/exl3.py` — `ccdc69bfa04bff4870c3e555736a990fde6448ddb329441c4e0a27d6fc41078d`
 - `scripts/boot-shape-warmup.sh` — `1f0c8485e7eab90cc8f66faaf03d39c7f7d2086f7e57b0144fc4556de086eff8`
 - `scripts/pack_engram.py` — `74b2b61881aa5d3e26aa38c4ab38bbd268b1b0bfa8a895b96d6e817cb24ca9b0`
 - `scripts/prepare_engram_src.py` — `a8f3c0a45d5e73f5f9ff87e61ede453f31d7a91bed4438c2065a88998ef406f8`
 - `start.sh` — `e9e390237e98fb42d217e426ee3118ff2592592d7da0c04a9a0ea266b04af13b`
+- `tests/test_exl3_overlay.py` — `faecaeaf16b6142f020704cd3d003b0cc55611b2ad28886b4976d97322bd988b`

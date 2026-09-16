@@ -14,14 +14,16 @@ cloned from the proven `glm53-parity/` lane skeleton.
 | Item | Value |
 |---|---|
 | Runtime recipe baseline | `e2944b34ebfd78f02b469423ea0490749515a396` |
-| Last reviewed upstream HEAD | `979e68a62c90b24d928f5638596e0ceed90e9f34` |
-| Reviewed drift | Documentation-only (`README.md`); no runtime/image/model change |
+| Last reviewed upstream HEAD | `f083d7e4ccc8cc1083ef739945a3114f54a8bef5` |
+| Reviewed drift | Default runtime/image/model unchanged; new optional cooperative-MoE extension is built locally but unqualified |
 | Provenance contract | [`../lanes/dsv41/upstream.lock.json`](../lanes/dsv41/upstream.lock.json) and generated [`drift.md`](../lanes/dsv41/drift.md) |
 
-The selective vendor snapshot remains at the runtime baseline while the lock
-records the newer reviewed HEAD. The optional third-party abliterated sidecar
-mentioned by upstream is not part of this stock lane. Image/model pins and all
-runtime manifests remain unchanged.
+The selective vendor snapshot records the unchanged stock runtime plus the
+cooperative-MoE source, docs, tests, license, checksums, and benchmark evidence at
+the reviewed HEAD. The unavailable upstream native pin and the locally built,
+unqualified candidate are tracked separately in the lock. See
+[`cooperative-moe-candidate/`](cooperative-moe-candidate/); it is not selected by
+this stock lane. Image/model pins and active runtime manifests remain unchanged.
 
 ## Files / apply order
 
@@ -61,8 +63,8 @@ runtime manifests remain unchanged.
   47+48, the embed-only index, and `config.json`. At runtime
   `DSV41_PACKED_DIR=/engram-packed` attaches the rank-specific contiguous row
   stores from node-affine local NVMe PVCs, bypassing JuiceFS/FUSE for misses.
-- Memory discipline knobs shipped as in the recipe: `MAX_NUM_SEQS=2`,
-  `MAX_NUM_BATCHED_TOKENS=1024`, `DSV41_EXL3_SERIAL_STREAMS=1`,
+- Validated local memory discipline: `MAX_NUM_SEQS=8`,
+  `MAX_NUM_BATCHED_TOKENS=2048`, `DSV41_EXL3_SERIAL_STREAMS=1`,
   `VLLM_DISABLE_SHARED_EXPERTS_STREAM=1` (exllamav3 one-lock-buffer-per-device
   deadlock), `DSV41_PREFILL_EMPTY_CACHE_*`, `DSV41_IO_THREADS=32`,
   `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`. Memguard stays OFF

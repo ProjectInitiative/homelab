@@ -1,7 +1,9 @@
 {
   "adoptionBlockers": [
-    "Reviewed HEAD 979e68a62c90b24d928f5638596e0ceed90e9f34 changes README only; there is no runtime candidate to adopt.",
-    "The optional third-party abliterated sidecar documented upstream is not part of the stock lane and has not been downloaded, hashed, or qualified."
+    "Upstream cooperative_moe.so pin a09a589cbdcecb5372991c7b091d732236d58bc5f5aea14ab91e38e426f08d78 is unavailable in Git and Releases.",
+    "Local candidate 16191d208101a3a04b021f8a2d0da360c5ebb710c0145b2e312052a02ce40305 is built but unqualified: independent 54-case GPU gates on chronometer and sextant and serving A/B remain pending.",
+    "Promotion requires an explicit reviewed manifest/profile change; the stock deployments do not select the candidate.",
+    "Candidate build provenance is incomplete: compiler identity and build-log SHA-256 remain null and must be captured before qualification or promotion."
   ],
   "fileAssertions": [
     {
@@ -178,13 +180,134 @@
       "count": 1,
       "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
       "text": "DSPARK_TOKENS=3"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "\"status\": \"built-unqualified\""
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "\"availability\": \"unavailable-in-git-and-releases\""
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "16191d208101a3a04b021f8a2d0da360c5ebb710c0145b2e312052a02ce40305"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "f0760e9cd4bd5019f87b38df6aa788123794fb541f2e58998eae52c8a0d5b32b"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "\"chronometerGpu54\": \"pending\""
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "\"sextantGpu54\": \"pending\""
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "\"servingAB\": \"pending\""
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "\"promotionApproved\": false"
+    },
+    {
+      "count": 4,
+      "path": "llm-test/dsv41-parity/cooperative-moe-candidate/01-stage-and-gate.yaml",
+      "text": "suspend: true"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/dsv41-parity/cooperative-moe-candidate/01-stage-and-gate.yaml",
+      "text": "kubernetes.io/hostname: chronometer"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/dsv41-parity/cooperative-moe-candidate/01-stage-and-gate.yaml",
+      "text": "kubernetes.io/hostname: sextant"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/cooperative-moe-candidate/01-stage-and-gate.yaml",
+      "text": "16191d208101a3a04b021f8a2d0da360c5ebb710c0145b2e312052a02ce40305  cooperative_moe.so"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/cooperative-moe-candidate/01-stage-and-gate.yaml",
+      "text": "\"checks\": 54"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "cp /opt/dsv41/exl3.py \"$SITE/model_executor/layers/quantization/exl3.py\""
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "2d33c5cd57c447b4d6545abfb59356ca7ee9cefe8aa2e4fe2c2023fe09bf35de"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/cooperative-moe-candidate/01-stage-and-gate.yaml",
+      "text": "2d33c5cd57c447b4d6545abfb59356ca7ee9cefe8aa2e4fe2c2023fe09bf35de  runtime.py"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "02aef45cd681b960a00afcd0749a4ab99e6c1bfe"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "\"compilerIdentity\": null"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "\"buildLogSha256\": null"
+    },
+    {
+      "count": 4,
+      "path": "llm-test/dsv41-parity/cooperative-moe-candidate/01-stage-and-gate.yaml",
+      "text": "ttlSecondsAfterFinished: 259200"
+    },
+    {
+      "count": 4,
+      "path": "llm-test/dsv41-parity/cooperative-moe-candidate/01-stage-and-gate.yaml",
+      "text": "activeDeadlineSeconds: 1800"
+    },
+    {
+      "count": 1,
+      "path": ".gitignore",
+      "text": "llm-test/lanes/*/vendor/**/*.so"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "bash /work/input/extension/build.sh /work/input/upstream /work/output"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/lanes/dsv41/upstream.lock.json",
+      "text": "\"buildScriptSha256\": \"0eca829cf4045ea35c2b0a7a422eeef8abdabdedc68834084aad4f64a1f4b048\""
     }
   ],
   "lane": "dsv41",
   "preservedPolicy": [
-    "Serving Deployments remain replicas 0 with explicit worker -> head activation and port 8000.",
+    "Stock serving Deployments remain replicas 0 with explicit worker -> head activation and port 8000; baked /opt/dsv41/exl3.py remains the default.",
     "Digest/model pins, 600k context, eight-sequence/2048-token local concurrency, 2.5 GiB KV pool, text-only mode, and DSpark k=3 remain unchanged.",
-    "Fail-closed cache/model/Engram preflights, ordered cache warming, readiness warmup, and node/rank-matched packed Engram remain unchanged."
+    "Fail-closed cache/model/Engram preflights, ordered cache warming, readiness warmup, and node/rank-matched packed Engram remain unchanged.",
+    "Cooperative-MoE staging and per-node GPU gates are separate suspended Jobs; no native binary is stored in Git or a ConfigMap."
   ],
   "schemaVersion": 1,
   "servingManifests": [
