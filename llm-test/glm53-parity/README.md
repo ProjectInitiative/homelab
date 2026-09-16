@@ -14,22 +14,29 @@ upstream MiaAI Lab recipe
 ## Files
 
 - `05-glm53-exl3-download.yaml` — weight puller for the EXL3 model + DFlash2 draft.
-- `12-glm53-assets.yaml` — ConfigMap with the two **runtime-only** overlay patches
-  (`patch_adaptive_k.py`, `patch_dense_fp8.py`) that are NOT baked into the image.
+- `12-glm53-assets.yaml` — ConfigMap with local `exl3.py`,
+  `patch_adaptive_k.py`, and `patch_dense_fp8.py` copies. The first two are
+  stale relative to reviewed HEAD and block a future image-only update.
 - `12-glm53-parity.yaml` — parity Deployments (`glm53-exl3-head` on chronometer,
   `glm53-exl3-worker` on sextant), `replicas: 0`.
 - `services.yaml` — internal Services + HAProxy relay + Tailscale endpoint.
 - `13-glm53-warmup.yaml` — upstream DFlash/sampler/kpool post-ready warmup.
 - `12-glm53-profile.env` — the full resolved runtime profile (documentation).
 - `12-glm53-parity-diff.md` — parity comparison record.
+- `../lanes/glm53/` — checksum-locked upstream comparison snapshot, local
+  contract, and generated drift report. It is review evidence only and is not
+  consumed by these Deployments.
 
 ## Key pins
 
 | Item | Value |
 |---|---|
-| Upstream commit | `9348755` (MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks) |
+| Runtime recipe baseline | `9348755653f6f8cda5d56562c05462724c40fcbd` |
+| Last reviewed upstream HEAD | `6c228969a81d48372173bee55e5ad1b4753e656e` (175 commits after baseline) |
+| Provenance contract | [`../lanes/glm53/upstream.lock.json`](../lanes/glm53/upstream.lock.json) and generated [`drift.md`](../lanes/glm53/drift.md) |
 | Image (public) | `ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3` |
 | Image digest | `sha256:eecb36e14dc34c92d46827fde7b09f7e0bf27e27c426ece126376c02dea6cd2f` |
+| Runtime adoption status | **PROVENANCE-BLOCKED** — the mutable tag still resolves to this existing digest (created 2026-09-07, recipe stamp `825e3374...`), not a build proven from reviewed HEAD |
 | Weight model | `Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw` @ `25a44fdbf16862a46b7cc9921142c6c81350af2f` (~164 GiB, 120 shards) |
 | Draft model | `incoai/GLM-5.3-Flash-DFlash2` (k=7) @ `dc77ff1c99eeb2df044ee3d4f0094eb033fee410` (~2.3 GiB) |
 | Served model id | `GLM-5.3-Flash-EXL3` |
@@ -103,12 +110,18 @@ curl http://172.16.4.55:8000/v1/models
 
 ## Notes / caveats
 
+- The reviewed upstream HEAD is **not** represented by the pinned public image.
+  Do not copy its scheduler/overlay changes piecemeal or claim they are active.
+  The independent multimodal safety settings adopted on both ranks are image
+  cap 48, `MM_IMAGE_TOKENS=2048`, and `MM_PROCESSOR_CACHE_GB=1`; local
+  512k/16/2048/0.88/12-GiB geometry and mixed-prefill `off` remain unchanged.
 - The overlay patches are **baked** into the public image at build time; the
-  image's `glm53.recipe.stamp` ties it to the overlay/Dockerfile hash. The only
-  two runtime-only patches (`patch_adaptive_k.py`, `patch_dense_fp8.py`) are
-  delivered via `glm53-parity-overlay` and are **off by default**
-  (`GLM53_ADAPTIVE_K=off`, `GLM53_DENSE_FP8=off`). The overlay loop guards each
-  with `[ -f /opt/glm53/$p ]`.
+  image's `glm53.recipe.stamp` ties it to the overlay/Dockerfile hash. Local
+  copies of `exl3.py`, `patch_adaptive_k.py`, and `patch_dense_fp8.py` are
+  delivered via `glm53-parity-overlay`; the optional adaptive-k and dense-FP8
+  paths are **off by default** (`GLM53_ADAPTIVE_K=off`,
+  `GLM53_DENSE_FP8=off`). The overlay loop guards patches with
+  `[ -f /opt/glm53/$p ]`. Do not retain stale copies during a future image bump.
 - Boot-shape warmup is mounted from `13-glm53-warmup.yaml`, starts automatically
   after `/health`, and gates the head pod's Kubernetes readiness. JIT warnings
   emitted while this sweep runs are expected; successful readiness means its

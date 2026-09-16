@@ -1,0 +1,71 @@
+{
+  "adoption": {
+    "imageDigest": "sha256:2f0cf3adc0f989c1d446be274df864eb799630175f604c3b22b71b7205971dce",
+    "modelRevisions": {
+      "native": "dba1be0a40aa45a94ad051997016db3960a90277",
+      "weights": "64ba41b6c916a587db06eae2e19b7845f7be6e6b"
+    },
+    "reason": "reviewed HEAD changes documentation only; active runtime bundle remains current at e2944b34ebfd78f02b469423ea0490749515a396",
+    "recipeRevision": "e2944b34ebfd78f02b469423ea0490749515a396",
+    "reviewedRevision": "979e68a62c90b24d928f5638596e0ceed90e9f34",
+    "reviewedRuntimeChanged": false,
+    "status": "runtime-current"
+  },
+  "bundle": {
+    "imageDigest": "sha256:2f0cf3adc0f989c1d446be274df864eb799630175f604c3b22b71b7205971dce",
+    "modelRevisions": {
+      "native": "dba1be0a40aa45a94ad051997016db3960a90277",
+      "weights": "64ba41b6c916a587db06eae2e19b7845f7be6e6b"
+    },
+    "recipeRevision": "e2944b34ebfd78f02b469423ea0490749515a396"
+  },
+  "image": {
+    "digest": "sha256:2f0cf3adc0f989c1d446be274df864eb799630175f604c3b22b71b7205971dce",
+    "provenanceStatus": "runtime baseline retained; reviewed HEAD is documentation-only",
+    "recipeRevision": "e2944b34ebfd78f02b469423ea0490749515a396",
+    "ref": "ghcr.io/miaai-lab/deepseek-v4.1-flash-exl3-2x-dgx-sparks:2.9bpw"
+  },
+  "lane": "dsv41",
+  "models": {
+    "native": {
+      "repo": "deepseek-ai/DeepSeek-V4.1-Flash",
+      "revision": "dba1be0a40aa45a94ad051997016db3960a90277"
+    },
+    "weights": {
+      "repo": "Mia-AiLab/DeepSeek-V4.1-Flash-EXL3-2.9bpw",
+      "revision": "64ba41b6c916a587db06eae2e19b7845f7be6e6b"
+    }
+  },
+  "recipe": {
+    "files": {
+      ".env.example": "eb11c9405430524afb8e40cf848b7ebcc31a854d5d320161430e883ffa1256ca",
+      "Dockerfile": "6fb975c93a1b2f9ee55cc7d65826668fe546b16abf7663d8804f32c9796c003a",
+      "LICENSE": "8d56b405468aad11f87ab5763f901e276e08d9646ff5c8481b1762b6b789e9ed",
+      "overlay/exl3.py": "ccdc69bfa04bff4870c3e555736a990fde6448ddb329441c4e0a27d6fc41078d",
+      "scripts/boot-shape-warmup.sh": "1f0c8485e7eab90cc8f66faaf03d39c7f7d2086f7e57b0144fc4556de086eff8",
+      "scripts/pack_engram.py": "74b2b61881aa5d3e26aa38c4ab38bbd268b1b0bfa8a895b96d6e817cb24ca9b0",
+      "scripts/prepare_engram_src.py": "a8f3c0a45d5e73f5f9ff87e61ede453f31d7a91bed4438c2065a88998ef406f8",
+      "start.sh": "e9e390237e98fb42d217e426ee3118ff2592592d7da0c04a9a0ea266b04af13b"
+    },
+    "repo": "https://github.com/MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks.git",
+    "requiredRuntimeReferences": [
+      "overlay/exl3.py",
+      "scripts/boot-shape-warmup.sh",
+      "scripts/pack_engram.py",
+      "scripts/prepare_engram_src.py"
+    ],
+    "reviewedChangeSummary": "3 commits ahead, 0 behind runtime baseline; selected runtime files changed: none; 1 other paths changed",
+    "reviewedRevision": "979e68a62c90b24d928f5638596e0ceed90e9f34",
+    "runtimeBaseline": "e2944b34ebfd78f02b469423ea0490749515a396",
+    "vendorRevision": "e2944b34ebfd78f02b469423ea0490749515a396"
+  },
+  "safety": {
+    "activationOrder": [
+      "worker",
+      "head"
+    ],
+    "deploymentEnabled": false,
+    "desiredReplicas": 0
+  },
+  "schemaVersion": 2
+}

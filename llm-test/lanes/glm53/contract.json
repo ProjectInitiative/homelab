@@ -1,0 +1,180 @@
+{
+  "adoptionBlockers": [
+    "No immutable GHCR digest has been published or attested for recipe HEAD 6c228969a81d48372173bee55e5ad1b4753e656e; the pinned digest remains the older baseline image.",
+    "12-glm53-assets.yaml still embeds and 12-glm53-parity.yaml still mounts local exl3.py and patch_adaptive_k.py copies that would shadow files in a future image; refresh or remove them as one reviewed image migration.",
+    "Latest scheduler/overlay changes require a rebuilt, provenance-matched image and hardware requalification; they must not be copied piecemeal into the current image."
+  ],
+  "fileAssertions": [
+    {
+      "count": 4,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3@sha256:eecb36e14dc34c92d46827fde7b09f7e0bf27e27c426ece126376c02dea6cd2f"
+    },
+    {
+      "count": 7,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "25a44fdbf16862a46b7cc9921142c6c81350af2f"
+    },
+    {
+      "count": 7,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "dc77ff1c99eeb2df044ee3d4f0094eb033fee410"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/glm53-parity/05-glm53-exl3-download.yaml",
+      "text": "25a44fdbf16862a46b7cc9921142c6c81350af2f"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/glm53-parity/05-glm53-exl3-download.yaml",
+      "text": "dc77ff1c99eeb2df044ee3d4f0094eb033fee410"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "{name: PORT, value: \"8000\"}"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "{name: LIMIT_MM, value: '{\"image\":48,\"video\":1}'}"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "{name: MM_IMAGE_TOKENS, value: \"2048\"}"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "{name: MM_PROCESSOR_CACHE_GB, value: \"1\"}"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "{name: MAX_MODEL_LEN, value: \"512000\"}"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "{name: MAX_NUM_SEQS, value: \"16\"}"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "{name: MAX_NUM_BATCHED_TOKENS, value: \"2048\"}"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "{name: GPU_MEM_UTIL, value: \"0.88\"}"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "{name: GLM53_MIXED_PREFILL_CHUNK, value: \"off\"}"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "worker rank first, then the head rank"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "--kv-cache-memory-bytes 12884901888"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "--node-rank 0"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "--node-rank 1"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "--master-addr \"${HEAD_IP}\""
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "--master-port \"${MASTER_PORT}\""
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "{name: HEAD_IP, value: 172.16.5.55}"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "{name: MASTER_PORT, value: \"29521\"}"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "kubernetes.io/hostname: chronometer"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "kubernetes.io/hostname: sextant"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "startupProbe:"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "readinessProbe:"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "livenessProbe:"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "test -f /run/glm53/glm53-warmup-ready"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "bash /opt/glm53/boot-shape-warmup.sh"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "echo 3 > /proc/sys/vm/drop_caches"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "--mm-processor-kwargs \"{\\\"max_image_tokens\\\":${MM_IMAGE_TOKENS}}\""
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "--mm-processor-cache-gb \"${MM_PROCESSOR_CACHE_GB}\""
+    }
+  ],
+  "lane": "glm53",
+  "preservedPolicy": [
+    "Serving Deployments remain replicas 0 with explicit worker -> head activation.",
+    "Port 8000, digest/model pins, 512k context, 16 sequences, 2048 batched tokens, 0.88 utilization, explicit 12 GiB KV cap, and mixed-prefill=off remain local policy.",
+    "Cache preflight, readiness probes, and post-health boot-shape warmup remain unchanged.",
+    "Only image=48, MM_IMAGE_TOKENS=2048, and MM_PROCESSOR_CACHE_GB=1 are adopted independently on both ranks."
+  ],
+  "schemaVersion": 1,
+  "servingManifests": [
+    "llm-test/glm53-parity/12-glm53-parity.yaml"
+  ]
+}

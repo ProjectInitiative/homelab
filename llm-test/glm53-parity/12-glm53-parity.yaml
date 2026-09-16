@@ -7,9 +7,10 @@
 # delivered from the `glm53-parity-overlay` ConfigMap (see 12-glm53-assets.yaml).
 #
 # PRE-DEPLOY convention: both Deployments start at `replicas: 0`. Nothing is
-# started until you explicitly scale the head rank first, then the worker rank.
+# started until you explicitly scale the worker rank first, then the head rank.
 #
-# Upstream pin: GitHub MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks @ commit 9348755.
+# Runtime baseline: MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks @
+# 9348755653f6f8cda5d56562c05462724c40fcbd; reviewed HEAD is tracked separately.
 # Image (public): ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3
 #   digest sha256:eecb36e14dc34c92d46827fde7b09f7e0bf27e27c426ece126376c02dea6cd2f
 # Model: Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw @ 25a44fdbf16862a46b7cc9921142c6c81350af2f
@@ -158,6 +159,8 @@ spec:
                 ARGS+=(--language-model-only)
               else
                 [ -n "${LIMIT_MM:-}" ] && ARGS+=(--limit-mm-per-prompt "${LIMIT_MM}")
+                [ -n "${MM_IMAGE_TOKENS:-}" ] && ARGS+=(--mm-processor-kwargs "{\"max_image_tokens\":${MM_IMAGE_TOKENS}}")
+                [ -n "${MM_PROCESSOR_CACHE_GB:-}" ] && ARGS+=(--mm-processor-cache-gb "${MM_PROCESSOR_CACHE_GB}")
                 [ "${SKIP_MM_PROFILING:-1}" = "1" ] && ARGS+=(--skip-mm-profiling)
               fi
               if [ -n "${EXTRA_ARGS:-}" ]; then
@@ -240,7 +243,9 @@ spec:
             - {name: DFLASH_DRAFT_TP, value: "2"}
             - {name: LANGUAGE_MODEL_ONLY, value: "0"}
             - {name: SKIP_MM_PROFILING, value: "1"}
-            - {name: LIMIT_MM, value: '{"image":100,"video":1}'}
+            - {name: LIMIT_MM, value: '{"image":48,"video":1}'}
+            - {name: MM_IMAGE_TOKENS, value: "2048"}
+            - {name: MM_PROCESSOR_CACHE_GB, value: "1"}
             - {name: CHAT_TEMPLATE, value: /opt/glm53/chat_template.jinja}
             - {name: ENFORCE_EAGER, value: "0"}
             - {name: EXTRA_ARGS, value: "--cudagraph-capture-sizes 1 2 4 8 16 24 32 --kv-cache-memory-bytes 12884901888"}
@@ -525,6 +530,8 @@ spec:
                 ARGS+=(--language-model-only)
               else
                 [ -n "${LIMIT_MM:-}" ] && ARGS+=(--limit-mm-per-prompt "${LIMIT_MM}")
+                [ -n "${MM_IMAGE_TOKENS:-}" ] && ARGS+=(--mm-processor-kwargs "{\"max_image_tokens\":${MM_IMAGE_TOKENS}}")
+                [ -n "${MM_PROCESSOR_CACHE_GB:-}" ] && ARGS+=(--mm-processor-cache-gb "${MM_PROCESSOR_CACHE_GB}")
                 [ "${SKIP_MM_PROFILING:-1}" = "1" ] && ARGS+=(--skip-mm-profiling)
               fi
               if [ -n "${EXTRA_ARGS:-}" ]; then
@@ -585,7 +592,9 @@ spec:
             - {name: DFLASH_DRAFT_TP, value: "2"}
             - {name: LANGUAGE_MODEL_ONLY, value: "0"}
             - {name: SKIP_MM_PROFILING, value: "1"}
-            - {name: LIMIT_MM, value: '{"image":100,"video":1}'}
+            - {name: LIMIT_MM, value: '{"image":48,"video":1}'}
+            - {name: MM_IMAGE_TOKENS, value: "2048"}
+            - {name: MM_PROCESSOR_CACHE_GB, value: "1"}
             - {name: CHAT_TEMPLATE, value: /opt/glm53/chat_template.jinja}
             - {name: ENFORCE_EAGER, value: "0"}
             - {name: EXTRA_ARGS, value: "--cudagraph-capture-sizes 1 2 4 8 16 24 32 --kv-cache-memory-bytes 12884901888"}

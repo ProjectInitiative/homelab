@@ -33,6 +33,9 @@ result
 
 # Vendored submodules / repos
 vendor/
+# Deliberately tracked, checksum-locked selective MiaAI source snapshots.
+!llm-test/lanes/*/vendor/
+!llm-test/lanes/*/vendor/**
 
 # Snapshots (for migration verification)
 snapshot-baseline/

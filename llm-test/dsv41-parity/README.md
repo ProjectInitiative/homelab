@@ -1,12 +1,27 @@
 # DeepSeek-V4.1-Flash EXL3 2.9bpw — K8s parity lane (2× GB10, TP=2)
 
 Adaptation of the MiaAI-Lab docker recipe
-(https://github.com/MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks, local
-clone `/tmp/ds41-recipe`) onto the homelab `llm-test` 2-node lane topology,
+(https://github.com/MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks; exact
+source provenance is recorded in `../lanes/dsv41/upstream.lock.json`) onto the
+homelab `llm-test` 2-node lane topology,
 cloned from the proven `glm53-parity/` lane skeleton.
 
 **Status: VALIDATED ON THE 2× GB10 LANE.** Resources still ship with
 `replicas: 0`; activation remains an explicit worker-first slot swap.
+
+## Upstream provenance
+
+| Item | Value |
+|---|---|
+| Runtime recipe baseline | `e2944b34ebfd78f02b469423ea0490749515a396` |
+| Last reviewed upstream HEAD | `979e68a62c90b24d928f5638596e0ceed90e9f34` |
+| Reviewed drift | Documentation-only (`README.md`); no runtime/image/model change |
+| Provenance contract | [`../lanes/dsv41/upstream.lock.json`](../lanes/dsv41/upstream.lock.json) and generated [`drift.md`](../lanes/dsv41/drift.md) |
+
+The selective vendor snapshot remains at the runtime baseline while the lock
+records the newer reviewed HEAD. The optional third-party abliterated sidecar
+mentioned by upstream is not part of this stock lane. Image/model pins and all
+runtime manifests remain unchanged.
 
 ## Files / apply order
 

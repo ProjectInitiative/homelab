@@ -1,0 +1,193 @@
+{
+  "adoptionBlockers": [
+    "Reviewed HEAD 979e68a62c90b24d928f5638596e0ceed90e9f34 changes README only; there is no runtime candidate to adopt.",
+    "The optional third-party abliterated sidecar documented upstream is not part of the stock lane and has not been downloaded, hashed, or qualified."
+  ],
+  "fileAssertions": [
+    {
+      "count": 4,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "ghcr.io/miaai-lab/deepseek-v4.1-flash-exl3-2x-dgx-sparks:2.9bpw@sha256:2f0cf3adc0f989c1d446be274df864eb799630175f604c3b22b71b7205971dce"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/dsv41-parity/07-pack-engram-local.yaml",
+      "text": "ghcr.io/miaai-lab/deepseek-v4.1-flash-exl3-2x-dgx-sparks:2.9bpw@sha256:2f0cf3adc0f989c1d446be274df864eb799630175f604c3b22b71b7205971dce"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/05-prepare-model-tree.yaml",
+      "text": "64ba41b6c916a587db06eae2e19b7845f7be6e6b"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/05-prepare-model-tree.yaml",
+      "text": "dba1be0a40aa45a94ad051997016db3960a90277"
+    },
+    {
+      "count": 3,
+      "path": "llm-test/40-dsv41-flash-exl3-download.yaml",
+      "text": "64ba41b6c916a587db06eae2e19b7845f7be6e6b"
+    },
+    {
+      "count": 3,
+      "path": "llm-test/40-dsv41-flash-exl3-download.yaml",
+      "text": "dba1be0a40aa45a94ad051997016db3960a90277"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "MAX_MODEL_LEN=600000"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "MAX_NUM_SEQS=8"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "MAX_NUM_BATCHED_TOKENS=2048"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "KV_CACHE_MEMORY_BYTES=2684354560"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "PORT=8000"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/README.md",
+      "text": "worker-first slot swap"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "--node-rank 0"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "--node-rank 1"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "--master-addr \"${HEAD_IP}\""
+    },
+    {
+      "count": 2,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "--master-port \"${MASTER_PORT}\""
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "HEAD_IP=172.16.5.55"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "MASTER_PORT=29721"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "kubernetes.io/hostname: chronometer"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "kubernetes.io/hostname: sextant"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "startupProbe:"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "readinessProbe:"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "livenessProbe:"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "test -f /run/dsv41/dsv41-warmup-ready"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "bash /opt/dsv41/boot-warmup.sh"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "echo 3 > /proc/sys/vm/drop_caches"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "engram-l1-r0of2.bin"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "engram-l14-r0of2.bin"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "engram-l1-r1of2.bin"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "engram-l14-r1of2.bin"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "claimName: dsv41-engram-packed-chronometer"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "claimName: dsv41-engram-packed-sextant"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "LANGUAGE_MODEL_ONLY=1"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "SPEC_METHOD=dspark"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/dsv41-parity/12-dsv41-parity.yaml",
+      "text": "DSPARK_TOKENS=3"
+    }
+  ],
+  "lane": "dsv41",
+  "preservedPolicy": [
+    "Serving Deployments remain replicas 0 with explicit worker -> head activation and port 8000.",
+    "Digest/model pins, 600k context, eight-sequence/2048-token local concurrency, 2.5 GiB KV pool, text-only mode, and DSpark k=3 remain unchanged.",
+    "Fail-closed cache/model/Engram preflights, ordered cache warming, readiness warmup, and node/rank-matched packed Engram remain unchanged."
+  ],
+  "schemaVersion": 1,
+  "servingManifests": [
+    "llm-test/dsv41-parity/12-dsv41-parity.yaml"
+  ]
+}
