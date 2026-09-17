@@ -1,70 +1,91 @@
-# Qwen3.8-Flash-Next-NVFP4 weight puller.
-# Intentionally suspended until the DeepSeek experiment is complete.
+# Qwen3.8-Flash-Next on the single-node AMD Strix Halo host (astrolabe).
 #
-# Apply once:
-#   kubectl apply -f qwen38-flash-download.yaml
-# Start overnight:
-#   kubectl patch job qwen38-flash-download -n llm-test \
-#     --type=merge -p '{"spec":{"suspend":false}}'
+# STATUS: SCAFFOLD ONLY. The download Job is suspended and the Deployment has
+# replicas: 0. Applying this file creates metadata and Services only; it does
+# not pull weights or start the server until explicitly activated. Model files
+# use the shared RWX `model-cache` PVC and the v5 cache puller.
+#
+# Runtime: https://github.com/peonist-ai/halogen-flash-server (0.9.0),
+#          distributed under the Peonist EULA in that repository.
+# Weights: peonist-ai/halogen-qwen3.8-flash-next
+#          @ 9895fa812160059103a5e6043c1f8bf38b1e3a34; derivative model terms
+#          are linked from its Hugging Face model card.
+#
+# The AMD device plugin currently advertises amd.com/gpu=0 on astrolabe, so the
+# pod uses explicit /dev/kfd and /dev/dri mounts instead of a resource claim.
+# Halogen is built specifically for gfx1151; do not set HSA_OVERRIDE_GFX_VERSION
+# unless a future image explicitly requires it.
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: qwen38-flash-download
+  name: qwen38-halogen-download-v1
   namespace: llm-test
   labels:
-    app: qwen38-flash-download
+    app: qwen38-halogen-download
+    lane: qwen38-astrolabe
     purpose: model-cache-preload
 spec:
+  ttlSecondsAfterFinished: 259200
   suspend: true
   backoffLimit: 2147483647
   template:
     metadata:
       labels:
-        app: qwen38-flash-download
+        app: qwen38-halogen-download
+        lane: qwen38-astrolabe
     spec:
       restartPolicy: OnFailure
       nodeSelector:
         kubernetes.io/hostname: chronometer
       containers:
-        - name: download
-          image: vllm/vllm-openai:qwen38-flash-next
+        - name: puller
+          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:v5@sha256:4ac2072503bd68a509e556c1e1970ba498c4c7d632205879be623126b53e49ec
           imagePullPolicy: IfNotPresent
           env:
             - name: HF_HOME
               value: /models/.cache/huggingface
+            - name: RATE
+              value: "100000000"
+            - name: PULL_MODELS
+              value: peonist-ai/halogen-qwen3.8-flash-next@9895fa812160059103a5e6043c1f8bf38b1e3a34
             - name: HF_HUB_DISABLE_XET
               value: "1"
-            - name: PYTHONUNBUFFERED
-              value: "1"
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface
+                  key: HF_TOKEN
+                  optional: true
           command: ["/bin/bash", "-lc"]
           args:
             - |
               set -euo pipefail
-              MODEL_ROOT="$HF_HOME/hub/models--RadixArk--Qwen3.8-Flash-Next-NVFP4"
-              (
-                while true; do
-                  size=$(du -sh "$MODEL_ROOT" 2>/dev/null | awk '{print $1}')
-                  shards=$(find "$MODEL_ROOT/snapshots" -name '*.safetensors' 2>/dev/null | wc -l)
-                  echo "[$(date -u +%H:%M:%S)Z] Qwen cache=${size:-unknown} safetensor_shards=${shards}"
-                  sleep 60
-                done
-              ) &
-              PROGRESS_PID=$!
-              trap 'kill "$PROGRESS_PID" 2>/dev/null || true' EXIT
-              python3 -u - <<'PY'
-              import os
-              from huggingface_hub import snapshot_download
+              marker=/models/.download-complete
+              snap=/models/.cache/huggingface/hub/models--peonist-ai--halogen-qwen3.8-flash-next/snapshots/9895fa812160059103a5e6043c1f8bf38b1e3a34
+              rm -f "$marker"
+              python3 /opt/puller/puller.py
 
-              snapshot_download(
-                  repo_id="RadixArk/Qwen3.8-Flash-Next-NVFP4",
-                  cache_dir=os.environ["HF_HOME"],
-                  token=os.environ.get("HF_TOKEN") or None,
-                  max_workers=1,
-                  resume_download=True,
-              )
-              print("Qwen3.8-Flash-Next-NVFP4 download complete", flush=True)
-              PY
+              test -f "$snap/qwen38-flash-next-w4b.hgn"
+              test -f "$snap/qwen38-flash-next-w4b.overlay.hgn"
+              test -f "$snap/tokenizer/tokenizer.json"
+              test -f "$snap/tokenizer/chat_template.jinja"
+              [ "$(stat -c%s "$snap/qwen38-flash-next-w4b.hgn")" -eq 124068083904 ]
+              [ "$(stat -c%s "$snap/qwen38-flash-next-w4b.overlay.hgn")" -eq 2572466560 ]
+
+              # Halogen expects a flat model tree. Symlink into the shared HF
+              # cache so the 124 GB checkpoint is not copied a second time.
+              rm -f /models/qwen38-flash-next-w4b.hgn /models/qwen38-flash-next-w4b.overlay.hgn
+              rm -rf /models/tokenizer
+              ln -s "$snap/qwen38-flash-next-w4b.hgn" /models/qwen38-flash-next-w4b.hgn
+              ln -s "$snap/qwen38-flash-next-w4b.overlay.hgn" /models/qwen38-flash-next-w4b.overlay.hgn
+              ln -s "$snap/tokenizer" /models/tokenizer
+              touch "$marker"
+              echo "Halogen Qwen3.8-Flash-Next cache tree complete"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: 1Gi
           volumeMounts:
             - name: models
               mountPath: /models
@@ -72,3 +93,214 @@ spec:
         - name: models
           persistentVolumeClaim:
             claimName: model-cache
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qwen38-halogen-astrolabe
+  namespace: llm-test
+  labels:
+    app: qwen38-halogen
+    lane: qwen38-astrolabe
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: qwen38-halogen
+      lane: qwen38-astrolabe
+  template:
+    metadata:
+      labels:
+        app: qwen38-halogen
+        lane: qwen38-astrolabe
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: astrolabe
+        kubernetes.io/arch: amd64
+        gpu-vendor: amd
+        gpu: strix-halo
+      hostIPC: true
+      terminationGracePeriodSeconds: 120
+      initContainers:
+        - name: preflight
+          image: ghcr.io/peonist-ai/halogen-flash-server:0.11.4@sha256:545c226e455c14d707a2add5906a2b3c8a477dd06d1d1316c6408dcedbeda57d
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              test -f /models/.download-complete
+              test -f /models/qwen38-flash-next-w4b.hgn
+              test -f /models/qwen38-flash-next-w4b.overlay.hgn
+              test -f /models/tokenizer/tokenizer.json
+              test -c /dev/kfd
+              test -d /dev/dri
+              echo "astrolabe Halogen preflight complete"
+          securityContext:
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+            - name: kfd
+              mountPath: /dev/kfd
+            - name: dri
+              mountPath: /dev/dri
+      containers:
+        - name: halogen
+          image: ghcr.io/peonist-ai/halogen-flash-server:0.11.4@sha256:545c226e455c14d707a2add5906a2b3c8a477dd06d1d1316c6408dcedbeda57d
+          imagePullPolicy: IfNotPresent
+          args: ["all"]
+          env:
+            - name: HALOGEN_CHECKPOINT
+              value: /models/qwen38-flash-next-w4b.hgn
+            - name: HALOGEN_TOKENIZER
+              value: /models/tokenizer
+            - name: HALOGEN_MODEL_ID
+              value: qwen3.8-flash-next-halogen
+            - name: HALOGEN_API_PORT
+              value: "8731"
+            - name: HALOGEN_PORT
+              value: "8730"
+            - name: HALOGEN_CTX
+              value: "262144"
+            - name: HALOGEN_KV_SLOTS
+              value: "4"
+            - name: HALOGEN_KV_POOL_POSITIONS
+              value: "524288"
+            - name: HALOGEN_MAX_TOK
+              value: "8192"
+            # Newer Halogen builds use this request-level name; keep both
+            # bounds aligned so oversized requests are rejected cleanly.
+            - name: HALOGEN_MAX_TOKENS_CAP
+              value: "8192"
+            - name: HALOGEN_PROMPT_CACHE
+              value: "2"
+            - name: HALOGEN_CACHE_ENTRIES
+              value: "8"
+            - name: HALOGEN_NGRAM_GATHER_THREADS
+              value: "64"
+            - name: HALOGEN_ENGINE_WAIT_S
+              value: "0"
+            - name: HALOGEN_ENGINE_WATCHDOG_S
+              value: "300"
+            - name: HALOGEN_VERBOSE
+              value: "0"
+          # Direct-device fallback because amd.com/gpu is currently zero on
+          # astrolabe. Privilege should be removed once plugin/CDI allocation
+          # provides an enforceable exclusive GPU claim.
+          securityContext:
+            privileged: true
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              add: [SYS_NICE, IPC_LOCK]
+          resources:
+            requests:
+              cpu: "16"
+              memory: 110Gi
+            limits:
+              cpu: "32"
+              memory: 122Gi
+          ports:
+            - name: http
+              containerPort: 8731
+            - name: engine
+              containerPort: 8730
+          # Cold start includes pinning ~68 GiB, kernel compaction, and KV
+          # reservation; 30 minutes was too short for the first boot.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 35
+            failureThreshold: 900
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 35
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 35
+            failureThreshold: 30
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+            - name: shm
+              mountPath: /dev/shm
+            - name: kfd
+              mountPath: /dev/kfd
+            - name: dri
+              mountPath: /dev/dri
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 8Gi
+        - name: kfd
+          hostPath:
+            path: /dev/kfd
+            type: CharDevice
+        - name: dri
+          hostPath:
+            path: /dev/dri
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qwen38-halogen-astrolabe
+  namespace: llm-test
+  labels:
+    app: qwen38-halogen
+    lane: qwen38-astrolabe
+spec:
+  type: ClusterIP
+  selector:
+    app: qwen38-halogen
+    lane: qwen38-astrolabe
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+      protocol: TCP
+---
+# Dedicated Tailscale endpoint for the Strix Halo model. Keep this separate
+# from `ai`, which fronts the host-network DGX Spark API on port 8000.
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-halogen
+  namespace: llm-test
+  labels:
+    app: qwen38-halogen
+    lane: qwen38-astrolabe
+  annotations:
+    tailscale.com/hostname: "ai-halogen"
+    tailscale.com/proxy-group: mc-ingress-proxy
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  selector:
+    app: qwen38-halogen
+    lane: qwen38-astrolabe
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

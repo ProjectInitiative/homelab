@@ -1,0 +1,18 @@
+# In-cluster endpoint for workloads on the same network (agents running
+# in the cluster can reach memory without leaving it).
+apiVersion: v1
+kind: Service
+metadata:
+  name: hermes-memory
+  namespace: hermes
+  labels:
+    app: hermes-memory
+spec:
+  type: ClusterIP
+  selector:
+    app: hermes-memory
+  ports:
+    - name: mcp
+      protocol: TCP
+      port: 8080
+      targetPort: 8080

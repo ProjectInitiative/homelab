@@ -1,0 +1,112 @@
+# Sequential JuiceFS local-cache benchmark controller.
+#
+# Safety defaults:
+# - controller is suspended until explicitly started;
+# - every child Job has ttlSecondsAfterFinished: 60 and is also deleted
+#   immediately with foreground propagation;
+# - controller and all other llm-test Jobs expire after three days;
+# - target defaults to astrolabe, avoiding the active dual-Spark DSV41 lane;
+# - fio uses O_DIRECT and a 4Gi memory limit, preventing page-cache growth.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: juicefs-cache-bench-controller
+  namespace: llm-test
+  labels:
+    app: juicefs-cache-bench
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: juicefs-cache-bench-controller
+  namespace: llm-test
+rules:
+  - apiGroups: [""]
+    resources: [persistentvolumeclaims]
+    verbs: [create, delete, get, list, watch]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [create, get, update]
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [create, delete, get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: juicefs-cache-bench-controller
+  namespace: llm-test
+subjects:
+  - kind: ServiceAccount
+    name: juicefs-cache-bench-controller
+    namespace: llm-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: juicefs-cache-bench-controller
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: juicefs-cache-bench-v1
+  namespace: llm-test
+  labels:
+    app: juicefs-cache-bench
+spec:
+  suspend: true
+  ttlSecondsAfterFinished: 259200
+  backoffLimit: 0
+  activeDeadlineSeconds: 10800
+  template:
+    metadata:
+      labels:
+        app: juicefs-cache-bench
+    spec:
+      serviceAccountName: juicefs-cache-bench-controller
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: astrolabe
+      containers:
+        - name: controller
+          image: registry.taildeab2.ts.net/homelab/juicefs-cache-bench:v9@sha256:26b888fd6ae0f60c6df2f170f30180ebc4b3f4e51d865276b47a836d89372860
+          imagePullPolicy: Always
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: TARGET_NODE
+              value: astrolabe
+            - name: CONTROLLER_JOB_NAME
+              value: juicefs-cache-bench-v1
+            - name: BENCH_IMAGE
+              value: registry.taildeab2.ts.net/homelab/juicefs-cache-bench:v9@sha256:26b888fd6ae0f60c6df2f170f30180ebc4b3f4e51d865276b47a836d89372860
+            - name: JUICEFS_IMAGE
+              value: juicedata/mount:ce-v1.3.1@sha256:ddba2917edee5af0e0dc367c79aae55f91de4666f8c13795d238b937d44e3b3c
+            - name: DATASET_GIB
+              value: "8"
+            - name: RUNTIME_SECONDS
+              value: "30"
+            - name: RAMP_SECONDS
+              value: "5"
+            - name: REPETITIONS
+              value: "3"
+            - name: RANDOM_SEED
+              value: "38041"
+            # Empty means all profiles. For a smoke run use: control
+            - name: PROFILE_FILTER
+              value: ""
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi

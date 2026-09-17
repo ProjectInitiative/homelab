@@ -1,5 +1,9 @@
 # GLM-5.3-Flash-NVFP4 weight puller.
 #
+# NOTE: this is the NVFP4/Ray VARIANT. The EXL3/TR3-4bpw lane used by
+# llm-test/glm53-parity/ pulls a DIFFERENT model (Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw)
+# via llm-test/glm53-parity/05-glm53-exl3-download.yaml. Do not confuse the two.
+#
 # This is intentionally suspended until DeepSeek is complete. Apply once:
 #   kubectl apply -f glm53-flash-download.yaml
 # Then, after DeepSeek is finished and overnight bandwidth is available:
@@ -20,6 +24,7 @@ metadata:
     app: glm53-flash-download
     purpose: model-cache-preload
 spec:
+  ttlSecondsAfterFinished: 259200
   suspend: true
   backoffLimit: 2147483647
   template:

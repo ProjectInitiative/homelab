@@ -1,0 +1,2 @@
+# Vendored files are byte-for-byte upstream Git blobs verified by SHA-256.
+llm-test/lanes/*/vendor/** -whitespace

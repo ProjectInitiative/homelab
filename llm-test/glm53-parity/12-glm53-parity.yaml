@@ -1,0 +1,714 @@
+# GLM-5.3-Flash EXL3 (2x DGX Spark / GB10 / SM121) — MIAI Kubernetes parity lane.
+#
+# Faithful Kubernetes port of the upstream MiaAI Lab GLM-5.3-Flash-EXL3-2x-DGX-Sparks
+# `start.sh` recipe (the DeepSeek lane pattern). The public GHCR image
+#   ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3
+# bakes the overlay patches at build time; the two runtime-only decode patches are
+# delivered from the `glm53-parity-overlay` ConfigMap (see 12-glm53-assets.yaml).
+#
+# PRE-DEPLOY convention: both Deployments start at `replicas: 0`. Nothing is
+# started until you explicitly scale the worker rank first, then the head rank.
+#
+# Runtime baseline: MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks @
+# 56d0bdfbaa961283d1c54e61f4e67fcb1b9d37b9 (upstream HEAD, 2026-09-17).
+# Image: ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor
+#   digest sha256:447114ee77d14c9b4732ee23978ada2a0ee9027868a231d6fd42700a8b25be1d
+# Model: Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw @ 25a44fdbf16862a46b7cc9921142c6c81350af2f
+# Draft: incoai/GLM-5.3-Flash-DFlash2 (k=7) @ dc77ff1c99eeb2df044ee3d4f0094eb033fee410
+# Served model id: GLM-5.3-Flash-EXL3
+# API: http://<node>:8000 (host network); Tailscale endpoint in services.yaml.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: glm53-exl3-head
+  namespace: llm-test
+  labels: {app: glm53-exl3-head}
+spec:
+  replicas: 0
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: glm53-exl3-head}
+  template:
+    metadata:
+      labels: {app: glm53-exl3-head}
+    spec:
+      runtimeClassName: nvidia
+      hostNetwork: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      securityContext:
+        seccompProfile: {type: Unconfined}
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      terminationGracePeriodSeconds: 10
+      initContainers:
+        - name: stage-model-cache
+          image: ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor@sha256:447114ee77d14c9b4732ee23978ada2a0ee9027868a231d6fd42700a8b25be1d
+          imagePullPolicy: IfNotPresent
+          securityContext: {privileged: true}
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              # GB10 uses unified memory: reclaim host page cache before vLLM's
+              # CUDA free-memory check, matching the validated DeepSeek preflight.
+              echo "Memory before cache reclamation:"
+              grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
+              sync
+              echo 3 > /proc/sys/vm/drop_caches
+              echo "Memory after cache reclamation:"
+              grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
+              mkdir -p /cache/huggingface
+              # Modern huggingface_hub places the model under hub/ (a real dir).
+              # If the cache was built with the older flat layout, expose the
+              # `hub` alias that start.sh / vllm resolution expects.
+              if [ ! -e /cache/huggingface/hub ]; then
+                ln -sfn . /cache/huggingface/hub
+              fi
+              # Fail closed if the pinned EXL3 weight snapshot is not cached.
+              test -f /cache/huggingface/hub/models--Mia-AiLab--GLM-5.3-Flash-EXL3-TR3-4bpw/snapshots/25a44fdbf16862a46b7cc9921142c6c81350af2f/config.json \
+                || test -f /cache/huggingface/models--Mia-AiLab--GLM-5.3-Flash-EXL3-TR3-4bpw/snapshots/25a44fdbf16862a46b7cc9921142c6c81350af2f/config.json
+              test -f /cache/huggingface/hub/models--incoai--GLM-5.3-Flash-DFlash2/snapshots/dc77ff1c99eeb2df044ee3d4f0094eb033fee410/model.safetensors \
+                || test -f /cache/huggingface/models--incoai--GLM-5.3-Flash-DFlash2/snapshots/dc77ff1c99eeb2df044ee3d4f0094eb033fee410/model.safetensors
+              echo "GLM-5.3-Flash-EXL3 + DFlash2 snapshots verified in cache"
+          volumeMounts:
+            - name: models
+              mountPath: /cache/huggingface
+              subPath: .cache/huggingface
+      containers:
+        - name: vllm
+          image: ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor@sha256:447114ee77d14c9b4732ee23978ada2a0ee9027868a231d6fd42700a8b25be1d
+          imagePullPolicy: IfNotPresent
+          securityContext: {privileged: true}
+          resources:
+            requests: {cpu: "16", memory: 64Gi, nvidia.com/gpu: "1"}
+            limits: {cpu: "32", memory: 128Gi, nvidia.com/gpu: "1"}
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              say() { echo "[glm53-exl3-head] $*"; }
+              MODEL_CACHE="models--Mia-AiLab--GLM-5.3-Flash-EXL3-TR3-4bpw"
+              MODEL_REV="25a44fdbf16862a46b7cc9921142c6c81350af2f"
+              DFLASH_CACHE="models--incoai--GLM-5.3-Flash-DFlash2"
+              DFLASH_REV="dc77ff1c99eeb2df044ee3d4f0094eb033fee410"
+              # Layout-agnostic snapshot discovery (flat vs hub/).
+              find_snap() {
+                local base
+                for base in /cache/huggingface/hub /cache/huggingface; do
+                  if [ -f "$base/$1/snapshots/$2/config.json" ]; then
+                    printf '%s/%s/snapshots/%s' "$base" "$1" "$2"; return 0
+                  fi
+                done
+                return 1
+              }
+              MODEL_DIR="$(find_snap "$MODEL_CACHE" "$MODEL_REV")" || { say "FATAL: $MODEL_CACHE snapshot $MODEL_REV missing"; ls -la /cache/huggingface/hub 2>/dev/null || true; exit 1; }
+              export MODEL_DIR
+              DFLASH_MODEL_DIR="$(find_snap "$DFLASH_CACHE" "$DFLASH_REV")" || { say "FATAL: DFlash2 snapshot $DFLASH_REV missing"; exit 1; }
+              export DFLASH_MODEL_DIR
+              # The image's Triton registry must resolve the real NVIDIA driver,
+              # not a stub. This is part of upstream start.sh's container setup.
+              export TRITON_LIBCUDA_PATH=/run/triton-cuda-driver
+              REAL_LIBCUDA=/usr/lib/aarch64-linux-gnu/libcuda.so.1
+              test -f "$REAL_LIBCUDA"
+              test "$(readlink -f "$REAL_LIBCUDA")" != */stubs/libcuda.so
+              mkdir -p /run/triton-cuda-driver
+              ln -sfn "$REAL_LIBCUDA" /run/triton-cuda-driver/libcuda.so.1
+              ln -sfn "$REAL_LIBCUDA" /run/triton-cuda-driver/libcuda.so
+
+              ARGS=(
+                --served-model-name "${SERVED_MODEL_NAME}"
+                --host 0.0.0.0
+                --port "${PORT}"
+                --tensor-parallel-size "${TP}"
+                --nnodes "${NNODES}"
+                --node-rank 0
+                --master-addr "${HEAD_IP}"
+                --master-port "${MASTER_PORT}"
+                --distributed-executor-backend mp
+                --tool-call-parser glm47
+                --enable-auto-tool-choice
+                --reasoning-parser glm45
+                --enable-prefix-caching
+                --no-enable-flashinfer-autotune
+                # The upstream :exl3-instanttensor image requires explicit
+                # selection; otherwise this parity wrapper falls back to auto.
+                --load-format instanttensor
+              )
+              [ "${ENFORCE_EAGER:-1}" = "1" ] && ARGS+=(--enforce-eager)
+              [ -n "${QUANTIZATION:-}" ] && [ "${QUANTIZATION}" != "none" ] && ARGS+=(--quantization "${QUANTIZATION}")
+              [ -n "${MAX_MODEL_LEN:-}" ] && ARGS+=(--max-model-len "${MAX_MODEL_LEN}")
+              [ -n "${GPU_MEM_UTIL:-}" ] && ARGS+=(--gpu-memory-utilization "${GPU_MEM_UTIL}")
+              [ -n "${MAX_NUM_SEQS:-}" ] && ARGS+=(--max-num-seqs "${MAX_NUM_SEQS}")
+              [ -n "${MAX_NUM_BATCHED_TOKENS:-}" ] && ARGS+=(--max-num-batched-tokens "${MAX_NUM_BATCHED_TOKENS}")
+              [ -n "${LONG_PREFILL_TOKEN_THRESHOLD:-}" ] && ARGS+=(--long-prefill-token-threshold "${LONG_PREFILL_TOKEN_THRESHOLD}")
+              [ -n "${KV_CACHE_DTYPE:-}" ] && ARGS+=(--kv-cache-dtype "${KV_CACHE_DTYPE}")
+              if [ -n "${GLM53_DEFAULT_REASONING_EFFORT:-}" ]; then
+                ARGS+=(--default-chat-template-kwargs "{\"reasoning_effort\":\"${GLM53_DEFAULT_REASONING_EFFORT}\"}")
+              fi
+              if [ "${SPEC_METHOD:-mtp}" = "dflash" ]; then
+                SPEC_JSON=$(printf '{"method":"dflash","model":"%s","num_speculative_tokens":%s,"kv_cache_dtype":"auto","draft_sample_method":"probabilistic","rejection_sample_method":"standard","draft_tensor_parallel_size":%s}' "${DFLASH_MODEL_DIR}" "${DFLASH_TOKENS:-7}" "${DFLASH_DRAFT_TP:-2}")
+                ARGS+=(--speculative-config "$SPEC_JSON")
+              elif [ "${SPEC_METHOD:-mtp}" = "none" ]; then
+                :
+              elif [ "${MTP_TOKENS:-0}" != "0" ]; then
+                ARGS+=(--speculative-config "{\"method\":\"mtp\",\"num_speculative_tokens\":${MTP_TOKENS}}")
+              fi
+              if [ -n "${CHAT_TEMPLATE:-}" ] && [ -f "${CHAT_TEMPLATE}" ]; then
+                ARGS+=(--chat-template "${CHAT_TEMPLATE}")
+              fi
+              if [ "${LANGUAGE_MODEL_ONLY:-0}" = "1" ]; then
+                ARGS+=(--language-model-only)
+              else
+                [ -n "${LIMIT_MM:-}" ] && ARGS+=(--limit-mm-per-prompt "${LIMIT_MM}")
+                [ -n "${MM_IMAGE_TOKENS:-}" ] && ARGS+=(--mm-processor-kwargs "{\"max_image_tokens\":${MM_IMAGE_TOKENS}}")
+                [ -n "${MM_PROCESSOR_CACHE_GB:-}" ] && ARGS+=(--mm-processor-cache-gb "${MM_PROCESSOR_CACHE_GB}")
+                [ "${SKIP_MM_PROFILING:-1}" = "1" ] && ARGS+=(--skip-mm-profiling)
+              fi
+              if [ -n "${EXTRA_ARGS:-}" ]; then
+                # shellcheck disable=SC2206
+                EXTRA=(${EXTRA_ARGS})
+                ARGS+=("${EXTRA[@]}")
+              fi
+
+              # Runtime overlay re-apply (GLM53_OVERLAY_ORDER from start.sh); each
+              # patch is guarded by `[ -f ]` so a missing or disabled patch is skipped.
+              for p in patch_glm_video_placeholders.py patch_suppress_stops_in_reasoning.py \
+                       patch_scheduler_decode_floor.py patch_glm5_drafter_group.py \
+                       patch_hybrid_prefix_hit.py patch_apc_per_group_retention.py \
+                       patch_xgrammar_termination.py patch_kpool_tail_slotmap.py \
+                       patch_spinwait.py patch_adaptive_k.py patch_dense_fp8.py \
+                       patch_indexer_workspace.py patch_ablit.py; do
+                if [ -f /opt/glm53/$p ]; then
+                  say "applying overlay patch $p"
+                  python3 /opt/glm53/$p
+                fi
+              done
+
+              if [ "${ABLIT:-0}" = "1" ]; then
+                say "ablit: o_proj orthogonalization ON (method=${ABLIT_METHOD:-auto} direction=${ABLIT_DIRECTION:-dealign} layers=${ABLIT_LAYERS:-15-45} alpha=${ABLIT_ALPHA:-3.0})"
+              else
+                say "ablit: off — stock o_proj weights"
+              fi
+              # Mirror upstream's post-ready DFlash/sampler/kpool warmup. Keep the
+              # pod unready until all cold-JIT shapes complete successfully.
+              rm -f /run/glm53/glm53-warmup-ready
+              (
+                until curl -fsS --max-time 10 "http://127.0.0.1:${PORT}/health" >/dev/null 2>&1; do sleep 5; done
+                say "API healthy; running boot shape warmup"
+                if GLM53_WARMUP_MAX_CONCURRENCY="${MAX_NUM_SEQS}" \
+                   GLM53_WARMUP_REQ_TIMEOUT=300 \
+                   GLM53_WARMUP_DFLASH_K="${DFLASH_TOKENS}" \
+                   GLM53_WARMUP_TRITON_CACHE_DIR="${TRITON_CACHE_DIR}" \
+                   bash /opt/glm53/boot-shape-warmup.sh "http://127.0.0.1:${PORT}" "${SERVED_MODEL_NAME}"; then
+                  touch /run/glm53/glm53-warmup-ready
+                  say "boot shape warmup complete; pod ready"
+                else
+                  say "ERROR: boot shape warmup failed; pod remains unready"
+                fi
+              ) &
+              say "launching: vllm serve ${MODEL_DIR} ${ARGS[*]}"
+              exec vllm serve "${MODEL_DIR}" "${ARGS[@]}"
+          env:
+            - {name: HF_HOME, value: /cache/huggingface}
+            - {name: HF_HUB_OFFLINE, value: "1"}
+            - {name: TRANSFORMERS_OFFLINE, value: "1"}
+            - {name: VLLM_CACHE_ROOT, value: /root/.cache/vllm}
+            - {name: TRITON_CACHE_DIR, value: /root/.triton/cache}
+            - {name: TILELANG_CACHE_DIR, value: /root/.tilelang/cache}
+            - {name: TORCH_CUDA_ARCH_LIST, value: 12.1a}
+            - {name: FLASHINFER_CUDA_ARCH_LIST, value: 12.1a}
+            - {name: FLASHINFER_DISABLE_VERSION_CHECK, value: "1"}
+            - {name: PYTORCH_CUDA_ALLOC_CONF, value: "expandable_segments:True"}
+            - {name: VLLM_ENGINE_READY_TIMEOUT_S, value: "3600"}
+            - {name: VLLM_NO_USAGE_STATS, value: "1"}
+            - {name: DO_NOT_TRACK, value: "1"}
+            - {name: VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS, value: "1"}
+            # serve / model
+            - {name: SERVED_MODEL_NAME, value: GLM-5.3-Flash-EXL3}
+            - {name: PORT, value: "8000"}
+            - {name: TP, value: "2"}
+            - {name: NNODES, value: "2"}
+            - {name: HEAD_IP, value: 172.16.5.55}
+            - {name: MASTER_PORT, value: "29521"}
+            - {name: QUANTIZATION, value: exl3}
+            - {name: MAX_MODEL_LEN, value: "512000"}
+            - {name: GPU_MEM_UTIL, value: "0.88"}
+            # Upstream's independently measured high-concurrency geometry.
+            - {name: MAX_NUM_SEQS, value: "16"}
+            - {name: MAX_NUM_BATCHED_TOKENS, value: "2048"}
+            - {name: LONG_PREFILL_TOKEN_THRESHOLD, value: ""}
+            - {name: KV_CACHE_DTYPE, value: fp8}
+            - {name: MTP_TOKENS, value: "0"}
+            - {name: SPEC_METHOD, value: dflash}
+            - {name: DFLASH_TOKENS, value: "7"}
+            - {name: DFLASH_DRAFT_TP, value: "2"}
+            - {name: LANGUAGE_MODEL_ONLY, value: "0"}
+            - {name: SKIP_MM_PROFILING, value: "1"}
+            - {name: LIMIT_MM, value: '{"image":48,"video":1}'}
+            - {name: MM_IMAGE_TOKENS, value: "2048"}
+            - {name: MM_PROCESSOR_CACHE_GB, value: "1"}
+            - {name: CHAT_TEMPLATE, value: /opt/glm53/chat_template.jinja}
+            - {name: ENFORCE_EAGER, value: "0"}
+            - {name: EXTRA_ARGS, value: "--cudagraph-capture-sizes 1 2 4 8 16 24 32 --kv-cache-memory-bytes 12884901888"}
+            # exl3 fat-moe
+            - {name: EXL3_FUSED_MOE, value: "1"}
+            - {name: EXL3_MOE_ROW_TILE, value: "0"}
+            - {name: EXL3_TEMP_ROWS_FUSED, value: "32"}
+            - {name: EXL3_FAT_SORTED, value: "0"}
+            - {name: EXL3_FAT_BATCHED, value: "0"}
+            - {name: EXL3_FAT_KERNEL, value: "1"}
+            - {name: EXL3_FAT_GROUPED, value: "1"}
+            # ablit
+            - {name: ABLIT, value: "0"}
+            - {name: ABLIT_METHOD, value: auto}
+            - {name: ABLIT_DIRECTION, value: dealign}
+            - {name: ABLIT_LAYERS, value: "15-45"}
+            - {name: ABLIT_ALPHA, value: "3.0"}
+            - {name: ABLIT_INCLUDE_MTP, value: "1"}
+            # GLM53 decode knobs
+            - {name: GLM53_ADAPTIVE_K, value: "off"}
+            - {name: GLM53_ADAPTIVE_K_SET, value: "2,4,7"}
+            - {name: GLM53_ADAPTIVE_K_ALPHA, value: "0.25"}
+            - {name: GLM53_ADAPTIVE_K_MARGIN, value: "1.0"}
+            - {name: GLM53_ADAPTIVE_K_MIN_STEPS, value: "4"}
+            - {name: GLM53_ADAPTIVE_K_SATURATE, value: max}
+            - {name: GLM53_ADAPTIVE_K_HIST, value: "200"}
+            - {name: GLM53_DENSE_FP8, value: "off"}
+            - {name: GLM53_SUPPRESS_STOPS_IN_REASONING, value: "1"}
+            # Preserve vLLM continuous batching: allow prefills while peers decode.
+            - {name: GLM53_MIXED_PREFILL_CHUNK, value: "off"}
+            - {name: GLM53_DEFAULT_REASONING_EFFORT, value: ""}
+            - {name: GLM53_INDEXER_WORKSPACE, value: rightsize}
+            - {name: GLM53_SPINWAIT_MS, value: stock}
+            # NCCL / CX7 backplane (head rank)
+            - {name: NCCL_IB_DISABLE, value: "0"}
+            - {name: NCCL_IB_ROCE_VERSION_NUM, value: "2"}
+            - {name: NCCL_NET, value: IB}
+            - {name: NCCL_NET_PLUGIN, value: none}
+            - {name: NCCL_NVLS_ENABLE, value: "0"}
+            - {name: NCCL_CUMEM_ENABLE, value: "0"}
+            - {name: NCCL_IB_MERGE_NICS, value: "0"}
+            - {name: NCCL_CROSS_NIC, value: "0"}
+            - {name: NCCL_IGNORE_CPU_AFFINITY, value: "1"}
+            - {name: NCCL_DEBUG, value: WARN}
+            - {name: NCCL_SOCKET_IFNAME, value: enp1s0f1np1}
+            - {name: GLOO_SOCKET_IFNAME, value: enp1s0f1np1}
+            # NCCL_IB_HCA names the RDMA device, not the Linux netdev.
+            - {name: NCCL_IB_HCA, value: "mlx5_1:1"}
+            - {name: NCCL_IB_GID_INDEX, value: "2"}
+            - {name: VLLM_HOST_IP, value: 172.16.5.55}
+          ports:
+            - name: http
+              containerPort: 8000
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 360
+          readinessProbe:
+            exec:
+              command: ["/bin/bash", "-lc", "test -f /run/glm53/glm53-warmup-ready && curl -fsS -m 2 http://127.0.0.1:8000/health >/dev/null"]
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: warmup
+              mountPath: /opt/glm53/boot-shape-warmup.sh
+              subPath: boot-shape-warmup.sh
+            - name: readiness
+              mountPath: /run/glm53
+            - name: models
+              mountPath: /cache/huggingface
+              subPath: .cache/huggingface
+            - name: overlay
+              mountPath: /opt/glm53/patch_adaptive_k.py
+              subPath: patch_adaptive_k.py
+            - name: overlay
+              mountPath: /opt/glm53/patch_dense_fp8.py
+              subPath: patch_dense_fp8.py
+            - name: overlay
+              mountPath: /opt/glm53/exl3.py
+              subPath: exl3.py
+            - name: triton-cache
+              mountPath: /root/.triton/cache
+            - name: tilelang-cache
+              mountPath: /root/.tilelang/cache
+            - name: vllm-cache
+              mountPath: /root/.cache/vllm
+            - name: tmp
+              mountPath: /tmp
+            - name: dshm
+              mountPath: /dev/shm
+            - name: diagnostics
+              mountPath: /diagnostics
+            - name: infiniband
+              mountPath: /dev/infiniband
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+        - name: warmup
+          configMap:
+            name: glm53-boot-warmup
+            defaultMode: 0555
+        - name: readiness
+          emptyDir: {}
+        - name: overlay
+          configMap:
+            name: glm53-parity-overlay
+        - name: triton-cache
+          hostPath:
+            path: /var/lib/llm-test/jit-cache/triton
+            type: DirectoryOrCreate
+        - name: tilelang-cache
+          hostPath:
+            path: /var/lib/llm-test/jit-cache/tilelang
+            type: DirectoryOrCreate
+        - name: vllm-cache
+          hostPath:
+            path: /var/lib/llm-test/jit-cache/vllm-cache
+            type: DirectoryOrCreate
+        - name: tmp
+          hostPath:
+            path: /var/lib/llm-test/jit-cache/glm53-tmp
+            type: DirectoryOrCreate
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Gi
+        - name: diagnostics
+          hostPath:
+            path: /var/lib/llm-test/diagnostics
+            type: DirectoryOrCreate
+        - name: infiniband
+          hostPath:
+            path: /dev/infiniband
+            type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: glm53-exl3-worker
+  namespace: llm-test
+  labels: {app: glm53-exl3-worker}
+spec:
+  replicas: 0
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: glm53-exl3-worker}
+  template:
+    metadata:
+      labels: {app: glm53-exl3-worker}
+    spec:
+      runtimeClassName: nvidia
+      hostNetwork: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      securityContext:
+        seccompProfile: {type: Unconfined}
+      nodeSelector:
+        kubernetes.io/hostname: sextant
+      terminationGracePeriodSeconds: 10
+      initContainers:
+        - name: stage-model-cache
+          image: ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor@sha256:447114ee77d14c9b4732ee23978ada2a0ee9027868a231d6fd42700a8b25be1d
+          imagePullPolicy: IfNotPresent
+          securityContext: {privileged: true}
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              # GB10 uses unified memory: reclaim host page cache before vLLM's
+              # CUDA free-memory check, matching the validated DeepSeek preflight.
+              echo "Memory before cache reclamation:"
+              grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
+              sync
+              echo 3 > /proc/sys/vm/drop_caches
+              echo "Memory after cache reclamation:"
+              grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
+              mkdir -p /cache/huggingface
+              if [ ! -e /cache/huggingface/hub ]; then
+                ln -sfn . /cache/huggingface/hub
+              fi
+              test -f /cache/huggingface/hub/models--Mia-AiLab--GLM-5.3-Flash-EXL3-TR3-4bpw/snapshots/25a44fdbf16862a46b7cc9921142c6c81350af2f/config.json \
+                || test -f /cache/huggingface/models--Mia-AiLab--GLM-5.3-Flash-EXL3-TR3-4bpw/snapshots/25a44fdbf16862a46b7cc9921142c6c81350af2f/config.json
+              test -f /cache/huggingface/hub/models--incoai--GLM-5.3-Flash-DFlash2/snapshots/dc77ff1c99eeb2df044ee3d4f0094eb033fee410/model.safetensors \
+                || test -f /cache/huggingface/models--incoai--GLM-5.3-Flash-DFlash2/snapshots/dc77ff1c99eeb2df044ee3d4f0094eb033fee410/model.safetensors
+              echo "GLM-5.3-Flash-EXL3 + DFlash2 snapshots verified in cache"
+          volumeMounts:
+            - name: models
+              mountPath: /cache/huggingface
+              subPath: .cache/huggingface
+      containers:
+        - name: vllm
+          image: ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor@sha256:447114ee77d14c9b4732ee23978ada2a0ee9027868a231d6fd42700a8b25be1d
+          imagePullPolicy: IfNotPresent
+          securityContext: {privileged: true}
+          resources:
+            requests: {cpu: "16", memory: 64Gi, nvidia.com/gpu: "1"}
+            limits: {cpu: "32", memory: 128Gi, nvidia.com/gpu: "1"}
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              say() { echo "[glm53-exl3-worker] $*"; }
+              MODEL_CACHE="models--Mia-AiLab--GLM-5.3-Flash-EXL3-TR3-4bpw"
+              MODEL_REV="25a44fdbf16862a46b7cc9921142c6c81350af2f"
+              DFLASH_CACHE="models--incoai--GLM-5.3-Flash-DFlash2"
+              DFLASH_REV="dc77ff1c99eeb2df044ee3d4f0094eb033fee410"
+              find_snap() {
+                local base
+                for base in /cache/huggingface/hub /cache/huggingface; do
+                  if [ -f "$base/$1/snapshots/$2/config.json" ]; then
+                    printf '%s/%s/snapshots/%s' "$base" "$1" "$2"; return 0
+                  fi
+                done
+                return 1
+              }
+              MODEL_DIR="$(find_snap "$MODEL_CACHE" "$MODEL_REV")" || { say "FATAL: $MODEL_CACHE snapshot $MODEL_REV missing"; ls -la /cache/huggingface/hub 2>/dev/null || true; exit 1; }
+              export MODEL_DIR
+              DFLASH_MODEL_DIR="$(find_snap "$DFLASH_CACHE" "$DFLASH_REV")" || { say "FATAL: DFlash2 snapshot $DFLASH_REV missing"; exit 1; }
+              export DFLASH_MODEL_DIR
+              # The image's Triton registry must resolve the real NVIDIA driver,
+              # not a stub. This is part of upstream start.sh's container setup.
+              export TRITON_LIBCUDA_PATH=/run/triton-cuda-driver
+              REAL_LIBCUDA=/usr/lib/aarch64-linux-gnu/libcuda.so.1
+              test -f "$REAL_LIBCUDA"
+              test "$(readlink -f "$REAL_LIBCUDA")" != */stubs/libcuda.so
+              mkdir -p /run/triton-cuda-driver
+              ln -sfn "$REAL_LIBCUDA" /run/triton-cuda-driver/libcuda.so.1
+              ln -sfn "$REAL_LIBCUDA" /run/triton-cuda-driver/libcuda.so
+
+              ARGS=(
+                --served-model-name "${SERVED_MODEL_NAME}"
+                --host 0.0.0.0
+                --port "${PORT}"
+                --tensor-parallel-size "${TP}"
+                --nnodes "${NNODES}"
+                --node-rank 1
+                --master-addr "${HEAD_IP}"
+                --master-port "${MASTER_PORT}"
+                --distributed-executor-backend mp
+                --headless
+                --tool-call-parser glm47
+                --enable-auto-tool-choice
+                --reasoning-parser glm45
+                --enable-prefix-caching
+                --no-enable-flashinfer-autotune
+                # The upstream :exl3-instanttensor image requires explicit
+                # selection; otherwise this parity wrapper falls back to auto.
+                --load-format instanttensor
+              )
+              [ "${ENFORCE_EAGER:-1}" = "1" ] && ARGS+=(--enforce-eager)
+              [ -n "${QUANTIZATION:-}" ] && [ "${QUANTIZATION}" != "none" ] && ARGS+=(--quantization "${QUANTIZATION}")
+              [ -n "${MAX_MODEL_LEN:-}" ] && ARGS+=(--max-model-len "${MAX_MODEL_LEN}")
+              [ -n "${GPU_MEM_UTIL:-}" ] && ARGS+=(--gpu-memory-utilization "${GPU_MEM_UTIL}")
+              [ -n "${MAX_NUM_SEQS:-}" ] && ARGS+=(--max-num-seqs "${MAX_NUM_SEQS}")
+              [ -n "${MAX_NUM_BATCHED_TOKENS:-}" ] && ARGS+=(--max-num-batched-tokens "${MAX_NUM_BATCHED_TOKENS}")
+              [ -n "${LONG_PREFILL_TOKEN_THRESHOLD:-}" ] && ARGS+=(--long-prefill-token-threshold "${LONG_PREFILL_TOKEN_THRESHOLD}")
+              [ -n "${KV_CACHE_DTYPE:-}" ] && ARGS+=(--kv-cache-dtype "${KV_CACHE_DTYPE}")
+              if [ -n "${GLM53_DEFAULT_REASONING_EFFORT:-}" ]; then
+                ARGS+=(--default-chat-template-kwargs "{\"reasoning_effort\":\"${GLM53_DEFAULT_REASONING_EFFORT}\"}")
+              fi
+              if [ "${SPEC_METHOD:-mtp}" = "dflash" ]; then
+                SPEC_JSON=$(printf '{"method":"dflash","model":"%s","num_speculative_tokens":%s,"kv_cache_dtype":"auto","draft_sample_method":"probabilistic","rejection_sample_method":"standard","draft_tensor_parallel_size":%s}' "${DFLASH_MODEL_DIR}" "${DFLASH_TOKENS:-7}" "${DFLASH_DRAFT_TP:-2}")
+                ARGS+=(--speculative-config "$SPEC_JSON")
+              elif [ "${SPEC_METHOD:-mtp}" = "none" ]; then
+                :
+              elif [ "${MTP_TOKENS:-0}" != "0" ]; then
+                ARGS+=(--speculative-config "{\"method\":\"mtp\",\"num_speculative_tokens\":${MTP_TOKENS}}")
+              fi
+              if [ -n "${CHAT_TEMPLATE:-}" ] && [ -f "${CHAT_TEMPLATE}" ]; then
+                ARGS+=(--chat-template "${CHAT_TEMPLATE}")
+              fi
+              if [ "${LANGUAGE_MODEL_ONLY:-0}" = "1" ]; then
+                ARGS+=(--language-model-only)
+              else
+                [ -n "${LIMIT_MM:-}" ] && ARGS+=(--limit-mm-per-prompt "${LIMIT_MM}")
+                [ -n "${MM_IMAGE_TOKENS:-}" ] && ARGS+=(--mm-processor-kwargs "{\"max_image_tokens\":${MM_IMAGE_TOKENS}}")
+                [ -n "${MM_PROCESSOR_CACHE_GB:-}" ] && ARGS+=(--mm-processor-cache-gb "${MM_PROCESSOR_CACHE_GB}")
+                [ "${SKIP_MM_PROFILING:-1}" = "1" ] && ARGS+=(--skip-mm-profiling)
+              fi
+              if [ -n "${EXTRA_ARGS:-}" ]; then
+                # shellcheck disable=SC2206
+                EXTRA=(${EXTRA_ARGS})
+                ARGS+=("${EXTRA[@]}")
+              fi
+              for p in patch_glm_video_placeholders.py patch_suppress_stops_in_reasoning.py \
+                       patch_scheduler_decode_floor.py patch_glm5_drafter_group.py \
+                       patch_hybrid_prefix_hit.py patch_apc_per_group_retention.py \
+                       patch_xgrammar_termination.py patch_kpool_tail_slotmap.py \
+                       patch_spinwait.py patch_adaptive_k.py patch_dense_fp8.py \
+                       patch_indexer_workspace.py patch_ablit.py; do
+                if [ -f /opt/glm53/$p ]; then
+                  say "applying overlay patch $p"
+                  python3 /opt/glm53/$p
+                fi
+              done
+              if [ "${ABLIT:-0}" = "1" ]; then
+                say "ablit: o_proj orthogonalization ON"
+              else
+                say "ablit: off — stock o_proj weights"
+              fi
+              say "joining TP2 at ${HEAD_IP}:${MASTER_PORT} as rank 1"
+              exec vllm serve "${MODEL_DIR}" "${ARGS[@]}"
+          env:
+            - {name: HF_HOME, value: /cache/huggingface}
+            - {name: HF_HUB_OFFLINE, value: "1"}
+            - {name: TRANSFORMERS_OFFLINE, value: "1"}
+            - {name: VLLM_CACHE_ROOT, value: /root/.cache/vllm}
+            - {name: TRITON_CACHE_DIR, value: /root/.triton/cache}
+            - {name: TILELANG_CACHE_DIR, value: /root/.tilelang/cache}
+            - {name: TORCH_CUDA_ARCH_LIST, value: 12.1a}
+            - {name: FLASHINFER_CUDA_ARCH_LIST, value: 12.1a}
+            - {name: FLASHINFER_DISABLE_VERSION_CHECK, value: "1"}
+            - {name: PYTORCH_CUDA_ALLOC_CONF, value: "expandable_segments:True"}
+            - {name: VLLM_ENGINE_READY_TIMEOUT_S, value: "3600"}
+            - {name: VLLM_NO_USAGE_STATS, value: "1"}
+            - {name: DO_NOT_TRACK, value: "1"}
+            - {name: VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS, value: "1"}
+            - {name: SERVED_MODEL_NAME, value: GLM-5.3-Flash-EXL3}
+            - {name: PORT, value: "8000"}
+            - {name: TP, value: "2"}
+            - {name: NNODES, value: "2"}
+            - {name: HEAD_IP, value: 172.16.5.55}
+            - {name: MASTER_PORT, value: "29521"}
+            - {name: QUANTIZATION, value: exl3}
+            - {name: MAX_MODEL_LEN, value: "512000"}
+            - {name: GPU_MEM_UTIL, value: "0.88"}
+            # Upstream's independently measured high-concurrency geometry.
+            - {name: MAX_NUM_SEQS, value: "16"}
+            - {name: MAX_NUM_BATCHED_TOKENS, value: "2048"}
+            - {name: LONG_PREFILL_TOKEN_THRESHOLD, value: ""}
+            - {name: KV_CACHE_DTYPE, value: fp8}
+            - {name: MTP_TOKENS, value: "0"}
+            - {name: SPEC_METHOD, value: dflash}
+            - {name: DFLASH_TOKENS, value: "7"}
+            - {name: DFLASH_DRAFT_TP, value: "2"}
+            - {name: LANGUAGE_MODEL_ONLY, value: "0"}
+            - {name: SKIP_MM_PROFILING, value: "1"}
+            - {name: LIMIT_MM, value: '{"image":48,"video":1}'}
+            - {name: MM_IMAGE_TOKENS, value: "2048"}
+            - {name: MM_PROCESSOR_CACHE_GB, value: "1"}
+            - {name: CHAT_TEMPLATE, value: /opt/glm53/chat_template.jinja}
+            - {name: ENFORCE_EAGER, value: "0"}
+            - {name: EXTRA_ARGS, value: "--cudagraph-capture-sizes 1 2 4 8 16 24 32 --kv-cache-memory-bytes 12884901888"}
+            - {name: EXL3_FUSED_MOE, value: "1"}
+            - {name: EXL3_MOE_ROW_TILE, value: "0"}
+            - {name: EXL3_TEMP_ROWS_FUSED, value: "32"}
+            - {name: EXL3_FAT_SORTED, value: "0"}
+            - {name: EXL3_FAT_BATCHED, value: "0"}
+            - {name: EXL3_FAT_KERNEL, value: "1"}
+            - {name: EXL3_FAT_GROUPED, value: "1"}
+            - {name: ABLIT, value: "0"}
+            - {name: ABLIT_METHOD, value: auto}
+            - {name: ABLIT_DIRECTION, value: dealign}
+            - {name: ABLIT_LAYERS, value: "15-45"}
+            - {name: ABLIT_ALPHA, value: "3.0"}
+            - {name: ABLIT_INCLUDE_MTP, value: "1"}
+            - {name: GLM53_ADAPTIVE_K, value: "off"}
+            - {name: GLM53_ADAPTIVE_K_SET, value: "2,4,7"}
+            - {name: GLM53_ADAPTIVE_K_ALPHA, value: "0.25"}
+            - {name: GLM53_ADAPTIVE_K_MARGIN, value: "1.0"}
+            - {name: GLM53_ADAPTIVE_K_MIN_STEPS, value: "4"}
+            - {name: GLM53_ADAPTIVE_K_SATURATE, value: max}
+            - {name: GLM53_ADAPTIVE_K_HIST, value: "200"}
+            - {name: GLM53_DENSE_FP8, value: "off"}
+            - {name: GLM53_SUPPRESS_STOPS_IN_REASONING, value: "1"}
+            # Preserve vLLM continuous batching: allow prefills while peers decode.
+            - {name: GLM53_MIXED_PREFILL_CHUNK, value: "off"}
+            - {name: GLM53_DEFAULT_REASONING_EFFORT, value: ""}
+            - {name: GLM53_INDEXER_WORKSPACE, value: rightsize}
+            - {name: GLM53_SPINWAIT_MS, value: stock}
+            - {name: NCCL_IB_DISABLE, value: "0"}
+            - {name: NCCL_IB_ROCE_VERSION_NUM, value: "2"}
+            - {name: NCCL_NET, value: IB}
+            - {name: NCCL_NET_PLUGIN, value: none}
+            - {name: NCCL_NVLS_ENABLE, value: "0"}
+            - {name: NCCL_CUMEM_ENABLE, value: "0"}
+            - {name: NCCL_IB_MERGE_NICS, value: "0"}
+            - {name: NCCL_CROSS_NIC, value: "0"}
+            - {name: NCCL_IGNORE_CPU_AFFINITY, value: "1"}
+            - {name: NCCL_DEBUG, value: WARN}
+            - {name: NCCL_SOCKET_IFNAME, value: enp1s0f1np1}
+            - {name: GLOO_SOCKET_IFNAME, value: enp1s0f1np1}
+            # NCCL_IB_HCA names the RDMA device, not the Linux netdev.
+            - {name: NCCL_IB_HCA, value: "mlx5_1:1"}
+            - {name: NCCL_IB_GID_INDEX, value: "2"}
+            - {name: VLLM_HOST_IP, value: 172.16.5.56}
+          ports:
+            - name: http
+              containerPort: 8000
+          volumeMounts:
+            - name: models
+              mountPath: /cache/huggingface
+              subPath: .cache/huggingface
+            - name: overlay
+              mountPath: /opt/glm53/patch_adaptive_k.py
+              subPath: patch_adaptive_k.py
+            - name: overlay
+              mountPath: /opt/glm53/patch_dense_fp8.py
+              subPath: patch_dense_fp8.py
+            - name: overlay
+              mountPath: /opt/glm53/exl3.py
+              subPath: exl3.py
+            - name: triton-cache
+              mountPath: /root/.triton/cache
+            - name: tilelang-cache
+              mountPath: /root/.tilelang/cache
+            - name: vllm-cache
+              mountPath: /root/.cache/vllm
+            - name: tmp
+              mountPath: /tmp
+            - name: dshm
+              mountPath: /dev/shm
+            - name: diagnostics
+              mountPath: /diagnostics
+            - name: infiniband
+              mountPath: /dev/infiniband
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+        - name: overlay
+          configMap:
+            name: glm53-parity-overlay
+        - name: triton-cache
+          hostPath:
+            path: /var/lib/llm-test/jit-cache/triton
+            type: DirectoryOrCreate
+        - name: tilelang-cache
+          hostPath:
+            path: /var/lib/llm-test/jit-cache/tilelang
+            type: DirectoryOrCreate
+        - name: vllm-cache
+          hostPath:
+            path: /var/lib/llm-test/jit-cache/vllm-cache
+            type: DirectoryOrCreate
+        - name: tmp
+          hostPath:
+            path: /var/lib/llm-test/jit-cache/glm53-tmp
+            type: DirectoryOrCreate
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Gi
+        - name: diagnostics
+          hostPath:
+            path: /var/lib/llm-test/diagnostics
+            type: DirectoryOrCreate
+        - name: infiniband
+          hostPath:
+            path: /dev/infiniband
+            type: Directory

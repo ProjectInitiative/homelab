@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dsv41-exl3-head
+  namespace: llm-test
+spec:
+  replicas: 0
+  template:
+    spec:
+      volumes:
+        - name: profile
+          configMap:
+            name: dsv41-exl3-stock-matched-profile
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dsv41-exl3-worker
+  namespace: llm-test
+spec:
+  replicas: 0
+  template:
+    spec:
+      volumes:
+        - name: profile
+          configMap:
+            name: dsv41-exl3-stock-matched-profile

@@ -1,0 +1,28 @@
+---
+# kube-vip LoadBalancer for Garage S3 so in-network devices can reach it
+# directly on the LAN (kube-vip assigns a VIP from the range-global pool
+# 172.16.1.60-172.16.1.70). Mirrors the existing garage selector/ports.
+apiVersion: v1
+kind: Service
+metadata:
+  name: garage-lb
+  namespace: garage
+  labels:
+    app: garage
+spec:
+  type: LoadBalancer
+  ports:
+    - name: s3
+      protocol: TCP
+      port: 3900
+      targetPort: 3900
+    - name: k2v
+      protocol: TCP
+      port: 3904
+      targetPort: 3904
+    - name: website
+      protocol: TCP
+      port: 3902
+      targetPort: 3902
+  selector:
+    app.kubernetes.io/name: garage

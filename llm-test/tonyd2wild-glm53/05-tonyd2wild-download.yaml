@@ -1,0 +1,113 @@
+# tonyd2wild GLM-5.3-Flash NVFP4/DFlash2 cache preload.
+# SCAFFOLD ONLY: this Job is suspended and has not been applied.
+#
+# Upstream recipe:
+# https://github.com/tonyd2wild/GLM-5.3-Flash-NVFP4-DFlash2-2x-DGX-Spark/tree/9acb1fbbf6c1a9924651fd8694aa197a266cd6b6
+#
+# The two target variants are separate HF repositories and intentionally share
+# no cache directory.  Both are pinned to the revisions inspected from the HF
+# API; the uncensored repository may require the HF_TOKEN Secret.  DFlash2 is
+# the separate upstream drafter expected by tonyd2wild's launcher.
+#
+# This writes cache trees only.  It does not build an image or start vLLM, and
+# it does not delete any existing model cache.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tonyd2wild-glm53-cache-pull-v1
+  namespace: llm-test
+  labels:
+    app: tonyd2wild-glm53-cache-pull
+    lane: tonyd2wild-glm53
+    purpose: model-cache-preload
+spec:
+  ttlSecondsAfterFinished: 259200
+  suspend: true
+  backoffLimit: 2147483647
+  template:
+    metadata:
+      labels:
+        app: tonyd2wild-glm53-cache-pull
+        lane: tonyd2wild-glm53
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      containers:
+        - name: puller
+          # v5 supports pinned revisions and resumable .part files.
+          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:v5@sha256:4ac2072503bd68a509e556c1e1970ba498c4c7d632205879be623126b53e49ec
+          imagePullPolicy: Always
+          env:
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            - name: RATE
+              value: "100000000"
+            - name: PULL_MODELS
+              value: >-
+                RedHatAI/GLM-5.3-Flash-NVFP4@c245560b6d7e62c329cd3042343b358a4279affd,
+                drowzeys/keys-GLM-5.3-Flash-NVFP4-ablit-l15-45-anchorstock@80b6d18d77e3020f2384597081d405f19893f101,
+                incoai/GLM-5.3-Flash-DFlash2@dc77ff1c99eeb2df044ee3d4f0094eb033fee410
+            - name: HF_HUB_DISABLE_XET
+              value: "1"
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface
+                  key: HF_TOKEN
+                  optional: true
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              marker=/models/.tonyd2wild-glm53-download-complete
+              rm -f "$marker"
+              python3 /opt/puller/puller.py
+
+              python3 - <<'PY'
+              import json
+              from pathlib import Path
+
+              root = Path("/models/.cache/huggingface/hub")
+              checkpoints = {
+                  "models--RedHatAI--GLM-5.3-Flash-NVFP4": (
+                      "c245560b6d7e62c329cd3042343b358a4279affd", 11
+                  ),
+                  "models--drowzeys--keys-GLM-5.3-Flash-NVFP4-ablit-l15-45-anchorstock": (
+                      "80b6d18d77e3020f2384597081d405f19893f101", 11
+                  ),
+              }
+              required = ("config.json", "model.safetensors.index.json", "tokenizer.json", "chat_template.jinja", "processor_config.json")
+              for cache_name, (revision, expected_shards) in checkpoints.items():
+                  snap = root / cache_name / "snapshots" / revision
+                  for name in required:
+                      if not (snap / name).is_file():
+                          raise SystemExit(f"missing {snap / name}")
+                  index = json.loads((snap / "model.safetensors.index.json").read_text())
+                  shards = sorted(set(index["weight_map"].values()))
+                  if len(shards) != expected_shards:
+                      raise SystemExit(f"{cache_name}: expected {expected_shards} indexed shards, got {len(shards)}")
+                  missing = [name for name in shards if not (snap / name).is_file()]
+                  if missing:
+                      raise SystemExit(f"{cache_name}: missing indexed shards: {missing}")
+                  print(f"verified {cache_name}: {len(shards)} indexed shards")
+
+              draft = root / "models--incoai--GLM-5.3-Flash-DFlash2" / "snapshots" / "dc77ff1c99eeb2df044ee3d4f0094eb033fee410"
+              if not (draft / "config.json").is_file() or not (draft / "model.safetensors").is_file():
+                  raise SystemExit(f"missing DFlash2 files under {draft}")
+              print(f"verified DFlash2 snapshot: {draft}")
+              PY
+              touch "$marker"
+              echo "tonyd2wild GLM-5.3-Flash NVFP4 variants + DFlash2 cache complete"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: 1Gi
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache

@@ -1,0 +1,24 @@
+# Tailnet exposure, mirroring the mcp-kubernetes pattern:
+# placeholder name is renamed per-cluster (hermes-lb-mc) and the
+# proxy-group annotation is set via cluster-level patches.
+# sessionAffinity keeps MCP streamable-HTTP sessions on one pod.
+apiVersion: v1
+kind: Service
+metadata:
+  name: hermes-ts-placeholder
+  namespace: hermes
+  labels:
+    app: hermes-memory
+  annotations:
+    tailscale.com/proxy-group: ingress-proxy
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  ports:
+    - name: mcp
+      protocol: TCP
+      port: 80
+      targetPort: 8080
+  sessionAffinity: ClientIP
+  selector:
+    app: hermes-memory

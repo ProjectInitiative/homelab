@@ -84,4 +84,4 @@ spec:
   volumeName: pvc-afa2ecdd-04ae-4af9-9e08-e1ea1c6d1947
   resources:
     requests:
-      storage: 1Ti
+      storage: 1536Gi

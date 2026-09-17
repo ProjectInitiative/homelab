@@ -1,0 +1,727 @@
+# DeepSeek-V4.1-Flash EXL3 (2x DGX Spark / GB10 / SM121) — MIAI Kubernetes parity lane.
+#
+# STATUS: PREPARED, NOT APPLIED. Everything ships with replicas: 0. See
+# README.md in this directory for the recipe->K8s mapping, apply order
+# (05-prepare-model-tree.yaml first), scale order (worker then head), and the
+# deliberate deltas list.
+#
+# Lane skeleton cloned from glm53-parity/ (K8s-proven on this kit):
+#   - one Deployment per node (chronometer=head rank 0, sextant=worker rank 1)
+#   - hostNetwork + hostIPC, runtimeClassName nvidia, privileged, seccomp
+#     Unconfined, /dev/shm via emptyDir(Memory)
+#   - NCCL over the CX7 fabric IPs 172.16.5.55/.56 (API/LAN plane is 172.16.4.x)
+#   - node-local hostPath JIT caches; RWX JuiceFS model-cache via subPaths
+# Slot model: PORT 8000 is only free when no other lane is resident.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dsv41-exl3-profile
+  namespace: llm-test
+  labels:
+    app: dsv41-exl3
+data:
+  profile.env: |-
+    # Sourced (set -a) by both launch scripts. Values extracted from the
+    # MiaAI-Lab recipe (.env.example + start.sh defaults) and the glm53 lane's
+    # K8s-proven fabric wiring. Empty string = flag omitted by launch script.
+    SERVED_MODEL_NAME=DeepSeek-v4.1-Flash-EXL3
+    PORT=8000
+    TP=2
+    NNODES=2
+    # CX7 fabric IP of chronometer (NCCL plane; NOT the 172.16.4.x API plane)
+    HEAD_IP=172.16.5.55
+    # dsv41-lane-unique (GLM 29521, DeepSeek 25000)
+    MASTER_PORT=29721
+    MODEL_DIR=/model
+    ENGRAM_MOUNT=/engram-src
+    DSV41_SOURCE=/engram-src
+    # Per-rank contiguous row stores on node-affine local NVMe PVCs.
+    DSV41_PACKED_DIR=/engram-packed
+    # --- quant / speculation
+    QUANTIZATION=exl3
+    ENFORCE_EAGER=0
+    EXL3_FUSED_MOE=1
+    # Upstream E3 v2 grouped K2/K3 mul1 prefill path.
+    EXL3_FAT_KERNEL=0
+    EXL3_FAT_GROUPED=1
+    EXL3_FAT_SORTED=0
+    EXL3_FAT_BATCHED=0
+    EXL3_TEMP_ROWS_FUSED=16
+    SPEC_METHOD=dspark
+    DSPARK_TOKENS=3
+    # --- memory discipline (recipe shipped defaults; GB10 UMA)
+    MAX_MODEL_LEN=600000
+    GPU_MEM_UTIL=0.88
+    # Admit interactive requests concurrently; KV remains hard-capped below.
+    MAX_NUM_SEQS=8
+    MAX_NUM_BATCHED_TOKENS=2048
+    KV_CACHE_MEMORY_BYTES=2684354560
+    KV_BLOCK_SIZE=64
+    KV_CACHE_DTYPE=
+    LANGUAGE_MODEL_ONLY=1
+    LIMIT_MM=
+    SKIP_MM_PROFILING=1
+    # The checkpoint template is byte-identical to the pinned recipe template.
+    CHAT_TEMPLATE=
+    # DSpark k=3 capture geometry from the upstream recipe.
+    EXTRA_ARGS="--cudagraph-capture-sizes 1 2 3 4 6 8 12 18 24"
+    # --- EXL3 / DSV41 runtime knobs
+    DSV41_EXL3_SERIAL_STREAMS=1
+    VLLM_DISABLE_SHARED_EXPERTS_STREAM=1
+    DSV41_ENGRAM_DISABLE=0
+    DSV41_CACHE_GIB=0
+    DSV41_RESIDENT_SCALES=0
+    DSV41_IO_THREADS=32
+    DSV41_CACHE_WAYS=4
+    DSV41_STATS_SECONDS=60
+    DSV41_INDEXER_PREFILL_FACTOR=1
+    VLLM_SPARSE_INDEXER_MAX_LOGITS_MB=256
+    DSV41_PREFILL_EMPTY_CACHE_TOKENS=8192
+    DSV41_PREFILL_EMPTY_CACHE_MEMAVAIL_GIB=2.5
+    DSV41_PREFILL_END_EMPTY_CACHE=0
+    DSV41_SKIP_MIXED_WARMUP=0
+    DSV41_DROP_PAGE_CACHE=1
+    DSV41_MEM_GUARD=0
+    DSV41_MEM_GUARD_GIB=1.5
+    DSV41_BOOT_MARGIN_GIB=12
+    GLM53_SUPPRESS_STOPS_IN_REASONING=1
+    GLM53_MIXED_PREFILL_CHUNK=0
+    GLM53_SPINWAIT_MS=stock
+    # --- NCCL over CX7 (glm53-lane proven pins on this kit)
+    NCCL_SOCKET_IFNAME=enp1s0f1np1
+    GLOO_SOCKET_IFNAME=enp1s0f1np1
+    NCCL_IB_HCA=mlx5_1:1
+    NCCL_IB_GID_INDEX=3
+    NCCL_IB_ROCE_VERSION_NUM=2
+    NCCL_NET=IB
+    NCCL_NET_PLUGIN=none
+    NCCL_IB_DISABLE=0
+    NCCL_CROSS_NIC=0
+    NCCL_IB_MERGE_NICS=0
+    NCCL_NVLS_ENABLE=0
+    NCCL_CUMEM_ENABLE=0
+    NCCL_IGNORE_CPU_AFFINITY=1
+    NCCL_DEBUG=WARN
+    # UMA pinned-buffer shrink from the native DS4.1 recipe
+    NCCL_BUFFSIZE=1048576
+    NCCL_LL128_BUFFSIZE=262144
+    NCCL_PROTO=^LL128
+    NCCL_MAX_NCHANNELS=8
+    # --- boot/warmup/timeouts
+    PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+    VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS=1800
+    DSV41_BOOT_SHAPE_WARMUP=1
+    DSV41_WARMUP_REQ_TIMEOUT=240
+    # The baked shape-warmer consumes the inherited GLM53_* variable names.
+    GLM53_WARMUP_REQ_TIMEOUT=240
+    GLM53_WARMUP_MAX_CONCURRENCY=8
+    GLM53_WARMUP_DSPARK_K=3
+    GLM53_WARMUP_TRITON_CACHE_DIR=/root/.triton/cache
+    VLLM_ENGINE_READY_TIMEOUT_S=3600
+    # --- auth (inject via secret when enabling; empty = no auth on the lane)
+    VLLM_API_KEY=
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dsv41-exl3-launch
+  namespace: llm-test
+  labels:
+    app: dsv41-exl3
+data:
+  # Faithful adaptation of the recipe's inner head script (start.sh
+  # write_inner_scripts), K8s-adapted: profile sourced from ConfigMap,
+  # per-rank VLLM_HOST_IP, readiness marker for the K8s probe.
+  head.sh: |-
+    #!/bin/bash
+    set -euo pipefail
+    say() { echo "[dsv41-exl3-head] $*"; }
+    set -a; source /etc/dsv41-profile/profile.env; set +a
+    export VLLM_HOST_IP="172.16.5.55"
+    # Triton must discover the real NVIDIA driver library, not CUDA stubs.
+    export TRITON_LIBCUDA_PATH=/run/triton-cuda-driver
+    REAL_LIBCUDA=/usr/lib/aarch64-linux-gnu/libcuda.so.1
+    test -f "$REAL_LIBCUDA"
+    test "$(readlink -f "$REAL_LIBCUDA")" != */stubs/libcuda.so
+    mkdir -p "$TRITON_LIBCUDA_PATH"
+    ln -sfn "$REAL_LIBCUDA" "$TRITON_LIBCUDA_PATH/libcuda.so.1"
+    ln -sfn "$REAL_LIBCUDA" "$TRITON_LIBCUDA_PATH/libcuda.so"
+    SITE="$(python3 -c 'import vllm, pathlib; print(pathlib.Path(vllm.__file__).resolve().parent)')"
+    export GLM53_DETOKENIZER_PY="$SITE/v1/engine/detokenizer.py"
+    export GLM53_SCHEDULER_PY="$SITE/v1/core/sched/scheduler.py"
+    export GLM53_SPINWAIT_TARGET="$SITE/distributed/device_communicators/shm_broadcast.py"
+    export GLM53_XGRAMMAR_BACKEND_PY="$SITE/v1/structured_output/backend_xgrammar.py"
+    export GLM53_XGRAMMAR_MANAGER_PY="$SITE/v1/structured_output/__init__.py"
+    if [ -f /opt/dsv41/exl3.py ]; then
+        cp /opt/dsv41/exl3.py "$SITE/model_executor/layers/quantization/exl3.py"
+        say "installed runtime EXL3 overlay"
+    fi
+    say "MemAvailable=$(awk '/^MemAvailable:/ { printf \"%.1f\", $2 / 1048576 }' /proc/meminfo) GiB engram: cache=${DSV41_CACHE_GIB:-?}GiB resident_scales=${DSV41_RESIDENT_SCALES:-default} io_threads=${DSV41_IO_THREADS:-default}"
+
+    ARGS=(
+        --served-model-name "${SERVED_MODEL_NAME}"
+        --host 0.0.0.0
+        --port "${PORT}"
+        --tensor-parallel-size "${TP}"
+        --nnodes "${NNODES}"
+        --node-rank 0
+        --master-addr "${HEAD_IP}"
+        --master-port "${MASTER_PORT}"
+        --distributed-executor-backend mp
+        --tokenizer-mode deepseek_v41
+        --tool-call-parser deepseek_v41
+        --reasoning-parser deepseek_v41
+        --enable-auto-tool-choice
+        --enable-prefix-caching
+        --no-enable-flashinfer-autotune
+        --hf-overrides "{\"engram_table_dir\":\"${ENGRAM_MOUNT}\"}"
+    )
+    [ "${ENFORCE_EAGER:-1}" = "1" ] && ARGS+=(--enforce-eager)
+    [ -n "${QUANTIZATION:-}" ] && [ "${QUANTIZATION}" != "none" ] && ARGS+=(--quantization "${QUANTIZATION}")
+    [ -n "${MAX_MODEL_LEN:-}" ] && ARGS+=(--max-model-len "${MAX_MODEL_LEN}")
+    [ -n "${GPU_MEM_UTIL:-}" ]  && ARGS+=(--gpu-memory-utilization "${GPU_MEM_UTIL}")
+    [ -n "${MAX_NUM_SEQS:-}" ] && ARGS+=(--max-num-seqs "${MAX_NUM_SEQS}")
+    [ -n "${MAX_NUM_BATCHED_TOKENS:-}" ] && ARGS+=(--max-num-batched-tokens "${MAX_NUM_BATCHED_TOKENS}")
+    [ -n "${LONG_PREFILL_TOKEN_THRESHOLD:-}" ] && ARGS+=(--long-prefill-token-threshold "${LONG_PREFILL_TOKEN_THRESHOLD}")
+    [ -n "${KV_CACHE_DTYPE:-}" ] && ARGS+=(--kv-cache-dtype "${KV_CACHE_DTYPE}")
+    [ -n "${KV_CACHE_MEMORY_BYTES:-}" ] && ARGS+=(--kv-cache-memory-bytes "${KV_CACHE_MEMORY_BYTES}")
+    [ -n "${KV_BLOCK_SIZE:-}" ] && ARGS+=(--block-size "${KV_BLOCK_SIZE}")
+    if [ "${SPEC_METHOD:-dspark}" = "dspark" ]; then
+        ARGS+=(--speculative-config "$(python3 -S -c 'import json,os
+    print(json.dumps({"method":"dspark","num_speculative_tokens":int(os.environ.get("DSPARK_TOKENS","5"))},separators=(",",":")))')")
+    elif [ "${SPEC_METHOD:-dspark}" = "none" ]; then
+        :
+    fi
+    if [ -n "${CHAT_TEMPLATE:-}" ] && [ -f "${CHAT_TEMPLATE}" ]; then
+        ARGS+=(--chat-template "${CHAT_TEMPLATE}")
+    fi
+    if [ "${LANGUAGE_MODEL_ONLY:-0}" = "1" ]; then
+        ARGS+=(--language-model-only)
+        say "language-model-only: no vision tower"
+    else
+        ARGS+=(--mm-encoder-tp-mode data)
+        [ -n "${LIMIT_MM:-}" ] && ARGS+=(--limit-mm-per-prompt "${LIMIT_MM}")
+        [ "${SKIP_MM_PROFILING:-1}" = "1" ] && ARGS+=(--skip-mm-profiling)
+        say "vision on: limit-mm=${LIMIT_MM:-} skip-mm-profiling=${SKIP_MM_PROFILING:-1}"
+    fi
+    if [ -n "${EXTRA_ARGS:-}" ]; then
+        # shellcheck disable=SC2206
+        EXTRA=(${EXTRA_ARGS})
+        ARGS+=("${EXTRA[@]}")
+    fi
+
+    [ -f "${MODEL_DIR}/config.json" ] || { say "FATAL: ${MODEL_DIR}/config.json missing"; ls -la "${MODEL_DIR}" | head; exit 1; }
+    [ -d "${ENGRAM_MOUNT}" ] || { say "FATAL: ${ENGRAM_MOUNT} missing"; exit 1; }
+    [ -f "${DSV41_PACKED_DIR}/engram-l1-r0of2.bin" ] || { say "FATAL: packed rank-0 Engram missing"; exit 1; }
+    [ -f "${DSV41_PACKED_DIR}/engram-l14-r0of2.bin" ] || { say "FATAL: packed rank-0 Engram missing"; exit 1; }
+    for p in /opt/dsv41/patch_suppress_stops_in_reasoning.py \
+             /opt/dsv41/patch_scheduler_decode_floor.py \
+             /opt/dsv41/patch_xgrammar_termination.py \
+             /opt/dsv41/patch_spinwait.py \
+             /opt/dsv41/patch_exl3_packed_names.py \
+             /opt/dsv41/patch_exl3_lm_head.py \
+             /opt/dsv41/patch_engram_secondary.py \
+             /opt/dsv41/patch_engram_file.py \
+             /opt/dsv41/patch_h2d_stage.py \
+             /opt/dsv41/patch_sm120_block64.py \
+             /opt/dsv41/patch_memory_log.py; do
+        if [ -f "$p" ]; then
+            python3 "$p" || say "WARN: $p returned $?"
+        fi
+    done
+    rm -f /run/dsv41/dsv41-warmup-ready
+    (
+        bash /opt/dsv41/boot-warmup.sh "http://127.0.0.1:${PORT}" "${SERVED_MODEL_NAME}" \
+            && touch /run/dsv41/dsv41-warmup-ready
+    ) &
+    say "launching: vllm serve ${MODEL_DIR} ${ARGS[*]}"
+    exec vllm serve "${MODEL_DIR}" "${ARGS[@]}"
+  # Worker = rank 1, --headless; joins the head's master. Scale worker first.
+  worker.sh: |-
+    #!/bin/bash
+    set -euo pipefail
+    say() { echo "[dsv41-exl3-worker] $*"; }
+    set -a; source /etc/dsv41-profile/profile.env; set +a
+    export VLLM_HOST_IP="172.16.5.56"
+    # Triton must discover the real NVIDIA driver library, not CUDA stubs.
+    export TRITON_LIBCUDA_PATH=/run/triton-cuda-driver
+    REAL_LIBCUDA=/usr/lib/aarch64-linux-gnu/libcuda.so.1
+    test -f "$REAL_LIBCUDA"
+    test "$(readlink -f "$REAL_LIBCUDA")" != */stubs/libcuda.so
+    mkdir -p "$TRITON_LIBCUDA_PATH"
+    ln -sfn "$REAL_LIBCUDA" "$TRITON_LIBCUDA_PATH/libcuda.so.1"
+    ln -sfn "$REAL_LIBCUDA" "$TRITON_LIBCUDA_PATH/libcuda.so"
+    SITE="$(python3 -c 'import vllm, pathlib; print(pathlib.Path(vllm.__file__).resolve().parent)')"
+    export GLM53_DETOKENIZER_PY="$SITE/v1/engine/detokenizer.py"
+    export GLM53_SCHEDULER_PY="$SITE/v1/core/sched/scheduler.py"
+    export GLM53_SPINWAIT_TARGET="$SITE/distributed/device_communicators/shm_broadcast.py"
+    export GLM53_XGRAMMAR_BACKEND_PY="$SITE/v1/structured_output/backend_xgrammar.py"
+    export GLM53_XGRAMMAR_MANAGER_PY="$SITE/v1/structured_output/__init__.py"
+    if [ -f /opt/dsv41/exl3.py ]; then
+        cp /opt/dsv41/exl3.py "$SITE/model_executor/layers/quantization/exl3.py"
+        say "installed runtime EXL3 overlay"
+    fi
+    say "MemAvailable=$(awk '/^MemAvailable:/ { printf \"%.1f\", $2 / 1048576 }' /proc/meminfo) GiB engram: cache=${DSV41_CACHE_GIB:-?}GiB resident_scales=${DSV41_RESIDENT_SCALES:-default} io_threads=${DSV41_IO_THREADS:-default}"
+
+    ARGS=(
+        --served-model-name "${SERVED_MODEL_NAME}"
+        --host 0.0.0.0
+        --port "${PORT}"
+        --tensor-parallel-size "${TP}"
+        --nnodes "${NNODES}"
+        --node-rank 1
+        --master-addr "${HEAD_IP}"
+        --master-port "${MASTER_PORT}"
+        --distributed-executor-backend mp
+        --headless
+        --tokenizer-mode deepseek_v41
+        --tool-call-parser deepseek_v41
+        --reasoning-parser deepseek_v41
+        --enable-auto-tool-choice
+        --enable-prefix-caching
+        --no-enable-flashinfer-autotune
+        --hf-overrides "{\"engram_table_dir\":\"${ENGRAM_MOUNT}\"}"
+    )
+    [ "${ENFORCE_EAGER:-1}" = "1" ] && ARGS+=(--enforce-eager)
+    [ -n "${QUANTIZATION:-}" ] && [ "${QUANTIZATION}" != "none" ] && ARGS+=(--quantization "${QUANTIZATION}")
+    [ -n "${MAX_MODEL_LEN:-}" ] && ARGS+=(--max-model-len "${MAX_MODEL_LEN}")
+    [ -n "${GPU_MEM_UTIL:-}" ]  && ARGS+=(--gpu-memory-utilization "${GPU_MEM_UTIL}")
+    [ -n "${MAX_NUM_SEQS:-}" ] && ARGS+=(--max-num-seqs "${MAX_NUM_SEQS}")
+    [ -n "${MAX_NUM_BATCHED_TOKENS:-}" ] && ARGS+=(--max-num-batched-tokens "${MAX_NUM_BATCHED_TOKENS}")
+    [ -n "${LONG_PREFILL_TOKEN_THRESHOLD:-}" ] && ARGS+=(--long-prefill-token-threshold "${LONG_PREFILL_TOKEN_THRESHOLD}")
+    [ -n "${KV_CACHE_DTYPE:-}" ] && ARGS+=(--kv-cache-dtype "${KV_CACHE_DTYPE}")
+    [ -n "${KV_CACHE_MEMORY_BYTES:-}" ] && ARGS+=(--kv-cache-memory-bytes "${KV_CACHE_MEMORY_BYTES}")
+    [ -n "${KV_BLOCK_SIZE:-}" ] && ARGS+=(--block-size "${KV_BLOCK_SIZE}")
+    if [ "${SPEC_METHOD:-dspark}" = "dspark" ]; then
+        ARGS+=(--speculative-config "$(python3 -S -c 'import json,os
+    print(json.dumps({"method":"dspark","num_speculative_tokens":int(os.environ.get("DSPARK_TOKENS","5"))},separators=(",",":")))')")
+    elif [ "${SPEC_METHOD:-dspark}" = "none" ]; then
+        :
+    fi
+    if [ -n "${CHAT_TEMPLATE:-}" ] && [ -f "${CHAT_TEMPLATE}" ]; then
+        ARGS+=(--chat-template "${CHAT_TEMPLATE}")
+    fi
+    if [ "${LANGUAGE_MODEL_ONLY:-0}" = "1" ]; then
+        ARGS+=(--language-model-only)
+    else
+        ARGS+=(--mm-encoder-tp-mode data)
+        [ -n "${LIMIT_MM:-}" ] && ARGS+=(--limit-mm-per-prompt "${LIMIT_MM}")
+        [ "${SKIP_MM_PROFILING:-1}" = "1" ] && ARGS+=(--skip-mm-profiling)
+    fi
+    if [ -n "${EXTRA_ARGS:-}" ]; then
+        # shellcheck disable=SC2206
+        EXTRA=(${EXTRA_ARGS})
+        ARGS+=("${EXTRA[@]}")
+    fi
+
+    [ -f "${MODEL_DIR}/config.json" ] || { say "FATAL: ${MODEL_DIR}/config.json missing"; ls -la "${MODEL_DIR}" | head; exit 1; }
+    [ -d "${ENGRAM_MOUNT}" ] || { say "FATAL: ${ENGRAM_MOUNT} missing"; exit 1; }
+    [ -f "${DSV41_PACKED_DIR}/engram-l1-r1of2.bin" ] || { say "FATAL: packed rank-1 Engram missing"; exit 1; }
+    [ -f "${DSV41_PACKED_DIR}/engram-l14-r1of2.bin" ] || { say "FATAL: packed rank-1 Engram missing"; exit 1; }
+    for p in /opt/dsv41/patch_suppress_stops_in_reasoning.py \
+             /opt/dsv41/patch_scheduler_decode_floor.py \
+             /opt/dsv41/patch_xgrammar_termination.py \
+             /opt/dsv41/patch_spinwait.py \
+             /opt/dsv41/patch_exl3_packed_names.py \
+             /opt/dsv41/patch_exl3_lm_head.py \
+             /opt/dsv41/patch_engram_secondary.py \
+             /opt/dsv41/patch_engram_file.py \
+             /opt/dsv41/patch_h2d_stage.py \
+             /opt/dsv41/patch_sm120_block64.py \
+             /opt/dsv41/patch_memory_log.py; do
+        if [ -f "$p" ]; then
+            python3 "$p" || say "WARN: $p returned $?"
+        fi
+    done
+    say "joining TP2 at ${HEAD_IP}:${MASTER_PORT} as rank 1"
+    exec vllm serve "${MODEL_DIR}" "${ARGS[@]}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dsv41-boot-warmup
+  namespace: llm-test
+  labels:
+    app: dsv41-exl3
+data:
+  # Runs in the head container's background: /health poll, then a
+  # thinking-off smoke completion (17*19 -> 323, the recipe's own smoke).
+  # Success is signalled by the launch script touching /tmp/dsv41-warmup-ready,
+  # which is the head's readiness probe.
+  boot-warmup.sh: |-
+    #!/bin/bash
+    set -uo pipefail
+    BASE="${1:-http://127.0.0.1:8000}"
+    MODEL="${2:-DeepSeek-v4.1-Flash-EXL3}"
+    TIMEOUT="${VLLM_ENGINE_READY_TIMEOUT_S:-3600}"
+    echo "[dsv41-warmup] waiting for ${BASE}/health (timeout ${TIMEOUT}s)"
+    deadline=$(( $(date +%s) + TIMEOUT ))
+    until curl -fsS -m 5 "${BASE}/health" >/dev/null 2>&1; do
+        if [ "$(date +%s)" -ge "$deadline" ]; then echo "[dsv41-warmup] health timeout"; exit 1; fi
+        sleep 10
+    done
+    echo "[dsv41-warmup] /health ok; smoke completion"
+    AUTH=()
+    [ -n "${VLLM_API_KEY:-}" ] && AUTH=(-H "Authorization: Bearer ${VLLM_API_KEY}")
+    deadline=$(( $(date +%s) + 600 ))
+    until curl -fsS -m 120 "${BASE}/v1/chat/completions" \
+            -H 'Content-Type: application/json' \
+            "${AUTH[@]}" \
+            -d "{\"model\":\"${MODEL}\",\"messages\":[{\"role\":\"user\",\"content\":\"What is 17*19? Reply with the integer only.\"}],\"max_tokens\":32,\"temperature\":0,\"chat_template_kwargs\":{\"enable_thinking\":false}}" \
+            >/dev/null 2>&1; do
+        if [ "$(date +%s)" -ge "$deadline" ]; then echo "[dsv41-warmup] smoke timeout"; exit 1; fi
+        sleep 10
+    done
+    echo "[dsv41-warmup] smoke ok; sweeping DSpark/sampler shapes"
+    bash /opt/dsv41/boot-shape-warmup.sh "${BASE}" "${MODEL}"
+    echo "[dsv41-warmup] boot-shape sweep ok"
+---
+# Head: rank 0 + API. chronometer. replicas 0 until review approves deploy.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dsv41-exl3-head
+  namespace: llm-test
+  labels:
+    app: dsv41-exl3-head
+    lane: dsv41-exl3
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: dsv41-exl3-head
+  template:
+    metadata:
+      labels:
+        app: dsv41-exl3-head
+    spec:
+      runtimeClassName: nvidia
+      hostNetwork: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      terminationGracePeriodSeconds: 10
+      initContainers:
+        - name: preflight
+          image: ghcr.io/miaai-lab/deepseek-v4.1-flash-exl3-2x-dgx-sparks:2.9bpw@sha256:2f0cf3adc0f989c1d446be274df864eb799630175f604c3b22b71b7205971dce
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              # GB10 UMA: reclaim page cache so vLLM's free-mem check sees the
+              # real budget (glm53-lane-proven).
+              sync; echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || echo "WARN: drop_caches failed"
+              avail_kib=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+              required_kib=$((12 * 1024 * 1024))
+              echo "MemAvailable=$((avail_kib / 1024)) MiB; required=12288 MiB"
+              [ "$avail_kib" -ge "$required_kib" ] || { echo "FATAL: insufficient GB10 boot margin"; exit 1; }
+              test -f /model/config.json
+              test -f /model/quantization_config.json
+              test -f /model/model.safetensors.index.json
+              test -f /model/tokenizer.json
+              shards=$(find /model -maxdepth 1 -name 'model-*.safetensors' | wc -l)
+              echo "model shards: $shards/39"
+              [ "$shards" -eq 39 ]
+              test -f /engram-src/model-00047-of-00048.safetensors
+              test -f /engram-src/model-00048-of-00048.safetensors
+              test -f /engram-src/config.json
+              grep -q '"engram_layer_ids"' /engram-src/config.json
+              grep -q '"dsv41_engram_src": "embed-only"' /engram-src/model.safetensors.index.json
+              echo "preflight ok"
+          volumeMounts:
+            - name: models
+              mountPath: /model
+              subPath: dsv41-exl3/model
+              readOnly: true
+            - name: models
+              mountPath: /engram-src
+              subPath: dsv41-exl3/engram-src
+              readOnly: true
+      containers:
+        - name: vllm
+          image: ghcr.io/miaai-lab/deepseek-v4.1-flash-exl3-2x-dgx-sparks:2.9bpw@sha256:2f0cf3adc0f989c1d446be274df864eb799630175f604c3b22b71b7205971dce
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          command: ["/bin/bash", "-lc"]
+          args: ["/opt/dsv41/launch/head.sh"]
+          resources:
+            requests:
+              cpu: "16"
+              memory: 64Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "32"
+              memory: 128Gi
+              nvidia.com/gpu: "1"
+          ports:
+            - name: http
+              containerPort: 8000
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 360
+          readinessProbe:
+            exec:
+              command: ["/bin/bash", "-lc", "test -f /run/dsv41/dsv41-warmup-ready && curl -fsS -m 2 http://127.0.0.1:8000/health >/dev/null"]
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: models
+              mountPath: /model
+              subPath: dsv41-exl3/model
+              readOnly: true
+            - name: models
+              mountPath: /engram-src
+              subPath: dsv41-exl3/engram-src
+              readOnly: true
+            - name: packed-engram
+              mountPath: /engram-packed
+              readOnly: true
+            - name: dshm
+              mountPath: /dev/shm
+            - name: vllm-cache
+              mountPath: /root/.cache/vllm
+            - name: triton-cache
+              mountPath: /root/.triton/cache
+            - name: tilelang-cache
+              mountPath: /root/.tilelang/cache
+            - name: lane-tmp
+              mountPath: /tmp
+            - name: readiness
+              mountPath: /run/dsv41
+            - name: infiniband
+              mountPath: /dev/infiniband
+            - name: profile
+              mountPath: /etc/dsv41-profile
+              readOnly: true
+            - name: launch
+              mountPath: /opt/dsv41/launch
+              readOnly: true
+            - name: warmup
+              mountPath: /opt/dsv41/boot-warmup.sh
+              subPath: boot-warmup.sh
+              readOnly: true
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Gi
+        - name: vllm-cache
+          hostPath:
+            path: /var/lib/llm-test/jit-cache/vllm-cache
+            type: DirectoryOrCreate
+        - name: triton-cache
+          hostPath:
+            path: /var/lib/llm-test/jit-cache/triton
+            type: DirectoryOrCreate
+        - name: tilelang-cache
+          hostPath:
+            path: /var/lib/llm-test/jit-cache/tilelang
+            type: DirectoryOrCreate
+        - name: lane-tmp
+          hostPath:
+            path: /var/lib/llm-test/dsv41-tmp
+            type: DirectoryOrCreate
+        - name: packed-engram
+          persistentVolumeClaim:
+            claimName: dsv41-engram-packed-chronometer
+        - name: readiness
+          emptyDir: {}
+        - name: infiniband
+          hostPath:
+            path: /dev/infiniband
+            type: Directory
+        - name: profile
+          configMap:
+            name: dsv41-exl3-profile
+        - name: launch
+          configMap:
+            name: dsv41-exl3-launch
+            defaultMode: 0555
+        - name: warmup
+          configMap:
+            name: dsv41-boot-warmup
+            defaultMode: 0555
+---
+# Worker: rank 1, --headless, sextant. No probes (lane convention); scale
+# worker BEFORE head on deploy, scale head DOWN first on teardown.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dsv41-exl3-worker
+  namespace: llm-test
+  labels:
+    app: dsv41-exl3-worker
+    lane: dsv41-exl3
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: dsv41-exl3-worker
+  template:
+    metadata:
+      labels:
+        app: dsv41-exl3-worker
+    spec:
+      runtimeClassName: nvidia
+      hostNetwork: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+      nodeSelector:
+        kubernetes.io/hostname: sextant
+      terminationGracePeriodSeconds: 10
+      initContainers:
+        - name: preflight
+          image: ghcr.io/miaai-lab/deepseek-v4.1-flash-exl3-2x-dgx-sparks:2.9bpw@sha256:2f0cf3adc0f989c1d446be274df864eb799630175f604c3b22b71b7205971dce
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              sync; echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || echo "WARN: drop_caches failed"
+              avail_kib=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+              required_kib=$((12 * 1024 * 1024))
+              echo "MemAvailable=$((avail_kib / 1024)) MiB; required=12288 MiB"
+              [ "$avail_kib" -ge "$required_kib" ] || { echo "FATAL: insufficient GB10 boot margin"; exit 1; }
+              test -f /model/config.json
+              test -f /model/quantization_config.json
+              test -f /model/model.safetensors.index.json
+              test -f /model/tokenizer.json
+              shards=$(find /model -maxdepth 1 -name 'model-*.safetensors' | wc -l)
+              echo "model shards: $shards/39"
+              [ "$shards" -eq 39 ]
+              test -f /engram-src/model-00047-of-00048.safetensors
+              test -f /engram-src/model-00048-of-00048.safetensors
+              test -f /engram-src/config.json
+              grep -q '"engram_layer_ids"' /engram-src/config.json
+              grep -q '"dsv41_engram_src": "embed-only"' /engram-src/model.safetensors.index.json
+              echo "preflight ok"
+          volumeMounts:
+            - name: models
+              mountPath: /model
+              subPath: dsv41-exl3/model
+              readOnly: true
+            - name: models
+              mountPath: /engram-src
+              subPath: dsv41-exl3/engram-src
+              readOnly: true
+      containers:
+        - name: vllm
+          image: ghcr.io/miaai-lab/deepseek-v4.1-flash-exl3-2x-dgx-sparks:2.9bpw@sha256:2f0cf3adc0f989c1d446be274df864eb799630175f604c3b22b71b7205971dce
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          command: ["/bin/bash", "-lc"]
+          args: ["/opt/dsv41/launch/worker.sh"]
+          resources:
+            requests:
+              cpu: "16"
+              memory: 64Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "32"
+              memory: 128Gi
+              nvidia.com/gpu: "1"
+          ports:
+            - name: http
+              containerPort: 8000
+          volumeMounts:
+            - name: models
+              mountPath: /model
+              subPath: dsv41-exl3/model
+              readOnly: true
+            - name: models
+              mountPath: /engram-src
+              subPath: dsv41-exl3/engram-src
+              readOnly: true
+            - name: packed-engram
+              mountPath: /engram-packed
+              readOnly: true
+            - name: dshm
+              mountPath: /dev/shm
+            - name: vllm-cache
+              mountPath: /root/.cache/vllm
+            - name: triton-cache
+              mountPath: /root/.triton/cache
+            - name: tilelang-cache
+              mountPath: /root/.tilelang/cache
+            - name: lane-tmp
+              mountPath: /tmp
+            - name: infiniband
+              mountPath: /dev/infiniband
+            - name: profile
+              mountPath: /etc/dsv41-profile
+              readOnly: true
+            - name: launch
+              mountPath: /opt/dsv41/launch
+              readOnly: true
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Gi
+        - name: vllm-cache
+          hostPath:
+            path: /var/lib/llm-test/jit-cache/vllm-cache
+            type: DirectoryOrCreate
+        - name: triton-cache
+          hostPath:
+            path: /var/lib/llm-test/jit-cache/triton
+            type: DirectoryOrCreate
+        - name: tilelang-cache
+          hostPath:
+            path: /var/lib/llm-test/jit-cache/tilelang
+            type: DirectoryOrCreate
+        - name: lane-tmp
+          hostPath:
+            path: /var/lib/llm-test/dsv41-tmp
+            type: DirectoryOrCreate
+        - name: packed-engram
+          persistentVolumeClaim:
+            claimName: dsv41-engram-packed-sextant
+        - name: infiniband
+          hostPath:
+            path: /dev/infiniband
+            type: Directory
+        - name: profile
+          configMap:
+            name: dsv41-exl3-profile
+        - name: launch
+          configMap:
+            name: dsv41-exl3-launch
+            defaultMode: 0555

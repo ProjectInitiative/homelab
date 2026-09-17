@@ -1,0 +1,91 @@
+# Stock NVIDIA NVFP4 checkpoint used by the pinned MiaAI-Lab dual-Spark recipe.
+# STATUS: SCAFFOLD ONLY. This Job is suspended and has not been applied.
+#
+# Recipe: https://github.com/MiaAI-Lab/Qwen3.8-Flash-Next-Dual-DGX-Sparks
+#         @ d2ae28a9bedd6f063ee230d616bb320bd54a8f50
+# Model:  nvidia/Qwen3.8-Flash-Next-NVFP4
+#         @ fc694b54fb0174e0913e6adf86691ef85a4ead47
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: qwen38-dual-cache-pull-v1
+  namespace: llm-test
+  labels:
+    app: qwen38-dual-cache-pull
+    lane: qwen38-dual
+    purpose: model-cache-preload
+spec:
+  ttlSecondsAfterFinished: 259200
+  suspend: true
+  backoffLimit: 2147483647
+  template:
+    metadata:
+      labels:
+        app: qwen38-dual-cache-pull
+        lane: qwen38-dual
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      containers:
+        - name: puller
+          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:v5@sha256:4ac2072503bd68a509e556c1e1970ba498c4c7d632205879be623126b53e49ec
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            - name: RATE
+              value: "100000000"
+            - name: PULL_MODELS
+              value: nvidia/Qwen3.8-Flash-Next-NVFP4@fc694b54fb0174e0913e6adf86691ef85a4ead47
+            - name: HF_HUB_DISABLE_XET
+              value: "1"
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface
+                  key: HF_TOKEN
+                  optional: true
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              marker=/models/.qwen38-dual-download-complete
+              snap=/models/.cache/huggingface/hub/models--nvidia--Qwen3.8-Flash-Next-NVFP4/snapshots/fc694b54fb0174e0913e6adf86691ef85a4ead47
+              rm -f "$marker"
+              python3 /opt/puller/puller.py
+
+              python3 - "$snap" <<'PY'
+              import json, os, pathlib, sys
+              root = pathlib.Path(sys.argv[1])
+              index = root / "model.safetensors.index.json"
+              if not index.is_file():
+                  raise SystemExit(f"missing {index}")
+              shards = sorted(set(json.loads(index.read_text())["weight_map"].values()))
+              if len(shards) != 11:
+                  raise SystemExit(f"expected 11 indexed shards, got {len(shards)}")
+              missing = [name for name in shards if not (root / name).is_file()]
+              if missing:
+                  raise SystemExit(f"missing indexed shards: {missing}")
+              total = sum((root / name).stat().st_size for name in shards)
+              if total != 132_680_249_378:
+                  raise SystemExit(f"weight bytes {total}, expected 132680249378")
+              for name in ("config.json", "hf_quant_config.json", "tokenizer.json"):
+                  if not (root / name).is_file():
+                      raise SystemExit(f"missing {root / name}")
+              print(f"verified {len(shards)} shards, {total} bytes")
+              PY
+              touch "$marker"
+              echo "Qwen3.8 dual-Spark checkpoint complete"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: 1Gi
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache

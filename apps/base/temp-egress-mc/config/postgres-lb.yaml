@@ -1,0 +1,21 @@
+---
+# kube-vip LoadBalancer for the CNPG Postgres primary so in-network devices /
+# workstations can connect directly on the LAN. Mirrors the existing
+# postgres-rw-tailscale selector; kube-vip assigns a VIP from 172.16.1.60-70.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-rw-lb
+  namespace: postgres-db
+  labels:
+    app: postgres-cluster
+spec:
+  type: LoadBalancer
+  ports:
+    - name: postgres
+      protocol: TCP
+      port: 5432
+      targetPort: 5432
+  selector:
+    cnpg.io/cluster: postgres-cluster
+    role: primary

@@ -16,7 +16,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: juicefs-format
-          image: juicedata/juicefs-csi-driver:v0.31.9
+          image: juicedata/juicefs-csi-driver:v0.33.0
           command:
             - /bin/sh
             - -c

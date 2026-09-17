@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dsv41-exl3-head
+  namespace: llm-test
+spec:
+  replicas: 0
+  template:
+    spec:
+      containers:
+        - name: vllm
+          command: ["/bin/bash", "/opt/dsv41-candidate/activate.sh", "head"]
+          args: []
+          volumeMounts:
+            - name: candidate-activation
+              mountPath: /opt/dsv41-candidate
+              readOnly: true
+      volumes:
+        - name: profile
+          configMap:
+            name: dsv41-exl3-coop-candidate-profile
+        - name: candidate-activation
+          configMap:
+            name: dsv41-coop-activation
+            defaultMode: 0555
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dsv41-exl3-worker
+  namespace: llm-test
+spec:
+  replicas: 0
+  template:
+    spec:
+      containers:
+        - name: vllm
+          command: ["/bin/bash", "/opt/dsv41-candidate/activate.sh", "worker"]
+          args: []
+          volumeMounts:
+            - name: candidate-activation
+              mountPath: /opt/dsv41-candidate
+              readOnly: true
+      volumes:
+        - name: profile
+          configMap:
+            name: dsv41-exl3-coop-candidate-profile
+        - name: candidate-activation
+          configMap:
+            name: dsv41-coop-activation
+            defaultMode: 0555

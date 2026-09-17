@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PVC
+metadata:
+  name: hermes-memory
+  namespace: hermes
+  labels:
+    app: hermes-memory
+spec:
+  # NVMe local-path with Retain policy. Node-level redundancy comes from
+  # the bcachefs replica-2 layer underneath; Retain keeps the brain alive
+  # even if the app is deleted.
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path-nvme-sticky
+  resources:
+    requests:
+      storage: 2Gi

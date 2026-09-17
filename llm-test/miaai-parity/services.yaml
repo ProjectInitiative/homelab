@@ -32,19 +32,31 @@ metadata:
   name: ai-proxy-config
   namespace: llm-test
 data:
-  haproxy.cfg: |
-    global
-      log stdout format raw local0
-    defaults
-      mode tcp
-      timeout connect 5s
-      timeout client 1h
-      timeout server 1h
-    frontend vllm_api
-      bind :8000
-      default_backend vllm_head
-    backend vllm_head
-      server chronometer 172.16.4.55:8000 check
+  config.yaml: |
+    model_list:
+      # The DGX backend is the currently active model on chronometer:8000.
+      # Keep this gateway alias stable while swapping DGX serving lanes.
+      - model_name: dgx-spark
+        litellm_params:
+          model: openai/deepseek-v4-flash-vision-exp
+          api_base: http://172.16.4.55:8000/v1
+          api_key: sk-local
+      - model_name: qwen3.8-flash-next-halogen
+        litellm_params:
+          model: openai/qwen3.8-flash-next-halogen
+          api_base: http://qwen38-halogen-astrolabe.llm-test.svc.cluster.local:8000/v1
+          api_key: sk-local
+    general_settings:
+      background_health_checks: true
+      health_check_interval: 30
+      enable_health_check_routing: true
+      health_check_ignore_transient_errors: true
+    router_settings:
+      routing_strategy: simple-shuffle
+      cooldown_time: 90
+      allowed_fails_policy:
+        AuthenticationErrorAllowedFails: 0
+        TimeoutErrorAllowedFails: 1
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -68,15 +80,46 @@ spec:
       nodeSelector:
         kubernetes.io/hostname: chronometer
       containers:
-        - name: haproxy
-          image: haproxy:3.2-alpine
+        - name: litellm
+          image: ghcr.io/berriai/litellm:main-stable
+          imagePullPolicy: IfNotPresent
+          args: ["--config", "/app/config.yaml", "--port", "8000"]
           ports:
             - name: http
               containerPort: 8000
+          startupProbe:
+            httpGet:
+              path: /health/liveliness
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /health/readiness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health/liveliness
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 1
+              memory: 2Gi
           volumeMounts:
             - name: config
-              mountPath: /usr/local/etc/haproxy/haproxy.cfg
-              subPath: haproxy.cfg
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+              readOnly: true
       volumes:
         - name: config
           configMap:

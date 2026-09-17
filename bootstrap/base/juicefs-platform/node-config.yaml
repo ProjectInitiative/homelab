@@ -17,6 +17,11 @@ data:
         mountOptions:
           - cache-dir=/mnt/pool/juicefs
           - cache-size=102400
+          - prefetch=8
+          - max-readahead=256M
+          - buffer-size=1G
+          - max-downloads=200
+          - cache-eviction=lru
 
       # Astrolabe has a larger local cache on its NVMe volume.
       - nodeSelector:
@@ -27,6 +32,11 @@ data:
         mountOptions:
           - cache-dir=/mnt/pool/juicefs
           - cache-size=1500000
+          - prefetch=8
+          - max-readahead=256M
+          - buffer-size=1G
+          - max-downloads=200
+          - cache-eviction=lru
 
       # Chronometer and Sextant each use an independent local cache of the
       # shared JuiceFS volume. Keep the cache sizes identical for comparison.
@@ -38,6 +48,11 @@ data:
         mountOptions:
           - cache-dir=/mnt/pool/juicefs
           - cache-size=550000
+          - prefetch=8
+          - max-readahead=256M
+          - buffer-size=1G
+          - max-downloads=200
+          - cache-eviction=lru
 
       - nodeSelector:
           matchLabels:
@@ -47,3 +62,8 @@ data:
         mountOptions:
           - cache-dir=/mnt/pool/juicefs
           - cache-size=550000
+          - prefetch=8
+          - max-readahead=256M
+          - buffer-size=1G
+          - max-downloads=200
+          - cache-eviction=lru

@@ -125,6 +125,11 @@ apps:
             mountOptions:
               - cache-dir=/mnt/pool/juicefs
               - cache-size=1500000
+              - prefetch=8
+              - max-readahead=256M
+              - buffer-size=1G
+              - max-downloads=200
+              - cache-eviction=lru
           - nodeSelector:
               kubernetes.io/hostname: chronometer
             pvcSelector:
@@ -132,6 +137,11 @@ apps:
             mountOptions:
               - cache-dir=/mnt/pool/juicefs
               - cache-size=550000
+              - prefetch=8
+              - max-readahead=256M
+              - buffer-size=1G
+              - max-downloads=200
+              - cache-eviction=lru
           - nodeSelector:
               kubernetes.io/hostname: sextant
             pvcSelector:
@@ -139,18 +149,21 @@ apps:
             mountOptions:
               - cache-dir=/mnt/pool/juicefs
               - cache-size=550000
+              - prefetch=8
+              - max-readahead=256M
+              - buffer-size=1G
+              - max-downloads=200
+              - cache-eviction=lru
   - name: csi-snapshotter
     namespace: kube-system
   - name: juicefs-platform
     namespace: juicefs-platform
+  - name: ingress
+    namespace: haproxy
   # MVP network share over JuiceFS. Single user + password until wired to Keycloak.
   # A tailscale LoadBalancer exposes \\<host>\data on the tailnet.
   - name: samba-gateway
     namespace: samba
-  # NFS (NFS-Ganesha) gateway over JuiceFS for Linux dev workstore — POSIX-correct
-  # alternative to SMB. Exposed via kube-vip LB on 2049.
-  - name: nfs-gateway
-    namespace: nfs
   - name: postgres-cluster
     namespace: postgres-db
   - name: garage
@@ -291,3 +304,6 @@ apps:
         target:
           kind: Service
           annotationSelector: tailscale.com/proxy-group=ingress-proxy
+
+  # Hermes is intentionally disabled until its PostgreSQL/JuiceFS storage
+  # design is finalized. Catalog/manifests remain available for later.

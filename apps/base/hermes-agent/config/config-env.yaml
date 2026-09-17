@@ -1,0 +1,14 @@
+# Non-sensitive gateway env. Sensitive values (API_SERVER_KEY, platform
+# tokens) come later via OpenBao/VSO - do not put them here.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hermes-agent-env-v1
+  namespace: hermes
+  labels:
+    app: hermes-agent
+immutable: true
+data:
+  API_SERVER_ENABLED: "true"
+  API_SERVER_HOST: "0.0.0.0"
+  S6_READ_ONLY_ROOT: "1"

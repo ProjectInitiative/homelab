@@ -1,0 +1,406 @@
+# Qwen3.8-Flash-Next NVFP4, faithful K8s adaptation of the MiaAI-Lab TP2+EP+MTP3
+# dual-DGX-Spark recipe pinned in README.md. Both ranks deliberately ship at 0.
+# Apply with `kubectl apply -k llm-test/qwen38-parity`; never apply this file
+# alone because the generated qwen38-upstream-patches ConfigMap is required.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: qwen38-dual-profile
+  namespace: llm-test
+  labels:
+    app: qwen38-dual
+    lane: qwen38-dual
+data:
+  profile.env: |-
+    SERVED_MODEL_NAME=qwen3.8-flash-next
+    PORT=8000
+    TP=2
+    NNODES=2
+    HEAD_IP=172.16.5.55
+    MASTER_PORT=29921
+    MODEL_DIR=/model
+    GPU_MEMORY_UTILIZATION=0.835
+    MAX_MODEL_LEN=262144
+    MAX_NUM_SEQS=8
+    MAX_NUM_BATCHED_TOKENS=8192
+    KV_CACHE_DTYPE=fp8
+    MAMBA_SSM_CACHE_DTYPE=bfloat16
+    MTP_NUM_SPECULATIVE_TOKENS=3
+    MM_ENCODER_TP_MODE=data
+    VLLM_ALLOW_LONG_MAX_MODEL_LEN=1
+    HF_HUB_OFFLINE=1
+    TRANSFORMERS_OFFLINE=1
+    GLOO_SOCKET_IFNAME=enp1s0f1np1
+    NCCL_SOCKET_IFNAME=enp1s0f1np1
+    TP_SOCKET_IFNAME=enp1s0f1np1
+    NCCL_IB_DISABLE=0
+    NCCL_IB_HCA=mlx5_1:1
+    NCCL_IB_GID_INDEX=3
+    NCCL_IB_ROCE_VERSION_NUM=2
+    NCCL_IB_AUTO_DETECT=0
+    NCCL_NET=IB
+    NCCL_NET_PLUGIN=none
+    NCCL_CROSS_NIC=0
+    NCCL_IB_MERGE_NICS=0
+    NCCL_NVLS_ENABLE=0
+    NCCL_CUMEM_ENABLE=0
+    NCCL_IGNORE_CPU_AFFINITY=1
+    NCCL_DEBUG=WARN
+    PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: qwen38-dual-launch
+  namespace: llm-test
+  labels:
+    app: qwen38-dual
+    lane: qwen38-dual
+data:
+  prepare-runtime.sh: |-
+    #!/bin/bash
+    set -euo pipefail
+    pkg=/usr/local/lib/python3.12/dist-packages/vllm
+    tools=/opt/qwen38-upstream
+    work=/runtime-build
+    overlays=/runtime-overlays
+    view=/model-view
+    rm -rf "$work"/* "$overlays"/* "$view"/*
+    cp "$tools"/*.py "$work"/
+
+    cp "$pkg/models/qwen3_8_flash_next/nvidia/ple_layer.py" \
+      "$work/ple_layer_patched.py.orig"
+    (cd "$work" && python3 patch_ple_layer.py)
+    install -m 0444 "$work/ple_layer_patched.py" "$overlays/ple_layer.py"
+
+    cp "$pkg/model_executor/layers/quantization/modelopt.py" \
+      "$work/modelopt_patched.py.orig"
+    (cd "$work" && python3 patch_modelopt_mxfp8.py && \
+      python3 patch_modelopt_fp8_block_moe.py)
+    install -m 0444 "$work/modelopt_patched.py" "$overlays/modelopt.py"
+
+    cp "$pkg/models/qwen3_8_flash_next/nvidia/ops/qsa.py" \
+      "$work/qsa_ops_patched.py.orig"
+    cp "$pkg/models/qwen3_8_flash_next/nvidia/qsa.py" \
+      "$work/qsa_nvidia_patched.py.orig"
+    (cd "$work" && python3 patch_qsa_fp8_kv.py)
+    install -m 0444 "$work/qsa_ops_patched.py" "$overlays/qsa_ops.py"
+    install -m 0444 "$work/qsa_nvidia_patched.py" "$overlays/qsa_nvidia.py"
+
+    # Build a read-only model view with patched config aliases without touching
+    # the canonical HF snapshot on JuiceFS.
+    source=/model-repo/snapshots/fc694b54fb0174e0913e6adf86691ef85a4ead47
+    # Snapshot entries are ../../blobs/* symlinks. Recreate them as absolute
+    # links so they remain valid from the separate model-view mount.
+    while IFS= read -r -d '' src; do
+      ln -s "$(readlink -f "$src")" "$view/$(basename "$src")"
+    done < <(find "$source" -mindepth 1 -maxdepth 1 -print0)
+    patched=$(python3 "$work/patch_checkpoint_config.py" "$source" "$work")
+    for cfg in $patched; do
+      case "$cfg" in
+        config.json) src="$work/config_patched.json" ;;
+        hf_quant_config.json) src="$work/hf_quant_config_patched.json" ;;
+        *) echo "unexpected patched config: $cfg" >&2; exit 1 ;;
+      esac
+      rm -f "$view/$cfg"
+      install -m 0444 "$src" "$view/$cfg"
+    done
+    python3 -m py_compile "$overlays"/*.py
+    echo "Qwen3.8 runtime overlays and model view ready"
+
+  common.sh: |-
+    #!/bin/bash
+    set -euo pipefail
+    set -a; source /etc/qwen38-profile/profile.env; set +a
+    export TRITON_LIBCUDA_PATH=/run/triton-cuda-driver
+    real_cuda=/usr/lib/aarch64-linux-gnu/libcuda.so.1
+    test -f "$real_cuda"
+    test "$(readlink -f "$real_cuda")" != */stubs/libcuda.so
+    mkdir -p "$TRITON_LIBCUDA_PATH"
+    ln -sfn "$real_cuda" "$TRITON_LIBCUDA_PATH/libcuda.so.1"
+    ln -sfn "$real_cuda" "$TRITON_LIBCUDA_PATH/libcuda.so"
+
+    run_rank() {
+      rank="$1"
+      if [ "$rank" = 0 ]; then
+        export VLLM_HOST_IP=172.16.5.55
+        /opt/qwen38-launch/warmup.sh &
+      else
+        export VLLM_HOST_IP=172.16.5.56
+      fi
+
+      ple_dtype=$(python3 /opt/qwen38-upstream/detect_ple_dtype.py "$MODEL_DIR")
+      args=(
+        --served-model-name "$SERVED_MODEL_NAME"
+        --host 0.0.0.0 --port "$PORT"
+        --tensor-parallel-size "$TP"
+        --nnodes "$NNODES" --node-rank "$rank"
+        --master-addr "$HEAD_IP" --master-port "$MASTER_PORT"
+        --distributed-executor-backend mp
+        --enable-expert-parallel
+        --all2all-backend allgather_reducescatter
+        --gpu-memory-utilization "$GPU_MEMORY_UTILIZATION"
+        --max-num-seqs "$MAX_NUM_SEQS"
+        --max-num-batched-tokens "$MAX_NUM_BATCHED_TOKENS"
+        --max-model-len "$MAX_MODEL_LEN"
+        --kv-cache-dtype "$KV_CACHE_DTYPE"
+        --mamba-ssm-cache-dtype "$MAMBA_SSM_CACHE_DTYPE"
+        --load-format safetensors
+        --safetensors-load-strategy lazy
+        --enable-chunked-prefill
+        --reasoning-parser qwen3
+        --enable-auto-tool-choice
+        --tool-call-parser qwen3_coder
+        --mm-encoder-tp-mode "$MM_ENCODER_TP_MODE"
+        --speculative-config '{"method":"mtp","num_speculative_tokens":3}'
+        --compilation-config '{"mode":0,"cudagraph_mode":"FULL_DECODE_ONLY"}'
+      )
+      if [ -n "$ple_dtype" ]; then
+        args+=(--hf-overrides "{\"text_config\":{\"ple_embedding_dtype\":\"$ple_dtype\"}}")
+      fi
+      if [ "$rank" = 1 ]; then args+=(--headless); fi
+      exec vllm serve "$MODEL_DIR" "${args[@]}"
+    }
+
+  head.sh: |-
+    #!/bin/bash
+    source /opt/qwen38-launch/common.sh
+    rm -f /run/qwen38/warmup-ready
+    run_rank 0
+
+  worker.sh: |-
+    #!/bin/bash
+    source /opt/qwen38-launch/common.sh
+    run_rank 1
+
+  warmup.sh: |-
+    #!/bin/bash
+    set -euo pipefail
+    trap 'echo "Qwen3.8 warmup failed" >&2' ERR
+    for _ in $(seq 1 360); do
+      if curl -fsS -m 3 http://127.0.0.1:8000/health >/dev/null; then break; fi
+      sleep 10
+    done
+    curl -fsS -m 3 http://127.0.0.1:8000/health >/dev/null
+    python3 - <<'PY'
+    import concurrent.futures, json, urllib.request
+    url = "http://127.0.0.1:8000/v1/chat/completions"
+    def request(i):
+        body = {
+            "model": "qwen3.8-flash-next",
+            "messages": [{"role": "user", "content": f"Reply with only the integer {i}."}],
+            "temperature": 0,
+            "max_tokens": 8,
+            "chat_template_kwargs": {"enable_thinking": False},
+        }
+        req = urllib.request.Request(url, json.dumps(body).encode(), {"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=240) as response:
+            doc = json.load(response)
+        if not doc.get("choices"):
+            raise RuntimeError(f"empty completion for shape {i}")
+    for concurrency in (1, 2, 4, 8):
+        with concurrent.futures.ThreadPoolExecutor(max_workers=concurrency) as pool:
+            list(pool.map(request, range(1, concurrency + 1)))
+        print(f"warm shape concurrency={concurrency}", flush=True)
+    PY
+    touch /run/qwen38/warmup-ready
+    echo "Qwen3.8 boot-shape warmup complete"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qwen38-dual-head
+  namespace: llm-test
+  labels: {app: qwen38-dual-head, lane: qwen38-dual}
+spec:
+  replicas: 0
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: qwen38-dual-head}
+  template:
+    metadata:
+      labels: {app: qwen38-dual-head, lane: qwen38-dual, rank: "0"}
+    spec:
+      runtimeClassName: nvidia
+      nodeSelector: {kubernetes.io/hostname: chronometer}
+      hostNetwork: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      terminationGracePeriodSeconds: 120
+      initContainers:
+        - name: preflight
+          image: vllm/vllm-openai:qwen38-flash-next@sha256:fc120ece0a388cc0aa1caad4a9f1cd92113484ab7ec2fd0efadd62585be05bf8
+          imagePullPolicy: IfNotPresent
+          securityContext: {privileged: true}
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              sync; echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
+              test -f /models/.qwen38-dual-download-complete
+              test -f /model-repo/snapshots/fc694b54fb0174e0913e6adf86691ef85a4ead47/config.json
+              test -f /model-repo/snapshots/fc694b54fb0174e0913e6adf86691ef85a4ead47/model.safetensors.index.json
+              shards=$(find -L /model-repo/snapshots/fc694b54fb0174e0913e6adf86691ef85a4ead47 -maxdepth 1 -name 'model-*.safetensors' -type f | wc -l)
+              [ "$shards" -eq 11 ]
+              echo "Qwen3.8 checkpoint preflight complete"
+          volumeMounts:
+            - {name: models, mountPath: /models}
+            - {name: models, mountPath: /model-repo, subPath: .cache/huggingface/hub/models--nvidia--Qwen3.8-Flash-Next-NVFP4, readOnly: true}
+        - name: prepare-runtime
+          image: vllm/vllm-openai:qwen38-flash-next@sha256:fc120ece0a388cc0aa1caad4a9f1cd92113484ab7ec2fd0efadd62585be05bf8
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "/opt/qwen38-launch/prepare-runtime.sh"]
+          volumeMounts:
+            - {name: models, mountPath: /model-repo, subPath: .cache/huggingface/hub/models--nvidia--Qwen3.8-Flash-Next-NVFP4, readOnly: true}
+            - {name: upstream-patches, mountPath: /opt/qwen38-upstream, readOnly: true}
+            - {name: launch, mountPath: /opt/qwen38-launch, readOnly: true}
+            - {name: runtime-build, mountPath: /runtime-build}
+            - {name: runtime-overlays, mountPath: /runtime-overlays}
+            - {name: model-view, mountPath: /model-view}
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:qwen38-flash-next@sha256:fc120ece0a388cc0aa1caad4a9f1cd92113484ab7ec2fd0efadd62585be05bf8
+          imagePullPolicy: IfNotPresent
+          securityContext: {privileged: true}
+          command: ["/bin/bash", "/opt/qwen38-launch/head.sh"]
+          resources:
+            requests: {cpu: "16", memory: 64Gi, nvidia.com/gpu: "1"}
+            limits: {cpu: "32", memory: 128Gi, nvidia.com/gpu: "1"}
+          ports: [{name: http, containerPort: 8000}]
+          startupProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 360
+          readinessProbe:
+            exec:
+              command: ["/bin/bash", "-lc", "test -f /run/qwen38/warmup-ready && curl -fsS -m 2 http://127.0.0.1:8000/health >/dev/null"]
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - {name: models, mountPath: /model-repo, subPath: .cache/huggingface/hub/models--nvidia--Qwen3.8-Flash-Next-NVFP4, readOnly: true}
+            - {name: model-view, mountPath: /model, readOnly: true}
+            - {name: upstream-patches, mountPath: /opt/qwen38-upstream, readOnly: true}
+            - {name: launch, mountPath: /opt/qwen38-launch, readOnly: true}
+            - {name: runtime-overlays, mountPath: /usr/local/lib/python3.12/dist-packages/vllm/models/qwen3_8_flash_next/nvidia/ple_layer.py, subPath: ple_layer.py, readOnly: true}
+            - {name: runtime-overlays, mountPath: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/modelopt.py, subPath: modelopt.py, readOnly: true}
+            - {name: runtime-overlays, mountPath: /usr/local/lib/python3.12/dist-packages/vllm/models/qwen3_8_flash_next/nvidia/ops/qsa.py, subPath: qsa_ops.py, readOnly: true}
+            - {name: runtime-overlays, mountPath: /usr/local/lib/python3.12/dist-packages/vllm/models/qwen3_8_flash_next/nvidia/qsa.py, subPath: qsa_nvidia.py, readOnly: true}
+            - {name: dshm, mountPath: /dev/shm}
+            - {name: vllm-cache, mountPath: /root/.cache/vllm}
+            - {name: triton-cache, mountPath: /root/.triton/cache}
+            - {name: lane-tmp, mountPath: /tmp}
+            - {name: readiness, mountPath: /run/qwen38}
+            - {name: infiniband, mountPath: /dev/infiniband}
+      volumes:
+        - {name: models, persistentVolumeClaim: {claimName: model-cache}}
+        - {name: upstream-patches, configMap: {name: qwen38-upstream-patches, defaultMode: 0444}}
+        - {name: launch, configMap: {name: qwen38-dual-launch, defaultMode: 0555}}
+        - {name: runtime-build, emptyDir: {}}
+        - {name: runtime-overlays, emptyDir: {}}
+        - {name: model-view, emptyDir: {}}
+        - {name: dshm, emptyDir: {medium: Memory, sizeLimit: 64Gi}}
+        - {name: vllm-cache, hostPath: {path: /var/lib/llm-test/qwen38-vllm-cache, type: DirectoryOrCreate}}
+        - {name: triton-cache, hostPath: {path: /var/lib/llm-test/qwen38-triton-cache, type: DirectoryOrCreate}}
+        - {name: lane-tmp, hostPath: {path: /var/lib/llm-test/qwen38-tmp, type: DirectoryOrCreate}}
+        - {name: readiness, emptyDir: {}}
+        - {name: infiniband, hostPath: {path: /dev/infiniband, type: Directory}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qwen38-dual-worker
+  namespace: llm-test
+  labels: {app: qwen38-dual-worker, lane: qwen38-dual}
+spec:
+  replicas: 0
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: qwen38-dual-worker}
+  template:
+    metadata:
+      labels: {app: qwen38-dual-worker, lane: qwen38-dual, rank: "1"}
+    spec:
+      runtimeClassName: nvidia
+      nodeSelector: {kubernetes.io/hostname: sextant}
+      hostNetwork: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      terminationGracePeriodSeconds: 120
+      initContainers:
+        - name: preflight
+          image: vllm/vllm-openai:qwen38-flash-next@sha256:fc120ece0a388cc0aa1caad4a9f1cd92113484ab7ec2fd0efadd62585be05bf8
+          imagePullPolicy: IfNotPresent
+          securityContext: {privileged: true}
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              sync; echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
+              test -f /models/.qwen38-dual-download-complete
+              test -f /model-repo/snapshots/fc694b54fb0174e0913e6adf86691ef85a4ead47/config.json
+              test -f /model-repo/snapshots/fc694b54fb0174e0913e6adf86691ef85a4ead47/model.safetensors.index.json
+              shards=$(find -L /model-repo/snapshots/fc694b54fb0174e0913e6adf86691ef85a4ead47 -maxdepth 1 -name 'model-*.safetensors' -type f | wc -l)
+              [ "$shards" -eq 11 ]
+              echo "Qwen3.8 checkpoint preflight complete"
+          volumeMounts:
+            - {name: models, mountPath: /models}
+            - {name: models, mountPath: /model-repo, subPath: .cache/huggingface/hub/models--nvidia--Qwen3.8-Flash-Next-NVFP4, readOnly: true}
+        - name: prepare-runtime
+          image: vllm/vllm-openai:qwen38-flash-next@sha256:fc120ece0a388cc0aa1caad4a9f1cd92113484ab7ec2fd0efadd62585be05bf8
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "/opt/qwen38-launch/prepare-runtime.sh"]
+          volumeMounts:
+            - {name: models, mountPath: /model-repo, subPath: .cache/huggingface/hub/models--nvidia--Qwen3.8-Flash-Next-NVFP4, readOnly: true}
+            - {name: upstream-patches, mountPath: /opt/qwen38-upstream, readOnly: true}
+            - {name: launch, mountPath: /opt/qwen38-launch, readOnly: true}
+            - {name: runtime-build, mountPath: /runtime-build}
+            - {name: runtime-overlays, mountPath: /runtime-overlays}
+            - {name: model-view, mountPath: /model-view}
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:qwen38-flash-next@sha256:fc120ece0a388cc0aa1caad4a9f1cd92113484ab7ec2fd0efadd62585be05bf8
+          imagePullPolicy: IfNotPresent
+          securityContext: {privileged: true}
+          command: ["/bin/bash", "/opt/qwen38-launch/worker.sh"]
+          resources:
+            requests: {cpu: "16", memory: 64Gi, nvidia.com/gpu: "1"}
+            limits: {cpu: "32", memory: 128Gi, nvidia.com/gpu: "1"}
+          readinessProbe:
+            exec:
+              command: ["/bin/bash", "-lc", "pgrep -f 'EngineCore|VllmWorker' >/dev/null"]
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 120
+          volumeMounts:
+            - {name: models, mountPath: /model-repo, subPath: .cache/huggingface/hub/models--nvidia--Qwen3.8-Flash-Next-NVFP4, readOnly: true}
+            - {name: model-view, mountPath: /model, readOnly: true}
+            - {name: upstream-patches, mountPath: /opt/qwen38-upstream, readOnly: true}
+            - {name: launch, mountPath: /opt/qwen38-launch, readOnly: true}
+            - {name: runtime-overlays, mountPath: /usr/local/lib/python3.12/dist-packages/vllm/models/qwen3_8_flash_next/nvidia/ple_layer.py, subPath: ple_layer.py, readOnly: true}
+            - {name: runtime-overlays, mountPath: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/modelopt.py, subPath: modelopt.py, readOnly: true}
+            - {name: runtime-overlays, mountPath: /usr/local/lib/python3.12/dist-packages/vllm/models/qwen3_8_flash_next/nvidia/ops/qsa.py, subPath: qsa_ops.py, readOnly: true}
+            - {name: runtime-overlays, mountPath: /usr/local/lib/python3.12/dist-packages/vllm/models/qwen3_8_flash_next/nvidia/qsa.py, subPath: qsa_nvidia.py, readOnly: true}
+            - {name: dshm, mountPath: /dev/shm}
+            - {name: vllm-cache, mountPath: /root/.cache/vllm}
+            - {name: triton-cache, mountPath: /root/.triton/cache}
+            - {name: lane-tmp, mountPath: /tmp}
+            - {name: infiniband, mountPath: /dev/infiniband}
+      volumes:
+        - {name: models, persistentVolumeClaim: {claimName: model-cache}}
+        - {name: upstream-patches, configMap: {name: qwen38-upstream-patches, defaultMode: 0444}}
+        - {name: launch, configMap: {name: qwen38-dual-launch, defaultMode: 0555}}
+        - {name: runtime-build, emptyDir: {}}
+        - {name: runtime-overlays, emptyDir: {}}
+        - {name: model-view, emptyDir: {}}
+        - {name: dshm, emptyDir: {medium: Memory, sizeLimit: 64Gi}}
+        - {name: vllm-cache, hostPath: {path: /var/lib/llm-test/qwen38-vllm-cache, type: DirectoryOrCreate}}
+        - {name: triton-cache, hostPath: {path: /var/lib/llm-test/qwen38-triton-cache, type: DirectoryOrCreate}}
+        - {name: lane-tmp, hostPath: {path: /var/lib/llm-test/qwen38-tmp, type: DirectoryOrCreate}}
+        - {name: infiniband, hostPath: {path: /dev/infiniband, type: Directory}}

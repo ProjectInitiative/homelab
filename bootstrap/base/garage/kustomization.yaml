@@ -3,3 +3,4 @@ kind: Kustomization
 
 resources:
   - all.yaml
+  - garage-s3-ingress.yaml

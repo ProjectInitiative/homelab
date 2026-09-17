@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - 12-qwen38-parity.yaml
+  - services.yaml
+generatorOptions:
+  disableNameSuffixHash: true
+  labels:
+    app: qwen38-flash-next
+    lane: qwen38-flash-next
+configMapGenerator:
+  - name: qwen38-upstream-patches
+    namespace: llm-test
+    files:
+      - upstream/detect_ple_dtype.py
+      - upstream/patch_checkpoint_config.py
+      - upstream/patch_modelopt_fp8_block_moe.py
+      - upstream/patch_modelopt_mxfp8.py
+      - upstream/patch_ple_layer.py
+      - upstream/patch_qsa_fp8_kv.py
+      - upstream/SOURCE
+      - upstream/LICENSE
