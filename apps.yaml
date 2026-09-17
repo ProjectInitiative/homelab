@@ -222,13 +222,54 @@ catalog:
         - CreateNamespace=true
         - ServerSideApply=true
   
+  ingress:
+    annotations:
+      argocd.argoproj.io/sync-wave: "45"
+    sources:
+      - repoURL: https://haproxytech.github.io/helm-charts
+        chart: kubernetes-ingress
+        targetRevision: 1.54.2
+        helm:
+          values: |
+            fullnameOverride: ingress
+            controller:
+              kind: Deployment
+              replicaCount: 2
+              ingressClass: haproxy
+              topologySpreadConstraints:
+                - maxSkew: 1
+                  topologyKey: kubernetes.io/hostname
+                  whenUnsatisfiable: DoNotSchedule
+                  labelSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: kubernetes-ingress
+              PodDisruptionBudget:
+                enable: true
+                minAvailable: 1
+              service:
+                type: ClusterIP
+                enablePorts:
+                  http: true
+                  https: false
+                  quic: false
+                  stat: true
+                  admin: false
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
   juicefs-csi-driver:
     annotations:
       argocd.argoproj.io/sync-wave: "30"
     sources:
       - repoURL: https://juicedata.github.io/charts/
         chart: juicefs-csi-driver
-        targetRevision: 0.31.9
+        targetRevision: 0.33.0
         helm:
           values: |
             globalConfig:
@@ -243,6 +284,11 @@ catalog:
                   mountOptions:
                     - cache-dir=/mnt/pool/juicefs
                     - cache-size=1500000
+                    - prefetch=8
+                    - max-readahead=256M
+                    - buffer-size=1G
+                    - max-downloads=200
+                    - cache-eviction=lru
                 - nodeSelector:
                     kubernetes.io/hostname: chronometer
                   pvcSelector:
@@ -250,6 +296,11 @@ catalog:
                   mountOptions:
                     - cache-dir=/mnt/pool/juicefs
                     - cache-size=550000
+                    - prefetch=8
+                    - max-readahead=256M
+                    - buffer-size=1G
+                    - max-downloads=200
+                    - cache-eviction=lru
                 - nodeSelector:
                     kubernetes.io/hostname: sextant
                   pvcSelector:
@@ -257,6 +308,11 @@ catalog:
                   mountOptions:
                     - cache-dir=/mnt/pool/juicefs
                     - cache-size=550000
+                    - prefetch=8
+                    - max-readahead=256M
+                    - buffer-size=1G
+                    - max-downloads=200
+                    - cache-eviction=lru
     syncPolicy:
       syncOptions:
         - CreateNamespace=true

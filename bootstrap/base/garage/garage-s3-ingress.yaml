@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: garage-s3-l7
+  namespace: garage
+  annotations:
+    haproxy.org/forwarded-for: "true"
+    haproxy.org/timeout-http-request: 5m
+    haproxy.org/timeout-http-keep-alive: 5m
+    haproxy.org/timeout-server: 10m
+    haproxy.org/timeout-tunnel: 10m
+spec:
+  ingressClassName: haproxy
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: garage
+                port:
+                  name: s3-api

@@ -125,6 +125,11 @@ apps:
             mountOptions:
               - cache-dir=/mnt/pool/juicefs
               - cache-size=1500000
+              - prefetch=8
+              - max-readahead=256M
+              - buffer-size=1G
+              - max-downloads=200
+              - cache-eviction=lru
           - nodeSelector:
               kubernetes.io/hostname: chronometer
             pvcSelector:
@@ -132,6 +137,11 @@ apps:
             mountOptions:
               - cache-dir=/mnt/pool/juicefs
               - cache-size=550000
+              - prefetch=8
+              - max-readahead=256M
+              - buffer-size=1G
+              - max-downloads=200
+              - cache-eviction=lru
           - nodeSelector:
               kubernetes.io/hostname: sextant
             pvcSelector:
@@ -139,10 +149,17 @@ apps:
             mountOptions:
               - cache-dir=/mnt/pool/juicefs
               - cache-size=550000
+              - prefetch=8
+              - max-readahead=256M
+              - buffer-size=1G
+              - max-downloads=200
+              - cache-eviction=lru
   - name: csi-snapshotter
     namespace: kube-system
   - name: juicefs-platform
     namespace: juicefs-platform
+  - name: ingress
+    namespace: haproxy
   # MVP network share over JuiceFS. Single user + password until wired to Keycloak.
   # A tailscale LoadBalancer exposes \\<host>\data on the tailnet.
   - name: samba-gateway

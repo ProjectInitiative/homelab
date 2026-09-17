@@ -42,10 +42,20 @@ spec:
         - name: verify-cache
           image: ghcr.io/tonyd2wild/vllm-glm53-flash:sm121-v11-dflash2@sha256:4def0ef644cb2e9814136dcffd5e385e21bc594f48f3b292234051904abe85a6
           imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
           command: ["/bin/bash", "-lc"]
           args:
             - |
               set -euo pipefail
+              # GB10 unified memory: stale checkpoint page cache makes vLLM's
+              # startup free-memory check see only a few GiB after a restart.
+              sync
+              echo 3 > /proc/sys/vm/drop_caches
+              avail_kib=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+              required_kib=$((12 * 1024 * 1024))
+              echo "MemAvailable=$((avail_kib / 1024)) MiB; required=12288 MiB"
+              [ "$avail_kib" -ge "$required_kib" ] || { echo "FATAL: insufficient GB10 boot margin"; exit 1; }
               cache="/cache/huggingface/hub/models--${MODEL_REPO//\//--}/snapshots/${MODEL_REV}"
               test -f "$cache/config.json" || { echo "missing model snapshot: $cache"; exit 1; }
               test -f "$cache/model.safetensors.index.json" || { echo "missing model index: $cache"; exit 1; }
@@ -85,11 +95,11 @@ spec:
             - name: DFLASH_REV
               value: dc77ff1c99eeb2df044ee3d4f0094eb033fee410
             - name: HEAD_IP
-              value: 192.168.192.2
+              value: 172.16.5.55
             - name: NODE_RANK
               value: "0"
             - name: VLLM_HOST_IP
-              value: 192.168.192.2
+              value: 172.16.5.55
             - name: HF_HOME
               value: /cache/huggingface
             - name: HF_HUB_OFFLINE
@@ -98,28 +108,33 @@ spec:
               value: "1"
             - name: VLLM_ENGINE_READY_TIMEOUT_S
               value: "3600"
+            # Triton does not discover the runtimeClass-mounted GB10 driver on
+            # this image unless its containing directory is explicit.
+            - name: TRITON_LIBCUDA_PATH
+              value: /usr/lib/aarch64-linux-gnu
             - name: NCCL_NET
               value: IB
             - name: NCCL_IB_DISABLE
               value: "0"
+            # Cluster CX7 backplane: mlx5_1 on enp1s0f1np1, RoCE GID 2.
             - name: NCCL_IB_HCA
-              value: rocep1s0f0
+              value: "mlx5_1:1"
             - name: NCCL_IB_GID_INDEX
-              value: "3"
+              value: "2"
             - name: NCCL_IB_ROCE_VERSION_NUM
               value: "2"
             - name: NCCL_IB_ADDR_FAMILY
               value: AF_INET
             - name: NCCL_IB_ADDR_RANGE
-              value: 192.168.192.0/24
+              value: 172.16.5.0/24
             - name: NCCL_SOCKET_IFNAME
-              value: enp1s0f0np0
+              value: enp1s0f1np1
             - name: GLOO_SOCKET_IFNAME
-              value: enp1s0f0np0
+              value: enp1s0f1np1
             - name: TP_SOCKET_IFNAME
-              value: enp1s0f0np0
+              value: enp1s0f1np1
             - name: MN_IF_NAME
-              value: enp1s0f0np0
+              value: enp1s0f1np1
             - name: NCCL_NVLS_ENABLE
               value: "0"
             - name: NCCL_CROSS_NIC
@@ -136,6 +151,10 @@ spec:
           args:
             - |
               set -euo pipefail
+              # Init containers do not rerun when only vLLM restarts.
+              # Reclaim UMA page cache before every vLLM start instead.
+              sync
+              echo 3 > /proc/sys/vm/drop_caches
               cache="/cache/huggingface/hub/models--${MODEL_REPO//\//--}/snapshots/${MODEL_REV}"
               draft="/cache/huggingface/hub/models--incoai--GLM-5.3-Flash-DFlash2/snapshots/${DFLASH_REV}"
               test -f "$cache/config.json" && test -f "$draft/model.safetensors"
@@ -150,7 +169,7 @@ spec:
                 --master-addr "$HEAD_IP" --master-port 29521 \
                 --distributed-executor-backend mp \
                 --gpu-memory-utilization 0.85 --max-model-len 262144 \
-                --max-num-seqs 6 --block-size 2304 --moe-backend marlin \
+                --max-num-seqs 6 --block-size 2304 \
                 --speculative-config "{\"method\":\"dflash\",\"model\":\"$draft\",\"num_speculative_tokens\":7}" \
                 --kv-cache-dtype fp8_e4m3 --kv-cache-memory 6442450944 \
                 --enforce-eager --max-num-batched-tokens 8192 \
@@ -215,10 +234,18 @@ spec:
         - name: verify-cache
           image: ghcr.io/tonyd2wild/vllm-glm53-flash:sm121-v11-dflash2@sha256:4def0ef644cb2e9814136dcffd5e385e21bc594f48f3b292234051904abe85a6
           imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
           command: ["/bin/bash", "-lc"]
           args:
             - |
               set -euo pipefail
+              sync
+              echo 3 > /proc/sys/vm/drop_caches
+              avail_kib=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+              required_kib=$((12 * 1024 * 1024))
+              echo "MemAvailable=$((avail_kib / 1024)) MiB; required=12288 MiB"
+              [ "$avail_kib" -ge "$required_kib" ] || { echo "FATAL: insufficient GB10 boot margin"; exit 1; }
               cache="/cache/huggingface/hub/models--${MODEL_REPO//\//--}/snapshots/${MODEL_REV}"
               test -f "$cache/config.json" || { echo "missing model snapshot: $cache"; exit 1; }
               test -f "$cache/model.safetensors.index.json" || { echo "missing model index: $cache"; exit 1; }
@@ -258,11 +285,11 @@ spec:
             - name: DFLASH_REV
               value: dc77ff1c99eeb2df044ee3d4f0094eb033fee410
             - name: HEAD_IP
-              value: 192.168.192.2
+              value: 172.16.5.55
             - name: NODE_RANK
               value: "1"
             - name: VLLM_HOST_IP
-              value: 192.168.192.4
+              value: 172.16.5.56
             - name: HF_HOME
               value: /cache/huggingface
             - name: HF_HUB_OFFLINE
@@ -271,28 +298,33 @@ spec:
               value: "1"
             - name: VLLM_ENGINE_READY_TIMEOUT_S
               value: "3600"
+            # Triton does not discover the runtimeClass-mounted GB10 driver on
+            # this image unless its containing directory is explicit.
+            - name: TRITON_LIBCUDA_PATH
+              value: /usr/lib/aarch64-linux-gnu
             - name: NCCL_NET
               value: IB
             - name: NCCL_IB_DISABLE
               value: "0"
+            # Cluster CX7 backplane: mlx5_1 on enp1s0f1np1, RoCE GID 2.
             - name: NCCL_IB_HCA
-              value: rocep1s0f0
+              value: "mlx5_1:1"
             - name: NCCL_IB_GID_INDEX
-              value: "3"
+              value: "2"
             - name: NCCL_IB_ROCE_VERSION_NUM
               value: "2"
             - name: NCCL_IB_ADDR_FAMILY
               value: AF_INET
             - name: NCCL_IB_ADDR_RANGE
-              value: 192.168.192.0/24
+              value: 172.16.5.0/24
             - name: NCCL_SOCKET_IFNAME
-              value: enp1s0f0np0
+              value: enp1s0f1np1
             - name: GLOO_SOCKET_IFNAME
-              value: enp1s0f0np0
+              value: enp1s0f1np1
             - name: TP_SOCKET_IFNAME
-              value: enp1s0f0np0
+              value: enp1s0f1np1
             - name: MN_IF_NAME
-              value: enp1s0f0np0
+              value: enp1s0f1np1
             - name: NCCL_NVLS_ENABLE
               value: "0"
             - name: NCCL_CROSS_NIC
@@ -309,6 +341,10 @@ spec:
           args:
             - |
               set -euo pipefail
+              # Init containers do not rerun when only vLLM restarts.
+              # Reclaim UMA page cache before every vLLM start instead.
+              sync
+              echo 3 > /proc/sys/vm/drop_caches
               cache="/cache/huggingface/hub/models--${MODEL_REPO//\//--}/snapshots/${MODEL_REV}"
               draft="/cache/huggingface/hub/models--incoai--GLM-5.3-Flash-DFlash2/snapshots/${DFLASH_REV}"
               test -f "$cache/config.json" && test -f "$draft/model.safetensors"
@@ -323,7 +359,7 @@ spec:
                 --master-addr "$HEAD_IP" --master-port 29521 --headless \
                 --distributed-executor-backend mp \
                 --gpu-memory-utilization 0.85 --max-model-len 262144 \
-                --max-num-seqs 6 --block-size 2304 --moe-backend marlin \
+                --max-num-seqs 6 --block-size 2304 \
                 --speculative-config "{\"method\":\"dflash\",\"model\":\"$draft\",\"num_speculative_tokens\":7}" \
                 --kv-cache-dtype fp8_e4m3 --kv-cache-memory 6442450944 \
                 --enforce-eager --max-num-batched-tokens 8192 \

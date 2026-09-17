@@ -10,9 +10,9 @@
 # started until you explicitly scale the worker rank first, then the head rank.
 #
 # Runtime baseline: MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks @
-# 9348755653f6f8cda5d56562c05462724c40fcbd; reviewed HEAD is tracked separately.
-# Image (public): ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3
-#   digest sha256:eecb36e14dc34c92d46827fde7b09f7e0bf27e27c426ece126376c02dea6cd2f
+# 56d0bdfbaa961283d1c54e61f4e67fcb1b9d37b9 (upstream HEAD, 2026-09-17).
+# Image: ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor
+#   digest sha256:447114ee77d14c9b4732ee23978ada2a0ee9027868a231d6fd42700a8b25be1d
 # Model: Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw @ 25a44fdbf16862a46b7cc9921142c6c81350af2f
 # Draft: incoai/GLM-5.3-Flash-DFlash2 (k=7) @ dc77ff1c99eeb2df044ee3d4f0094eb033fee410
 # Served model id: GLM-5.3-Flash-EXL3
@@ -44,7 +44,7 @@ spec:
       terminationGracePeriodSeconds: 10
       initContainers:
         - name: stage-model-cache
-          image: ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3@sha256:eecb36e14dc34c92d46827fde7b09f7e0bf27e27c426ece126376c02dea6cd2f
+          image: ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor@sha256:447114ee77d14c9b4732ee23978ada2a0ee9027868a231d6fd42700a8b25be1d
           imagePullPolicy: IfNotPresent
           securityContext: {privileged: true}
           command: ["/bin/bash", "-lc"]
@@ -78,7 +78,7 @@ spec:
               subPath: .cache/huggingface
       containers:
         - name: vllm
-          image: ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3@sha256:eecb36e14dc34c92d46827fde7b09f7e0bf27e27c426ece126376c02dea6cd2f
+          image: ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor@sha256:447114ee77d14c9b4732ee23978ada2a0ee9027868a231d6fd42700a8b25be1d
           imagePullPolicy: IfNotPresent
           securityContext: {privileged: true}
           resources:
@@ -132,6 +132,9 @@ spec:
                 --reasoning-parser glm45
                 --enable-prefix-caching
                 --no-enable-flashinfer-autotune
+                # The upstream :exl3-instanttensor image requires explicit
+                # selection; otherwise this parity wrapper falls back to auto.
+                --load-format instanttensor
               )
               [ "${ENFORCE_EAGER:-1}" = "1" ] && ARGS+=(--enforce-eager)
               [ -n "${QUANTIZATION:-}" ] && [ "${QUANTIZATION}" != "none" ] && ARGS+=(--quantization "${QUANTIZATION}")
@@ -419,7 +422,7 @@ spec:
       terminationGracePeriodSeconds: 10
       initContainers:
         - name: stage-model-cache
-          image: ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3@sha256:eecb36e14dc34c92d46827fde7b09f7e0bf27e27c426ece126376c02dea6cd2f
+          image: ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor@sha256:447114ee77d14c9b4732ee23978ada2a0ee9027868a231d6fd42700a8b25be1d
           imagePullPolicy: IfNotPresent
           securityContext: {privileged: true}
           command: ["/bin/bash", "-lc"]
@@ -449,7 +452,7 @@ spec:
               subPath: .cache/huggingface
       containers:
         - name: vllm
-          image: ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3@sha256:eecb36e14dc34c92d46827fde7b09f7e0bf27e27c426ece126376c02dea6cd2f
+          image: ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor@sha256:447114ee77d14c9b4732ee23978ada2a0ee9027868a231d6fd42700a8b25be1d
           imagePullPolicy: IfNotPresent
           securityContext: {privileged: true}
           resources:
@@ -503,6 +506,9 @@ spec:
                 --reasoning-parser glm45
                 --enable-prefix-caching
                 --no-enable-flashinfer-autotune
+                # The upstream :exl3-instanttensor image requires explicit
+                # selection; otherwise this parity wrapper falls back to auto.
+                --load-format instanttensor
               )
               [ "${ENFORCE_EAGER:-1}" = "1" ] && ARGS+=(--enforce-eager)
               [ -n "${QUANTIZATION:-}" ] && [ "${QUANTIZATION}" != "none" ] && ARGS+=(--quantization "${QUANTIZATION}")

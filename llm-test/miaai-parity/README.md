@@ -71,6 +71,4 @@ curl -i http://ai.taildeab2.ts.net/health
 curl http://ai.taildeab2.ts.net/v1/models
 ```
 
-The vLLM API itself listens on port 8000. The relay is pinned to chronometer and forwards to the host-network API at `172.16.4.55:8000`; the Tailscale-facing Service port is 80. This preserves the direct `.5` ConnectX backplane and keeps it out of Kubernetes/Tailscale routing.
-
-Future architecture work should evaluate a first-class Kubernetes pattern for exposing host-network/backhauled services without relying on a manually pinned relay.
+The shared `ai` endpoint is served by a LiteLLM-compatible gateway. It exposes the active DGX backend as `dgx-spark` and the Strix Halo backend as `qwen3.8-flash-next-halogen`, routing by the requested OpenAI `model` field. The DGX target remains the host-network API at `172.16.4.55:8000`; Halogen is reached through its normal Kubernetes Service. Background backend health checks remove failed deployments from routing.
