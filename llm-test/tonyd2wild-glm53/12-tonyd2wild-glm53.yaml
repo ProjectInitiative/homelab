@@ -1,0 +1,353 @@
+# tonyd2wild GLM-5.3-Flash NVFP4 + DFlash2, 2x DGX Spark (SM121).
+# SCAFFOLD ONLY: both ranks intentionally remain at replicas: 0.
+#
+# This is a Kubernetes-shaped port of the upstream launcher, not an enabled
+# workload.  The downloader in 05-tonyd2wild-download.yaml must complete first.
+# Select the uncensored checkpoint by changing MODEL_REPO and MODEL_REV on BOTH
+# Deployments; the default is the Red Hat checkpoint.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tonyd2wild-glm53-head
+  namespace: llm-test
+  labels:
+    app: tonyd2wild-glm53-head
+    lane: tonyd2wild-glm53
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: tonyd2wild-glm53-head
+  template:
+    metadata:
+      labels:
+        app: tonyd2wild-glm53-head
+        lane: tonyd2wild-glm53
+    spec:
+      runtimeClassName: nvidia
+      hostNetwork: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+        kubernetes.io/arch: arm64
+      terminationGracePeriodSeconds: 30
+      initContainers:
+        - name: verify-cache
+          image: ghcr.io/tonyd2wild/vllm-glm53-flash:sm121-v11-dflash2@sha256:4def0ef644cb2e9814136dcffd5e385e21bc594f48f3b292234051904abe85a6
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              cache="/cache/huggingface/hub/models--${MODEL_REPO//\//--}/snapshots/${MODEL_REV}"
+              test -f "$cache/config.json" || { echo "missing model snapshot: $cache"; exit 1; }
+              test -f "$cache/model.safetensors.index.json" || { echo "missing model index: $cache"; exit 1; }
+              draft="/cache/huggingface/hub/models--incoai--GLM-5.3-Flash-DFlash2/snapshots/${DFLASH_REV}"
+              test -f "$draft/model.safetensors" || { echo "missing DFlash2 snapshot: $draft"; exit 1; }
+              test -f /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/sparse_attn_indexer_kpool.py \
+                || { echo "missing required SM121 kpool patch; mount/build the upstream overlay before scaling"; exit 1; }
+              echo "verified $cache, $draft, and the SM121 kpool patch"
+          env:
+            - name: MODEL_REPO
+              value: RedHatAI/GLM-5.3-Flash-NVFP4
+            - name: MODEL_REV
+              value: c245560b6d7e62c329cd3042343b358a4279affd
+            - name: DFLASH_REV
+              value: dc77ff1c99eeb2df044ee3d4f0094eb033fee410
+          volumeMounts:
+            - name: models
+              mountPath: /cache/huggingface
+              subPath: .cache/huggingface
+              readOnly: true
+      containers:
+        - name: vllm
+          image: ghcr.io/tonyd2wild/vllm-glm53-flash:sm121-v11-dflash2@sha256:4def0ef644cb2e9814136dcffd5e385e21bc594f48f3b292234051904abe85a6
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+            capabilities:
+              add: [IPC_LOCK]
+          resources:
+            requests: {cpu: "16", memory: 64Gi, nvidia.com/gpu: "1"}
+            limits: {cpu: "32", memory: 128Gi, nvidia.com/gpu: "1"}
+          env:
+            - name: MODEL_REPO
+              value: RedHatAI/GLM-5.3-Flash-NVFP4
+            - name: MODEL_REV
+              value: c245560b6d7e62c329cd3042343b358a4279affd
+            - name: DFLASH_REV
+              value: dc77ff1c99eeb2df044ee3d4f0094eb033fee410
+            - name: HEAD_IP
+              value: 192.168.192.2
+            - name: NODE_RANK
+              value: "0"
+            - name: VLLM_HOST_IP
+              value: 192.168.192.2
+            - name: HF_HOME
+              value: /cache/huggingface
+            - name: HF_HUB_OFFLINE
+              value: "1"
+            - name: TRANSFORMERS_OFFLINE
+              value: "1"
+            - name: VLLM_ENGINE_READY_TIMEOUT_S
+              value: "3600"
+            - name: NCCL_NET
+              value: IB
+            - name: NCCL_IB_DISABLE
+              value: "0"
+            - name: NCCL_IB_HCA
+              value: rocep1s0f0
+            - name: NCCL_IB_GID_INDEX
+              value: "3"
+            - name: NCCL_IB_ROCE_VERSION_NUM
+              value: "2"
+            - name: NCCL_IB_ADDR_FAMILY
+              value: AF_INET
+            - name: NCCL_IB_ADDR_RANGE
+              value: 192.168.192.0/24
+            - name: NCCL_SOCKET_IFNAME
+              value: enp1s0f0np0
+            - name: GLOO_SOCKET_IFNAME
+              value: enp1s0f0np0
+            - name: TP_SOCKET_IFNAME
+              value: enp1s0f0np0
+            - name: MN_IF_NAME
+              value: enp1s0f0np0
+            - name: NCCL_NVLS_ENABLE
+              value: "0"
+            - name: NCCL_CROSS_NIC
+              value: "0"
+            - name: NCCL_IB_MERGE_NICS
+              value: "0"
+            - name: NCCL_CUMEM_ENABLE
+              value: "0"
+            - name: NCCL_IGNORE_CPU_AFFINITY
+              value: "1"
+            - name: TORCH_NCCL_ASYNC_ERROR_HANDLING
+              value: "1"
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              cache="/cache/huggingface/hub/models--${MODEL_REPO//\//--}/snapshots/${MODEL_REV}"
+              draft="/cache/huggingface/hub/models--incoai--GLM-5.3-Flash-DFlash2/snapshots/${DFLASH_REV}"
+              test -f "$cache/config.json" && test -f "$draft/model.safetensors"
+              template="$cache/chat_template_mm.jinja"
+              test -f "$template" || template="$cache/chat_template.jinja"
+              test -f "$template" || { echo "missing chat template in $cache"; exit 1; }
+              exec vllm serve "$cache" \
+                --served-model-name glm-5.3-flash \
+                --host 0.0.0.0 --port 8000 \
+                --trust-remote-code \
+                --tensor-parallel-size 2 --nnodes 2 --node-rank "$NODE_RANK" \
+                --master-addr "$HEAD_IP" --master-port 29521 \
+                --distributed-executor-backend mp \
+                --gpu-memory-utilization 0.85 --max-model-len 262144 \
+                --max-num-seqs 6 --block-size 2304 --moe-backend marlin \
+                --speculative-config "{\"method\":\"dflash\",\"model\":\"$draft\",\"num_speculative_tokens\":7}" \
+                --kv-cache-dtype fp8_e4m3 --kv-cache-memory 6442450944 \
+                --enforce-eager --max-num-batched-tokens 8192 \
+                --tool-call-parser glm47 --enable-auto-tool-choice \
+                --reasoning-parser glm45 --default-chat-template-kwargs '{"enable_thinking":false}' \
+                --chat-template "$template"
+          volumeMounts:
+            - name: models
+              mountPath: /cache/huggingface
+              subPath: .cache/huggingface
+              readOnly: true
+            - name: dshm
+              mountPath: /dev/shm
+            - name: infiniband
+              mountPath: /dev/infiniband
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 32Gi
+        - name: infiniband
+          hostPath:
+            path: /dev/infiniband
+            type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tonyd2wild-glm53-worker
+  namespace: llm-test
+  labels:
+    app: tonyd2wild-glm53-worker
+    lane: tonyd2wild-glm53
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: tonyd2wild-glm53-worker
+  template:
+    metadata:
+      labels:
+        app: tonyd2wild-glm53-worker
+        lane: tonyd2wild-glm53
+    spec:
+      runtimeClassName: nvidia
+      hostNetwork: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+      nodeSelector:
+        kubernetes.io/hostname: sextant
+        kubernetes.io/arch: arm64
+      terminationGracePeriodSeconds: 30
+      initContainers:
+        - name: verify-cache
+          image: ghcr.io/tonyd2wild/vllm-glm53-flash:sm121-v11-dflash2@sha256:4def0ef644cb2e9814136dcffd5e385e21bc594f48f3b292234051904abe85a6
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              cache="/cache/huggingface/hub/models--${MODEL_REPO//\//--}/snapshots/${MODEL_REV}"
+              test -f "$cache/config.json" || { echo "missing model snapshot: $cache"; exit 1; }
+              test -f "$cache/model.safetensors.index.json" || { echo "missing model index: $cache"; exit 1; }
+              draft="/cache/huggingface/hub/models--incoai--GLM-5.3-Flash-DFlash2/snapshots/${DFLASH_REV}"
+              test -f "$draft/model.safetensors" || { echo "missing DFlash2 snapshot: $draft"; exit 1; }
+              test -f /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/sparse_attn_indexer_kpool.py \
+                || { echo "missing required SM121 kpool patch; mount/build the upstream overlay before scaling"; exit 1; }
+              echo "verified $cache, $draft, and the SM121 kpool patch"
+          env:
+            - name: MODEL_REPO
+              value: RedHatAI/GLM-5.3-Flash-NVFP4
+            - name: MODEL_REV
+              value: c245560b6d7e62c329cd3042343b358a4279affd
+            - name: DFLASH_REV
+              value: dc77ff1c99eeb2df044ee3d4f0094eb033fee410
+          volumeMounts:
+            - name: models
+              mountPath: /cache/huggingface
+              subPath: .cache/huggingface
+              readOnly: true
+      containers:
+        - name: vllm
+          image: ghcr.io/tonyd2wild/vllm-glm53-flash:sm121-v11-dflash2@sha256:4def0ef644cb2e9814136dcffd5e385e21bc594f48f3b292234051904abe85a6
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+            capabilities:
+              add: [IPC_LOCK]
+          resources:
+            requests: {cpu: "16", memory: 64Gi, nvidia.com/gpu: "1"}
+            limits: {cpu: "32", memory: 128Gi, nvidia.com/gpu: "1"}
+          env:
+            - name: MODEL_REPO
+              value: RedHatAI/GLM-5.3-Flash-NVFP4
+            - name: MODEL_REV
+              value: c245560b6d7e62c329cd3042343b358a4279affd
+            - name: DFLASH_REV
+              value: dc77ff1c99eeb2df044ee3d4f0094eb033fee410
+            - name: HEAD_IP
+              value: 192.168.192.2
+            - name: NODE_RANK
+              value: "1"
+            - name: VLLM_HOST_IP
+              value: 192.168.192.4
+            - name: HF_HOME
+              value: /cache/huggingface
+            - name: HF_HUB_OFFLINE
+              value: "1"
+            - name: TRANSFORMERS_OFFLINE
+              value: "1"
+            - name: VLLM_ENGINE_READY_TIMEOUT_S
+              value: "3600"
+            - name: NCCL_NET
+              value: IB
+            - name: NCCL_IB_DISABLE
+              value: "0"
+            - name: NCCL_IB_HCA
+              value: rocep1s0f0
+            - name: NCCL_IB_GID_INDEX
+              value: "3"
+            - name: NCCL_IB_ROCE_VERSION_NUM
+              value: "2"
+            - name: NCCL_IB_ADDR_FAMILY
+              value: AF_INET
+            - name: NCCL_IB_ADDR_RANGE
+              value: 192.168.192.0/24
+            - name: NCCL_SOCKET_IFNAME
+              value: enp1s0f0np0
+            - name: GLOO_SOCKET_IFNAME
+              value: enp1s0f0np0
+            - name: TP_SOCKET_IFNAME
+              value: enp1s0f0np0
+            - name: MN_IF_NAME
+              value: enp1s0f0np0
+            - name: NCCL_NVLS_ENABLE
+              value: "0"
+            - name: NCCL_CROSS_NIC
+              value: "0"
+            - name: NCCL_IB_MERGE_NICS
+              value: "0"
+            - name: NCCL_CUMEM_ENABLE
+              value: "0"
+            - name: NCCL_IGNORE_CPU_AFFINITY
+              value: "1"
+            - name: TORCH_NCCL_ASYNC_ERROR_HANDLING
+              value: "1"
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              cache="/cache/huggingface/hub/models--${MODEL_REPO//\//--}/snapshots/${MODEL_REV}"
+              draft="/cache/huggingface/hub/models--incoai--GLM-5.3-Flash-DFlash2/snapshots/${DFLASH_REV}"
+              test -f "$cache/config.json" && test -f "$draft/model.safetensors"
+              template="$cache/chat_template_mm.jinja"
+              test -f "$template" || template="$cache/chat_template.jinja"
+              test -f "$template" || { echo "missing chat template in $cache"; exit 1; }
+              exec vllm serve "$cache" \
+                --served-model-name glm-5.3-flash \
+                --host 0.0.0.0 --port 8000 \
+                --trust-remote-code \
+                --tensor-parallel-size 2 --nnodes 2 --node-rank "$NODE_RANK" \
+                --master-addr "$HEAD_IP" --master-port 29521 --headless \
+                --distributed-executor-backend mp \
+                --gpu-memory-utilization 0.85 --max-model-len 262144 \
+                --max-num-seqs 6 --block-size 2304 --moe-backend marlin \
+                --speculative-config "{\"method\":\"dflash\",\"model\":\"$draft\",\"num_speculative_tokens\":7}" \
+                --kv-cache-dtype fp8_e4m3 --kv-cache-memory 6442450944 \
+                --enforce-eager --max-num-batched-tokens 8192 \
+                --tool-call-parser glm47 --enable-auto-tool-choice \
+                --reasoning-parser glm45 --default-chat-template-kwargs '{"enable_thinking":false}' \
+                --chat-template "$template"
+          volumeMounts:
+            - name: models
+              mountPath: /cache/huggingface
+              subPath: .cache/huggingface
+              readOnly: true
+            - name: dshm
+              mountPath: /dev/shm
+            - name: infiniband
+              mountPath: /dev/infiniband
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 32Gi
+        - name: infiniband
+          hostPath:
+            path: /dev/infiniband
+            type: Directory
