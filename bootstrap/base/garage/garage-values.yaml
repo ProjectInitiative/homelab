@@ -84,6 +84,20 @@ deployment:
   podManagementPolicy: Parallel
   replicaCount: 3
 
+# Remove a pod from the Service EndpointSlices when its local admin API is not ready.
+# This is intentionally a readiness check, not a liveness check: transient Garage
+# failures should drain the pod from HAProxy without forcing a restart.
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 3903
+    scheme: HTTP
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+  successThreshold: 1
+
 # image:
 #   repository: ghcr.io/projectinitiative/garage
 #   # please prefer using the chart version and not this tag

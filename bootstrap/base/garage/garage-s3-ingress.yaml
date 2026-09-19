@@ -5,6 +5,8 @@ metadata:
   namespace: garage
   annotations:
     haproxy.org/forwarded-for: "true"
+    haproxy.org/check: "true"
+    haproxy.org/check-interval: 10s
     haproxy.org/timeout-http-request: 5m
     haproxy.org/timeout-http-keep-alive: 5m
     haproxy.org/timeout-server: 10m
