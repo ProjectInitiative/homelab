@@ -1,0 +1,109 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: juicefs-tcp-multi-reader-bench
+  namespace: juicefs-platform
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 1800
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      volumes:
+        - name: fuse
+          hostPath:
+            path: /dev/fuse
+            type: CharDevice
+        - name: jfs
+          emptyDir: {}
+        - name: cache
+          emptyDir:
+            medium: Memory
+            sizeLimit: 8Gi
+      containers:
+        - name: benchmark
+          image: juicedata/mount:ce-v1.4.1
+          securityContext:
+            privileged: true
+          env:
+            - name: METAURL
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-creds
+                  key: metaurl
+            - name: BUCKET
+              value: http://juicefs-tcp-proxy.juicefs-platform.svc.cluster.local:3900/juicefs-mc
+          command: ["/bin/sh", "-ceu"]
+          args:
+            - |
+              mount_once() {
+                juicefs mount "$METAURL" /jfs \
+                  --storage minio --bucket "$BUCKET" \
+                  --cache-dir /cache --cache-size 8192 \
+                  --prefetch 32 --max-readahead 1G --buffer-size 4G \
+                  --max-downloads 400 --cache-eviction lru --get-timeout 600 \
+                  >/tmp/juicefs-mount.log 2>&1 &
+                mount_pid=$!
+                for i in $(seq 1 60); do
+                  test -f /jfs/.stats && return 0
+                  kill -0 "$mount_pid" 2>/dev/null || break
+                  sleep 1
+                done
+                cat /tmp/juicefs-mount.log
+                return 1
+              }
+              unmount() {
+                juicefs umount /jfs >/dev/null 2>&1 || true
+                mount_pid=""
+              }
+              run_case() {
+                readers="$1"
+                rm -rf /cache/*
+                mount_once
+                files=$(find /jfs -type f -size +256M -not -path '*/.trash/*' | head -"$readers")
+                count=$(printf '%s\n' "$files" | sed '/^$/d' | wc -l)
+                echo "=== MULTI readers=$readers files=$count ==="
+                if [ "$count" -lt "$readers" ]; then
+                  echo "$files"
+                  echo 'Not enough independent files for this reader count.'
+                  return 1
+                fi
+                pids=""
+                bytes=0
+                i=0
+                for file in $files; do
+                  i=$((i+1))
+                  size=$(stat -c %s "$file")
+                  bytes=$((bytes+size))
+                  dd if="$file" of=/dev/null bs=16M status=none >/tmp/dd-$i.log 2>&1 &
+                  pids="$pids $!"
+                done
+                start=$(awk '{print $1}' /proc/uptime)
+                # The readers were started above; wait timing begins immediately
+                # before waiting so process startup is included only minimally.
+                for pid in $pids; do wait "$pid"; done
+                end=$(awk '{print $1}' /proc/uptime)
+                mibps=$(awk -v b="$bytes" -v s="$start" -v e="$end" 'BEGIN { printf "%.2f", b/1048576/(e-s) }')
+                echo "JUICEFS_MULTI_RESULT readers=$readers bytes=$bytes elapsed_s=$(awk -v s=$start -v e=$end 'BEGIN {printf "%.3f",e-s}') MiB/s=$mibps"
+                unmount
+              }
+              mount_pid=""
+              trap unmount EXIT
+              run_case 1
+              run_case 4
+              run_case 8
+          volumeMounts:
+            - name: fuse
+              mountPath: /dev/fuse
+            - name: jfs
+              mountPath: /jfs
+            - name: cache
+              mountPath: /cache
+          resources:
+            requests:
+              memory: 8Gi
+            limits:
+              memory: 16Gi

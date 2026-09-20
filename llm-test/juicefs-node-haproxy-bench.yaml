@@ -1,0 +1,105 @@
+# Temporary manual test: sidecar HAProxy sends S3 traffic directly to Garage
+# NodePorts, bypassing the Kubernetes HAProxy Ingress and ClusterIP Service.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: juicefs-node-haproxy-config
+  namespace: juicefs-platform
+data:
+  haproxy.cfg: |
+    global
+      log stdout format raw local0
+      maxconn 4096
+      pidfile /run/haproxy.pid
+
+    defaults
+      mode http
+      log global
+      option httplog
+      option http-keep-alive
+      timeout connect 10s
+      timeout client 15m
+      timeout server 15m
+      timeout http-request 5m
+      timeout http-keep-alive 5m
+
+    frontend s3
+      bind :3900
+      default_backend garage_nodes
+
+    backend garage_nodes
+      balance roundrobin
+      http-reuse safe
+      server capstan1 172.16.4.51:31654 check
+      server capstan2 172.16.4.52:31654 check
+      server capstan3 172.16.4.53:31654 check
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: juicefs-node-haproxy-bench
+  namespace: juicefs-platform
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 900
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      shareProcessNamespace: true
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      volumes:
+        - name: haproxy-config
+          configMap:
+            name: juicefs-node-haproxy-config
+        - name: runtime
+          emptyDir: {}
+      containers:
+        - name: haproxy
+          image: haproxy:3.2.15-alpine
+          args: ["-W", "-db", "-f", "/usr/local/etc/haproxy/haproxy.cfg", "-p", "/run/haproxy.pid"]
+          ports:
+            - containerPort: 3900
+          volumeMounts:
+            - name: haproxy-config
+              mountPath: /usr/local/etc/haproxy
+            - name: runtime
+              mountPath: /run
+        - name: objbench
+          image: juicedata/mount:ce-v1.4.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-creds
+                  key: access-key
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-creds
+                  key: secret-key
+          command: ["/bin/sh", "-ceu"]
+          args:
+            - |
+              sleep 5
+              for threads in 1 4; do
+                echo "=== NodePort sidecar HAProxy: 128M threads=$threads ==="
+                extra=""
+                if [ "$threads" = 4 ]; then extra="--skip-functional-tests"; fi
+                juicefs objbench \
+                  --storage s3 \
+                  --access-key "$ACCESS_KEY" \
+                  --secret-key "$SECRET_KEY" \
+                  http://127.0.0.1:3900/juicefs-mc \
+                  --small-objects 100 \
+                  --small-object-size 128K \
+                  --big-object-size 128M \
+                  --threads "$threads" \
+                  $extra
+              done
+              kill "$(cat /run/haproxy.pid)" || true
+          volumeMounts:
+            - name: runtime
+              mountPath: /run

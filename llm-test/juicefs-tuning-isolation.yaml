@@ -1,0 +1,60 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: juicefs-tuning-isolation
+  namespace: juicefs-platform
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 1200
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector: {kubernetes.io/hostname: chronometer}
+      volumes:
+      - name: fuse
+        hostPath: {path: /dev/fuse, type: CharDevice}
+      - name: jfs
+        emptyDir: {}
+      - name: cache
+        emptyDir: {medium: Memory, sizeLimit: 16Gi}
+      containers:
+      - name: benchmark
+        image: juicedata/mount:ce-v1.4.1
+        securityContext: {privileged: true}
+        env:
+        - name: METAURL
+          valueFrom: {secretKeyRef: {name: juicefs-creds, key: metaurl}}
+        - name: BUCKET
+          value: http://juicefs-tuning-tcp-proxy.juicefs-platform.svc.cluster.local:3900/juicefs-mc
+        command: [/bin/sh, -ceu]
+        args:
+        - |
+          pid=""
+          trap 'juicefs umount /jfs >/dev/null 2>&1 || true' EXIT
+          run() {
+            label="$1"; p="$2"; r="$3"; b="$4"; d="$5"
+            rm -rf /cache/*
+            juicefs mount "$METAURL" /jfs --storage minio --bucket "$BUCKET" --cache-dir /cache --cache-size 16384 --prefetch "$p" --max-readahead "$r" --buffer-size "$b" --max-downloads "$d" --cache-eviction lru --get-timeout 600 >/tmp/mount.log 2>&1 &
+            pid=$!
+            for i in $(seq 1 60); do test -f /jfs/.stats && break; sleep 1; done
+            file=$(find /jfs/.trash -type f -size +512M -size -2G -print -quit)
+            bytes=$(stat -c %s "$file")
+            start=$(awk '{print $1}' /proc/uptime)
+            dd if="$file" of=/dev/null bs=16M status=none
+            end=$(awk '{print $1}' /proc/uptime)
+            mibps=$(awk -v b="$bytes" -v s="$start" -v e="$end" 'BEGIN{printf "%.2f",b/1048576/(e-s)}')
+            echo "ISOLATION_RESULT case=$label prefetch=$p readahead=$r buffer=$b downloads=$d elapsed_s=$(awk -v s=$start -v e=$end 'BEGIN{printf "%.3f",e-s}') MiB/s=$mibps"
+            juicefs umount /jfs >/dev/null 2>&1 || true; pid=""
+          }
+          run prefetch-only 128 4G 1G 200
+          run downloads-only 8 4G 12G 1200
+          run readahead-only 128 256M 12G 1200
+          run combined 128 4G 12G 1200
+        volumeMounts:
+        - {name: fuse, mountPath: /dev/fuse}
+        - {name: jfs, mountPath: /jfs}
+        - {name: cache, mountPath: /cache}
+        resources:
+          requests: {memory: 16Gi}
+          limits: {memory: 32Gi}

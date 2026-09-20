@@ -1,0 +1,128 @@
+# Temporary test to identify whether a specific Garage NodePort is slow.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: juicefs-pod-isolation-config
+  namespace: juicefs-platform
+data:
+  haproxy.cfg: |
+    global
+      log stdout format raw local0
+      maxconn 10000
+      nbthread 4
+    defaults
+      mode tcp
+      log global
+      timeout connect 10s
+      timeout client 10m
+      timeout server 10m
+    frontend capstan1
+      bind :3901
+      default_backend capstan1_backend
+    backend capstan1_backend
+      server capstan1 10.42.0.106:3900 check
+    frontend capstan2
+      bind :3902
+      default_backend capstan2_backend
+    backend capstan2_backend
+      server capstan2 10.42.1.237:3900 check
+    frontend capstan3
+      bind :3903
+      default_backend capstan3_backend
+    backend capstan3_backend
+      server capstan3 10.42.2.12:3900 check
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: juicefs-pod-isolation-proxy
+  namespace: juicefs-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: juicefs-pod-isolation-proxy}
+  template:
+    metadata:
+      labels: {app: juicefs-pod-isolation-proxy}
+    spec:
+      containers:
+      - name: haproxy
+        image: haproxy:3.2.15-alpine
+        args: ["-W", "-db", "-f", "/usr/local/etc/haproxy/haproxy.cfg"]
+        ports:
+        - {name: capstan1, containerPort: 3901}
+        - {name: capstan2, containerPort: 3902}
+        - {name: capstan3, containerPort: 3903}
+        volumeMounts:
+        - {name: config, mountPath: /usr/local/etc/haproxy}
+      volumes:
+      - name: config
+        configMap: {name: juicefs-pod-isolation-config}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: juicefs-pod-isolation-proxy
+  namespace: juicefs-platform
+spec:
+  selector: {app: juicefs-pod-isolation-proxy}
+  ports:
+  - {name: capstan1, port: 3901, targetPort: capstan1}
+  - {name: capstan2, port: 3902, targetPort: capstan2}
+  - {name: capstan3, port: 3903, targetPort: capstan3}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: juicefs-pod-isolation-bench
+  namespace: juicefs-platform
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 900
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector: {kubernetes.io/hostname: chronometer}
+      volumes:
+      - name: fuse
+        hostPath: {path: /dev/fuse, type: CharDevice}
+      - name: jfs
+        emptyDir: {}
+      - name: cache
+        emptyDir: {medium: Memory, sizeLimit: 8Gi}
+      containers:
+      - name: benchmark
+        image: juicedata/mount:ce-v1.4.1
+        securityContext: {privileged: true}
+        env:
+        - name: METAURL
+          valueFrom: {secretKeyRef: {name: juicefs-creds, key: metaurl}}
+        command: [/bin/sh, -ceu]
+        args:
+        - |
+          run() {
+            label="$1"; port="$2"
+            rm -rf /cache/*
+            bucket="http://juicefs-pod-isolation-proxy.juicefs-platform.svc.cluster.local:${port}/juicefs-mc"
+            juicefs mount "$METAURL" /jfs --storage minio --bucket "$bucket" --cache-dir /cache --cache-size 8192 --prefetch 32 --max-readahead 1G --buffer-size 4G --max-downloads 400 --cache-eviction lru --get-timeout 120 >/tmp/mount.log 2>&1 &
+            pid=$!
+            for i in $(seq 1 60); do test -f /jfs/.stats && break; sleep 1; done
+            file=$(find /jfs/.trash -type f -size +512M -size -2G -print -quit)
+            bytes=$(stat -c %s "$file")
+            start=$(awk '{print $1}' /proc/uptime)
+            dd if="$file" of=/dev/null bs=16M status=none
+            end=$(awk '{print $1}' /proc/uptime)
+            awk -v b="$bytes" -v s="$start" -v e="$end" 'BEGIN {printf "POD_RESULT pod=%s bytes=%d elapsed_s=%.3f MiB/s=%.2f\n",label,b,e-s,b/1048576/(e-s)}'
+            juicefs umount /jfs >/dev/null 2>&1 || kill "$pid" || true
+          }
+          run capstan1 3901
+          run capstan2 3902
+          run capstan3 3903
+        volumeMounts:
+        - {name: fuse, mountPath: /dev/fuse}
+        - {name: jfs, mountPath: /jfs}
+        - {name: cache, mountPath: /cache}
+        resources:
+          requests: {memory: 8Gi}
+          limits: {memory: 16Gi}
