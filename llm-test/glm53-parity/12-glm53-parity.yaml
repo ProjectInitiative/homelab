@@ -15,6 +15,8 @@
 #   digest sha256:447114ee77d14c9b4732ee23978ada2a0ee9027868a231d6fd42700a8b25be1d
 # Model: Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw @ 25a44fdbf16862a46b7cc9921142c6c81350af2f
 # Draft: incoai/GLM-5.3-Flash-DFlash2 (k=7) @ dc77ff1c99eeb2df044ee3d4f0094eb033fee410
+# Runtime speed patches synced from MiaAI-Lab main @ b7637fc: adaptive-k + dense FP8.
+# The newer native thin-decode patch is not enabled; it requires a rebuilt image.
 # Served model id: GLM-5.3-Flash-EXL3
 # API: http://<node>:8000 (host network); Tailscale endpoint in services.yaml.
 ---
@@ -251,7 +253,7 @@ spec:
             - {name: MM_PROCESSOR_CACHE_GB, value: "1"}
             - {name: CHAT_TEMPLATE, value: /opt/glm53/chat_template.jinja}
             - {name: ENFORCE_EAGER, value: "0"}
-            - {name: EXTRA_ARGS, value: "--cudagraph-capture-sizes 1 2 4 8 16 24 32 --kv-cache-memory-bytes 12884901888"}
+            - {name: EXTRA_ARGS, value: "--cudagraph-capture-sizes 1 2 3 4 5 8 16 24 32 --kv-cache-memory-bytes 12884901888"}
             # exl3 fat-moe
             - {name: EXL3_FUSED_MOE, value: "1"}
             - {name: EXL3_MOE_ROW_TILE, value: "0"}
@@ -268,14 +270,14 @@ spec:
             - {name: ABLIT_ALPHA, value: "3.0"}
             - {name: ABLIT_INCLUDE_MTP, value: "1"}
             # GLM53 decode knobs
-            - {name: GLM53_ADAPTIVE_K, value: "off"}
+            - {name: GLM53_ADAPTIVE_K, value: "ema"}
             - {name: GLM53_ADAPTIVE_K_SET, value: "2,4,7"}
             - {name: GLM53_ADAPTIVE_K_ALPHA, value: "0.25"}
             - {name: GLM53_ADAPTIVE_K_MARGIN, value: "1.0"}
             - {name: GLM53_ADAPTIVE_K_MIN_STEPS, value: "4"}
             - {name: GLM53_ADAPTIVE_K_SATURATE, value: max}
             - {name: GLM53_ADAPTIVE_K_HIST, value: "200"}
-            - {name: GLM53_DENSE_FP8, value: "off"}
+            - {name: GLM53_DENSE_FP8, value: "dense,kda"}
             - {name: GLM53_SUPPRESS_STOPS_IN_REASONING, value: "1"}
             # Preserve vLLM continuous batching: allow prefills while peers decode.
             - {name: GLM53_MIXED_PREFILL_CHUNK, value: "off"}
@@ -603,7 +605,7 @@ spec:
             - {name: MM_PROCESSOR_CACHE_GB, value: "1"}
             - {name: CHAT_TEMPLATE, value: /opt/glm53/chat_template.jinja}
             - {name: ENFORCE_EAGER, value: "0"}
-            - {name: EXTRA_ARGS, value: "--cudagraph-capture-sizes 1 2 4 8 16 24 32 --kv-cache-memory-bytes 12884901888"}
+            - {name: EXTRA_ARGS, value: "--cudagraph-capture-sizes 1 2 3 4 5 8 16 24 32 --kv-cache-memory-bytes 12884901888"}
             - {name: EXL3_FUSED_MOE, value: "1"}
             - {name: EXL3_MOE_ROW_TILE, value: "0"}
             - {name: EXL3_TEMP_ROWS_FUSED, value: "32"}
@@ -617,14 +619,14 @@ spec:
             - {name: ABLIT_LAYERS, value: "15-45"}
             - {name: ABLIT_ALPHA, value: "3.0"}
             - {name: ABLIT_INCLUDE_MTP, value: "1"}
-            - {name: GLM53_ADAPTIVE_K, value: "off"}
+            - {name: GLM53_ADAPTIVE_K, value: "ema"}
             - {name: GLM53_ADAPTIVE_K_SET, value: "2,4,7"}
             - {name: GLM53_ADAPTIVE_K_ALPHA, value: "0.25"}
             - {name: GLM53_ADAPTIVE_K_MARGIN, value: "1.0"}
             - {name: GLM53_ADAPTIVE_K_MIN_STEPS, value: "4"}
             - {name: GLM53_ADAPTIVE_K_SATURATE, value: max}
             - {name: GLM53_ADAPTIVE_K_HIST, value: "200"}
-            - {name: GLM53_DENSE_FP8, value: "off"}
+            - {name: GLM53_DENSE_FP8, value: "dense,kda"}
             - {name: GLM53_SUPPRESS_STOPS_IN_REASONING, value: "1"}
             # Preserve vLLM continuous batching: allow prefills while peers decode.
             - {name: GLM53_MIXED_PREFILL_CHUNK, value: "off"}
