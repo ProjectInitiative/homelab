@@ -34,11 +34,11 @@ metadata:
 data:
   config.yaml: |
     model_list:
-      # The DGX backend is the currently active model on chronometer:8000.
-      # Keep this gateway alias stable while swapping DGX serving lanes.
+      # The swap controller will update this active backend when the resident
+      # DGX model changes. Keep the public alias stable for clients.
       - model_name: dgx-spark
         litellm_params:
-          model: openai/deepseek-v4-flash-vision-exp
+          model: hosted_vllm/GLM-5.3-Flash-EXL3
           api_base: http://172.16.4.55:8000/v1
           api_key: sk-local
       - model_name: qwen3.8-flash-next-halogen
