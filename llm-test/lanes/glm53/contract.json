@@ -216,6 +216,11 @@
       "text": "fabric[\"nodeName\"] != node_name"
     },
     {
+      "count": 1,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "fabric[\"controlPlane\"][\"address\"] != host_ip"
+    },
+    {
       "count": 0,
       "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
       "text": "kubernetes.io/hostname: chronometer"
@@ -228,7 +233,52 @@
     {
       "count": 0,
       "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "kubernetes.io/hostname: octant"
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
       "text": "172.16.5."
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "172.16.6."
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "172.16.7."
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "172.16.8."
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "172.16.9."
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "172.16.10."
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "mlx5_"
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "enp1s0f"
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "enP2p1s0f"
     },
     {
       "count": 0,
