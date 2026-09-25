@@ -88,24 +88,14 @@ multi-architecture manifest digest.
 
 3. Sync this Argo CD app and verify every Spark advertises both
    `nvidia.com/gpu` and `rdma/hca_shared_devices`.
-4. Run the suspended smoke job below.
+4. Run qualification workloads manually in the `llm-test` namespace.
 
-## Qualification smoke job
+## Qualification workloads
 
-`smoke/` contains a suspended three-pod Job. It requests one GPU and one RDMA
-allocation per pod and uses required hostname anti-affinity, so unsuspending it
-validates all three Sparks without embedding their names. It checks GPU/RDMA
-devices, the inventory schema, control address, MTU, link state, netdev-to-HCA
-mapping, local addresses, and permanent peer neighbors. It does not attempt to
-select NCCL rails or qualify TP=3.
-
-After the Nix host changes and this plugin are deployed:
-
-```bash
-kubectl apply -k bootstrap/base/rdma-shared-device-plugin/smoke
-kubectl patch job -n kube-system rdma-fabric-smoke \
-  --type=merge -p '{"spec":{"suspend":false}}'
-kubectl logs -n kube-system -l app.kubernetes.io/name=rdma-fabric-smoke \
-  --prefix --tail=-1
-kubectl delete -k bootstrap/base/rdma-shared-device-plugin/smoke
-```
+Smoke Jobs are intentionally not managed by this GitOps app. Create them
+transiently in `llm-test`, inspect their logs, and delete them after the run.
+A three-pod fabric test should request one GPU and one RDMA allocation per pod,
+use required hostname anti-affinity, and validate GPU/RDMA devices, inventory
+schema, control address, MTU, link state, netdev-to-HCA mapping, local addresses,
+and permanent peer neighbors. This infrastructure test does not select NCCL
+rails or qualify a TP recipe.
