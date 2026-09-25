@@ -1,0 +1,11 @@
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: nvidia-rdma
+handler: nvidia
+scheduling:
+  nodeSelector:
+    kubernetes.io/arch: arm64
+    gpu: dgx-spark
+    fabric.homelab.io/rdma: roce-v2
+    fabric.homelab.io/topology: direct-ring

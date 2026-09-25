@@ -79,16 +79,20 @@ catalog:
         targetRevision: 0.19.3
         helm:
           values: |
-            # Drivers and NVIDIA Container Toolkit are installed on the GB10 hosts.
-            # Limit the plugin to the two GPU nodes for now.
+            # Drivers and NVIDIA Container Toolkit are installed on every DGX Spark.
+            # Select the capability pool rather than enumerating hostnames so newly
+            # qualified Sparks advertise nvidia.com/gpu automatically.
             affinity:
               nodeAffinity:
                 requiredDuringSchedulingIgnoredDuringExecution:
                   nodeSelectorTerms:
                     - matchExpressions:
-                        - key: kubernetes.io/hostname
+                        - key: gpu
                           operator: In
-                          values: [chronometer, sextant, capstan1]
+                          values: [dgx-spark]
+                        - key: kubernetes.io/arch
+                          operator: In
+                          values: [arm64]
             # The plugin must run with the NVIDIA runtime so NVML and driver
             # libraries are injected into the container.
             runtimeClassName: nvidia
@@ -97,6 +101,14 @@ catalog:
               enabled: false
             nfd:
               enabled: false
+    syncPolicy:
+      syncOptions:
+        - ServerSideApply=true
+
+  rdma-shared-device-plugin:
+    path: bootstrap/base/rdma-shared-device-plugin/config
+    annotations:
+      argocd.argoproj.io/sync-wave: "11"
     syncPolicy:
       syncOptions:
         - ServerSideApply=true
