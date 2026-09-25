@@ -1,24 +1,150 @@
 # GLM-5.3-Flash EXL3 (2x DGX Spark / GB10 / SM121) — MIAI Kubernetes parity lane.
 #
 # Faithful Kubernetes port of the upstream MiaAI Lab GLM-5.3-Flash-EXL3-2x-DGX-Sparks
-# `start.sh` recipe (the DeepSeek lane pattern). The public GHCR image
-#   ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3
-# bakes the overlay patches at build time; the two runtime-only decode patches are
-# delivered from the `glm53-parity-overlay` ConfigMap (see 12-glm53-assets.yaml).
+# `start.sh` recipe (the DeepSeek lane pattern). The pinned public GHCR image
+# contains an older baked recipe; reviewed source-only updates are delivered from
+# the `glm53-parity-overlay` ConfigMap (see 12-glm53-assets.yaml).
 #
 # PRE-DEPLOY convention: both Deployments start at `replicas: 0`. Nothing is
 # started until you explicitly scale the worker rank first, then the head rank.
 #
-# Runtime baseline: MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks @
-# 56d0bdfbaa961283d1c54e61f4e67fcb1b9d37b9 (upstream HEAD, 2026-09-17).
+# Kubernetes wrapper and mounted Python overlays reconciled against MiaAI-Lab
+# upstream @ d0b960816ba15c37927247ff74a6d04e59b00a3e. The immutable image remains
+# the older published baseline because GHCR has not published a newer digest.
 # Image: ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor
 #   digest sha256:447114ee77d14c9b4732ee23978ada2a0ee9027868a231d6fd42700a8b25be1d
 # Model: Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw @ 25a44fdbf16862a46b7cc9921142c6c81350af2f
 # Draft: incoai/GLM-5.3-Flash-DFlash2 (k=7) @ dc77ff1c99eeb2df044ee3d4f0094eb033fee410
-# Runtime speed patches synced from MiaAI-Lab main @ b7637fc: adaptive-k + dense FP8.
-# The newer native thin-decode patch is not enabled; it requires a rebuilt image.
+# Runtime overlays are synced from reviewed MiaAI-Lab HEAD @ d0b9608. The Mamba
+# bounded-state fixes are active; large-M KDA BF16 and compact DFlash pages are
+# disabled for the memory-conservative profile. Native thin-decode remains
+# disabled because it requires a provenance-matched rebuilt image.
 # Served model id: GLM-5.3-Flash-EXL3
 # API: http://<node>:8000 (host network); Tailscale endpoint in services.yaml.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: glm53-rdma-fabric
+  namespace: llm-test
+data:
+  configure-rdma-fabric.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    : "${PEER_SERVICE:?PEER_SERVICE is required}"
+    : "${HOST_IP:?HOST_IP is required}"
+    : "${NODE_NAME:?NODE_NAME is required}"
+    inventory=/etc/dgx-spark/rdma-fabric.json
+    test -s "$inventory"
+
+    echo "waiting for peer endpoint $PEER_SERVICE"
+    while true; do
+      PEER_CONTROL_IP="$(getent ahostsv4 "$PEER_SERVICE" | awk -v self="$HOST_IP" '$1 != self { print $1; exit }')"
+      [ -n "$PEER_CONTROL_IP" ] && break
+      sleep 2
+    done
+    export PEER_CONTROL_IP
+
+    eval "$(python3 - "$inventory" "$PEER_CONTROL_IP" "$NODE_NAME" "$HOST_IP" <<'PY'
+    import ipaddress
+    import json
+    import pathlib
+    import shlex
+    import sys
+
+    inventory_path, peer_control_ip, node_name, host_ip = sys.argv[1:]
+    fabric = json.loads(pathlib.Path(inventory_path).read_text())
+    if fabric["nodeName"] != node_name:
+        raise SystemExit(
+            f"fabric inventory node {fabric['nodeName']} does not match scheduled node {node_name}"
+        )
+    if fabric["controlPlane"]["address"] != host_ip:
+        raise SystemExit(
+            f"fabric control address {fabric['controlPlane']['address']} does not match host IP {host_ip}"
+        )
+    links = [
+        link for link in fabric["links"]
+        if link["peerControlAddress"] == peer_control_ip
+    ]
+    if len(links) != 2:
+        raise SystemExit(
+            f"expected two rails to peer {peer_control_ip}, found {len(links)}"
+        )
+
+    hcas = []
+    gid_indexes = set()
+    netdevs = []
+    for link in links:
+        netdev = link["interface"]
+        netdevs.append(netdev)
+        hca_dir = pathlib.Path("/sys/class/net") / netdev / "device/infiniband"
+        hca_names = sorted(path.name for path in hca_dir.iterdir())
+        if len(hca_names) != 1:
+            raise SystemExit(f"expected one HCA for {netdev}, found {hca_names}")
+        hca = hca_names[0]
+        hcas.append(f"{hca}:1")
+
+        local_ip = ipaddress.ip_interface(link["address"]).ip
+        gid_root = pathlib.Path("/sys/class/infiniband") / hca / "ports/1"
+        matches = []
+        for gid_path in sorted((gid_root / "gids").iterdir(), key=lambda p: int(p.name)):
+            index = gid_path.name
+            try:
+                gid_type = (gid_root / "gid_attrs/types" / index).read_text().strip()
+                gid_netdev = (gid_root / "gid_attrs/ndevs" / index).read_text().strip()
+                gid = ipaddress.ip_address(gid_path.read_text().strip())
+            except (OSError, ValueError):
+                continue
+            if gid_type == "RoCE v2" and gid_netdev == netdev and gid.ipv4_mapped == local_ip:
+                matches.append(index)
+        if len(matches) != 1:
+            raise SystemExit(f"expected one RoCE v2 GID for {netdev}/{local_ip}, found {matches}")
+        gid_indexes.add(matches[0])
+
+    if len(gid_indexes) != 1:
+        raise SystemExit(f"selected rails use different GID indexes: {gid_indexes}")
+
+    values = {
+        "NCCL_IB_HCA": "=" + ",".join(hcas),
+        "NCCL_IB_GID_INDEX": next(iter(gid_indexes)),
+        "NCCL_SOCKET_IFNAME": "=" + fabric["controlPlane"]["interface"],
+        "GLOO_SOCKET_IFNAME": fabric["controlPlane"]["interface"],
+        "VLLM_HOST_IP": fabric["controlPlane"]["address"],
+        "RDMA_PEER_NODE": links[0]["peerNode"],
+        "RDMA_PEER_NETDEVS": ",".join(netdevs),
+    }
+    for key, value in values.items():
+        print(f"export {key}={shlex.quote(value)}")
+    PY
+    )"
+
+    echo "fabric peer=$RDMA_PEER_NODE control=$PEER_CONTROL_IP rails=$RDMA_PEER_NETDEVS hcas=$NCCL_IB_HCA gid=$NCCL_IB_GID_INDEX"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: glm53-head-rendezvous
+  namespace: llm-test
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: glm53-exl3-head
+  ports:
+    - {name: master, port: 29521, targetPort: 29521}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: glm53-worker-rendezvous
+  namespace: llm-test
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: glm53-exl3-worker
+  ports:
+    - {name: peer, port: 29521, targetPort: 29521}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -33,16 +159,23 @@ spec:
     matchLabels: {app: glm53-exl3-head}
   template:
     metadata:
-      labels: {app: glm53-exl3-head}
+      labels:
+        app: glm53-exl3-head
+        app.kubernetes.io/name: glm53-exl3
     spec:
-      runtimeClassName: nvidia
+      runtimeClassName: nvidia-rdma
       hostNetwork: true
       hostIPC: true
       dnsPolicy: ClusterFirstWithHostNet
       securityContext:
         seccompProfile: {type: Unconfined}
-      nodeSelector:
-        kubernetes.io/hostname: chronometer
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: glm53-exl3
       terminationGracePeriodSeconds: 10
       initContainers:
         - name: stage-model-cache
@@ -84,8 +217,8 @@ spec:
           imagePullPolicy: IfNotPresent
           securityContext: {privileged: true}
           resources:
-            requests: {cpu: "16", memory: 64Gi, nvidia.com/gpu: "1"}
-            limits: {cpu: "32", memory: 128Gi, nvidia.com/gpu: "1"}
+            requests: {cpu: "16", memory: 64Gi, nvidia.com/gpu: "1", rdma/hca_shared_devices: "1"}
+            limits: {cpu: "32", memory: 128Gi, nvidia.com/gpu: "1", rdma/hca_shared_devices: "1"}
           command: ["/bin/bash", "-lc"]
           args:
             - |
@@ -118,6 +251,10 @@ spec:
               mkdir -p /run/triton-cuda-driver
               ln -sfn "$REAL_LIBCUDA" /run/triton-cuda-driver/libcuda.so.1
               ln -sfn "$REAL_LIBCUDA" /run/triton-cuda-driver/libcuda.so
+
+              . /opt/glm53/configure-rdma-fabric.sh
+              HEAD_IP="$HOST_IP"
+              export HEAD_IP
 
               ARGS=(
                 --served-model-name "${SERVED_MODEL_NAME}"
@@ -177,11 +314,14 @@ spec:
               # Runtime overlay re-apply (GLM53_OVERLAY_ORDER from start.sh); each
               # patch is guarded by `[ -f ]` so a missing or disabled patch is skipped.
               for p in patch_glm_video_placeholders.py patch_suppress_stops_in_reasoning.py \
-                       patch_scheduler_decode_floor.py patch_glm5_drafter_group.py \
-                       patch_hybrid_prefix_hit.py patch_apc_per_group_retention.py \
-                       patch_xgrammar_termination.py patch_kpool_tail_slotmap.py \
-                       patch_spinwait.py patch_adaptive_k.py patch_dense_fp8.py \
-                       patch_indexer_workspace.py patch_ablit.py; do
+                       patch_scheduler_decode_floor.py patch_mamba_align_chunking.py \
+                       patch_glm5_drafter_group.py patch_hybrid_prefix_hit.py \
+                       patch_apc_per_group_retention.py patch_apc_no_store.py \
+                       patch_mamba_align_state_free.py patch_kv_capacity_log.py \
+                       patch_tool_choice_none.py patch_xgrammar_termination.py \
+                       patch_kpool_tail_slotmap.py patch_spinwait.py patch_adaptive_k.py \
+                       patch_dense_fp8.py patch_default_max_new_tokens.py \
+                       patch_indexer_workspace.py patch_cache_reset.py patch_ablit.py; do
                 if [ -f /opt/glm53/$p ]; then
                   say "applying overlay patch $p"
                   python3 /opt/glm53/$p
@@ -232,7 +372,14 @@ spec:
             - {name: PORT, value: "8000"}
             - {name: TP, value: "2"}
             - {name: NNODES, value: "2"}
-            - {name: HEAD_IP, value: 172.16.5.55}
+            - {name: HEAD_SERVICE, value: glm53-head-rendezvous.llm-test.svc.cluster.local}
+            - {name: PEER_SERVICE, value: glm53-worker-rendezvous.llm-test.svc.cluster.local}
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef: {fieldPath: spec.nodeName}
+            - name: HOST_IP
+              valueFrom:
+                fieldRef: {fieldPath: status.hostIP}
             - {name: MASTER_PORT, value: "29521"}
             - {name: QUANTIZATION, value: exl3}
             - {name: MAX_MODEL_LEN, value: "512000"}
@@ -253,7 +400,7 @@ spec:
             - {name: MM_PROCESSOR_CACHE_GB, value: "1"}
             - {name: CHAT_TEMPLATE, value: /opt/glm53/chat_template.jinja}
             - {name: ENFORCE_EAGER, value: "0"}
-            - {name: EXTRA_ARGS, value: "--cudagraph-capture-sizes 1 2 3 4 5 8 16 24 32 --kv-cache-memory-bytes 12884901888"}
+            - {name: EXTRA_ARGS, value: "--cudagraph-capture-sizes 1 2 3 4 5 8 16 24 32 --kv-cache-memory-bytes 16106127360"}
             # exl3 fat-moe
             - {name: EXL3_FUSED_MOE, value: "1"}
             - {name: EXL3_MOE_ROW_TILE, value: "0"}
@@ -278,6 +425,12 @@ spec:
             - {name: GLM53_ADAPTIVE_K_SATURATE, value: max}
             - {name: GLM53_ADAPTIVE_K_HIST, value: "200"}
             - {name: GLM53_DENSE_FP8, value: "dense,kda"}
+            # Compact DFlash pages reduce allocator block-ID pressure but do not
+            # reduce backing VRAM; keep the experimental path off by default.
+            - {name: GLM53_DRAFT_KV_COMPACT, value: "0"}
+            # The BF16 large-M optimization retains ~3.29 GiB/rank. Keep it off
+            # for the memory-conservative profile; FP8-Marlin remains active.
+            - {name: GLM53_KDA_BF16_LARGE_M, value: "0"}
             - {name: GLM53_SUPPRESS_STOPS_IN_REASONING, value: "1"}
             # Preserve vLLM continuous batching: allow prefills while peers decode.
             - {name: GLM53_MIXED_PREFILL_CHUNK, value: "off"}
@@ -292,15 +445,11 @@ spec:
             - {name: NCCL_NVLS_ENABLE, value: "0"}
             - {name: NCCL_CUMEM_ENABLE, value: "0"}
             - {name: NCCL_IB_MERGE_NICS, value: "0"}
-            - {name: NCCL_CROSS_NIC, value: "0"}
+            - {name: NCCL_CROSS_NIC, value: "1"}
             - {name: NCCL_IGNORE_CPU_AFFINITY, value: "1"}
             - {name: NCCL_DEBUG, value: WARN}
-            - {name: NCCL_SOCKET_IFNAME, value: enp1s0f1np1}
-            - {name: GLOO_SOCKET_IFNAME, value: enp1s0f1np1}
-            # NCCL_IB_HCA names the RDMA device, not the Linux netdev.
-            - {name: NCCL_IB_HCA, value: "mlx5_1:1"}
-            - {name: NCCL_IB_GID_INDEX, value: "2"}
-            - {name: VLLM_HOST_IP, value: 172.16.5.55}
+            # Socket/Gloo interfaces, peer HCAs, RoCE GID, and VLLM_HOST_IP are
+            # derived from the node-local fabric inventory at container start.
           ports:
             - name: http
               containerPort: 8000
@@ -330,9 +479,34 @@ spec:
               subPath: boot-shape-warmup.sh
             - name: readiness
               mountPath: /run/glm53
+            - name: fabric-config
+              mountPath: /opt/glm53/configure-rdma-fabric.sh
+              subPath: configure-rdma-fabric.sh
+              readOnly: true
+            - name: fabric-inventory
+              mountPath: /etc/dgx-spark/rdma-fabric.json
+              readOnly: true
             - name: models
               mountPath: /cache/huggingface
               subPath: .cache/huggingface
+            - name: overlay
+              mountPath: /opt/glm53/patch_scheduler_decode_floor.py
+              subPath: patch_scheduler_decode_floor.py
+            - name: overlay
+              mountPath: /opt/glm53/patch_mamba_align_chunking.py
+              subPath: patch_mamba_align_chunking.py
+            - name: overlay
+              mountPath: /opt/glm53/patch_glm5_drafter_group.py
+              subPath: patch_glm5_drafter_group.py
+            - name: overlay
+              mountPath: /opt/glm53/patch_hybrid_prefix_hit.py
+              subPath: patch_hybrid_prefix_hit.py
+            - name: overlay
+              mountPath: /opt/glm53/patch_mamba_align_state_free.py
+              subPath: patch_mamba_align_state_free.py
+            - name: overlay
+              mountPath: /opt/glm53/patch_kv_capacity_log.py
+              subPath: patch_kv_capacity_log.py
             - name: overlay
               mountPath: /opt/glm53/patch_adaptive_k.py
               subPath: patch_adaptive_k.py
@@ -354,8 +528,6 @@ spec:
               mountPath: /dev/shm
             - name: diagnostics
               mountPath: /diagnostics
-            - name: infiniband
-              mountPath: /dev/infiniband
       volumes:
         - name: models
           persistentVolumeClaim:
@@ -366,6 +538,14 @@ spec:
             defaultMode: 0555
         - name: readiness
           emptyDir: {}
+        - name: fabric-config
+          configMap:
+            name: glm53-rdma-fabric
+            defaultMode: 0555
+        - name: fabric-inventory
+          hostPath:
+            path: /var/lib/dgx-spark/rdma-fabric.json
+            type: File
         - name: overlay
           configMap:
             name: glm53-parity-overlay
@@ -393,10 +573,6 @@ spec:
           hostPath:
             path: /var/lib/llm-test/diagnostics
             type: DirectoryOrCreate
-        - name: infiniband
-          hostPath:
-            path: /dev/infiniband
-            type: Directory
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -411,16 +587,23 @@ spec:
     matchLabels: {app: glm53-exl3-worker}
   template:
     metadata:
-      labels: {app: glm53-exl3-worker}
+      labels:
+        app: glm53-exl3-worker
+        app.kubernetes.io/name: glm53-exl3
     spec:
-      runtimeClassName: nvidia
+      runtimeClassName: nvidia-rdma
       hostNetwork: true
       hostIPC: true
       dnsPolicy: ClusterFirstWithHostNet
       securityContext:
         seccompProfile: {type: Unconfined}
-      nodeSelector:
-        kubernetes.io/hostname: sextant
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: glm53-exl3
       terminationGracePeriodSeconds: 10
       initContainers:
         - name: stage-model-cache
@@ -458,8 +641,8 @@ spec:
           imagePullPolicy: IfNotPresent
           securityContext: {privileged: true}
           resources:
-            requests: {cpu: "16", memory: 64Gi, nvidia.com/gpu: "1"}
-            limits: {cpu: "32", memory: 128Gi, nvidia.com/gpu: "1"}
+            requests: {cpu: "16", memory: 64Gi, nvidia.com/gpu: "1", rdma/hca_shared_devices: "1"}
+            limits: {cpu: "32", memory: 128Gi, nvidia.com/gpu: "1", rdma/hca_shared_devices: "1"}
           command: ["/bin/bash", "-lc"]
           args:
             - |
@@ -491,6 +674,14 @@ spec:
               mkdir -p /run/triton-cuda-driver
               ln -sfn "$REAL_LIBCUDA" /run/triton-cuda-driver/libcuda.so.1
               ln -sfn "$REAL_LIBCUDA" /run/triton-cuda-driver/libcuda.so
+
+              . /opt/glm53/configure-rdma-fabric.sh
+              while true; do
+                HEAD_IP="$(getent ahostsv4 "$HEAD_SERVICE" | awk '{ print $1; exit }')"
+                [ -n "$HEAD_IP" ] && break
+                sleep 2
+              done
+              export HEAD_IP
 
               ARGS=(
                 --served-model-name "${SERVED_MODEL_NAME}"
@@ -548,11 +739,14 @@ spec:
                 ARGS+=("${EXTRA[@]}")
               fi
               for p in patch_glm_video_placeholders.py patch_suppress_stops_in_reasoning.py \
-                       patch_scheduler_decode_floor.py patch_glm5_drafter_group.py \
-                       patch_hybrid_prefix_hit.py patch_apc_per_group_retention.py \
-                       patch_xgrammar_termination.py patch_kpool_tail_slotmap.py \
-                       patch_spinwait.py patch_adaptive_k.py patch_dense_fp8.py \
-                       patch_indexer_workspace.py patch_ablit.py; do
+                       patch_scheduler_decode_floor.py patch_mamba_align_chunking.py \
+                       patch_glm5_drafter_group.py patch_hybrid_prefix_hit.py \
+                       patch_apc_per_group_retention.py patch_apc_no_store.py \
+                       patch_mamba_align_state_free.py patch_kv_capacity_log.py \
+                       patch_tool_choice_none.py patch_xgrammar_termination.py \
+                       patch_kpool_tail_slotmap.py patch_spinwait.py patch_adaptive_k.py \
+                       patch_dense_fp8.py patch_default_max_new_tokens.py \
+                       patch_indexer_workspace.py patch_cache_reset.py patch_ablit.py; do
                 if [ -f /opt/glm53/$p ]; then
                   say "applying overlay patch $p"
                   python3 /opt/glm53/$p
@@ -584,7 +778,14 @@ spec:
             - {name: PORT, value: "8000"}
             - {name: TP, value: "2"}
             - {name: NNODES, value: "2"}
-            - {name: HEAD_IP, value: 172.16.5.55}
+            - {name: HEAD_SERVICE, value: glm53-head-rendezvous.llm-test.svc.cluster.local}
+            - {name: PEER_SERVICE, value: glm53-head-rendezvous.llm-test.svc.cluster.local}
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef: {fieldPath: spec.nodeName}
+            - name: HOST_IP
+              valueFrom:
+                fieldRef: {fieldPath: status.hostIP}
             - {name: MASTER_PORT, value: "29521"}
             - {name: QUANTIZATION, value: exl3}
             - {name: MAX_MODEL_LEN, value: "512000"}
@@ -605,7 +806,7 @@ spec:
             - {name: MM_PROCESSOR_CACHE_GB, value: "1"}
             - {name: CHAT_TEMPLATE, value: /opt/glm53/chat_template.jinja}
             - {name: ENFORCE_EAGER, value: "0"}
-            - {name: EXTRA_ARGS, value: "--cudagraph-capture-sizes 1 2 3 4 5 8 16 24 32 --kv-cache-memory-bytes 12884901888"}
+            - {name: EXTRA_ARGS, value: "--cudagraph-capture-sizes 1 2 3 4 5 8 16 24 32 --kv-cache-memory-bytes 16106127360"}
             - {name: EXL3_FUSED_MOE, value: "1"}
             - {name: EXL3_MOE_ROW_TILE, value: "0"}
             - {name: EXL3_TEMP_ROWS_FUSED, value: "32"}
@@ -627,6 +828,12 @@ spec:
             - {name: GLM53_ADAPTIVE_K_SATURATE, value: max}
             - {name: GLM53_ADAPTIVE_K_HIST, value: "200"}
             - {name: GLM53_DENSE_FP8, value: "dense,kda"}
+            # Compact DFlash pages reduce allocator block-ID pressure but do not
+            # reduce backing VRAM; keep the experimental path off by default.
+            - {name: GLM53_DRAFT_KV_COMPACT, value: "0"}
+            # The BF16 large-M optimization retains ~3.29 GiB/rank. Keep it off
+            # for the memory-conservative profile; FP8-Marlin remains active.
+            - {name: GLM53_KDA_BF16_LARGE_M, value: "0"}
             - {name: GLM53_SUPPRESS_STOPS_IN_REASONING, value: "1"}
             # Preserve vLLM continuous batching: allow prefills while peers decode.
             - {name: GLM53_MIXED_PREFILL_CHUNK, value: "off"}
@@ -640,15 +847,11 @@ spec:
             - {name: NCCL_NVLS_ENABLE, value: "0"}
             - {name: NCCL_CUMEM_ENABLE, value: "0"}
             - {name: NCCL_IB_MERGE_NICS, value: "0"}
-            - {name: NCCL_CROSS_NIC, value: "0"}
+            - {name: NCCL_CROSS_NIC, value: "1"}
             - {name: NCCL_IGNORE_CPU_AFFINITY, value: "1"}
             - {name: NCCL_DEBUG, value: WARN}
-            - {name: NCCL_SOCKET_IFNAME, value: enp1s0f1np1}
-            - {name: GLOO_SOCKET_IFNAME, value: enp1s0f1np1}
-            # NCCL_IB_HCA names the RDMA device, not the Linux netdev.
-            - {name: NCCL_IB_HCA, value: "mlx5_1:1"}
-            - {name: NCCL_IB_GID_INDEX, value: "2"}
-            - {name: VLLM_HOST_IP, value: 172.16.5.56}
+            # Socket/Gloo interfaces, peer HCAs, RoCE GID, and VLLM_HOST_IP are
+            # derived from the node-local fabric inventory at container start.
           ports:
             - name: http
               containerPort: 8000
@@ -656,6 +859,31 @@ spec:
             - name: models
               mountPath: /cache/huggingface
               subPath: .cache/huggingface
+            - name: fabric-config
+              mountPath: /opt/glm53/configure-rdma-fabric.sh
+              subPath: configure-rdma-fabric.sh
+              readOnly: true
+            - name: fabric-inventory
+              mountPath: /etc/dgx-spark/rdma-fabric.json
+              readOnly: true
+            - name: overlay
+              mountPath: /opt/glm53/patch_scheduler_decode_floor.py
+              subPath: patch_scheduler_decode_floor.py
+            - name: overlay
+              mountPath: /opt/glm53/patch_mamba_align_chunking.py
+              subPath: patch_mamba_align_chunking.py
+            - name: overlay
+              mountPath: /opt/glm53/patch_glm5_drafter_group.py
+              subPath: patch_glm5_drafter_group.py
+            - name: overlay
+              mountPath: /opt/glm53/patch_hybrid_prefix_hit.py
+              subPath: patch_hybrid_prefix_hit.py
+            - name: overlay
+              mountPath: /opt/glm53/patch_mamba_align_state_free.py
+              subPath: patch_mamba_align_state_free.py
+            - name: overlay
+              mountPath: /opt/glm53/patch_kv_capacity_log.py
+              subPath: patch_kv_capacity_log.py
             - name: overlay
               mountPath: /opt/glm53/patch_adaptive_k.py
               subPath: patch_adaptive_k.py
@@ -677,12 +905,18 @@ spec:
               mountPath: /dev/shm
             - name: diagnostics
               mountPath: /diagnostics
-            - name: infiniband
-              mountPath: /dev/infiniband
       volumes:
         - name: models
           persistentVolumeClaim:
             claimName: model-cache
+        - name: fabric-config
+          configMap:
+            name: glm53-rdma-fabric
+            defaultMode: 0555
+        - name: fabric-inventory
+          hostPath:
+            path: /var/lib/dgx-spark/rdma-fabric.json
+            type: File
         - name: overlay
           configMap:
             name: glm53-parity-overlay
@@ -710,7 +944,3 @@ spec:
           hostPath:
             path: /var/lib/llm-test/diagnostics
             type: DirectoryOrCreate
-        - name: infiniband
-          hostPath:
-            path: /dev/infiniband
-            type: Directory
