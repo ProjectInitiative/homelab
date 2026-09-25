@@ -39,7 +39,7 @@ data:
 
     echo "waiting for peer endpoint $PEER_SERVICE"
     while true; do
-      PEER_CONTROL_IP="$(getent ahostsv4 "$PEER_SERVICE" | awk -v self="$HOST_IP" '$1 != self { print $1; exit }')"
+      PEER_CONTROL_IP="$(getent ahostsv4 "$PEER_SERVICE" 2>/dev/null | awk -v self="$HOST_IP" '$1 != self { print $1; exit }' || true)"
       [ -n "$PEER_CONTROL_IP" ] && break
       sleep 2
     done
@@ -677,7 +677,7 @@ spec:
 
               . /opt/glm53/configure-rdma-fabric.sh
               while true; do
-                HEAD_IP="$(getent ahostsv4 "$HEAD_SERVICE" | awk '{ print $1; exit }')"
+                HEAD_IP="$(getent ahostsv4 "$HEAD_SERVICE" 2>/dev/null | awk '{ print $1; exit }' || true)"
                 [ -n "$HEAD_IP" ] && break
                 sleep 2
               done
