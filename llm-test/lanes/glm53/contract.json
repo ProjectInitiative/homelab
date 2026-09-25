@@ -291,9 +291,14 @@
       "text": "{name: NCCL_SOCKET_IFNAME, value:"
     },
     {
-      "count": 2,
+      "count": 1,
       "path": "llm-test/glm53-parity/services.yaml",
       "text": "app: glm53-exl3-head"
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/services.yaml",
+      "text": "tailscale.com/hostname"
     },
     {
       "count": 0,

@@ -1,11 +1,10 @@
-# GLM-5.3-Flash EXL3 parity — stable in-cluster and Tailscale Services.
+# GLM-5.3-Flash EXL3 parity — stable in-cluster API Service.
 #
-# The GLM API is served on whichever DGX Spark receives the head pod. Both
-# Services select that pod directly; Kubernetes tracks its host-network endpoint
-# as placement changes, so no node-specific relay is required.
+# The Service selects whichever DGX Spark receives the head pod. LiteLLM uses
+# this DNS name as its backend and remains the only Tailscale-facing API.
 #
 # NOTE: this file is NOT applied during the pre-deploy stage. Apply it only when
-# you actually start the GLM lane and want client access.
+# you actually start the GLM lane and want client access through LiteLLM.
 ---
 apiVersion: v1
 kind: Service
@@ -19,23 +18,4 @@ spec:
     - name: http
       protocol: TCP
       port: 8000
-      targetPort: 8000
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: glm
-  namespace: llm-test
-  annotations:
-    tailscale.com/hostname: "glm"
-    tailscale.com/proxy-group: mc-ingress-proxy
-spec:
-  type: LoadBalancer
-  loadBalancerClass: tailscale
-  selector:
-    app: glm53-exl3-head
-  ports:
-    - name: http
-      protocol: TCP
-      port: 80
       targetPort: 8000
