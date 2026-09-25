@@ -324,6 +324,21 @@
       "count": 0,
       "path": "llm-test/miaai-parity/services.yaml",
       "text": "kubernetes.io/hostname: chronometer"
+    },
+    {
+      "count": 0,
+      "path": "llm-test/miaai-parity/services.yaml",
+      "text": "kind: Service\nmetadata:\n  name: ai-proxy"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/miaai-parity/services.yaml",
+      "text": "tailscale.com/hostname: \"ai\""
+    },
+    {
+      "count": 0,
+      "path": "llm-test/30-qwen.yaml",
+      "text": "name: ai-halogen"
     }
   ],
   "lane": "glm53",
