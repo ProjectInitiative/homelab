@@ -291,19 +291,34 @@
       "text": "{name: NCCL_SOCKET_IFNAME, value:"
     },
     {
-      "count": 1,
+      "count": 2,
       "path": "llm-test/glm53-parity/services.yaml",
-      "text": "haproxy:3.2-alpine@sha256:5961c68bc8a81c5124d0a98ab20f81b74717d6afe596e805977d9cf84c126222"
+      "text": "app: glm53-exl3-head"
     },
     {
-      "count": 1,
+      "count": 0,
       "path": "llm-test/glm53-parity/services.yaml",
-      "text": "server glm53-head glm53-head.llm-test.svc.cluster.local:8000 check resolvers kubernetes init-addr libc,none"
+      "text": "glm-ai-proxy"
     },
     {
       "count": 0,
       "path": "llm-test/glm53-parity/services.yaml",
       "text": "172.16.4.55"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/miaai-parity/services.yaml",
+      "text": "api_base: http://glm53-head.llm-test.svc.cluster.local:8000/v1"
+    },
+    {
+      "count": 0,
+      "path": "llm-test/miaai-parity/services.yaml",
+      "text": "api_base: http://172.16.4.55:8000/v1"
+    },
+    {
+      "count": 0,
+      "path": "llm-test/miaai-parity/services.yaml",
+      "text": "kubernetes.io/hostname: chronometer"
     }
   ],
   "lane": "glm53",

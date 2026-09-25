@@ -20,7 +20,7 @@ upstream MiaAI Lab recipe
   dense-FP8 overrides, all sourced from the reviewed upstream commit.
 - `12-glm53-parity.yaml` — dynamically scheduled TP2 head/worker Deployments,
   headless rendezvous Services, and node-local RoCE discovery; `replicas: 0`.
-- `services.yaml` — internal Services + HAProxy relay + Tailscale endpoint.
+- `services.yaml` — direct in-cluster and Tailscale Services for the dynamic head.
 - `13-glm53-warmup.yaml` — upstream DFlash/sampler/kpool post-ready warmup.
 - `12-glm53-profile.env` — the full resolved runtime profile (documentation).
 - `12-glm53-parity-diff.md` — parity comparison record.
@@ -102,12 +102,11 @@ kubectl wait --for=condition=Ready pod -l app=glm53-exl3-head -n llm-test --time
 
 ```bash
 kubectl apply --server-side -f llm-test/glm53-parity/services.yaml
-kubectl rollout restart deploy/glm-ai-proxy -n llm-test
 ```
 
-Endpoint: `http://glm.taildeab2.ts.net/`. The relay targets the stable
-`glm53-head` Service, while the vLLM API listens on whichever Spark hosts the
-head pod at `0.0.0.0:8000`.
+Endpoint: `http://glm.taildeab2.ts.net/`. Both the Tailscale LoadBalancer and
+LiteLLM target the stable `glm53-head` Service directly, while the vLLM API
+listens on whichever Spark hosts the head pod at `0.0.0.0:8000`.
 
 ## Verify
 

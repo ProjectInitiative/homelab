@@ -1,10 +1,8 @@
-# GLM-5.3-Flash EXL3 parity — internal Services, an HAProxy relay, and the
-# Tailscale LoadBalancer endpoint.
+# GLM-5.3-Flash EXL3 parity — stable in-cluster and Tailscale Services.
 #
-# These are NEW, GLM-specific endpoints (no overlap with the running
-# deepseek-parity `ai`/`ai-proxy`/`llm-*`). The GLM API is served on whichever
-# DGX Spark receives the head pod. The stable `glm53-head` Service decouples the
-# HAProxy/Tailscale path from that dynamic node placement.
+# The GLM API is served on whichever DGX Spark receives the head pod. Both
+# Services select that pod directly; Kubernetes tracks its host-network endpoint
+# as placement changes, so no node-specific relay is required.
 #
 # NOTE: this file is NOT applied during the pre-deploy stage. Apply it only when
 # you actually start the GLM lane and want client access.
@@ -26,102 +24,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: glm53-worker
-  namespace: llm-test
-spec:
-  selector:
-    app: glm53-exl3-worker
-  ports:
-    - name: http
-      protocol: TCP
-      port: 8000
-      targetPort: 8000
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: glm-ai-proxy-config
-  namespace: llm-test
-data:
-  haproxy.cfg: |
-    global
-      log stdout format raw local0
-    defaults
-      mode tcp
-      timeout connect 5s
-      timeout client 1h
-      timeout server 1h
-    resolvers kubernetes
-      parse-resolv-conf
-      resolve_retries 3
-      timeout resolve 1s
-      timeout retry 1s
-      hold valid 10s
-    frontend vllm_api
-      bind :8000
-      default_backend vllm_head
-    backend vllm_head
-      server glm53-head glm53-head.llm-test.svc.cluster.local:8000 check resolvers kubernetes init-addr libc,none
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: glm-ai-proxy
-  namespace: llm-test
-  labels:
-    app: glm-ai-proxy
-spec:
-  replicas: 1
-  strategy:
-    type: Recreate
-  selector:
-    matchLabels:
-      app: glm-ai-proxy
-  template:
-    metadata:
-      labels:
-        app: glm-ai-proxy
-    spec:
-      containers:
-        - name: haproxy
-          image: haproxy:3.2-alpine@sha256:5961c68bc8a81c5124d0a98ab20f81b74717d6afe596e805977d9cf84c126222
-          ports:
-            - name: http
-              containerPort: 8000
-          readinessProbe:
-            tcpSocket:
-              port: http
-            periodSeconds: 5
-          livenessProbe:
-            tcpSocket:
-              port: http
-            periodSeconds: 10
-          volumeMounts:
-            - name: config
-              mountPath: /usr/local/etc/haproxy/haproxy.cfg
-              subPath: haproxy.cfg
-      volumes:
-        - name: config
-          configMap:
-            name: glm-ai-proxy-config
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: glm-ai-proxy
-  namespace: llm-test
-spec:
-  selector:
-    app: glm-ai-proxy
-  ports:
-    - name: http
-      protocol: TCP
-      port: 8000
-      targetPort: 8000
----
-apiVersion: v1
-kind: Service
-metadata:
   name: glm
   namespace: llm-test
   annotations:
@@ -131,7 +33,7 @@ spec:
   type: LoadBalancer
   loadBalancerClass: tailscale
   selector:
-    app: glm-ai-proxy
+    app: glm53-exl3-head
   ports:
     - name: http
       protocol: TCP

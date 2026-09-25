@@ -34,12 +34,12 @@ metadata:
 data:
   config.yaml: |
     model_list:
-      # The swap controller will update this active backend when the resident
-      # DGX model changes. Keep the public alias stable for clients.
+      # Keep the public alias stable while Kubernetes follows the dynamically
+      # placed GLM head through its ClusterIP Service.
       - model_name: dgx-spark
         litellm_params:
           model: hosted_vllm/GLM-5.3-Flash-EXL3
-          api_base: http://172.16.4.55:8000/v1
+          api_base: http://glm53-head.llm-test.svc.cluster.local:8000/v1
           api_key: sk-local
         # Match the vLLM --max-model-len 512000 context. max_tokens is
         # retained for older LiteLLM clients; max_input_tokens is the
@@ -86,8 +86,6 @@ spec:
       labels:
         app: ai-proxy
     spec:
-      nodeSelector:
-        kubernetes.io/hostname: chronometer
       containers:
         - name: litellm
           image: ghcr.io/berriai/litellm:main-stable
