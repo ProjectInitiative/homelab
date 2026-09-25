@@ -1,0 +1,110 @@
+# Temporary manual object-storage benchmark. Apply one Job at a time.
+# The credentials come from the VSO-managed juicefs-creds Secret. Only the
+# endpoint is changed, so this compares Garage directly with HAProxy routing.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: juicefs-objbench-direct
+  namespace: juicefs-platform
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 1800
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: objbench
+          image: juicedata/mount:ce-v1.4.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-creds
+                  key: access-key
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-creds
+                  key: secret-key
+            - name: BUCKET
+              value: http://garage.garage.svc.cluster.local:3900/juicefs-mc
+          command: ["/bin/sh", "-ceu"]
+          args:
+            - |
+              echo '=== DIRECT Garage: threads=1 ==='
+              juicefs objbench \
+                --storage s3 \
+                --access-key "$ACCESS_KEY" \
+                --secret-key "$SECRET_KEY" \
+                "$BUCKET" \
+                --small-objects 500 \
+                --small-object-size 128K \
+                --big-object-size 512M \
+                --threads 1
+              echo '=== DIRECT Garage: threads=4 ==='
+              juicefs objbench \
+                --storage s3 \
+                --access-key "$ACCESS_KEY" \
+                --secret-key "$SECRET_KEY" \
+                "$BUCKET" \
+                --small-objects 500 \
+                --small-object-size 128K \
+                --big-object-size 512M \
+                --threads 4 \
+                --skip-functional-tests
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: juicefs-objbench-haproxy
+  namespace: juicefs-platform
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 1800
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: objbench
+          image: juicedata/mount:ce-v1.4.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-creds
+                  key: access-key
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-creds
+                  key: secret-key
+            - name: BUCKET
+              value: http://ingress.haproxy.svc.cluster.local:80/juicefs-mc
+          command: ["/bin/sh", "-ceu"]
+          args:
+            - |
+              echo '=== HAProxy Garage: threads=1 ==='
+              juicefs objbench \
+                --storage s3 \
+                --access-key "$ACCESS_KEY" \
+                --secret-key "$SECRET_KEY" \
+                "$BUCKET" \
+                --small-objects 500 \
+                --small-object-size 128K \
+                --big-object-size 512M \
+                --threads 1
+              echo '=== HAProxy Garage: threads=4 ==='
+              juicefs objbench \
+                --storage s3 \
+                --access-key "$ACCESS_KEY" \
+                --secret-key "$SECRET_KEY" \
+                "$BUCKET" \
+                --small-objects 500 \
+                --small-object-size 128K \
+                --big-object-size 512M \
+                --threads 4 \
+                --skip-functional-tests

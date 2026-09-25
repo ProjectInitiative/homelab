@@ -1,0 +1,149 @@
+# Temporary benchmark: rclone multi-stream S3 reads through a TCP HAProxy
+# sidecar, with HAProxy sending connections directly to Garage NodePorts.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rclone-node-haproxy-config
+  namespace: juicefs-platform
+data:
+  haproxy.cfg: |
+    global
+      log stdout format raw local0
+      maxconn 10000
+      nbthread 4
+      pidfile /run/haproxy.pid
+    defaults
+      mode tcp
+      log global
+      timeout connect 10s
+      timeout client 30m
+      timeout server 30m
+    frontend s3
+      bind :3900
+      default_backend garage_nodes
+    backend garage_nodes
+      balance roundrobin
+      server capstan1 172.16.4.51:31654 check
+      server capstan2 172.16.4.52:31654 check
+      server capstan3 172.16.4.53:31654 check
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rclone-node-haproxy-bench
+  namespace: juicefs-platform
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 1800
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      shareProcessNamespace: true
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      volumes:
+        - name: haproxy-config
+          configMap:
+            name: rclone-node-haproxy-config
+        - name: runtime
+          emptyDir: {}
+        - name: ram
+          emptyDir:
+            medium: Memory
+            sizeLimit: 12Gi
+      initContainers:
+        - name: make-seed
+          image: busybox:1.36.1
+          command: ["/bin/sh", "-ceu"]
+          args:
+            - dd if=/dev/zero of=/ram/source-1g.bin bs=1M count=1024
+          volumeMounts:
+            - name: ram
+              mountPath: /ram
+      containers:
+        - name: haproxy
+          image: haproxy:3.2.15-alpine
+          args: ["-W", "-db", "-f", "/usr/local/etc/haproxy/haproxy.cfg", "-p", "/run/haproxy.pid"]
+          volumeMounts:
+            - name: haproxy-config
+              mountPath: /usr/local/etc/haproxy
+            - name: runtime
+              mountPath: /run
+        - name: rclone
+          image: rclone/rclone:1.70.3
+          env:
+            - name: RCLONE_CONFIG_GARAGE_TYPE
+              value: s3
+            - name: RCLONE_CONFIG_GARAGE_PROVIDER
+              value: Other
+            - name: RCLONE_CONFIG_GARAGE_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-creds
+                  key: access-key
+            - name: RCLONE_CONFIG_GARAGE_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-creds
+                  key: secret-key
+            - name: RCLONE_CONFIG_GARAGE_ENDPOINT
+              value: http://127.0.0.1:3900
+            - name: RCLONE_CONFIG_GARAGE_REGION
+              value: us-east-1
+            - name: RCLONE_CONFIG_GARAGE_FORCE_PATH_STYLE
+              value: "true"
+          command: ["/bin/sh", "-ceu"]
+          args:
+            - |
+              sleep 5
+              echo '=== Uploading 1 GiB seed through local TCP HAProxy ==='
+              rclone copyto /ram/source-1g.bin garage:juicefs-mc/rclone-bench/source-1g.bin \
+                --s3-no-check-bucket --s3-upload-concurrency 8 --s3-chunk-size 64M --stats 10s
+
+              run_case() {
+                transfers="$1"
+                streams="$2"
+                rm -f /ram/out-*.bin /ram/rclone-*.log
+                start=$(date +%s)
+                pids=""
+                for i in $(seq 1 "$transfers"); do
+                  rclone copyto garage:juicefs-mc/rclone-bench/source-1g.bin /ram/out-$i.bin \
+                    --s3-no-check-bucket --transfers 1 --checkers 1 \
+                    --multi-thread-streams "$streams" \
+                    --multi-thread-cutoff 64M --multi-thread-chunk-size 64M \
+                    --stats 0 > /ram/rclone-$i.log 2>&1 &
+                  pids="$pids $!"
+                done
+                failed=0
+                for pid in $pids; do
+                  wait "$pid" || failed=1
+                done
+                end=$(date +%s)
+                elapsed_s=$((end-start))
+                [ "$elapsed_s" -gt 0 ] || elapsed_s=1
+                bytes=$((transfers * 1073741824))
+                mibps=$(awk -v b="$bytes" -v s="$elapsed_s" 'BEGIN { printf "%.2f", b/1048576/s }')
+                echo "RCLONE_RESULT transfers=$transfers streams=$streams bytes=$bytes elapsed_s=$elapsed_s MiB/s=$mibps failed=$failed"
+                if [ "$failed" -ne 0 ]; then
+                  cat /ram/rclone-*.log
+                  return 1
+                fi
+                rm -f /ram/out-*.bin /ram/rclone-*.log
+              }
+
+              run_case 4 8
+              run_case 8 8
+              run_case 8 16
+              rclone deletefile garage:juicefs-mc/rclone-bench/source-1g.bin --s3-no-check-bucket
+              kill "$(cat /run/haproxy.pid)" || true
+          volumeMounts:
+            - name: runtime
+              mountPath: /run
+            - name: ram
+              mountPath: /ram
+          resources:
+            requests:
+              memory: 2Gi
+            limits:
+              memory: 16Gi

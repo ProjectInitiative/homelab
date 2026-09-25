@@ -1,0 +1,178 @@
+# Temporary JuiceFS tuning matrix over a TCP Garage proxy.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: juicefs-tuning-tcp-proxy-config
+  namespace: juicefs-platform
+data:
+  haproxy.cfg: |
+    global
+      log stdout format raw local0
+      maxconn 20000
+      nbthread 4
+    defaults
+      mode tcp
+      log global
+      timeout connect 10s
+      timeout client 30m
+      timeout server 30m
+    frontend s3
+      bind :3900
+      default_backend garage_nodes
+    backend garage_nodes
+      balance roundrobin
+      server capstan1 172.16.4.51:31654 check
+      server capstan2 172.16.4.52:31654 check
+      server capstan3 172.16.4.53:31654 check
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: juicefs-tuning-tcp-proxy
+  namespace: juicefs-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: juicefs-tuning-tcp-proxy
+  template:
+    metadata:
+      labels:
+        app: juicefs-tuning-tcp-proxy
+    spec:
+      containers:
+        - name: haproxy
+          image: haproxy:3.2.15-alpine
+          args: ["-W", "-db", "-f", "/usr/local/etc/haproxy/haproxy.cfg"]
+          ports:
+            - name: s3
+              containerPort: 3900
+          volumeMounts:
+            - name: config
+              mountPath: /usr/local/etc/haproxy
+      volumes:
+        - name: config
+          configMap:
+            name: juicefs-tuning-tcp-proxy-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: juicefs-tuning-tcp-proxy
+  namespace: juicefs-platform
+spec:
+  selector:
+    app: juicefs-tuning-tcp-proxy
+  ports:
+    - name: s3
+      port: 3900
+      targetPort: s3
+      protocol: TCP
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: juicefs-tuning-matrix
+  namespace: juicefs-platform
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 1800
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      volumes:
+        - name: fuse
+          hostPath:
+            path: /dev/fuse
+            type: CharDevice
+        - name: jfs
+          emptyDir: {}
+        - name: cache
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Gi
+      containers:
+        - name: benchmark
+          image: juicedata/mount:ce-v1.4.1
+          securityContext:
+            privileged: true
+          env:
+            - name: METAURL
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-creds
+                  key: metaurl
+            - name: BUCKET
+              value: http://juicefs-tuning-tcp-proxy.juicefs-platform.svc.cluster.local:3900/juicefs-mc
+          command: ["/bin/sh", "-ceu"]
+          args:
+            - |
+              mount_pid=""
+              cleanup() {
+                if [ -n "$mount_pid" ]; then
+                  juicefs umount /jfs >/dev/null 2>&1 || kill "$mount_pid" >/dev/null 2>&1 || true
+                fi
+              }
+              trap cleanup EXIT
+
+              run_case() {
+                label="$1"
+                prefetch="$2"
+                readahead="$3"
+                buffer="$4"
+                downloads="$5"
+                echo "=== CASE $label prefetch=$prefetch readahead=$readahead buffer=$buffer max-downloads=$downloads ==="
+                rm -rf /cache/*
+                juicefs mount "$METAURL" /jfs \
+                  --storage minio --bucket "$BUCKET" \
+                  --cache-dir /cache --cache-size 16384 \
+                  --prefetch "$prefetch" --max-readahead "$readahead" \
+                  --buffer-size "$buffer" --max-downloads "$downloads" \
+                  --cache-eviction lru --get-timeout 600 \
+                  >/tmp/juicefs-mount.log 2>&1 &
+                mount_pid=$!
+                ready=0
+                for i in $(seq 1 60); do
+                  if test -f /jfs/.stats; then ready=1; break; fi
+                  kill -0 "$mount_pid" 2>/dev/null || break
+                  sleep 1
+                done
+                if [ "$ready" -ne 1 ]; then
+                  cat /tmp/juicefs-mount.log
+                  return 1
+                fi
+                file=$(find /jfs/.trash -type f -size +512M -size -2G -print -quit)
+                if [ -z "$file" ]; then
+                  echo 'No bounded 512 MiB-2 GiB test file found in .trash.'
+                  find /jfs/.trash -type f -printf '%s %p\n' | sort -n | tail -20 || true
+                  return 1
+                fi
+                bytes=$(stat -c %s "$file")
+                start=$(awk '{print $1}' /proc/uptime)
+                dd if="$file" of=/dev/null bs=16M status=none
+                end=$(awk '{print $1}' /proc/uptime)
+                mibps=$(awk -v b="$bytes" -v s="$start" -v e="$end" 'BEGIN { printf "%.2f", b/1048576/(e-s) }')
+                echo "JUICEFS_RESULT case=$label file=$file bytes=$bytes elapsed_s=$(awk -v s=$start -v e=$end 'BEGIN {printf "%.3f",e-s}') MiB/s=$mibps"
+                juicefs umount /jfs >/dev/null 2>&1 || true
+                mount_pid=""
+              }
+
+              run_case baseline 8 256M 1G 200
+              run_case aggressive 32 1G 4G 400
+              run_case high 64 2G 8G 800
+              run_case extreme 128 4G 12G 1200
+          volumeMounts:
+            - name: fuse
+              mountPath: /dev/fuse
+            - name: jfs
+              mountPath: /jfs
+            - name: cache
+              mountPath: /cache
+          resources:
+            requests:
+              memory: 16Gi
+            limits:
+              memory: 32Gi

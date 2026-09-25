@@ -1,0 +1,94 @@
+# Temporary direct Garage S3 test from chronometer, bypassing Services,
+# NodePorts, HAProxy, and JuiceFS.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: garage-direct-node-rclone-bench
+  namespace: juicefs-platform
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 1200
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      volumes:
+        - name: ram
+          emptyDir:
+            medium: Memory
+            sizeLimit: 4Gi
+      initContainers:
+        - name: seed
+          image: busybox:1.36.1
+          command: ["/bin/sh", "-ceu"]
+          args:
+            - dd if=/dev/zero of=/ram/source-1g.bin bs=1M count=1024
+          volumeMounts:
+            - name: ram
+              mountPath: /ram
+      containers:
+        - name: rclone
+          image: rclone/rclone:1.70.3
+          env:
+            - name: RCLONE_CONFIG_TEST_TYPE
+              value: s3
+            - name: RCLONE_CONFIG_TEST_PROVIDER
+              value: Other
+            - name: RCLONE_CONFIG_TEST_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-creds
+                  key: access-key
+            - name: RCLONE_CONFIG_TEST_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-creds
+                  key: secret-key
+            - name: RCLONE_CONFIG_TEST_REGION
+              value: us-east-1
+            - name: RCLONE_CONFIG_TEST_FORCE_PATH_STYLE
+              value: "true"
+          command: ["/bin/sh", "-ceu"]
+          args:
+            - |
+              run_node() {
+                label="$1"
+                endpoint="$2"
+                export RCLONE_CONFIG_TEST_ENDPOINT="$endpoint"
+                remote="test:juicefs-mc/garage-direct-test/$label-1g.bin"
+                rm -f /ram/out.bin
+                echo "=== NODE $label endpoint=$endpoint ==="
+                rclone copyto /ram/source-1g.bin "$remote" \
+                  --s3-no-check-bucket --s3-chunk-size 64M \
+                  --s3-upload-concurrency 8 --timeout 120s --contimeout 10s \
+                  --retries 1 --low-level-retries 1 --stats 10s
+                for streams in 1 8; do
+                  rm -f /ram/out.bin
+                  start=$(date +%s)
+                  rclone copyto "$remote" /ram/out.bin \
+                    --s3-no-check-bucket --transfers 1 --checkers 1 \
+                    --multi-thread-streams "$streams" \
+                    --multi-thread-cutoff 64M --multi-thread-chunk-size 64M \
+                    --timeout 120s --contimeout 10s --retries 1 \
+                    --low-level-retries 1 --stats 10s
+                  end=$(date +%s)
+                  size=$(stat -c %s /ram/out.bin)
+                  elapsed=$((end-start)); [ "$elapsed" -gt 0 ] || elapsed=1
+                  mibps=$(awk -v b="$size" -v s="$elapsed" 'BEGIN {printf "%.2f", b/1048576/s}')
+                  echo "GARAGE_DIRECT_RESULT node=$label streams=$streams bytes=$size elapsed_s=$elapsed MiB/s=$mibps"
+                done
+                rclone deletefile "$remote" --s3-no-check-bucket --timeout 120s --retries 1 || true
+              }
+              run_node garage0 http://10.42.0.106:3900
+              run_node garage1 http://10.42.2.12:3900
+              run_node garage2 http://10.42.1.237:3900
+          volumeMounts:
+            - name: ram
+              mountPath: /ram
+          resources:
+            requests:
+              memory: 2Gi
+            limits:
+              memory: 4Gi

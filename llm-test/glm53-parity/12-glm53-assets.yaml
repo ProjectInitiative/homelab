@@ -7,14 +7,14 @@ data:
   patch_adaptive_k.py: |-
     #!/usr/bin/env python3
     """Adaptive verification length for DFlash2 (env-gated, default OFF).
-
+    
     The drafter keeps its trained 8-token block (1 anchor + 7 drafts). This patch
     lets the scheduler verify only a per-step *prefix* of the 7 draft tokens, chosen
     from a CPU-side EMA of accepted draft tokens per request, and keeps the batch
     uniform (FLASHINFER_MLA_SPARSE_SM120 and the KDA backend only support
     uniform-batch FULL graphs), so it applies the minimum over all running spec
     requests. It also captures one uniform decode FULL graph per candidate length.
-
+    
     Knobs (all read at runtime inside the container):
       GLM53_ADAPTIVE_K            off (default) | ema
       GLM53_ADAPTIVE_K_SET        candidate draft lengths, default "2,4,7"
@@ -31,11 +31,11 @@ data:
                                   margin, set (clamped to the boot-time set), saturate, min_steps.
                                   Re-read when its mtime changes (checked every 50 steps). Only honoured
                                   when the knob was on at boot (graphs exist for the boot-time lengths).
-
+    
     Structured-output requests and requests with fewer than MIN_STEPS observed
     verify steps stay at the full length. Requests padded with -1 placeholders on
     their first decode step (C>1) are not distinguished; MIN_STEPS covers that.
-
+    
     Patches (idempotent, fail closed on drifted anchors, marker comment):
       vllm/v1/core/sched/scheduler.py           observe (update_from_output); choose the per-step draft
                                                 slot count in schedule() (num_spec_tokens_to_schedule,
@@ -45,33 +45,37 @@ data:
       vllm/v1/worker/gpu/cudagraph_utils.py     extra uniform decode graph lengths
     """
     from __future__ import annotations
-
+    
     import os
     import sys
     from pathlib import Path
-
+    
     SITE = Path("/usr/local/lib/python3.12/dist-packages/vllm")
     SCHED = Path(os.environ.get("GLM53_SCHEDULER_PY", SITE / "v1/core/sched/scheduler.py"))
     CG = Path(os.environ.get("GLM53_CUDAGRAPH_UTILS_PY", SITE / "v1/worker/gpu/cudagraph_utils.py"))
     MARK = "# [glm53-adaptive-k]"
-
+    
     IMPORT_OLD = "import itertools\nimport time\n"
     IMPORT_NEW = "import itertools\nimport os\nimport time\n"
-
+    
     SCHED_HELPER = '''
     class _Glm53AdaptiveK:  # [glm53-adaptive-k]
         """CPU-only EMA policy for the verified draft prefix length."""
-
+    
         def __init__(self) -> None:
-            mode = os.environ.get("GLM53_ADAPTIVE_K", "off").strip().lower()
+            def _e(name, default):
+                v = os.environ.get(name)
+                return default if v is None or not str(v).strip() else str(v).strip()
+    
+            mode = _e("GLM53_ADAPTIVE_K", "off").lower()
             self.enabled = mode in ("ema", "on", "1")
-            self.alpha = float(os.environ.get("GLM53_ADAPTIVE_K_ALPHA", "0.25"))
-            self.margin = float(os.environ.get("GLM53_ADAPTIVE_K_MARGIN", "1.0"))
-            self.min_steps = int(os.environ.get("GLM53_ADAPTIVE_K_MIN_STEPS", "4"))
-            raw = os.environ.get("GLM53_ADAPTIVE_K_SET", "2,4,7")
+            self.alpha = float(_e("GLM53_ADAPTIVE_K_ALPHA", "0.25"))
+            self.margin = float(_e("GLM53_ADAPTIVE_K_MARGIN", "1.0"))
+            self.min_steps = int(_e("GLM53_ADAPTIVE_K_MIN_STEPS", "4"))
+            raw = _e("GLM53_ADAPTIVE_K_SET", "2,4,7")
             self.k_set = sorted({int(x) for x in raw.split(",") if x.strip()})
-            self.saturate = os.environ.get("GLM53_ADAPTIVE_K_SATURATE", "max").strip().lower()
-            self.hist_every = int(os.environ.get("GLM53_ADAPTIVE_K_HIST", "200"))
+            self.saturate = _e("GLM53_ADAPTIVE_K_SATURATE", "max").lower()
+            self.hist_every = int(_e("GLM53_ADAPTIVE_K_HIST", "200"))
             self.state: dict[str, list[float]] = {}  # req_id -> [ema, observed_steps]
             self.hist: dict[int, int] = {}
             self.steps = 0
@@ -90,7 +94,7 @@ data:
                     f"margin={self.margin} min_steps={self.min_steps} saturate={self.saturate}",
                     flush=True,
                 )
-
+    
         def _reload(self) -> None:
             if not self.boot_enabled:
                 return  # graphs for the extra lengths exist only when enabled at boot
@@ -125,7 +129,7 @@ data:
                 )
             except Exception as exc:  # noqa: BLE001
                 print(f"[glm53-adaptive-k] override file ignored: {exc!r}", flush=True)
-
+    
         def observe(self, req_id: str, num_draft: int, num_accepted: int) -> None:
             if not self.enabled or num_draft <= 0:
                 return
@@ -139,7 +143,7 @@ data:
             else:
                 st[0] = obs * self.alpha + st[0] * (1.0 - self.alpha)
                 st[1] += 1.0
-
+    
         def choose(self, req_id: str, k: int, structured: bool):
             """Draft length for one request, or None when it must stay at full length."""
             if not self.enabled or structured or k <= 0:
@@ -152,10 +156,10 @@ data:
             cands = [v for v in self.k_set if v <= min(target, k)]
             n = max(cands) if cands else min(self.k_set)
             return max(1, min(n, k))
-
+    
         def apply(self, reqs, live_ids) -> None:
             """reqs: list of (request, structured). Trims spec_token_ids to a uniform n.
-
+    
             A structured-output or not-yet-observed request pins the whole batch at
             the full length (uniform batch, nothing trimmed)."""
             if self.steps % 50 == 0:
@@ -175,7 +179,7 @@ data:
                 if len(r.spec_token_ids) > n:
                     r.spec_token_ids = r.spec_token_ids[:n]
             self._count(n, live_ids)
-
+    
         def batch_k(self, k: int, reqs, live_ids) -> int:
             """Schedule-time hook (async scheduler): the number of draft slots every
             request gets on the next step. Minimum over the scheduled decode
@@ -198,7 +202,7 @@ data:
             n = k if not ns else min(ns)
             self._count(n, live_ids)
             return n
-
+    
         def _count(self, n: int, live_ids) -> None:
             self.hist[n] = self.hist.get(n, 0) + 1
             self.steps += 1
@@ -208,13 +212,13 @@ data:
                 emas = " ".join(f"{rid[:8]}={st[0]:.2f}/{int(st[1])}" for rid, st in list(self.state.items())[:4])
                 print(f"[glm53-adaptive-k] step {self.steps} chosen-length hist ({total}): {parts} | ema {emas}", flush=True)
                 self.state = {rid: st for rid, st in self.state.items() if rid in live_ids}
-
-
+    
+    
     _GLM53_ADAPTIVE_K = _Glm53AdaptiveK()  # [glm53-adaptive-k]
-
-
+    
+    
     '''
-
+    
     OBS_OLD = """                num_draft_tokens = len(scheduled_spec_token_ids)
                     num_sampled = self.num_sampled_tokens_per_step
                     num_accepted = max(len(generated_token_ids) - num_sampled, 0)
@@ -224,7 +228,7 @@ data:
                     num_accepted = max(len(generated_token_ids) - num_sampled, 0)
                     _GLM53_ADAPTIVE_K.observe(req_id, num_draft_tokens, num_accepted)  # [glm53-adaptive-k]
     """
-
+    
     UPD_OLD = """    def update_draft_token_ids(self, draft_token_ids: DraftTokenIds) -> None:
             for req_id, spec_token_ids in zip(
                 draft_token_ids.req_ids,
@@ -234,13 +238,13 @@ data:
                 if request is None or request.is_finished():
                     # The request may have been finished. Skip.
                     continue
-
+    
                 if request.is_prefill_chunk:
                     # Ignore draft tokens for prefill chunks.
                     if request.spec_token_ids:
                         request.spec_token_ids = []
                     continue
-
+    
                 # Add newly generated spec token ids to the request.
                 if self.structured_output_manager.should_advance(request):
                     metadata = request.structured_output_request
@@ -257,13 +261,13 @@ data:
                 if request is None or request.is_finished():
                     # The request may have been finished. Skip.
                     continue
-
+    
                 if request.is_prefill_chunk:
                     # Ignore draft tokens for prefill chunks.
                     if request.spec_token_ids:
                         request.spec_token_ids = []
                     continue
-
+    
                 # Add newly generated spec token ids to the request.
                 _ak_structured = self.structured_output_manager.should_advance(request)  # [glm53-adaptive-k]
                 if _ak_structured:
@@ -275,7 +279,7 @@ data:
             if _ak_reqs:  # [glm53-adaptive-k]
                 _GLM53_ADAPTIVE_K.apply(_ak_reqs, self.requests)
     """
-
+    
     SCHED_K_OLD = """        # Dynamic speculative decoding: compute optimal K
             num_spec_tokens_to_schedule = self.num_spec_tokens
             if self.dynamic_sd_lookup is not None and len(num_scheduled_tokens) > 0:
@@ -296,23 +300,23 @@ data:
                     self.requests,
                 )
     """
-
+    
     CG_HELPER = '''
     def _glm53_adaptive_k_query_lens(lens, decode_query_len):  # [glm53-adaptive-k]
         """Extra uniform decode graph lengths for the adaptive verification prefix."""
         import os
-
-        mode = os.environ.get("GLM53_ADAPTIVE_K", "off").strip().lower()
+    
+        mode = (os.environ.get("GLM53_ADAPTIVE_K") or "off").strip().lower()
         if mode not in ("ema", "on", "1"):
             return lens
-        raw = os.environ.get("GLM53_ADAPTIVE_K_SET", "2,4,7")
+        raw = (os.environ.get("GLM53_ADAPTIVE_K_SET") or "2,4,7").strip() or "2,4,7"
         ks = {int(x) for x in raw.split(",") if x.strip()}
         extra = {k + 1 for k in ks if 0 < k + 1 <= decode_query_len}
         out = sorted(set(lens) | extra | {decode_query_len})
         print(f"[glm53-adaptive-k] uniform decode graph query lens: {out}", flush=True)
         return out
-
-
+    
+    
     '''
     CG_ANCHOR = "@dataclass(frozen=True)\nclass BatchExecutionDescriptor:\n"
     CG_OLD = """        else:
@@ -322,15 +326,15 @@ data:
                 decode_query_lens = [self.decode_query_len]
             decode_query_lens = _glm53_adaptive_k_query_lens(decode_query_lens, self.decode_query_len)  # [glm53-adaptive-k]
     """
-
-
+    
+    
     def replace_once(path: Path, text: str, old: str, new: str, label: str) -> str:
         n = text.count(old)
         if n != 1:
             raise SystemExit(f"{path}: expected one {label} target, found {n}")
         return text.replace(old, new, 1)
-
-
+    
+    
     def patch_scheduler() -> None:
         if not SCHED.is_file():
             raise SystemExit(f"missing {SCHED}")
@@ -349,8 +353,8 @@ data:
         text = replace_once(SCHED, text, SCHED_K_OLD, SCHED_K_NEW, "num_spec_tokens_to_schedule")
         SCHED.write_text(text)
         print(f"patched {SCHED.name} (GLM53_ADAPTIVE_K={os.environ.get('GLM53_ADAPTIVE_K', 'off')})")
-
-
+    
+    
     def patch_cudagraph_utils() -> None:
         if not CG.is_file():
             raise SystemExit(f"missing {CG}")
@@ -364,14 +368,14 @@ data:
         text = replace_once(CG, text, CG_OLD, CG_NEW, "decode_query_lens")
         CG.write_text(text)
         print(f"patched {CG.name} (adaptive-k graph lengths)")
-
-
+    
+    
     def main() -> int:
         patch_scheduler()
         patch_cudagraph_utils()
         return 0
-
-
+    
+    
     if __name__ == "__main__":
         sys.exit(main())
   patch_dense_fp8.py: |-
@@ -379,21 +383,21 @@ data:
     """Install the overlay exl3.py (with the optional dense-FP8 Marlin path) and, when
     GLM53_DENSE_FP8 is on, let the KDA and MLA constructors keep the quant config so
     their projections reach Exl3Config.get_quant_method (idempotent, fail closed).
-
+    
     GLM53_DENSE_FP8=off (default): only the module file is refreshed (its new code
     is unreachable: get_quant_method returns UnquantizedLinearMethod for every
     LinearBase, exactly as before). Anything else: also patch kda.py / model.py.
     """
     from __future__ import annotations
-
+    
     import os
     import sys
     from pathlib import Path
-
+    
     SITE = Path(os.environ.get("GLM53_SITE", "/usr/local/lib/python3.12/dist-packages/vllm"))
     OPT = Path(os.environ.get("GLM53_OPT", "/opt/glm53"))
     MARK = "# [glm53-dense-fp8]"
-
+    
     KDA_OLD = """        saved_quant_config = vllm_config.quant_config
             vllm_config.quant_config = None
             super().__init__(config, vllm_config, prefix)
@@ -411,8 +415,8 @@ data:
     MLA_NEW = """                quant_config=(quant_config if getattr(quant_config, "get_name", lambda: "")() == "exl3" else None),  # [glm53-dense-fp8]
                     prefix=f"{prefix}.self_attn",
     """
-
-
+    
+    
     def replace_once(path: Path, old: str, new: str, label: str) -> None:
         text = path.read_text()
         if MARK in text:
@@ -423,8 +427,8 @@ data:
             raise SystemExit(f"{path}: expected one {label} target, found {n}")
         path.write_text(text.replace(old, new, 1))
         print(f"patched {path.name} ({label})")
-
-
+    
+    
     def main() -> int:
         src = OPT / "exl3.py"
         dst = SITE / "model_executor/layers/quantization/exl3.py"
@@ -449,8 +453,8 @@ data:
         replace_once(model, MLA_OLD, MLA_NEW, "mla quant_config")
         print(f"dense fp8 groups: {mode}")
         return 0
-
-
+    
+    
     if __name__ == "__main__":
         sys.exit(main())
   exl3.py: |-

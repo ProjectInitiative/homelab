@@ -34,13 +34,20 @@ metadata:
 data:
   config.yaml: |
     model_list:
-      # The DGX backend is the currently active model on chronometer:8000.
-      # Keep this gateway alias stable while swapping DGX serving lanes.
+      # The swap controller will update this active backend when the resident
+      # DGX model changes. Keep the public alias stable for clients.
       - model_name: dgx-spark
         litellm_params:
-          model: openai/deepseek-v4-flash-vision-exp
+          model: hosted_vllm/GLM-5.3-Flash-EXL3
           api_base: http://172.16.4.55:8000/v1
           api_key: sk-local
+        # Match the vLLM --max-model-len 512000 context. max_tokens is
+        # retained for older LiteLLM clients; max_input_tokens is the
+        # authoritative prompt/context limit.
+        model_info:
+          max_input_tokens: 512000
+          max_output_tokens: 512000
+          max_tokens: 512000
       - model_name: qwen3.8-flash-next-halogen
         litellm_params:
           model: openai/qwen3.8-flash-next-halogen
@@ -52,6 +59,8 @@ data:
       enable_health_check_routing: true
       health_check_ignore_transient_errors: true
     router_settings:
+      # Enforce the model_info context limit before forwarding requests.
+      enable_pre_call_checks: true
       routing_strategy: simple-shuffle
       cooldown_time: 90
       allowed_fails_policy:

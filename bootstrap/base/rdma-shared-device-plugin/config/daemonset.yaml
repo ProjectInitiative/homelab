@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: rdma-shared-device-plugin
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: rdma-shared-device-plugin
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rdma-shared-device-plugin
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rdma-shared-device-plugin
+    spec:
+      priorityClassName: system-node-critical
+      hostNetwork: true
+      nodeSelector:
+        gpu: dgx-spark
+        kubernetes.io/arch: arm64
+      tolerations:
+        - operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: rdma-shared-device-plugin
+          image: ghcr.io/mellanox/k8s-rdma-shared-dev-plugin:v1.5.3@sha256:1eb5ab7f4b6f0cf89c954cf7ac8eb2e6fb2290a4f5f57417136a5302f20b12c8
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 20Mi
+            limits:
+              cpu: 100m
+              memory: 100Mi
+          volumeMounts:
+            - name: device-plugin
+              mountPath: /var/lib/kubelet/device-plugins
+            - name: plugins-registry
+              mountPath: /var/lib/kubelet/plugins_registry
+            - name: config
+              mountPath: /k8s-rdma-shared-dev-plugin
+              readOnly: true
+            - name: devices
+              mountPath: /dev
+      volumes:
+        - name: device-plugin
+          hostPath:
+            path: /var/lib/kubelet/device-plugins
+            type: Directory
+        - name: plugins-registry
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry
+            type: DirectoryOrCreate
+        - name: config
+          configMap:
+            name: rdma-devices
+            items:
+              - key: config.json
+                path: config.json
+        - name: devices
+          hostPath:
+            path: /dev
+            type: Directory
