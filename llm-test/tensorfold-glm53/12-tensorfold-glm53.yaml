@@ -1,0 +1,304 @@
+# TensorFold GLM-5.3-Flash on 2x DGX-Spark — parity lane (REVIEW CANDIDATE).
+#
+# Engine: ashhart/TensorFold v0.3.4 (2f8e514b…) pip-installed at pod start into
+# nvcr.io/nvidia/pytorch:26.07-py3. TensorFold refuses NVFP4/GPTQ/AWQ; GLM runs
+# from the MLX 4-bit MTP checkpoint (Vontra/GLM-5.3-Flash-MLX-4bit-MTP).
+#
+# Topology: exactly two ranks (--tp 2), one per Spark, like upstream's
+# two-host runbook. Rank 1 (worker) starts first; rank 0 (head) serves HTTP on
+# host port 8180. Rendezvous uses the common 172.16.4.x Kubernetes network via
+# the headless rendezvous Service; TensorFold's NCCL traffic rides the same
+# path unless its runtime selects the RoCE rails. Unlike the EXL3 lane there is
+# no node-local fabric assumption: TensorFold manages its own collectives.
+#
+# PRE-DEPLOY convention: both Deployments declare `replicas: 0`. Activation is
+# imperative: worker first, then head. Nothing here can disturb the resident
+# MiaAI EXL3 pair on port 8000; this lane uses host port 8180 exclusively.
+#
+# Served model id: GLM-5.3-Flash-MLX
+# API: http://<head-node>:8180/v1 (host network; ClusterIP Service in services.yaml)
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tensorfold-glm53-launch
+  namespace: llm-test
+data:
+  launch-head.sh: |-
+    #!/usr/bin/env bash
+    set -euo pipefail
+    say() { echo "[tensorfold-head] $*"; }
+    SNAP="/models/.cache/huggingface/hub/models--Vontra--GLM-5.3-Flash-MLX-4bit-MTP/snapshots/76add2a341a1cd90ad0e86bb69839ea9c35827c6"
+    [ -d "$SNAP" ] || { echo "checkpoint snapshot missing: $SNAP" >&2; exit 1; }
+    # Install pinned TensorFold inside the NVIDIA container (no official image).
+    if ! tensorfold --version >/dev/null 2>&1 || [ "$(tensorfold --version 2>/dev/null)" != "0.3.4" ]; then
+      say "installing TensorFold v0.3.4"
+      pip install --quiet "git+https://github.com/ashhart/TensorFold.git@2f8e514b0b7d615df7c971627ce3c0fb7e55d93a"
+    fi
+    say "waiting for rank 1 (worker) to be up"
+    until getent ahostsv4 tensorfold-worker-rendezvous.llm-test.svc.cluster.local >/dev/null 2>&1 \
+        && curl -fsS --max-time 5 "http://tensorfold-worker-rendezvous.llm-test.svc.cluster.local:9201/ready" >/dev/null 2>&1; do
+      sleep 10
+    done
+    say "rank 1 ready; starting rank 0"
+    mkdir -p /run/tensorfold
+    exec tensorfold serve "$SNAP" \
+      --tp 2 --rank 0 \
+      --master "$(getent ahostsv4 tensorfold-head-rendezvous.llm-test.svc.cluster.local | awk '{print $1; exit}')" \
+      --host 0.0.0.0 --port 8180
+  launch-worker.sh: |-
+    #!/usr/bin/env bash
+    set -euo pipefail
+    say() { echo "[tensorfold-worker] $*"; }
+    SNAP="/models/.cache/huggingface/hub/models--Vontra--GLM-5.3-Flash-MLX-4bit-MTP/snapshots/76add2a341a1cd90ad0e86bb69839ea9c35827c6"
+    [ -d "$SNAP" ] || { echo "checkpoint snapshot missing: $SNAP" >&2; exit 1; }
+    if ! tensorfold --version >/dev/null 2>&1 || [ "$(tensorfold --version 2>/dev/null)" != "0.3.4" ]; then
+      say "installing TensorFold v0.3.4"
+      pip install --quiet "git+https://github.com/ashhart/TensorFold.git@2f8e514b0b7d615df7c971627ce3c0fb7e55d93a"
+    fi
+    say "staging per-rank checkpoint split"
+    mkdir -p /run/tensorfold
+    python -m tensorfold.families.glm5_next.cuda.split "$SNAP" --rank 1 /run/tensorfold/rank1
+    # Readiness endpoint so the head (and Kubernetes) can see rank 1 is up.
+    ( while true; do
+        printf 'HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok' \
+          | nc -l -p 9201 >/dev/null 2>&1 || sleep 1
+      done ) &
+    NCCL_WATCHDOG_PID=$!
+    say "rank 1 up; waiting for rank 0 master"
+    MASTER=""
+    until [ -n "$MASTER" ]; do
+      MASTER=$(getent ahostsv4 tensorfold-head-rendezvous.llm-test.svc.cluster.local 2>/dev/null | awk '{print $1; exit}') || true
+      [ -n "$MASTER" ] || sleep 5
+    done
+    say "master at $MASTER; joining"
+    exec tensorfold serve /run/tensorfold/rank1 \
+      --tp 2 --rank 1 --master "$MASTER" --port 8180
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tensorfold-head-rendezvous
+  namespace: llm-test
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: tensorfold-glm53-head
+  ports:
+    - name: rendezvous
+      port: 8180
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tensorfold-worker-rendezvous
+  namespace: llm-test
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: tensorfold-glm53-worker
+  ports:
+    - name: ready
+      port: 9201
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tensorfold-glm53-worker
+  namespace: llm-test
+  labels:
+    app: tensorfold-glm53-worker
+    lane: tensorfold-glm53
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: tensorfold-glm53-worker
+  template:
+    metadata:
+      labels:
+        app: tensorfold-glm53-worker
+    spec:
+      runtimeClassName: nvidia-rdma
+      terminationGracePeriodSeconds: 120
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: lane
+                    operator: In
+                    values: [tensorfold-glm53]
+              topologyKey: kubernetes.io/hostname
+      initContainers:
+        - name: checkpoint-check
+          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:v3
+          imagePullPolicy: IfNotPresent
+          command: ["bash", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              SNAP="/models/.cache/huggingface/hub/models--Vontra--GLM-5.3-Flash-MLX-4bit-MTP/snapshots/76add2a341a1cd90ad0e86bb69839ea9c35827c6"
+              test -f "$SNAP/config.json" || { echo "checkpoint incomplete: $SNAP" >&2; exit 1; }
+              echo "checkpoint present"
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      containers:
+        - name: tensorfold
+          image: nvcr.io/nvidia/pytorch:26.07-py3
+          imagePullPolicy: IfNotPresent
+          command: ["bash", "/launch/launch-worker.sh"]
+          securityContext:
+            privileged: false
+          resources:
+            requests:
+              memory: 100Gi
+            limits:
+              memory: 120Gi
+          ports:
+            - name: ready
+              containerPort: 9201
+              hostPort: 9201
+            - name: tf
+              containerPort: 8180
+              hostPort: 8181
+          env:
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            - name: TENSORFOLD_NO_UPDATE_CHECK
+              value: "1"
+            - name: NCCL_SOCKET_IFNAME
+              value: eth0
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: launch
+              mountPath: /launch
+            - name: kernel-cache
+              mountPath: /root/.cache/tensorfold
+          readinessProbe:
+            tcpSocket: {port: 9201}
+            periodSeconds: 10
+          startupProbe:
+            tcpSocket: {port: 9201}
+            periodSeconds: 15
+            failureThreshold: 120
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+        - name: launch
+          configMap:
+            name: tensorfold-glm53-launch
+        - name: kernel-cache
+          hostPath:
+            path: /var/lib/llm-test/tensorfold-kernel-cache
+            type: DirectoryOrCreate
+      nodeSelector:
+        fabric.homelab.io/rdma: roce-v2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tensorfold-glm53-head
+  namespace: llm-test
+  labels:
+    app: tensorfold-glm53-head
+    lane: tensorfold-glm53
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: tensorfold-glm53-head
+  template:
+    metadata:
+      labels:
+        app: tensorfold-glm53-head
+    spec:
+      runtimeClassName: nvidia-rdma
+      terminationGracePeriodSeconds: 120
+      hostNetwork: true
+      hostIPC: true
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: lane
+                    operator: In
+                    values: [tensorfold-glm53]
+              topologyKey: kubernetes.io/hostname
+      initContainers:
+        - name: checkpoint-check
+          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:v3
+          imagePullPolicy: IfNotPresent
+          command: ["bash", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              SNAP="/models/.cache/huggingface/hub/models--Vontra--GLM-5.3-Flash-MLX-4bit-MTP/snapshots/76add2a341a1cd90ad0e86bb69839ea9c35827c6"
+              test -f "$SNAP/config.json" || { echo "checkpoint incomplete: $SNAP" >&2; exit 1; }
+              echo "checkpoint present"
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      containers:
+        - name: tensorfold
+          image: nvcr.io/nvidia/pytorch:26.07-py3
+          imagePullPolicy: IfNotPresent
+          command: ["bash", "/launch/launch-head.sh"]
+          securityContext:
+            privileged: false
+          resources:
+            requests:
+              memory: 100Gi
+            limits:
+              memory: 120Gi
+          ports:
+            - name: http
+              containerPort: 8180
+              hostPort: 8180
+          env:
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            - name: TENSORFOLD_NO_UPDATE_CHECK
+              value: "1"
+            - name: NCCL_SOCKET_IFNAME
+              value: eth0
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: launch
+              mountPath: /launch
+            - name: kernel-cache
+              mountPath: /root/.cache/tensorfold
+          readinessProbe:
+            httpGet: {path: /health, port: 8180}
+            periodSeconds: 10
+            failureThreshold: 6
+          startupProbe:
+            httpGet: {path: /health, port: 8180}
+            periodSeconds: 15
+            failureThreshold: 240
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+        - name: launch
+          configMap:
+            name: tensorfold-glm53-launch
+        - name: kernel-cache
+          hostPath:
+            path: /var/lib/llm-test/tensorfold-kernel-cache
+            type: DirectoryOrCreate
+      nodeSelector:
+        fabric.homelab.io/rdma: roce-v2
