@@ -6,39 +6,47 @@ This report is offline and does not authorize deployment.
 ## Provenance
 
 - Runtime baseline: `9348755653f6f8cda5d56562c05462724c40fcbd`
-- Last reviewed upstream HEAD: `6c228969a81d48372173bee55e5ad1b4753e656e`
-- Reviewed range: 175 commits ahead, 0 behind runtime baseline; selected runtime files changed: .env.example, Dockerfile, overlay/exl3.py, overlay/patch_adaptive_k.py, overlay/patch_apc_no_store.py, overlay/patch_cache_reset.py, overlay/patch_default_max_new_tokens.py, overlay/patch_kv_capacity_log.py, overlay/patch_scheduler_decode_floor.py, scripts/boot-shape-warmup.sh, start.sh; 72 other paths changed
-- Vendored comparison snapshot: `6c228969a81d48372173bee55e5ad1b4753e656e`
-- Serving image: `ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3@sha256:eecb36e14dc34c92d46827fde7b09f7e0bf27e27c426ece126376c02dea6cd2f`
-- Image provenance: **blocked: mutable tag still resolves to the baseline image (created 2026-09-07; recipe stamp 825e3374), not reviewed HEAD**
-- Runtime adoption: **BLOCKED (provenance-blocked): reviewed recipe HEAD is not bound to a published immutable image; active bundle remains at runtime baseline**
+- Last reviewed upstream HEAD: `f4970207e9fb2bdeac40d88b7cbef18c98aea310`
+- Reviewed range: 272 commits ahead, 0 behind runtime baseline; default runtime files changed: .env.example, Dockerfile, overlay/exl3.py, overlay/patch_adaptive_k.py, overlay/patch_apc_no_store.py, overlay/patch_cache_reset.py, overlay/patch_default_max_new_tokens.py, overlay/patch_exl3_decode_pipeline.py, overlay/patch_glm5_drafter_group.py, overlay/patch_hybrid_prefix_hit.py, overlay/patch_kv_capacity_log.py, overlay/patch_loadclone.py, overlay/patch_mamba_align_chunking.py, overlay/patch_mamba_align_state_free.py, overlay/patch_scheduler_decode_floor.py, overlay/patch_tool_choice_none.py, scripts/boot-shape-warmup.sh, start.sh; optional runtime files changed: none; 177 unselected paths changed
+- Vendored comparison snapshot: `f4970207e9fb2bdeac40d88b7cbef18c98aea310`
+- Serving image: `ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor@sha256:447114ee77d14c9b4732ee23978ada2a0ee9027868a231d6fd42700a8b25be1d`
+- Image provenance: **blocked: deployed instanttensor image was created 2026-09-16 with recipe stamp 5fd1b44a; no published image is bound to reviewed HEAD f497020**
+- Runtime adoption: **BLOCKED (pending-review): f497020 overlays boot-validated on both TP2 ranks with 20/20 warmup and a 77,040-token cold/repeated-prefix smoke; representative long-prefill qualification and a provenance-matched image remain pending**
 
 ## Preserved local contract
 
 - Serving Deployments remain replicas 0 with explicit worker -> head activation.
-- Port 8000, digest/model pins, 512k context, 16 sequences, 2048 batched tokens, 0.88 utilization, explicit 12 GiB KV cap, and mixed-prefill=off remain local policy.
+- TP2 placement is capability-based across any two DGX Sparks; common-network DNS carries rendezvous and node-local inventory selects the peer-facing RoCE rails.
+- Port 8000, immutable image/model pins, 512k context, 16 sequences, 2048 batched tokens, 0.88 utilization, explicit 15 GiB KV cap, and mixed-prefill=off remain local policy.
 - Cache preflight, readiness probes, and post-health boot-shape warmup remain unchanged.
-- Only image=48, MM_IMAGE_TOKENS=2048, and MM_PROCESSOR_CACHE_GB=1 are adopted independently on both ranks.
+- Adaptive-k, dense-FP8, auto/lazy loader staging, and compact DFlash pages are enabled; loader read-ahead and large-M KDA BF16 remain disabled for host/GPU memory headroom. Native thin-decode stays disabled pending a matched image.
 
 ## Runtime adoption blockers
 
-- **BLOCKER:** No immutable GHCR digest has been published or attested for recipe HEAD 6c228969a81d48372173bee55e5ad1b4753e656e; the pinned digest remains the older baseline image.
-- **BLOCKER:** 12-glm53-assets.yaml still embeds and 12-glm53-parity.yaml still mounts local exl3.py and patch_adaptive_k.py copies that would shadow files in a future image; refresh or remove them as one reviewed image migration.
-- **BLOCKER:** Latest scheduler/overlay changes require a rebuilt, provenance-matched image and hardware requalification; they must not be copied piecemeal into the current image.
+- **BLOCKER:** No newer immutable GHCR image has been published or attested for reviewed recipe HEAD f4970207e9fb2bdeac40d88b7cbef18c98aea310; the pinned instanttensor digest remains the older image-bound baseline.
+- **BLOCKER:** 12-glm53-assets.yaml and 12-glm53-parity.yaml deliberately mount reviewed Python overlays over the older image; reconcile or remove the complete mounted set when a provenance-matched image is published.
+- **BLOCKER:** The combined loader-v2, fine-grained APC/Mamba, and compact-DFlash runtime passed TP2 boot and medium repeated-prefix smoke, but representative long-prefill/concurrency GPU qualification remains pending. GLM53_EXL3_MOE_FAST remains disabled pending a provenance-matched native rebuild.
 
 ## Vendored files
 
-- `.env.example` — `b211cf5d63fa764cbc672abdcca05699e3d05d89935aba47e4c6658319d657ec`
-- `Dockerfile` — `b468f5457279d0b32bfa1093bdbf1f75007922081938b02bd56cbe845d489f13`
+- `.env.example` — `345dc837eb682202dee9ae7ec4298caaeb7d0fe9e4d4ba9f951b4cc6cc8fc5ff`
+- `Dockerfile` — `99251caa46c40215049624d76699d1c4d93403e442c1eeccd7deb7f555ffc085`
 - `LICENSE` — `8d56b405468aad11f87ab5763f901e276e08d9646ff5c8481b1762b6b789e9ed`
 - `files/chat_template.jinja` — `7a5a0dda1331a7c40d930961cc1cb3b57c3b52625250c13372fe006ba2e9dfdb`
-- `overlay/exl3.py` — `fe07cf3cd1928d0a189e793579a7d2dd529f75617a55f620ee14a0a9d3b20121`
+- `overlay/exl3.py` — `849e25882ab7901fbdd7227990a4f125809e1f79288ce6506311b6e6a53e6fb2`
 - `overlay/patch_adaptive_k.py` — `b7a874f897085a39b6b736084769fbad8e2444b3c098fc23f461a22f62b46b79`
 - `overlay/patch_apc_no_store.py` — `19a4f29ca997fcd35a1a67de60dac9c0c4f11cc7c64a0085435d3e07e1544043`
 - `overlay/patch_cache_reset.py` — `8292aab26b5e92c268fb603a99df30016e92210bfa6b82a1e707c8543bb49f1c`
 - `overlay/patch_default_max_new_tokens.py` — `c73e57be0fe979daa3938e43a1eaefd9a59f0e5278ebbbd5cca01595b246b2c7`
 - `overlay/patch_dense_fp8.py` — `ada9cdd910e96736b43050a5034f7fd47e6e07dadbbe9adbe6113b9a308c198b`
-- `overlay/patch_kv_capacity_log.py` — `f033212cd05eae74aedffc715a6bd63ed57f5603fa69278e3c4174c702af40a1`
+- `overlay/patch_exl3_decode_pipeline.py` — `9bb4ed4b223b772cbdd2c26508f1287226ad43203a7302eed25263ddc8969018`
+- `overlay/patch_glm5_drafter_group.py` — `56cea092c1bd80de80ba844a151b38e898186854ccb8debebc12d6b1d2f07ece`
+- `overlay/patch_hybrid_prefix_hit.py` — `892adc99bfab6c1a649b3b0da0fc3b186ba2d9f57adadc97a344471b7074ab0b`
+- `overlay/patch_kv_capacity_log.py` — `3875440f7812c572655c9fe8827542631f78c3788f3e13fe068c893da64f2241`
+- `overlay/patch_loadclone.py` — `7fdd5eab52f8c684a9efd02db401723e05297c7d8f9efef5f71e5d116c0d86da`
+- `overlay/patch_mamba_align_chunking.py` — `78e4b754b70fa474306a410d753614e4ba5965ef44e53abc864a493c6f193b89`
+- `overlay/patch_mamba_align_state_free.py` — `991fff352d2d166e294bae21ee7e7beadad7fab01ca723bbeb03b00b2fc7fe82`
 - `overlay/patch_scheduler_decode_floor.py` — `d5713ec6eac0d7a971c4fb33782298f8496a547c829407ad2427d709ba118eb4`
+- `overlay/patch_tool_choice_none.py` — `769c9da4140667a8b21de382fe2a654b9474e6075b8c4428cfb2b059d2a412bf`
 - `scripts/boot-shape-warmup.sh` — `229a63c2b46e2b452df3ba3f7da864eaab5881c6052c5d3bfed2eaa325ff22d9`
-- `start.sh` — `9ba3ade0fc2db02d4681bc670e24e6a1b7e1f1cddcce1a347815029102150851`
+- `start.sh` — `e7146dd9c992b83ec279fe0b36e48e7932c4ec2b9217fa4d7e84468fe4a3d567`

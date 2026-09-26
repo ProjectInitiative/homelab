@@ -1,8 +1,8 @@
 {
   "adoptionBlockers": [
-    "No newer immutable GHCR image has been published or attested for reviewed recipe HEAD d0b960816ba15c37927247ff74a6d04e59b00a3e; the pinned instanttensor digest remains the older image-bound baseline.",
+    "No newer immutable GHCR image has been published or attested for reviewed recipe HEAD f4970207e9fb2bdeac40d88b7cbef18c98aea310; the pinned instanttensor digest remains the older image-bound baseline.",
     "12-glm53-assets.yaml and 12-glm53-parity.yaml deliberately mount reviewed Python overlays over the older image; reconcile or remove the complete mounted set when a provenance-matched image is published.",
-    "GLM53_EXL3_MOE_FAST still requires a provenance-matched native rebuild. GLM53_DRAFT_KV_COMPACT remains off because it reduces allocator IDs rather than backing VRAM and is not a universal throughput win."
+    "The combined loader-v2, fine-grained APC/Mamba, and compact-DFlash runtime passed TP2 boot and medium repeated-prefix smoke, but representative long-prefill/concurrency GPU qualification remains pending. GLM53_EXL3_MOE_FAST remains disabled pending a provenance-matched native rebuild."
   ],
   "fileAssertions": [
     {
@@ -168,7 +168,17 @@
     {
       "count": 2,
       "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
-      "text": "{name: GLM53_DRAFT_KV_COMPACT, value: \"0\"}"
+      "text": "{name: GLM53_DRAFT_KV_COMPACT, value: \"1\"}"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "{name: GLM53_LOAD_CLONE, value: \"1\"}"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "{name: GLM53_LOAD_PREFETCH, value: \"0\"}"
     },
     {
       "count": 2,
@@ -347,7 +357,7 @@
     "TP2 placement is capability-based across any two DGX Sparks; common-network DNS carries rendezvous and node-local inventory selects the peer-facing RoCE rails.",
     "Port 8000, immutable image/model pins, 512k context, 16 sequences, 2048 batched tokens, 0.88 utilization, explicit 15 GiB KV cap, and mixed-prefill=off remain local policy.",
     "Cache preflight, readiness probes, and post-health boot-shape warmup remain unchanged.",
-    "Adaptive-k and dense-FP8 remain enabled; large-M KDA BF16 and compact DFlash pages stay disabled for the memory-conservative profile. Native thin-decode stays disabled pending a matched image."
+    "Adaptive-k, dense-FP8, auto/lazy loader staging, and compact DFlash pages are enabled; loader read-ahead and large-M KDA BF16 remain disabled for host/GPU memory headroom. Native thin-decode stays disabled pending a matched image."
   ],
   "schemaVersion": 1,
   "servingManifests": [

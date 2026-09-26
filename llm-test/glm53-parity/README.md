@@ -15,9 +15,9 @@ upstream MiaAI Lab recipe
 
 - `05-glm53-exl3-download.yaml` — weight puller for the EXL3 model + DFlash2 draft.
 - `12-glm53-assets.yaml` — ConfigMap with the reviewed runtime overlays needed
-  on top of the pinned public image. It includes the bounded Mamba-state fixes,
-  current scheduler/DFlash-prefix composition, and the existing EXL3/adaptive-k/
-  dense-FP8 overrides, all sourced from the reviewed upstream commit.
+  on top of the pinned public image. It includes loader-v2 staging/page-cache
+  release, corrected Mamba/APC composition, compact-DFlash boundary lookup, and
+  the existing EXL3/adaptive-k/dense-FP8 overrides, all from the reviewed commit.
 - `12-glm53-parity.yaml` — dynamically scheduled TP2 head/worker Deployments,
   headless rendezvous Services, and node-local RoCE discovery; `replicas: 0`.
 - `services.yaml` — stable in-cluster Service for the dynamic head; LiteLLM is the only Tailscale-facing API.
@@ -33,11 +33,11 @@ upstream MiaAI Lab recipe
 | Item | Value |
 |---|---|
 | Runtime recipe baseline | `9348755653f6f8cda5d56562c05462724c40fcbd` (the last image-bound baseline in the provenance schema) |
-| Last reviewed upstream HEAD | `d0b960816ba15c37927247ff74a6d04e59b00a3e` |
+| Last reviewed upstream HEAD | `f4970207e9fb2bdeac40d88b7cbef18c98aea310` |
 | Provenance contract | [`../lanes/glm53/upstream.lock.json`](../lanes/glm53/upstream.lock.json) and generated [`drift.md`](../lanes/glm53/drift.md) |
 | Image (public) | `ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor` |
 | Image digest | `sha256:447114ee77d14c9b4732ee23978ada2a0ee9027868a231d6fd42700a8b25be1d` |
-| Runtime adoption status | **SOURCE-OVERLAY UPDATE** — the public image digest is unchanged, while reviewed Python overlays from `d0b9608` are mounted explicitly; native thin-decode remains disabled because it requires a matched image build |
+| Runtime adoption status | **SOURCE-OVERLAY UPDATE** — the public image digest is unchanged, while reviewed Python overlays from `f497020` are mounted explicitly; TP2 boot and medium repeated-prefix smoke passed, representative long-prefill/concurrency remains pending, and native thin-decode remains disabled pending a matched image |
 | Weight model | `Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw` @ `25a44fdbf16862a46b7cc9921142c6c81350af2f` (~164 GiB, 120 shards) |
 | Draft model | `incoai/GLM-5.3-Flash-DFlash2` (k=7) @ `dc77ff1c99eeb2df044ee3d4f0094eb033fee410` (~2.3 GiB) |
 | Served model id | `GLM-5.3-Flash-EXL3` |
@@ -129,9 +129,11 @@ curl http://ai.taildeab2.ts.net/v1/models
   asynchronous prefills. Native `GLM53_EXL3_MOE_FAST` remains disabled because
   it requires a provenance-matched native image rebuild.
   `GLM53_KDA_BF16_LARGE_M=0` intentionally releases roughly 3.29 GiB/rank versus
-  the prior staged profile. `GLM53_DRAFT_KV_COMPACT=0` remains conservative: the
-  opt-in reduces allocator IDs but does not reduce backing VRAM. Multimodal caps
-  and local 512k/16/2048/0.88/15-GiB geometry are used.
+  the prior staged profile. `GLM53_LOAD_CLONE=1` enables upstream loader-v2 with
+  `GLM53_LOAD_PREFETCH=0`, and `GLM53_DRAFT_KV_COMPACT=1` adopts the new DFlash
+  default to reduce allocator-ID pressure and improve repeated-prefix boundary
+  reuse; neither setting claims lower backing VRAM or universal decode gains.
+  Multimodal caps and local 512k/16/2048/0.88/15-GiB geometry are used.
 - The public image contains an older baked recipe (`glm53.recipe.stamp`), while
   `glm53-parity-overlay` supplies the reviewed source-only updates. The runtime
   applies them in upstream `GLM53_OVERLAY_ORDER`; installers are versioned,
@@ -169,6 +171,24 @@ curl http://ai.taildeab2.ts.net/v1/models
   select the two RoCE rails and matching GID for the actual node pair. No
   serving manifest contains a node hostname, direct-link IP, Linux netdev, or
   `mlx5_N` identifier.
+
+## f497020 deployment receipt (2026-09-25)
+
+The source-overlay upgrade booted on sextant + octant with zero restarts. Both
+ranks applied loader-v2, Mamba alignment v2, and corrected hybrid-prefix
+composition; compact DFlash selected a 896-token manager page with boundary
+lookup. The 15 GiB pool reported 1,578,666 tokens and 3.08× maximum concurrency
+at the 512k cap (591 usable block IDs), up from 1,078,661 tokens before compact
+pages. Main/draft weight loading took about 168 s + 2–7 s with warm page cache,
+and boot warmup passed 20/20 in 25 s.
+
+A 77,040-token cold/repeated-prefix smoke through `ai.taildeab2.ts.net` completed
+in 78.88 s cold and 2.15 s repeated; the runtime reported 48.4% cumulative prefix
+hit rate across the pair. Both selected RoCE rails carried balanced traffic, and
+an OpenAI `tool_choice: "none"` request completed without tool calls. The durable
+receipt is [`../lanes/glm53/receipts/f497020-tp2-smoke.json`](../lanes/glm53/receipts/f497020-tp2-smoke.json).
+This qualifies boot and a medium repeated prefix, not the still-pending
+representative long-prefill/concurrency campaign.
 
 ## Continuous-batching load test
 

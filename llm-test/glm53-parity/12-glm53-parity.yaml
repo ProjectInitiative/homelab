@@ -9,16 +9,16 @@
 # started until you explicitly scale the worker rank first, then the head rank.
 #
 # Kubernetes wrapper and mounted Python overlays reconciled against MiaAI-Lab
-# upstream @ d0b960816ba15c37927247ff74a6d04e59b00a3e. The immutable image remains
+# upstream @ f4970207e9fb2bdeac40d88b7cbef18c98aea310. The immutable image remains
 # the older published baseline because GHCR has not published a newer digest.
 # Image: ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor
 #   digest sha256:447114ee77d14c9b4732ee23978ada2a0ee9027868a231d6fd42700a8b25be1d
 # Model: Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw @ 25a44fdbf16862a46b7cc9921142c6c81350af2f
 # Draft: incoai/GLM-5.3-Flash-DFlash2 (k=7) @ dc77ff1c99eeb2df044ee3d4f0094eb033fee410
-# Runtime overlays are synced from reviewed MiaAI-Lab HEAD @ d0b9608. The Mamba
-# bounded-state fixes are active; large-M KDA BF16 and compact DFlash pages are
-# disabled for the memory-conservative profile. Native thin-decode remains
-# disabled because it requires a provenance-matched rebuilt image.
+# Runtime overlays are synced from reviewed MiaAI-Lab HEAD @ f497020. Loader-v2,
+# corrected APC/Mamba composition, tool-choice-none, and compact DFlash pages are
+# active; loader read-ahead and large-M KDA BF16 remain disabled. Native
+# thin-decode remains disabled pending a provenance-matched rebuilt image.
 # Served model id: GLM-5.3-Flash-EXL3
 # API: http://<node>:8000 (host network); Tailscale endpoint in services.yaml.
 ---
@@ -320,7 +320,7 @@ spec:
                        patch_mamba_align_state_free.py patch_kv_capacity_log.py \
                        patch_tool_choice_none.py patch_xgrammar_termination.py \
                        patch_kpool_tail_slotmap.py patch_spinwait.py patch_adaptive_k.py \
-                       patch_dense_fp8.py patch_default_max_new_tokens.py \
+                       patch_dense_fp8.py patch_loadclone.py patch_default_max_new_tokens.py \
                        patch_indexer_workspace.py patch_cache_reset.py patch_ablit.py; do
                 if [ -f /opt/glm53/$p ]; then
                   say "applying overlay patch $p"
@@ -425,9 +425,13 @@ spec:
             - {name: GLM53_ADAPTIVE_K_SATURATE, value: max}
             - {name: GLM53_ADAPTIVE_K_HIST, value: "200"}
             - {name: GLM53_DENSE_FP8, value: "dense,kda"}
-            # Compact DFlash pages reduce allocator block-ID pressure but do not
-            # reduce backing VRAM; keep the experimental path off by default.
-            - {name: GLM53_DRAFT_KV_COMPACT, value: "0"}
+            # Clone mmap-backed auto/lazy tensors before yielding them and advise
+            # consumed local shards out of page cache; no speculative read-ahead.
+            - {name: GLM53_LOAD_CLONE, value: "1"}
+            - {name: GLM53_LOAD_PREFETCH, value: "0"}
+            # Upstream now defaults compact DFlash pages on. This reduces draft
+            # block-ID pressure and enables the qualified boundary lookup path.
+            - {name: GLM53_DRAFT_KV_COMPACT, value: "1"}
             # The BF16 large-M optimization retains ~3.29 GiB/rank. Keep it off
             # for the memory-conservative profile; FP8-Marlin remains active.
             - {name: GLM53_KDA_BF16_LARGE_M, value: "0"}
@@ -508,11 +512,17 @@ spec:
               mountPath: /opt/glm53/patch_kv_capacity_log.py
               subPath: patch_kv_capacity_log.py
             - name: overlay
+              mountPath: /opt/glm53/patch_tool_choice_none.py
+              subPath: patch_tool_choice_none.py
+            - name: overlay
               mountPath: /opt/glm53/patch_adaptive_k.py
               subPath: patch_adaptive_k.py
             - name: overlay
               mountPath: /opt/glm53/patch_dense_fp8.py
               subPath: patch_dense_fp8.py
+            - name: overlay
+              mountPath: /opt/glm53/patch_loadclone.py
+              subPath: patch_loadclone.py
             - name: overlay
               mountPath: /opt/glm53/exl3.py
               subPath: exl3.py
@@ -745,7 +755,7 @@ spec:
                        patch_mamba_align_state_free.py patch_kv_capacity_log.py \
                        patch_tool_choice_none.py patch_xgrammar_termination.py \
                        patch_kpool_tail_slotmap.py patch_spinwait.py patch_adaptive_k.py \
-                       patch_dense_fp8.py patch_default_max_new_tokens.py \
+                       patch_dense_fp8.py patch_loadclone.py patch_default_max_new_tokens.py \
                        patch_indexer_workspace.py patch_cache_reset.py patch_ablit.py; do
                 if [ -f /opt/glm53/$p ]; then
                   say "applying overlay patch $p"
@@ -828,9 +838,13 @@ spec:
             - {name: GLM53_ADAPTIVE_K_SATURATE, value: max}
             - {name: GLM53_ADAPTIVE_K_HIST, value: "200"}
             - {name: GLM53_DENSE_FP8, value: "dense,kda"}
-            # Compact DFlash pages reduce allocator block-ID pressure but do not
-            # reduce backing VRAM; keep the experimental path off by default.
-            - {name: GLM53_DRAFT_KV_COMPACT, value: "0"}
+            # Clone mmap-backed auto/lazy tensors before yielding them and advise
+            # consumed local shards out of page cache; no speculative read-ahead.
+            - {name: GLM53_LOAD_CLONE, value: "1"}
+            - {name: GLM53_LOAD_PREFETCH, value: "0"}
+            # Upstream now defaults compact DFlash pages on. This reduces draft
+            # block-ID pressure and enables the qualified boundary lookup path.
+            - {name: GLM53_DRAFT_KV_COMPACT, value: "1"}
             # The BF16 large-M optimization retains ~3.29 GiB/rank. Keep it off
             # for the memory-conservative profile; FP8-Marlin remains active.
             - {name: GLM53_KDA_BF16_LARGE_M, value: "0"}
@@ -885,11 +899,17 @@ spec:
               mountPath: /opt/glm53/patch_kv_capacity_log.py
               subPath: patch_kv_capacity_log.py
             - name: overlay
+              mountPath: /opt/glm53/patch_tool_choice_none.py
+              subPath: patch_tool_choice_none.py
+            - name: overlay
               mountPath: /opt/glm53/patch_adaptive_k.py
               subPath: patch_adaptive_k.py
             - name: overlay
               mountPath: /opt/glm53/patch_dense_fp8.py
               subPath: patch_dense_fp8.py
+            - name: overlay
+              mountPath: /opt/glm53/patch_loadclone.py
+              subPath: patch_loadclone.py
             - name: overlay
               mountPath: /opt/glm53/exl3.py
               subPath: exl3.py
