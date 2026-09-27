@@ -13,6 +13,6 @@ spec:
     app: tensorfold-glm53-head
   ports:
     - name: http
-      port: 8180
-      targetPort: 8180
+      port: 8000
+      targetPort: 8000
       protocol: TCP

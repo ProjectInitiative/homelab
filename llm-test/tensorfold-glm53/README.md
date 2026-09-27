@@ -1,9 +1,10 @@
 # TensorFold GLM-5.3-Flash lane (2x DGX-Spark)
 
-**Status: prepared, not deployed.** The download Job starts suspended and the
-serving Deployments ship with `replicas: 0`. Nothing here touches the resident
-MiaAI EXL3 pair (checked-in manifests remain zero-replica; the live pair is
-scaled outside Git).
+**Status: checkpoint downloaded and verified; serving Deployments remain at
+zero.** The Job manifest is suspended by default; its live run completed, and a
+read-only check verified all 43 shards (181,709,451,790 bytes) at the pinned
+snapshot. The resident MiaAI pair remains untouched; checked-in replicas stay
+at `replicas: 0`.
 
 This lane exists to evaluate [TensorFold](https://github.com/ashhart/TensorFold)
 (`v0.3.4` = `2f8e514b0b7d615df7c971627ce3c0fb7e55d93a`, MIT, alpha) as an
@@ -12,7 +13,7 @@ alternative inference engine for GLM-5.3-Flash on the DGX Spark pair.
 ## What TensorFold is (and is not)
 
 - OpenAI-compatible server (`/v1/chat/completions`, `/v1/models`, `/health`)
-  on port 8080. **Requests are served one at a time** — no continuous batching.
+  on port 8000 in this lane. **Requests are served one at a time** — no continuous batching.
 - Exact speculative decoding: drafted replies are byte-identical to serial
   decoding (`"draft": false` gives the serial reference).
 - Claims 1.5–2.1x single-stream decode vs the MiaAI vLLM recipe on 2x GB10.
@@ -42,8 +43,12 @@ remains available for future vLLM-side work without new downloads.
   EXL3 lane, so no re-download is needed.
 - `12-tensorfold-glm53.yaml` — two-rank Deployments (`replicas: 0`) that
   install TensorFold inside `nvcr.io/nvidia/pytorch:26.07-py3` at pod start,
-  split the checkpoint per rank, rendezvous over the common Kubernetes network,
-  and expose one OpenAI-compatible endpoint on port 8180 (host network).
+  rendezvous over common-network DNS, and select peer RoCE HCAs/GID from each
+  node's fabric inventory. Both ranks read the shared snapshot directly; this
+  avoids writing a ~91-GiB split to ephemeral storage (at the cost of ~1/3 more
+  checkpoint reads than upstream's optional per-rank split). Init verifies all
+  43 shards; a head init gate waits for rank 1 to start before rank 0 launches.
+  The API uses 8000.
 - `services.yaml` — internal ClusterIP Service for the rank-0 API.
 
 ## Weights
@@ -55,30 +60,42 @@ remains available for future vLLM-side work without new downloads.
 | Checkpoint | `Vontra/GLM-5.3-Flash-MLX-4bit-MTP` @ `76add2a341a1cd90ad0e86bb69839ea9c35827c6` (~169 GiB, MIT) |
 | Draft | `incoai/GLM-5.3-Flash-DFlash2` (already cached; CC BY-NC-ND 4.0) |
 | Served model id | `GLM-5.3-Flash-MLX` |
-| API | `http://<head-node>:8180/v1` (host network) |
+| API | `http://<head-node>:8000/v1` (host network) |
 
 ## Deployment order (manual, transient)
 
 ```bash
 # 1. Fill the cache (Job is suspended; resume it to run)
 kubectl apply --server-side -f llm-test/tensorfold-glm53/05-tensorfold-download.yaml
-kubectl unsuspend job tensorfold-cache-pull -n llm-test
+kubectl patch job tensorfold-cache-pull -n llm-test --type merge \\
+  -p '{"spec":{"suspend":false}}'
 
-# 2. Create the zero-replica serving resources
+# 2. This is an exclusive 2-GPU swap; it cannot coexist with the resident MiaAI TP2.
+# Stop the old head first, then worker, and wait for the GPUs to be released.
+kubectl scale deploy glm53-exl3-head -n llm-test --replicas=0
+kubectl wait --for=delete pod -l app=glm53-exl3-head -n llm-test --timeout=10m
+kubectl scale deploy glm53-exl3-worker -n llm-test --replicas=0
+kubectl wait --for=delete pod -l app=glm53-exl3-worker -n llm-test --timeout=10m
+
+# 3. Create the zero-replica serving resources
 kubectl apply --server-side -f llm-test/tensorfold-glm53/12-tensorfold-glm53.yaml
 kubectl apply -f llm-test/tensorfold-glm53/services.yaml
 
-# 3. Scale worker (rank 1) first, then head (rank 0)
+# 4. Scale worker (rank 1) first. It waits for the rank-0 pod's DNS/IP;
+#    rank 0's init gate waits until the worker container has started.
 kubectl scale deploy tensorfold-glm53-worker -n llm-test --replicas=1
-kubectl wait --for=jsonpath='{.status.containerStatuses[0].started}'=true \
-  pod -l app=tensorfold-glm53-worker -n llm-test --timeout=15m
 kubectl scale deploy tensorfold-glm53-head -n llm-test --replicas=1
-kubectl wait --for=condition=Ready pod -l app=tensorfold-glm53-head \
+kubectl wait --for=condition=Ready deployment/tensorfold-glm53-worker \
+  -n llm-test --timeout=15m
+kubectl wait --for=condition=Available deployment/tensorfold-glm53-head \
   -n llm-test --timeout=3600s
 ```
 
-Port 8180 was chosen because 8000 (EXL3 lane) and 8888 (upstream default) are
-taken by the resident pair; the exclusive host-port slot rule is preserved.
+The TensorFold and MiaAI pairs both use the exclusive Spark host port 8000 and
+the same two GPUs. They must not run concurrently. Host port 8000 is already
+scoped to Kubernetes source CIDRs; client access is via the internal ClusterIP
+Service. Returning to MiaAI requires stopping TensorFold head then worker, then
+starting the MiaAI worker before its head.
 
 ## Caveats
 
