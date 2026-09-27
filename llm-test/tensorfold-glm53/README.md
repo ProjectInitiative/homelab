@@ -107,8 +107,10 @@ kubectl wait --for=condition=Available deployment/tensorfold-glm53-head \
 The TensorFold and MiaAI pairs both use the exclusive Spark host port 8000 and
 the same two GPUs. They must not run concurrently. Host port 8000 is already
 scoped to Kubernetes source CIDRs; client access is via the internal ClusterIP
-Service. Returning to MiaAI requires stopping TensorFold head then worker, then
-starting the MiaAI worker before its head.
+Service. Returning to MiaAI requires stopping TensorFold head then worker,
+starting the MiaAI worker before its head, then restoring the `dgx-spark` route
+in `llm-test/miaai-parity/services.yaml` to `glm53-head` / the EXL3 model and
+restarting `ai-proxy`.
 
 ## Caveats
 
