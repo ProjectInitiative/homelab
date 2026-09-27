@@ -47,7 +47,8 @@ remains available for future vLLM-side work without new downloads.
   node's fabric inventory. Both ranks read the shared snapshot directly; this
   avoids writing a ~91-GiB split to ephemeral storage (at the cost of ~1/3 more
   checkpoint reads than upstream's optional per-rank split). Init verifies all
-  43 shards; a head init gate waits for rank 1 to start before rank 0 launches.
+  43 shards; a narrowly scoped head init gate waits for rank 1's peer/fabric
+  setup log marker before rank 0 launches.
   The API uses 8000.
 - `services.yaml` — internal ClusterIP Service for the rank-0 API.
 
@@ -82,7 +83,7 @@ kubectl apply --server-side -f llm-test/tensorfold-glm53/12-tensorfold-glm53.yam
 kubectl apply -f llm-test/tensorfold-glm53/services.yaml
 
 # 4. Scale worker (rank 1) first. It waits for the rank-0 pod's DNS/IP;
-#    rank 0's init gate waits until the worker container has started.
+#    rank 0's init gate waits for rank 1's peer/fabric setup log marker.
 kubectl scale deploy tensorfold-glm53-worker -n llm-test --replicas=1
 kubectl scale deploy tensorfold-glm53-head -n llm-test --replicas=1
 kubectl wait --for=condition=Ready deployment/tensorfold-glm53-worker \
