@@ -1,14 +1,20 @@
 # TensorFold GLM-5.3-Flash lane (2x DGX-Spark)
 
-**Status: checkpoint downloaded and verified; TensorFold is not serving.** The
-pinned snapshot has all 43 shards (181,709,451,790 bytes). A Sep 27 handoff was
-attempted, but rank 1's NCCL socket connection to the rank-0 control address
-`172.16.4.56:37351` was refused after 35 retries; TensorFold was shut down.
-Here `.4` is the 10Gb VLAN-10 Kubernetes/control network, not the RoCE data
-plane. The selected CX7 rails (`.9`/`.10`, HCA `mlx5_0` + `mlx5_2`, GID 3)
-matched the working EXL3 setup. Root cause is unresolved. The EXL3 pair is
-restored and Ready; a LiteLLM `dgx-spark` completion smoke test passed. Keep
-TensorFold at zero pending NCCL process/listener diagnostics.
+**Status: TensorFold is serving through LiteLLM `dgx-spark`.** The pinned
+snapshot has all 43 shards (181,709,451,790 bytes). On Sep 27, the retry placed
+rank 0 on sextant and rank 1 on octant through the Kubernetes RDMA resource,
+RuntimeClass, and headless-Service discovery; NCCL INFO confirmed QPs on both
+peer HCAs (GID 3, `.9`/`.10` subnets for this pair). The full pair became Ready.
+Direct completion returned `TENSORFOLD_OK`; LiteLLM returned
+`LITELLM_TENSORFOLD_OK`. EXL3 is scaled to zero; return procedure is documented
+below. The earlier refusal at `172.16.4.56:37351` remains unexplained.
+
+The Spark direct-link topology spans pair-specific `.5`–`.10` subnets. The
+Kubernetes RDMA shared-device resource/runtime class handle allocation and
+eligible placement; headless Services provide dynamic peer discovery; the
+node-local inventory maps the selected peer to its correct links. `.4` is the
+10Gb Kubernetes/control network, not the NCCL bulk-data path. No subnet, node,
+netdev, or HCA identifier is hardcoded in the workload.
 
 This lane exists to evaluate [TensorFold](https://github.com/ashhart/TensorFold)
 (`v0.3.4` = `2f8e514b0b7d615df7c971627ce3c0fb7e55d93a`, MIT, alpha) as an
@@ -65,7 +71,7 @@ remains available for future vLLM-side work without new downloads.
 | Base image | `nvcr.io/nvidia/pytorch:26.07-py3` |
 | Checkpoint | `Vontra/GLM-5.3-Flash-MLX-4bit-MTP` @ `76add2a341a1cd90ad0e86bb69839ea9c35827c6` (~169 GiB, MIT) |
 | Draft | `incoai/GLM-5.3-Flash-DFlash2` (already cached; CC BY-NC-ND 4.0) |
-| Served model id | `GLM-5.3-Flash-MLX` |
+| Served model id | `76add2a341a1cd90ad0e86bb69839ea9c35827c6` (LiteLLM alias: `dgx-spark`) |
 | API | `http://<head-node>:8000/v1` (host network) |
 
 ## Deployment order (manual, transient)
@@ -87,8 +93,9 @@ kubectl wait --for=delete pod -l app=glm53-exl3-worker -n llm-test --timeout=10m
 kubectl apply --server-side -f llm-test/tensorfold-glm53/12-tensorfold-glm53.yaml
 kubectl apply -f llm-test/tensorfold-glm53/services.yaml
 
-# 4. DO NOT repeat the rank startup sequence until the NCCL bootstrap failure
-#    described below is fixed. Intended order is worker (rank 1), then head (rank 0).
+# 4. The current live TensorFold pair is already at one replica per rank.
+#    For a fresh handoff only: start rank 1, then rank 0; do not scale both
+#    serving pairs up together. Rank-1 Kubernetes Ready is not NCCL-ready.
 kubectl scale deploy tensorfold-glm53-worker -n llm-test --replicas=1
 kubectl scale deploy tensorfold-glm53-head -n llm-test --replicas=1
 kubectl wait --for=condition=Ready deployment/tensorfold-glm53-worker \
@@ -105,17 +112,22 @@ starting the MiaAI worker before its head.
 
 ## Caveats
 
-- **Known deployment blocker (cause unresolved):** rank 1's NCCL socket connect
-  to `172.16.4.56:37351` was refused after 35 retries. `172.16.4.56` is the
-  10Gb control/Kubernetes address; the direct RoCE data plane is `172.16.9.*`
-  and `172.16.10.*`. Dotfiles allow peer-control callbacks and trust the direct
-  links; TensorFold selected the same HCA/GID and `NCCL_NET=IB` settings as
-  EXL3. This is not evidence of a bad RoCE topology or that `.4` carried bulk
-  data. Investigate TensorFold's rank-0 listener/advertised ephemeral socket
-  and capture NCCL INFO logs before any retry. The head gate only checked the
-  peer/fabric setup marker. Separately, the live candidate had a stale
-  port-9201 startup probe that restarted rank 1. The GPU capability mismatch
-  was fixed with `NVIDIA_DRIVER_CAPABILITIES=compute,utility`.
+- **Historical failure (cause unresolved):** the first attempt's rank 1 got
+  `Connection refused` at `172.16.4.56:37351` after 35 retries. In the Sep 27
+  retry, both ranks completed NCCL initialization; NCCL INFO shows QPs created
+  on both CX7 HCAs and GID 3, and rank 1 reached `ready in 1611.3s`. The head
+  served successfully. Direct `/v1/chat/completions` returned `TENSORFOLD_OK`,
+  and the stable LiteLLM `dgx-spark` alias returned `LITELLM_TENSORFOLD_OK`.
+  The original refusal's cause remains unknown; do not infer a fabric fault.
+- Dynamic networking: the topology uses pair-specific `.5`–`.10` RoCE
+  subnets. `nvidia-rdma` and `rdma/hca_shared_devices` let Kubernetes schedule
+  and allocate eligible devices; headless Service DNS finds the other rank;
+  node-local inventory selects that peer's links. The tested sextant–octant
+  pair used `.9`/`.10`. `.4` is control/bootstrap, not the NCCL data path.
+- The live candidate previously inherited a stale port-9201 worker probe; it
+  and the stale Service port were removed. `NCCL_DEBUG=INFO` with `INIT,NET`
+  is enabled for diagnostics. The separate GPU capability mismatch was fixed
+  with `NVIDIA_DRIVER_CAPABILITIES=compute,utility`.
 - Kernel compilation happens on first start (~200–230 s to ready upstream).
 - TensorFold serves one request at a time; latency-sensitive concurrent agent
   traffic will queue.
