@@ -1,7 +1,7 @@
 {
   "adoptionBlockers": [
-    "No newer immutable GHCR image has been published or attested for reviewed recipe HEAD f4970207e9fb2bdeac40d88b7cbef18c98aea310; the pinned instanttensor digest remains the older image-bound baseline.",
-    "12-glm53-assets.yaml and 12-glm53-parity.yaml deliberately mount reviewed Python overlays over the older image; reconcile or remove the complete mounted set when a provenance-matched image is published.",
+    "No newer immutable GHCR image has been published or attested for reviewed recipe HEAD 943912cdcda25f4b7e02f4626656e873c6f14847; the published instanttensor tag still resolves to the older pinned digest.",
+    "The live Kubernetes overlay set remains based on the previous reviewed source snapshot f497020; the latest 943912 source is vendored for review only. Port and qualify the new cold-load/startup fixes and build or attest a matching image before adoption.",
     "The combined loader-v2, fine-grained APC/Mamba, and compact-DFlash runtime passed TP2 boot and medium repeated-prefix smoke, but representative long-prefill/concurrency GPU qualification remains pending. GLM53_EXL3_MOE_FAST remains disabled pending a provenance-matched native rebuild."
   ],
   "fileAssertions": [

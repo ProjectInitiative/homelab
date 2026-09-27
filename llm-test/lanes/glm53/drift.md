@@ -6,12 +6,12 @@ This report is offline and does not authorize deployment.
 ## Provenance
 
 - Runtime baseline: `9348755653f6f8cda5d56562c05462724c40fcbd`
-- Last reviewed upstream HEAD: `f4970207e9fb2bdeac40d88b7cbef18c98aea310`
-- Reviewed range: 272 commits ahead, 0 behind runtime baseline; default runtime files changed: .env.example, Dockerfile, overlay/exl3.py, overlay/patch_adaptive_k.py, overlay/patch_apc_no_store.py, overlay/patch_cache_reset.py, overlay/patch_default_max_new_tokens.py, overlay/patch_exl3_decode_pipeline.py, overlay/patch_glm5_drafter_group.py, overlay/patch_hybrid_prefix_hit.py, overlay/patch_kv_capacity_log.py, overlay/patch_loadclone.py, overlay/patch_mamba_align_chunking.py, overlay/patch_mamba_align_state_free.py, overlay/patch_scheduler_decode_floor.py, overlay/patch_tool_choice_none.py, scripts/boot-shape-warmup.sh, start.sh; optional runtime files changed: none; 177 unselected paths changed
-- Vendored comparison snapshot: `f4970207e9fb2bdeac40d88b7cbef18c98aea310`
+- Last reviewed upstream HEAD: `943912cdcda25f4b7e02f4626656e873c6f14847`
+- Reviewed range: 307 commits ahead, 0 behind runtime baseline; default runtime files changed: .env.example, Dockerfile, docs/cold-load-uma.md, overlay/exl3.py, overlay/patch_adaptive_k.py, overlay/patch_apc_no_store.py, overlay/patch_cache_reset.py, overlay/patch_cold_load_uma.py, overlay/patch_default_max_new_tokens.py, overlay/patch_exl3_decode_pipeline.py, overlay/patch_glm5_drafter_group.py, overlay/patch_glm_video_placeholders.py, overlay/patch_hybrid_prefix_hit.py, overlay/patch_kpool_tail_seed_stride.py, overlay/patch_kv_capacity_log.py, overlay/patch_loadclone.py, overlay/patch_mamba_align_chunking.py, overlay/patch_mamba_align_state_free.py, overlay/patch_scheduler_decode_floor.py, overlay/patch_skip_cudagraph_profile.py, overlay/patch_tool_choice_none.py, scripts/boot-shape-warmup.sh, start.sh, tests/test_boot_shape_warmup.py, tests/test_cold_load_uma.py, tests/test_kpool_tail_seed_stride.py, tests/test_loadclone.py, tests/test_skip_cudagraph_profile.py, tests/test_warmup_canary_launchers.py, tests/test_worker_snapshot_sync.py; optional runtime files changed: none; 180 unselected paths changed
+- Vendored comparison snapshot: `943912cdcda25f4b7e02f4626656e873c6f14847`
 - Serving image: `ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor@sha256:447114ee77d14c9b4732ee23978ada2a0ee9027868a231d6fd42700a8b25be1d`
-- Image provenance: **blocked: deployed instanttensor image was created 2026-09-16 with recipe stamp 5fd1b44a; no published image is bound to reviewed HEAD f497020**
-- Runtime adoption: **BLOCKED (pending-review): f497020 overlays boot-validated on both TP2 ranks with 20/20 warmup and a 77,040-token cold/repeated-prefix smoke; representative long-prefill qualification and a provenance-matched image remain pending**
+- Image provenance: **blocked: deployed instanttensor digest is unchanged from the 2026-09-16 image stamped 5fd1b44a; no published image is bound to reviewed HEAD 943912c**
+- Runtime adoption: **BLOCKED (pending-review): upstream source advanced to 943912c with cold-load, startup, worker-sync, and kernel fixes; compatibility and a provenance-matched image are still pending**
 
 ## Preserved local contract
 
@@ -23,30 +23,42 @@ This report is offline and does not authorize deployment.
 
 ## Runtime adoption blockers
 
-- **BLOCKER:** No newer immutable GHCR image has been published or attested for reviewed recipe HEAD f4970207e9fb2bdeac40d88b7cbef18c98aea310; the pinned instanttensor digest remains the older image-bound baseline.
-- **BLOCKER:** 12-glm53-assets.yaml and 12-glm53-parity.yaml deliberately mount reviewed Python overlays over the older image; reconcile or remove the complete mounted set when a provenance-matched image is published.
+- **BLOCKER:** No newer immutable GHCR image has been published or attested for reviewed recipe HEAD 943912cdcda25f4b7e02f4626656e873c6f14847; the published instanttensor tag still resolves to the older pinned digest.
+- **BLOCKER:** The live Kubernetes overlay set remains based on the previous reviewed source snapshot f497020; the latest 943912 source is vendored for review only. Port and qualify the new cold-load/startup fixes and build or attest a matching image before adoption.
 - **BLOCKER:** The combined loader-v2, fine-grained APC/Mamba, and compact-DFlash runtime passed TP2 boot and medium repeated-prefix smoke, but representative long-prefill/concurrency GPU qualification remains pending. GLM53_EXL3_MOE_FAST remains disabled pending a provenance-matched native rebuild.
 
 ## Vendored files
 
-- `.env.example` — `345dc837eb682202dee9ae7ec4298caaeb7d0fe9e4d4ba9f951b4cc6cc8fc5ff`
-- `Dockerfile` — `99251caa46c40215049624d76699d1c4d93403e442c1eeccd7deb7f555ffc085`
+- `.env.example` — `6959e8d4cb9364e55e1554c36b6992358bdefd2a6aed2c71ac25fe8c8e2c4bd9`
+- `Dockerfile` — `09b0f2f95bdeae0cea64f9177ae32e16f2423b973ec290347c94d39413082fbf`
 - `LICENSE` — `8d56b405468aad11f87ab5763f901e276e08d9646ff5c8481b1762b6b789e9ed`
+- `docs/cold-load-uma.md` — `cbed88e98b21422ed52154b295d22f1ad41852756b4590ffb0b8f95e9beaf24f`
 - `files/chat_template.jinja` — `7a5a0dda1331a7c40d930961cc1cb3b57c3b52625250c13372fe006ba2e9dfdb`
 - `overlay/exl3.py` — `849e25882ab7901fbdd7227990a4f125809e1f79288ce6506311b6e6a53e6fb2`
 - `overlay/patch_adaptive_k.py` — `b7a874f897085a39b6b736084769fbad8e2444b3c098fc23f461a22f62b46b79`
 - `overlay/patch_apc_no_store.py` — `19a4f29ca997fcd35a1a67de60dac9c0c4f11cc7c64a0085435d3e07e1544043`
 - `overlay/patch_cache_reset.py` — `8292aab26b5e92c268fb603a99df30016e92210bfa6b82a1e707c8543bb49f1c`
+- `overlay/patch_cold_load_uma.py` — `42a9504353c13e6f6ed6fd901d736e8246625d6df451a1f27c876d9e66d99486`
 - `overlay/patch_default_max_new_tokens.py` — `c73e57be0fe979daa3938e43a1eaefd9a59f0e5278ebbbd5cca01595b246b2c7`
 - `overlay/patch_dense_fp8.py` — `ada9cdd910e96736b43050a5034f7fd47e6e07dadbbe9adbe6113b9a308c198b`
 - `overlay/patch_exl3_decode_pipeline.py` — `9bb4ed4b223b772cbdd2c26508f1287226ad43203a7302eed25263ddc8969018`
 - `overlay/patch_glm5_drafter_group.py` — `56cea092c1bd80de80ba844a151b38e898186854ccb8debebc12d6b1d2f07ece`
+- `overlay/patch_glm_video_placeholders.py` — `68a27e9030ef1c2c750727a651107020d700cb5305e02fd2f3e6c95c6017ea10`
 - `overlay/patch_hybrid_prefix_hit.py` — `892adc99bfab6c1a649b3b0da0fc3b186ba2d9f57adadc97a344471b7074ab0b`
+- `overlay/patch_kpool_tail_seed_stride.py` — `c8f053979801baaf2af711b4730648781215a15ab438ab7858acd71980566d87`
 - `overlay/patch_kv_capacity_log.py` — `3875440f7812c572655c9fe8827542631f78c3788f3e13fe068c893da64f2241`
-- `overlay/patch_loadclone.py` — `7fdd5eab52f8c684a9efd02db401723e05297c7d8f9efef5f71e5d116c0d86da`
+- `overlay/patch_loadclone.py` — `9f475e8205d6be5280280808a2476c1dbeaa725ad2c26ce6095835e5738f80ad`
 - `overlay/patch_mamba_align_chunking.py` — `78e4b754b70fa474306a410d753614e4ba5965ef44e53abc864a493c6f193b89`
 - `overlay/patch_mamba_align_state_free.py` — `991fff352d2d166e294bae21ee7e7beadad7fab01ca723bbeb03b00b2fc7fe82`
 - `overlay/patch_scheduler_decode_floor.py` — `d5713ec6eac0d7a971c4fb33782298f8496a547c829407ad2427d709ba118eb4`
+- `overlay/patch_skip_cudagraph_profile.py` — `f2d5abb4598e141fccb53b02144e36a3c841209e7114572d1576fd5520c2094c`
 - `overlay/patch_tool_choice_none.py` — `769c9da4140667a8b21de382fe2a654b9474e6075b8c4428cfb2b059d2a412bf`
-- `scripts/boot-shape-warmup.sh` — `229a63c2b46e2b452df3ba3f7da864eaab5881c6052c5d3bfed2eaa325ff22d9`
-- `start.sh` — `e7146dd9c992b83ec279fe0b36e48e7932c4ec2b9217fa4d7e84468fe4a3d567`
+- `scripts/boot-shape-warmup.sh` — `c7968734a2c4e459e5cd74f2bf2491271bd33677c15b3fbe13d7760eded91461`
+- `start.sh` — `ef444ef98853fc9d11dd76642c51cc1fecad096201d1298dfa2bd1deb5bb9016`
+- `tests/test_boot_shape_warmup.py` — `f4a2bf8262897ad084d2e9904b143c71e73916f9201033352e40ff2e42824de1`
+- `tests/test_cold_load_uma.py` — `b2695125996a12f82d4df38c4310e94d7f61d38723ebcdba3374278ab9e90dc6`
+- `tests/test_kpool_tail_seed_stride.py` — `a9830812606901b02c2bd6bde9d4142a5678d908aa8873ffb8d57355512ba179`
+- `tests/test_loadclone.py` — `081eba6cd7ba5c8fe33b6d93b7ca4b0687e910649ef55d0941e96ea3d0884a18`
+- `tests/test_skip_cudagraph_profile.py` — `812621ca19f233aa30c55d9efff13eb25101f7bfd85fe650ed11683199626907`
+- `tests/test_warmup_canary_launchers.py` — `ab28c78d8d281403978591729bbc6b2010ba1612380c00c8021a3c3533b9b3c0`
+- `tests/test_worker_snapshot_sync.py` — `aa2f0266cb0943fd6d509577bd00f8d6c9fab8717fffa8543db02590b09c4657`

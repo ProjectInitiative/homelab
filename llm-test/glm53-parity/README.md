@@ -33,17 +33,35 @@ upstream MiaAI Lab recipe
 | Item | Value |
 |---|---|
 | Runtime recipe baseline | `9348755653f6f8cda5d56562c05462724c40fcbd` (the last image-bound baseline in the provenance schema) |
-| Last reviewed upstream HEAD | `f4970207e9fb2bdeac40d88b7cbef18c98aea310` |
+| Latest vendored upstream HEAD (source-only, not deployed) | `943912cdcda25f4b7e02f4626656e873c6f14847` |
+| Current Kubernetes overlay behavior baseline | `f4970207e9fb2bdeac40d88b7cbef18c98aea310` |
 | Provenance contract | [`../lanes/glm53/upstream.lock.json`](../lanes/glm53/upstream.lock.json) and generated [`drift.md`](../lanes/glm53/drift.md) |
 | Image (public) | `ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor` |
 | Image digest | `sha256:447114ee77d14c9b4732ee23978ada2a0ee9027868a231d6fd42700a8b25be1d` |
-| Runtime adoption status | **SOURCE-OVERLAY UPDATE** — the public image digest is unchanged, while reviewed Python overlays from `f497020` are mounted explicitly; TP2 boot and medium repeated-prefix smoke passed, representative long-prefill/concurrency remains pending, and native thin-decode remains disabled pending a matched image |
+| Runtime adoption status | **PENDING REVIEW** — latest upstream source `943912c` is vendored for analysis; the published tag still resolves to the old digest and the live K8s overlay behavior remains at `f497020`. No new image or runtime update has been deployed. Long-prefill/concurrency qualification remains pending. |
 | Weight model | `Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw` @ `25a44fdbf16862a46b7cc9921142c6c81350af2f` (~164 GiB, 120 shards) |
 | Draft model | `incoai/GLM-5.3-Flash-DFlash2` (k=7) @ `dc77ff1c99eeb2df044ee3d4f0094eb033fee410` (~2.3 GiB) |
 | Served model id | `GLM-5.3-Flash-EXL3` |
 | API port | **8000** (GLM) vs 8000 (DeepSeek) |
 | KV cache dtype | `fp8` (fp8_ds_mla) |
 | Quantization | `exl3` |
+
+## Latest upstream source (not deployed)
+
+As of 2026-09-27, upstream `main` is `943912cdcda25f4b7e02f4626656e873c6f14847`,
+35 commits beyond the previously reviewed `f497020`. The new source includes
+UMA cold-load budgeting and 64-KiB mmap staging, worker snapshot completeness
+checks, a DFlash/content warmup canary, a kpool tail-seed stride fix, and a
+CUDA-graph profiling skip. Targeted upstream host tests for the cold-load patch,
+profile patch, kpool patch, warmup, and worker snapshot sync passed; the
+loadclone test requires PyTorch, which is absent from this host environment.
+
+The `exl3-instanttensor` GHCR tag still resolves to the existing digest
+`sha256:447114ee77d14c9b4732ee23978ada2a0ee9027868a231d6fd42700a8b25be1d`.
+So the source snapshot has been pulled for review, but there is no new image to
+pull; current serving remains on the previous image/overlay. Do not claim these
+cold-start fixes are live until they are adapted and qualified in the
+Kubernetes wrapper or a provenance-matched image is published.
 
 ## Step 1 — download the weights (required)
 

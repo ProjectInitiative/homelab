@@ -41,6 +41,8 @@ REQUIRED_RUNTIME_REFERENCES = {
         "overlay/patch_loadclone.py", "overlay/patch_mamba_align_chunking.py",
         "overlay/patch_mamba_align_state_free.py", "overlay/patch_scheduler_decode_floor.py",
         "overlay/patch_tool_choice_none.py", "scripts/boot-shape-warmup.sh",
+        "overlay/patch_cold_load_uma.py", "overlay/patch_kpool_tail_seed_stride.py",
+        "overlay/patch_skip_cudagraph_profile.py", "overlay/patch_glm_video_placeholders.py",
     },
     "dsv41": {
         "overlay/exl3.py", "scripts/boot-shape-warmup.sh", "scripts/pack_engram.py",
