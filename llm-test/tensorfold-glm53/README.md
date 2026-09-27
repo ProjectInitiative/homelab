@@ -2,10 +2,13 @@
 
 **Status: checkpoint downloaded and verified; TensorFold is not serving.** The
 pinned snapshot has all 43 shards (181,709,451,790 bytes). A Sep 27 handoff was
-attempted, but rank 1 repeatedly failed NCCL bootstrap to rank 0's dynamic
-port; TensorFold was shut down. The EXL3 pair is restored and Ready, and a
-LiteLLM `dgx-spark` completion smoke test passed. Keep TensorFold at zero until
-rendezvous/bootstrap retry behavior is fixed.
+attempted, but rank 1's NCCL socket connection to the rank-0 control address
+`172.16.4.56:37351` was refused after 35 retries; TensorFold was shut down.
+Here `.4` is the 10Gb VLAN-10 Kubernetes/control network, not the RoCE data
+plane. The selected CX7 rails (`.9`/`.10`, HCA `mlx5_0` + `mlx5_2`, GID 3)
+matched the working EXL3 setup. Root cause is unresolved. The EXL3 pair is
+restored and Ready; a LiteLLM `dgx-spark` completion smoke test passed. Keep
+TensorFold at zero pending NCCL process/listener diagnostics.
 
 This lane exists to evaluate [TensorFold](https://github.com/ashhart/TensorFold)
 (`v0.3.4` = `2f8e514b0b7d615df7c971627ce3c0fb7e55d93a`, MIT, alpha) as an
@@ -102,13 +105,17 @@ starting the MiaAI worker before its head.
 
 ## Caveats
 
-- **Known deployment blocker:** in the Sep 27 handoff, rank 1 selected the
-  correct head IP and RoCE rails, but `ncclCommInitRank` failed connecting to
-  rank 0's dynamically assigned port `37351` (`Connection refused`, 35 retries).
-  The head gate only proves peer/fabric setup; it does not prove rank 0's NCCL
-  store/listener is ready. Do not retry until startup ordering/retry behavior is
-  repaired and validated. The GPU capability mismatch was separately fixed with
-  `NVIDIA_DRIVER_CAPABILITIES=compute,utility`.
+- **Known deployment blocker (cause unresolved):** rank 1's NCCL socket connect
+  to `172.16.4.56:37351` was refused after 35 retries. `172.16.4.56` is the
+  10Gb control/Kubernetes address; the direct RoCE data plane is `172.16.9.*`
+  and `172.16.10.*`. Dotfiles allow peer-control callbacks and trust the direct
+  links; TensorFold selected the same HCA/GID and `NCCL_NET=IB` settings as
+  EXL3. This is not evidence of a bad RoCE topology or that `.4` carried bulk
+  data. Investigate TensorFold's rank-0 listener/advertised ephemeral socket
+  and capture NCCL INFO logs before any retry. The head gate only checked the
+  peer/fabric setup marker. Separately, the live candidate had a stale
+  port-9201 startup probe that restarted rank 1. The GPU capability mismatch
+  was fixed with `NVIDIA_DRIVER_CAPABILITIES=compute,utility`.
 - Kernel compilation happens on first start (~200–230 s to ready upstream).
 - TensorFold serves one request at a time; latency-sensitive concurrent agent
   traffic will queue.
