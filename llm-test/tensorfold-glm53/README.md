@@ -1,13 +1,14 @@
 # TensorFold GLM-5.3-Flash lane (2x DGX-Spark)
 
-**Status: TensorFold is serving through LiteLLM `dgx-spark`.** The pinned
-snapshot has all 43 shards (181,709,451,790 bytes). On Sep 27, the retry placed
-rank 0 on sextant and rank 1 on octant through the Kubernetes RDMA resource,
-RuntimeClass, and headless-Service discovery; NCCL INFO confirmed QPs on both
-peer HCAs (GID 3, `.9`/`.10` subnets for this pair). The full pair became Ready.
-Direct completion returned `TENSORFOLD_OK`; LiteLLM returned
-`LITELLM_TENSORFOLD_OK`. EXL3 is scaled to zero; return procedure is documented
-below. The earlier refusal at `172.16.4.56:37351` remains unexplained.
+**Status: TensorFold is not deployed; the qualified EXL3 service is restored.**
+The pinned snapshot has all 43 shards (181,709,451,790 bytes). The Sep 27
+experiment proved TP2 NCCL setup and a short direct/LiteLLM completion, but the
+live command had no `--context` override and therefore served only the CUDA
+engine's 2,051-token dense limit. Pi's 25,242-token prompt plus 16,384 requested
+output tokens was rejected. EXL3 is Ready and LiteLLM `dgx-spark` points back to
+it. TensorFold Deployments are at zero until a memory-feasible long-context
+implementation is available; see the context analysis below. The earlier
+NCCL refusal at `172.16.4.56:37351` remains unexplained.
 
 The Spark direct-link topology spans pair-specific `.5`–`.10` subnets. The
 Kubernetes RDMA shared-device resource/runtime class handle allocation and
@@ -93,9 +94,9 @@ kubectl wait --for=delete pod -l app=glm53-exl3-worker -n llm-test --timeout=10m
 kubectl apply --server-side -f llm-test/tensorfold-glm53/12-tensorfold-glm53.yaml
 kubectl apply -f llm-test/tensorfold-glm53/services.yaml
 
-# 4. The current live TensorFold pair is already at one replica per rank.
-#    For a fresh handoff only: start rank 1, then rank 0; do not scale both
-#    serving pairs up together. Rank-1 Kubernetes Ready is not NCCL-ready.
+# 4. For an explicitly approved experiment only: start rank 1, then rank 0.
+#    Never scale both serving pairs up together. Rank-1 Kubernetes Ready is
+#    not the same as TensorFold/NCCL readiness.
 kubectl scale deploy tensorfold-glm53-worker -n llm-test --replicas=1
 kubectl scale deploy tensorfold-glm53-head -n llm-test --replicas=1
 kubectl wait --for=condition=Ready deployment/tensorfold-glm53-worker \
@@ -114,13 +115,26 @@ restarting `ai-proxy`.
 
 ## Caveats
 
-- **Historical failure (cause unresolved):** the first attempt's rank 1 got
-  `Connection refused` at `172.16.4.56:37351` after 35 retries. In the Sep 27
-  retry, both ranks completed NCCL initialization; NCCL INFO shows QPs created
-  on both CX7 HCAs and GID 3, and rank 1 reached `ready in 1611.3s`. The head
-  served successfully. Direct `/v1/chat/completions` returned `TENSORFOLD_OK`,
-  and the stable LiteLLM `dgx-spark` alias returned `LITELLM_TENSORFOLD_OK`.
-  The original refusal's cause remains unknown; do not infer a fabric fault.
+- **Context limit:** TensorFold v0.3.4's CLI has `--context`, but the deployed
+  launch scripts omitted it. For this checkpoint `index_topk=2048`, `kpool=4`,
+  so the CUDA engine's default `dense_limit` is 2,051. The reported 41,626 is
+  the request total (25,242 prompt + 16,384 `max_tokens`), not a measured cache
+  limit. The checkpoint's `text_config.max_position_embeddings` is 1,048,576;
+  that native position limit is not the same as a feasible serving context.
+- **512K does not fit this TensorFold cache implementation on one Spark.** The
+  installed CUDA `State` allocates about 400,128 bytes per context token per
+  rank (DSA K/V and index caches, including MTP). `--context 524288` therefore
+  needs about 195.4 GiB per rank for those arrays alone, before model weights,
+  scratch buffers, or runtime workspace. Each Spark exposes 121.63 GiB total;
+  the pod limit is 118 GiB. Do not add `--context 524288` as a superficial
+  setting: it will OOM during startup. A cache/offload redesign or larger-memory
+  hardware is needed before 512K is viable here.
+- **NCCL history:** the first attempt's rank 1 got `Connection refused` at
+  `172.16.4.56:37351` after 35 retries. In the Sep 27 retry, both ranks
+  initialized NCCL; INFO showed QPs on both peer HCAs/GID 3, and rank 1 reached
+  ready in 1611.3s. The head served. Short direct and LiteLLM completions passed;
+  the original refusal's cause remains unknown. This is separate from the
+  context/memory limit.
 - Dynamic networking: the topology uses pair-specific `.5`–`.10` RoCE
   subnets. `nvidia-rdma` and `rdma/hca_shared_devices` let Kubernetes schedule
   and allocate eligible devices; headless Service DNS finds the other rank;

@@ -10,11 +10,11 @@ data:
   config.yaml: |
     model_list:
       # Keep the public alias stable while Kubernetes follows the dynamically
-      # placed TensorFold GLM head through its ClusterIP Service.
+      # placed EXL3 GLM head through its ClusterIP Service.
       - model_name: dgx-spark
         litellm_params:
-          model: hosted_vllm/76add2a341a1cd90ad0e86bb69839ea9c35827c6
-          api_base: http://tensorfold-glm53-head.llm-test.svc.cluster.local:8000/v1
+          model: hosted_vllm/GLM-5.3-Flash-EXL3
+          api_base: http://glm53-head.llm-test.svc.cluster.local:8000/v1
           api_key: sk-local
         # Match the vLLM --max-model-len 512000 context. max_tokens is
         # retained for older LiteLLM clients; max_input_tokens is the
