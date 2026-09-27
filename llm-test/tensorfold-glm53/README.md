@@ -1,10 +1,11 @@
 # TensorFold GLM-5.3-Flash lane (2x DGX-Spark)
 
-**Status: checkpoint downloaded and verified; serving Deployments remain at
-zero.** The Job manifest is suspended by default; its live run completed, and a
-read-only check verified all 43 shards (181,709,451,790 bytes) at the pinned
-snapshot. The resident MiaAI pair remains untouched; checked-in replicas stay
-at `replicas: 0`.
+**Status: checkpoint downloaded and verified; TensorFold is not serving.** The
+pinned snapshot has all 43 shards (181,709,451,790 bytes). A Sep 27 handoff was
+attempted, but rank 1 repeatedly failed NCCL bootstrap to rank 0's dynamic
+port; TensorFold was shut down. The EXL3 pair is restored and Ready, and a
+LiteLLM `dgx-spark` completion smoke test passed. Keep TensorFold at zero until
+rendezvous/bootstrap retry behavior is fixed.
 
 This lane exists to evaluate [TensorFold](https://github.com/ashhart/TensorFold)
 (`v0.3.4` = `2f8e514b0b7d615df7c971627ce3c0fb7e55d93a`, MIT, alpha) as an
@@ -47,8 +48,9 @@ remains available for future vLLM-side work without new downloads.
   node's fabric inventory. Both ranks read the shared snapshot directly; this
   avoids writing a ~91-GiB split to ephemeral storage (at the cost of ~1/3 more
   checkpoint reads than upstream's optional per-rank split). Init verifies all
-  43 shards; a narrowly scoped head init gate waits for rank 1's peer/fabric
-  setup log marker before rank 0 launches.
+  43 shards; the head init gate waits for rank 1's peer/fabric setup log marker
+  before rank 0 launches. Containers set `NVIDIA_DRIVER_CAPABILITIES` to the
+  runtime-supported `compute,utility`.
   The API uses 8000.
 - `services.yaml` — internal ClusterIP Service for the rank-0 API.
 
@@ -82,8 +84,8 @@ kubectl wait --for=delete pod -l app=glm53-exl3-worker -n llm-test --timeout=10m
 kubectl apply --server-side -f llm-test/tensorfold-glm53/12-tensorfold-glm53.yaml
 kubectl apply -f llm-test/tensorfold-glm53/services.yaml
 
-# 4. Scale worker (rank 1) first. It waits for the rank-0 pod's DNS/IP;
-#    rank 0's init gate waits for rank 1's peer/fabric setup log marker.
+# 4. DO NOT repeat the rank startup sequence until the NCCL bootstrap failure
+#    described below is fixed. Intended order is worker (rank 1), then head (rank 0).
 kubectl scale deploy tensorfold-glm53-worker -n llm-test --replicas=1
 kubectl scale deploy tensorfold-glm53-head -n llm-test --replicas=1
 kubectl wait --for=condition=Ready deployment/tensorfold-glm53-worker \
@@ -100,6 +102,13 @@ starting the MiaAI worker before its head.
 
 ## Caveats
 
+- **Known deployment blocker:** in the Sep 27 handoff, rank 1 selected the
+  correct head IP and RoCE rails, but `ncclCommInitRank` failed connecting to
+  rank 0's dynamically assigned port `37351` (`Connection refused`, 35 retries).
+  The head gate only proves peer/fabric setup; it does not prove rank 0's NCCL
+  store/listener is ready. Do not retry until startup ordering/retry behavior is
+  repaired and validated. The GPU capability mismatch was separately fixed with
+  `NVIDIA_DRIVER_CAPABILITIES=compute,utility`.
 - Kernel compilation happens on first start (~200–230 s to ready upstream).
 - TensorFold serves one request at a time; latency-sensitive concurrent agent
   traffic will queue.
