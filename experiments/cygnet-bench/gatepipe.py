@@ -121,16 +121,14 @@ class SystemOneLayer:
                                {"error": repr(e)[:120]}, (time.time() - t0) * 1000)
 
 
-def http_transport(endpoint_url: str, timeout: float = 30.0) -> Callable[[str], float]:
-    """Production transport: POST {state:{text}, questions:{decision:q}} once
-    per question preset (the shim answers one question per call; callers
-    parallelize). Returns P(true)."""
-    def call(text: str) -> float:
-        body = json.dumps({"state": {"text": text},
-                           "questions": {"decision": PLACEHOLDER_Q}}).encode()
-        raise NotImplementedError  # replaced below by closure factory
-    # real factory
-    def make(question: dict):
+def http_transport(endpoint_url: str, timeout: float = 30.0):
+    """Transport factory for production use.
+
+    Returns make(question) -> callable(text) -> P(true). Each System One
+    layer gets its own bound caller (the shim answers one question per
+    call; the gate fans them out concurrently).
+    """
+    def make(question: dict) -> Callable[[str], float]:
         def call(text: str) -> float:
             body = json.dumps({"state": {"text": text},
                                "questions": {"decision": question}}).encode()
@@ -140,10 +138,7 @@ def http_transport(endpoint_url: str, timeout: float = 30.0) -> Callable[[str], 
                 ans = (json.loads(r.read().decode()).get("answers") or {}).get("decision") or {}
             return float(ans.get("noul", 0.0))
         return call
-    return make  # type: ignore[return-value]
-
-
-PLACEHOLDER_Q = {"type": "noul", "instructions": "", "criteria": {"true": "", "false": ""}}
+    return make
 
 
 # ------------------------------------------------------------------- gate --
