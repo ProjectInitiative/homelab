@@ -78,6 +78,7 @@ PAGE = r"""<!doctype html>
    <span class="fp">FALSE POSITIVE</span><span class="fn">FALSE NEGATIVE (miss)</span>
    <span class="b-skip">skipped layer</span></div>
  <table class="matrix" id="matrix"></table>
+ <div id="latbox"></div>
  <div class="filters">
    corpus <select id="f-corpus"><option value="">all</option></select>
    expected <select id="f-expected"><option value="">all</option>
@@ -149,7 +150,8 @@ function render() {
     const lanes = ['naive_flag','tuned_flag','regex_flagged'].map(k=>{
       const cls = (o==='fp'&&r[k])||(o==='fn'&&!r[k]) ? 'miss' : '';
       const p = k==='regex_flagged' ? '' : ` ${(r[k.replace('_flag','_p')]??0).toFixed(2)}`;
-      return `<span class="${cls}">${laneName[k]}<b>${r[k]?'✓flag':'·pass'}</b>${p}</span>`;
+      const ms = k!=='regex_flagged' && r[k.replace('_flag','_ms')] ? ` <span style="color:var(--dim)">${r[k.replace('_flag','_ms')]}ms</span>` : '';
+      return `<span class="${cls}">${laneName[k]}<b>${r[k]?'✓flag':'·pass'}</b>${p}${ms}</span>`;
     }).join(' · ');
     grid.insertAdjacentHTML('beforeend', `
       <div class="card" onclick='show(${JSON.stringify(r).replaceAll("'","&#39;")})'>
@@ -175,13 +177,29 @@ function show(r) {
       : 'no pattern hits'}</td></tr>`;
   for (const [k,p] of [['naive', r.naive_p],['tuned', r.tuned_p],['injection', r.inj_p]]) {
     if (p===undefined||p===null) continue;
+    const msKey = ['naive','tuned','injection'][['naive','tuned','injection'].indexOf(k)] + '_ms';
+    const ms = r[msKey] ? ` · <span style="color:var(--dim)">${r[msKey]}ms</span>` : '';
     rows += `<tr><td>systemone: ${k}</td><td>${p>=D.threshold?'FLAG':'pass'}</td>
-      <td>P(true) = <b>${p.toFixed(4)}</b></td></tr>`;
+      <td>P(true) = <b>${p.toFixed(4)}</b>${ms}</td></tr>`;
   }
   document.getElementById('d-layers').innerHTML = rows;
   document.getElementById('d-errs').textContent = (r.errors||[]).join(' · ');
   dlg.showModal();
 }
+
+// latency aggregates (if present in results)
+(function(){
+  const lat = D.latency_ms;
+  if (!lat) return;
+  const order = ['regex_ms','naive_ms','tuned_ms','inj_ms','llm_wall_ms'];
+  const nice = {regex_ms:'regex scan', naive_ms:'systemone: naive', tuned_ms:'systemone: tuned',
+                inj_ms:'systemone: injection', llm_wall_ms:'LLM wall (max of 3 concurrent)'};
+  let html = '<table class="matrix"><tr><th>latency (ms)</th><th>p50</th><th>p95</th><th>mean</th></tr>';
+  for (const k of order) if (lat[k])
+    html += `<tr><td>${nice[k]}</td><td>${lat[k].p50}</td><td>${lat[k].p95}</td><td>${lat[k].mean}</td></tr>`;
+  html += '</table>';
+  document.getElementById('latbox').innerHTML = html;
+})();
 
 // matrix
 (function(){
@@ -260,7 +278,8 @@ class Handler(BaseHTTPRequestHandler):
                 slim.append(r)
             out = {"n": data.get("n"), "threshold": data.get("threshold"),
                    "generated": data.get("generated", ""),
-                   "summary": data.get("summary"), "results": slim}
+                   "summary": data.get("summary"), "latency_ms": data.get("latency_ms"),
+                   "results": slim}
             html = PAGE.replace("__DATA__", json.dumps(out, ensure_ascii=False))
             body = html.encode()
             self.send_response(200)

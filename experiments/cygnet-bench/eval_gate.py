@@ -76,7 +76,7 @@ INJECTION_Q = {
 }
 
 # ------------------------------------------------------------------ calls --
-def systemone(content: str, question: dict, timeout: float = 120.0) -> dict:
+def systemone(content: str, question: dict, timeout: float = 120.0) -> tuple[dict, float]:
     body = json.dumps({
         "state": {"text": content},
         "questions": {"decision": question},
@@ -84,8 +84,10 @@ def systemone(content: str, question: dict, timeout: float = 120.0) -> dict:
     req = urllib.request.Request(
         BASE + "/v1/systemone", data=body,
         headers={"Content-Type": "application/json"})
+    t0 = time.time()
     with urllib.request.urlopen(req, timeout=timeout) as r:
-        return json.loads(r.read().decode())
+        out = json.loads(r.read().decode())
+    return out, (time.time() - t0) * 1000
 
 def noul_yes(payload: dict) -> float:
     a = (payload.get("answers") or {}).get("decision") or {}
@@ -106,28 +108,36 @@ def evaluate(row: dict, threshold: float) -> dict:
                     "hits": s["hits"],
                     "ms": (time.time() - t0) * 1000}
 
-    # lanes 1+2+3: two LLM questions, fired concurrently
-    with cf.ThreadPoolExecutor(2) as ex:
+    # lanes 1+2+3: three LLM questions, fired concurrently; each records its
+    # own end-to-end latency (includes server-side batch queueing under
+    # concurrency — that is the real per-query cost the gate pays)
+    with cf.ThreadPoolExecutor(3) as ex:
         f_naive = ex.submit(systemone, content, NAIVE_Q)
         f_tuned = ex.submit(systemone, content, TUNED_Q)
         f_inj = ex.submit(systemone, content, INJECTION_Q)
         try:
-            out["naive_p"] = noul_yes(f_naive.result())
+            out["naive_p"], out["naive_ms"] = (lambda r: (noul_yes(r[0]), round(r[1])))(f_naive.result())
         except Exception as e:
-            out["naive_p"] = None; out["naive_err"] = repr(e)[:80]
+            out["naive_p"] = None; out["naive_ms"] = None; out["naive_err"] = repr(e)[:80]
         try:
-            out["tuned_p"] = noul_yes(f_tuned.result())
+            out["tuned_p"], out["tuned_ms"] = (lambda r: (noul_yes(r[0]), round(r[1])))(f_tuned.result())
         except Exception as e:
-            out["tuned_p"] = None; out["tuned_err"] = repr(e)[:80]
+            out["tuned_p"] = None; out["tuned_ms"] = None; out["tuned_err"] = repr(e)[:80]
         try:
-            out["inj_p"] = noul_yes(f_inj.result())
+            out["inj_p"], out["inj_ms"] = (lambda r: (noul_yes(r[0]), round(r[1])))(f_inj.result())
         except Exception as e:
-            out["inj_p"] = None; out["inj_err"] = repr(e)[:80]
+            out["inj_p"] = None; out["inj_ms"] = None; out["inj_err"] = repr(e)[:80]
+
+    llm_ms = [m for m in (out.get("naive_ms"), out.get("tuned_ms"), out.get("inj_ms")) if m]
+    out["llm_wall_ms"] = round(max(llm_ms)) if llm_ms else None
 
     out["regex_flagged"] = out["regex"]["flag"]
     out["naive_flag"] = (out["naive_p"] or 0) >= threshold
     out["tuned_flag"] = (out["tuned_p"] or 0) >= threshold
-    out["layered_flag"] = out["regex_flagged"] or out["tuned_flag"]
+    inj_flagged = (out["inj_p"] or 0) >= threshold
+    out["inj_flagged"] = inj_flagged
+    # layered = any security lane trips (secrets OR injection) — gatepipe 'combine: any'
+    out["layered_flag"] = out["regex_flagged"] or out["tuned_flag"] or inj_flagged
     return out
 
 def confusion(rows: list[dict], key: str) -> dict:
@@ -148,7 +158,7 @@ def main():
     args = ap.parse_args()
 
     rows = []
-    for corpus_file in ("prompts.jsonl", "edge_cases.jsonl"):
+    for corpus_file in ("prompts.jsonl", "edge_cases.jsonl", "injection.jsonl"):
         p = HERE / "corpus" / corpus_file
         if p.exists():
             rows.extend(json.loads(l) for l in p.open())
@@ -168,8 +178,8 @@ def main():
                 print(f"  {done}/{len(rows)}")
 
     results.sort(key=lambda r: r["id"])
-    lanes = ["regex_flagged", "naive_flag", "tuned_flag", "layered_flag"]
-    labels = {"regex_flagged": "regex", "naive_flag": "naive", "tuned_flag": "tuned", "layered_flag": "layered"}
+    lanes = ["regex_flagged", "naive_flag", "tuned_flag", "inj_flagged", "layered_flag"]
+    labels = {"regex_flagged": "regex", "naive_flag": "naive", "tuned_flag": "tuned", "inj_flagged": "injection", "layered_flag": "layered"}
     print(f"\n{'lane':<14}{'TP':>5}{'FP':>5}{'FN':>5}{'TN':>5}{'recall':>8}{'FPR':>7}")
     summary = {}
     for lane in lanes:
@@ -194,9 +204,21 @@ def main():
     print(f"\ninjection lane fired on {len(inj_flags)}/{len(results)} prompts"
           + (f": {', '.join(r['id'] for r in inj_flags[:8])}" if inj_flags else " (expected for this corpus)"))
 
+    # latency summary per lane (p50/p95 + mean)
+    import statistics as st
+    lat = {}
+    for lane in ("regex_ms", "naive_ms", "tuned_ms", "inj_ms", "llm_wall_ms"):
+        vals = [r[lane] for r in results if r.get(lane)]
+        if vals:
+            vals.sort()
+            lat[lane] = {"p50": vals[len(vals)//2], "p95": vals[int(len(vals)*.95)],
+                         "mean": round(sum(vals)/len(vals))}
     payload = {"threshold": args.threshold, "n": len(results),
                "generated": time.strftime("%Y-%m-%d %H:%M"),
-               "summary": summary, "results": results}
+               "summary": summary, "latency_ms": lat, "results": results}
+    print("\nlatency (ms):")
+    for lane, s in lat.items():
+        print(f"  {lane:<12} p50={s['p50']:>5} p95={s['p95']:>6} mean={s['mean']:>5}")
     # per-corpus summaries
     for c in sorted(set(r.get("corpus", "main") for r in results)):
         sub = [r for r in results if r.get("corpus", "main") == c]
