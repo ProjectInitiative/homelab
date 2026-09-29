@@ -95,7 +95,8 @@ def noul_yes(payload: dict) -> float:
 def evaluate(row: dict, threshold: float) -> dict:
     content = row["content"]
     expected = row["expected"]              # flag | pass
-    out = {"id": row["id"], "category": row["category"], "expected": expected}
+    out = {"id": row["id"], "category": row["category"], "expected": expected,
+           "corpus": row.get("corpus", "main"), "content": content}
 
     # lane 0: deterministic regex
     t0 = time.time()
@@ -145,7 +146,11 @@ def main():
     ap.add_argument("--out", default="/results/gate-eval.json")
     args = ap.parse_args()
 
-    rows = [json.loads(l) for l in (HERE / "corpus" / "prompts.jsonl").open()]
+    rows = []
+    for corpus_file in ("prompts.jsonl", "edge_cases.jsonl"):
+        p = HERE / "corpus" / corpus_file
+        if p.exists():
+            rows.extend(json.loads(l) for l in p.open())
     if args.limit:
         # keep every category represented, half the rows
         rows = rows[: args.limit]
@@ -189,7 +194,15 @@ def main():
           + (f": {', '.join(r['id'] for r in inj_flags[:8])}" if inj_flags else " (expected for this corpus)"))
 
     payload = {"threshold": args.threshold, "n": len(results),
+               "generated": time.strftime("%Y-%m-%d %H:%M"),
                "summary": summary, "results": results}
+    # per-corpus summaries
+    for c in sorted(set(r.get("corpus", "main") for r in results)):
+        sub = [r for r in results if r.get("corpus", "main") == c]
+        print(f"\ncorpus={c}: n={len(sub)}")
+        for lane in lanes:
+            cc = confusion(sub, lane)
+            print(f"  {labels[lane]:<10} recall={cc['recall']:.3f} FPR={cc['fpr']:.3f} (TP {cc['tp']} FP {cc['fp']} FN {cc['fn']})")
     try:
         pathlib.Path(args.out).parent.mkdir(parents=True, exist_ok=True)
         pathlib.Path(args.out).write_text(json.dumps(payload, indent=1))
