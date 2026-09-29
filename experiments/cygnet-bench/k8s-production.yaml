@@ -1,0 +1,148 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cygnet-classifier
+  namespace: llm-test
+  labels:
+    app: cygnet-classifier
+    tier: ai-platform
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: { app: cygnet-classifier }
+  template:
+    metadata:
+      labels: { app: cygnet-classifier }
+    spec:
+      # astrolabe is the hoster (AMD Strix Halo iGPU, privileged device access)
+      nodeSelector:
+        kubernetes.io/hostname: astrolabe
+        gpu: strix-halo
+      tolerations:
+        - key: node.kubernetes.io/memory-pressure
+          operator: Exists
+          effect: NoSchedule
+      initContainers:
+        # Unified-memory host: reclaim page cache so vLLM's free-memory check
+        # sees real availability (same preflight as the halogen lane).
+        - name: drop-caches
+          image: busybox:stable
+          command: ["sh", "-c", "sync; echo 3 > /proc/sys/vm/drop_caches || echo 'could not drop caches; continuing'"]
+          securityContext: { privileged: true }
+        # Weights preflight: same shared RWX PVC the benchmark validated.
+        - name: preflight
+          image: busybox:stable
+          command: ["sh", "-c", "test -f /models/hf/gemma-4-12b-it/.download-complete && test -f /models/hf/gemma-4-12b-it/config.json && echo 'weights preflight OK'"]
+          volumeMounts: [{ name: models, mountPath: /models, readOnly: true }]
+      containers:
+        - name: engine
+          image: kyuz0/vllm-therock-gfx1151:rocm10.0.0-torch2.11.0-vllm0.30.0
+          command: ["vllm"]
+          args:
+            - serve
+            - /models/hf/gemma-4-12b-it
+            - --served-model-name
+            - cygnet
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8890"
+            - --max-model-len
+            - "16384"
+            # 0.34 * 124Gi = 42.2Gi budget: 22.3 weights + ~20 KV/scratch.
+            # KV = 49K tokens, 3x concurrency at 16K ctx (validated in bench).
+            # Leaves headroom beside halogen on the shared iGPU.
+            - --gpu-memory-utilization
+            - "0.34"
+          securityContext:
+            privileged: true
+            capabilities: { add: [SYS_NICE, IPC_LOCK] }
+          resources:
+            requests: { cpu: "4", memory: 6Gi }
+            limits: { cpu: "24", memory: 48Gi }
+          volumeMounts:
+            - { name: models, mountPath: /models, readOnly: true }
+            - { name: dri, mountPath: /dev/dri, readOnly: true }
+            - { name: kfd, mountPath: /dev/kfd, readOnly: true }
+            - { name: shm, mountPath: /dev/shm }
+          # Slow boot: weights load + graph capture takes 6-10 min under GPU
+          # contention. startupProbe gates readiness/liveness until first OK.
+          startupProbe:
+            httpGet: { path: /health, port: 8890 }
+            periodSeconds: 15
+            failureThreshold: 80
+          readinessProbe:
+            httpGet: { path: /health, port: 8890 }
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /health, port: 8890 }
+            periodSeconds: 30
+            failureThreshold: 5
+        - name: shim
+          image: python:3.12-slim
+          command:
+            - python3
+            - -c
+            - |
+              import shutil, urllib.request, time, subprocess, os
+              shutil.copy("/assets/cygnet_shim.py", "/tmp/shim.py")
+              while True:
+                  try:
+                      urllib.request.urlopen("http://127.0.0.1:8890/health", timeout=5)
+                      break
+                  except Exception:
+                      print("waiting for engine", flush=True); time.sleep(5)
+              print("engine up; starting shim", flush=True)
+              os.execv("/usr/local/bin/python3", ["python3", "/tmp/shim.py"])
+          env:
+            - { name: SHIM_VLLM, value: "http://127.0.0.1:8890/v1/chat/completions" }
+            - { name: SHIM_MODEL, value: "cygnet" }
+            - { name: SHIM_PORT, value: "8009" }
+            # Bind all interfaces: kubelet probes + Service route to the pod IP
+            - { name: SHIM_HOST, value: "0.0.0.0" }
+            - { name: SHIM_TEMPERATURE, value: "3.4" }
+          ports:
+            - { name: systemone, containerPort: 8009 }
+          volumeMounts:
+            - { name: assets, mountPath: /assets, readOnly: true }
+          startupProbe:
+            httpGet: { path: /healthz, port: 8009 }
+            periodSeconds: 10
+            failureThreshold: 120
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8009 }
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8009 }
+            periodSeconds: 30
+            failureThreshold: 5
+      volumes:
+        - name: models
+          persistentVolumeClaim: { claimName: model-cache }
+        - name: assets
+          configMap: { name: cygnet-prod-config }
+        - name: dri
+          hostPath: { path: /dev/dri, type: Directory }
+        - name: kfd
+          hostPath: { path: /dev/kfd, type: CharDevice }
+        - name: shm
+          emptyDir: { medium: Memory, sizeLimit: 2Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cygnet-classifier
+  namespace: llm-test
+  labels: { app: cygnet-classifier }
+spec:
+  selector: { app: cygnet-classifier }
+  ports:
+    - name: systemone
+      port: 8009
+      targetPort: 8009
+# ClusterIP only — the classifier never leaves the cluster. Consumers reach it
+# in-cluster; LiteLLM pass-through can point TYPESAFE_API_BASE at this Service.
