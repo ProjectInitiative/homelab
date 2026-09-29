@@ -80,12 +80,18 @@ PAGE = r"""<!doctype html>
  <table class="matrix" id="matrix"></table>
  <div class="filters">
    corpus <select id="f-corpus"><option value="">all</option></select>
+   expected <select id="f-expected"><option value="">all</option>
+     <option value="flag">malicious (should flag)</option>
+     <option value="pass">benign (should pass)</option></select>
+   category <select id="f-category"><option value="">all</option></select>
    outcome <select id="f-outcome"><option value="">all</option>
+     <option value="tp">TP only</option><option value="tn">TN only</option>
      <option value="fp">false positives only</option><option value="fn">false negatives only</option></select>
    layer-fail <select id="f-fail"><option value="">any</option>
      <option value="regex-fp">regex over-flagged</option><option value="regex-fn">regex missed</option>
      <option value="tuned-fp">tuned over-flagged</option><option value="tuned-fn">tuned missed</option>
      <option value="naive-only-fp">naive FP, tuned OK (tuning win)</option></select>
+   <label style="color:var(--dim);font-size:12px"><input type="checkbox" id="f-disagree"> disagreements only</label>
    <button id="reset">reset</button> <span class="count" id="count"></span>
  </div>
  <div class="grid" id="grid"></div>
@@ -115,15 +121,24 @@ const laneBadge = (flag, hit) => {
 
 function render() {
   const fc = document.getElementById('f-corpus').value;
+  const fe = document.getElementById('f-expected').value;
+  const fg = document.getElementById('f-category').value;
   const fo = document.getElementById('f-outcome').value;
   const ff = document.getElementById('f-fail').value;
+  const fd = document.getElementById('f-disagree').checked;
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
   let shown = 0;
   for (const r of D.results) {
     const o = outcomeOf(r);
     if (fc && (r.corpus||'main')!==fc) continue;
+    if (fe && r.expected!==fe) continue;
+    if (fg && r.category!==fg) continue;
     if (fo && o!==fo) continue;
+    if (fd) {
+      const lanes = [r.regex_flagged, r.naive_flag, r.tuned_flag];
+      if (!(lanes.some(x=>x) && lanes.some(x=>!x))) continue;   // not all-agree
+    }
     if (ff==='regex-fp' && !(r.expected==='pass'&&r.regex_flagged)) continue;
     if (ff==='regex-fn' && !(r.expected==='flag'&&!r.regex_flagged)) continue;
     if (ff==='tuned-fp' && !(r.expected==='pass'&&r.tuned_flag)) continue;
@@ -191,10 +206,30 @@ function show(r) {
   document.getElementById('matrix').innerHTML = html;
   const sel = document.getElementById('f-corpus');
   for (const c of corpora) sel.insertAdjacentHTML('beforeend', `<option>${c}</option>`);
+  // category options: grouped by expected (malicious/benign) for scannability
+  const catSel = document.getElementById('f-category');
+  const cats = [...new Set(D.results.map(r=>r.category))].sort();
+  const mal = cats.filter(c => D.results.some(r=>r.category===c && r.expected==='flag'));
+  const ben = cats.filter(c => D.results.some(r=>r.category===c && r.expected==='pass')
+                             && !D.results.some(r=>r.category===c && r.expected==='flag'));
+  const mixed = cats.filter(c => !mal.includes(c) && !ben.includes(c));
+  const addGroup = (label, list) => {
+    if (!list.length) return;
+    catSel.insertAdjacentHTML('beforeend', `<optgroup label="${label}">`
+      + list.map(c=>`<option value="${c}">${c}</option>`).join('') + '</optgroup>');
+  };
+  addGroup('malicious (should flag)', mal);
+  addGroup('benign (should pass)', ben);
+  addGroup('mixed', mixed);
 })();
 
-for (const id of ['f-corpus','f-outcome','f-fail']) document.getElementById(id).onchange = render;
-document.getElementById('reset').onclick = () => { for (const id of ['f-corpus','f-outcome','f-fail']) document.getElementById(id).value=''; render(); };
+for (const id of ['f-corpus','f-outcome','f-fail','f-expected','f-category']) document.getElementById(id).onchange = render;
+document.getElementById('f-disagree').onchange = render;
+document.getElementById('reset').onclick = () => {
+  for (const id of ['f-corpus','f-outcome','f-fail','f-expected','f-category']) document.getElementById(id).value='';
+  document.getElementById('f-disagree').checked = false;
+  render();
+};
 document.getElementById('meta').textContent =
   `${D.n} prompts · threshold ${D.threshold} · generated ${D.generated}`;
 render();
