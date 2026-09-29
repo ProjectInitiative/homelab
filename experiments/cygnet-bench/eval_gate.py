@@ -103,6 +103,7 @@ def evaluate(row: dict, threshold: float) -> dict:
     s = scan(content)
     out["regex"] = {"flag": s["flag"], "n_hits": len(s["hits"]),
                     "n_allowlisted": len(s["hits"]) - s["n_real"],
+                    "hits": s["hits"],
                     "ms": (time.time() - t0) * 1000}
 
     # lanes 1+2+3: two LLM questions, fired concurrently

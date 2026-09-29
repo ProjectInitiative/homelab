@@ -98,7 +98,7 @@ PAGE = r"""<!doctype html>
 </dialog>
 
 <script>
-const D = window.__DATA__;
+const D = __DATA__;
 const laneName = {regex_flagged:'regex', naive_flag:'naive', tuned_flag:'tuned', layered_flag:'layered'};
 const outcomeOf = r => {
   const exp = r.expected;
@@ -155,8 +155,8 @@ function show(r) {
   const rx = r.regex || {};
   let rows = `<tr><th>layer</th><th>verdict</th><th>evidence</th></tr>
     <tr><td>regex</td><td>${rx.flag?'FLAG':'pass'}</td>
-    <td>${(rx.hits||[]).length ? (rx.hits||[]).map(h=>
-      `<span class="hit" title="${(h.line||'').replace(/"/g,'&quot;')}">${h.pattern}${h.allowlisted?' (allowlisted)':''}</span>`).join(' ')
+    <td>${(rx.hits&&rx.hits.length) ? (rx.hits||[]).map(h=>
+      `<span class="hit" title="${(h.line||'').replace(/"/g,'&quot;')}">${h.pattern}${h.allowlisted?' (allowlisted)':''}: ${String(h.match||'').replace(/</g,'&lt;')}</span>`).join(' ')
       : 'no pattern hits'}</td></tr>`;
   for (const [k,p] of [['naive', r.naive_p],['tuned', r.tuned_p],['injection', r.inj_p]]) {
     if (p===undefined||p===null) continue;
@@ -175,17 +175,17 @@ function show(r) {
   let html = '<tr><th>lane</th><th colspan=4 style="text-align:center">ALL</th>';
   for (const c of corpora) html += `<th colspan=4 style="text-align:center">${c}</th>`;
   html += '</tr><tr><th></th>' + '<th>TP</th><th>FP</th><th>FN</th><th>recall</th>'.repeat(corpora.length+1) + '</tr>';
-  const cell = (rows, lane, filter) => {
+  const cell = (rows, key, filter) => {
     const sub = rows.filter(filter);
-    const tp = sub.filter(r=>lane&&r.expected==='flag').length;
-    const fp = sub.filter(r=>lane&&r.expected==='pass').length;
-    const fn = sub.filter(r=>!lane&&r.expected==='flag').length;
+    const tp = sub.filter(r=>r[key]&&r.expected==='flag').length;
+    const fp = sub.filter(r=>r[key]&&r.expected==='pass').length;
+    const fn = sub.filter(r=>!r[key]&&r.expected==='flag').length;
     const rec = (tp+fn)? (tp/(tp+fn)).toFixed(2) : '—';
-    return `<td>${tp}</td><td class="${fp?'':'b-tn'}" style="${fp?'color:var(--bad);font-weight:700':''}">${fp}</td><td class="${fn?'':'b-tn'}" style="${fn?'color:var(--warn);font-weight:700':''}">${fn}</td><td>${rec}</td>`;
+    return `<td>${tp}</td><td style="${fp?'color:var(--bad);font-weight:700':''}">${fp}</td><td style="${fn?'color:var(--warn);font-weight:700':''}">${fn}</td><td>${rec}</td>`;
   };
   for (const lane of lanes) {
-    html += `<tr><td>${laneName[lane]}</td>` + cell(D.results, r=>r[lane], r=>true);
-    for (const c of corpora) html += cell(D.results, r=>r[lane], r=>(r.corpus||'main')===c);
+    html += `<tr><td>${laneName[lane]}</td>` + cell(D.results, lane, r=>true);
+    for (const c of corpora) html += cell(D.results, lane, r=>(r.corpus||'main')===c);
     html += '</tr>';
   }
   document.getElementById('matrix').innerHTML = html;
