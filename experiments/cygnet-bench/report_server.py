@@ -21,6 +21,7 @@ from urllib.parse import urlparse
 
 RESULTS_PATH = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "/tmp/gate-eval.json")
 PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 8765
+HOST = sys.argv[3] if len(sys.argv) > 3 else "0.0.0.0"   # default: reachable from off-node
 
 PAGE = r"""<!doctype html>
 <html><head><meta charset="utf-8"><title>Gate Eval Report</title>
@@ -239,9 +240,17 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     import socket
-    srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+    srv = ThreadingHTTPServer((HOST, PORT), Handler)
     srv.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    print(f"gate report: http://127.0.0.1:{PORT}   (results: {RESULTS_PATH})\nCtrl-C to stop")
+    lan_ip = ""
+    try:
+        lan_ip = socket.gethostbyname(socket.gethostname())
+    except OSError:
+        pass
+    print(f"gate report: http://{HOST}:{PORT}   (results: {RESULTS_PATH})")
+    if HOST == "0.0.0.0" and lan_ip:
+        print(f"  from another machine: http://{lan_ip}:{PORT}")
+    print("  note: served read-only, corpus content is SYNTHETIC\nCtrl-C to stop")
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
