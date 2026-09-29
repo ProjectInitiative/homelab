@@ -14,7 +14,7 @@ spec:
     matchLabels: { app: cygnet-classifier-nv }
   template:
     metadata:
-      labels: { app: cygnet-classifier-nv }
+      labels: { app: cygnet-classifier-nv, role: classifier, tier: ai-platform }
     spec:
       # chronometer = NVIDIA DGX Spark (ARM64, GB10)
       nodeSelector:

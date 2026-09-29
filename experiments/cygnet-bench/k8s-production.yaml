@@ -14,7 +14,7 @@ spec:
     matchLabels: { app: cygnet-classifier }
   template:
     metadata:
-      labels: { app: cygnet-classifier }
+      labels: { app: cygnet-classifier, role: classifier, tier: ai-platform }
     spec:
       # astrolabe is the hoster (AMD Strix Halo iGPU, privileged device access)
       nodeSelector:
