@@ -238,6 +238,11 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    import socket
     srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
-    print(f"gate report: http://127.0.0.1:{PORT}   (results: {RESULTS_PATH})")
-    srv.serve_forever()
+    srv.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    print(f"gate report: http://127.0.0.1:{PORT}   (results: {RESULTS_PATH})\nCtrl-C to stop")
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        print("\nstopped")
