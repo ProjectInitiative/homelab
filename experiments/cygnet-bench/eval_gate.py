@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import concurrent.futures as cf
 import json
+import os
 import pathlib
 import sys
 import time
@@ -22,7 +23,7 @@ HERE = pathlib.Path(__file__).parent
 sys.path.insert(0, str(HERE))
 from sec_scan import scan  # noqa: E402
 
-BASE = "http://cygnet-classifier.llm-test.svc.cluster.local:8009"
+BASE = os.environ.get("GATE_BASE", "http://cygnet-classifier.llm-test.svc.cluster.local:8009")
 
 # ---------------------------------------------------------------- presets --
 # NAIVE: what you'd write first — "does this contain a secret?"
