@@ -1,0 +1,62 @@
+# TensorFold v1.2 recipe — DFlash2 cache alignment pull (generic cache-puller).
+#
+# The v1.2 MiaAI TensorFold recipe (1f3d909) pins DFlash2 @ bf582e4e…, whose
+# model.safetensors has a DIFFERENT LFS oid from the cached dc77ff1c snapshot
+# the EXL3 lane serves. This Job pulls only the new ~2.34 GiB draft snapshot.
+#
+# The GLM-5.3-Flash-EXL3-TR3-4bpw checkpoint needs NO re-download: the recipe's
+# pin 9eaebb7c… is a byte-identical mirror of the cached 25a44fd… snapshot
+# (all 120 shards + config/tokenizer/index share LFS sha256 oids; only
+# README.md differs). The lane serves the cached snapshot directly.
+#
+# DELETE_MODELS stays empty: dc77ff1c is rollback material for the live EXL3
+# lane and must not be removed.
+#
+# Reuse for any other alignment: change PULL_MODELS only. RATE = 100 MB/s.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dflash2-v12-cache-align
+  namespace: llm-test
+  labels:
+    app: dflash2-v12-cache-align
+    purpose: model-cache-preload
+spec:
+  ttlSecondsAfterFinished: 259200
+  backoffLimit: 2147483647
+  template:
+    metadata:
+      labels:
+        app: dflash2-v12-cache-align
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      containers:
+        - name: puller
+          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:v3
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            # 100 MB/s cap (~80% of the gigabit site link); adjust per-site.
+            - name: RATE
+              value: "100000000"
+            - name: PULL_MODELS
+              value: "incoai/GLM-5.3-Flash-DFlash2@bf582e4eacc1810f76656d1811693ff6c6737d2a"
+            - name: HF_HUB_DISABLE_XET
+              value: "1"
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface
+                  key: HF_TOKEN
+                  optional: true
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache

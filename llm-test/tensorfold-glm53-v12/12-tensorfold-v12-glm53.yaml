@@ -1,0 +1,738 @@
+# TensorFold GLM-5.3-Flash v1.2 recipe lane (2x DGX-Spark / GB10 / SM121) — STAGED.
+#
+# Kubernetes port of the MiaAI Lab recipe
+# GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold @ 1f3d909 (v1.2, "more KV and
+# better performance"): TensorFold v0.5.0 with 53 patches baked into the
+# published GHCR image (patches cb7c56f7f921), DFlash2 + copy drafts, 4-bit
+# dense weights, FP8 KV, vision, RoCE one-shot all-gather.
+#
+#   Image:   ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold
+#            @sha256:6ee3c6e0430040b69ddcb0c96c7fbbcb94a5bed47d48a8ba092626369ae533b9
+#            (verified arm64 linux, tf.patches=cb7c56f7f921, 71 layers, 11.4 GiB)
+#   Model:   Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw — the recipe's v1.2 pin
+#            (9eaebb7c…) is a byte-identical mirror of the cached snapshot
+#            25a44fdb… (all 120 shards + config/tokenizer/index share LFS
+#            sha256 oids; only README.md differs), so the lane serves the
+#            shared-cache snapshot directly. NO 175 GiB re-download.
+#   Draft:   incoai/GLM-5.3-Flash-DFlash2 @ bf582e4e… (v1.2 pin; weights differ
+#            from the cached dc77ff1c snapshot — aligned by 05-dflash2-v12-cache-align.yaml)
+#   KV pool: MEMORY_RESERVE_GIB=14.5 / KV_POOL_GIB=12.5 -> ~2.1–2.9M tokens
+#            shared FP8 pool (v1.2), 1,048,576-token window, 4 streams.
+#
+# Fabric adaptation (same contract as the glm53 EXL3 and prior TensorFold lanes):
+#   - Capability scheduling: `nvidia-rdma` RuntimeClass + required hostname
+#     anti-affinity place the two ranks on any two eligible Sparks.
+#   - Rendezvous/config rides the common 172.16.4.x network via headless
+#     Service DNS (master port 29551; rank 1 first, then rank 0).
+#   - RoCE rails are selected per rank from the node-local inventory
+#     (/var/lib/dgx-spark/rdma-fabric.json). NCCL gets the recipe's minimal
+#     env (SOCKET_IFNAME, IB_HCA, GID_INDEX, 4 channels); the RoCE all-gather
+#     patch (0006) reads TF_ROCE_HCA / TF_ROCE_GID_INDEX with NCCL_* fallbacks,
+#     both provided here. No node, link IP, netdev, or mlx5_N is hardcoded.
+#
+# PRE-DEPLOY convention: both Deployments declare `replicas: 0`. This lane is
+# an exclusive 2-GPU swap with the resident glm53-exl3 pair (same GPUs, host
+# network): stop the resident pair BEFORE scaling this lane. Activation order
+# is worker (rank 1) first, then head (rank 0); the head's init gate waits for
+# rank 1's fabric/peer setup marker. See README.md.
+#
+# Served model id: GLM-5.3-Flash-EXL3
+# API: http://<head-node>:8880/v1 (host network; upstream 8888 remapped to
+# 8880 here so the resident EXL3 lane keeps host port 8000).
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tensorfold-v12-rdma-fabric
+  namespace: llm-test
+data:
+  configure-rdma-fabric.sh: |
+    #!/bin/bash
+    # Same discovery contract as the glm53 EXL3 lane: validate the node-local
+    # inventory against this pod's node/host, then export NCCL env selecting
+    # the peer-facing RoCE rails. TensorFold drives collectives through NCCL,
+    # and patch 0006's RoCE proxy reads TF_ROCE_HCA / TF_ROCE_GID_INDEX with
+    # NCCL_IB_HCA / NCCL_IB_GID_INDEX fallbacks — all covered by these exports.
+    # Only the recipe's measured-minimal NCCL set is exported; extra NCCL
+    # tuning knobs kept NCCL on one rail upstream and are deliberately omitted.
+    set -euo pipefail
+    : "${PEER_SERVICE:?PEER_SERVICE is required}"
+    : "${HOST_IP:?HOST_IP is required}"
+    : "${NODE_NAME:?NODE_NAME is required}"
+    inventory=/etc/dgx-spark/rdma-fabric.json
+    test -s "$inventory"
+
+    echo "waiting for peer endpoint $PEER_SERVICE"
+    while true; do
+      PEER_CONTROL_IP="$(getent ahostsv4 "$PEER_SERVICE" 2>/dev/null | awk -v self="$HOST_IP" '$1 != self { print $1; exit }' || true)"
+      [ -n "$PEER_CONTROL_IP" ] && break
+      sleep 2
+    done
+    export PEER_CONTROL_IP
+
+    eval "$(python3 - "$inventory" "$PEER_CONTROL_IP" "$NODE_NAME" "$HOST_IP" <<'PY'
+    import ipaddress
+    import json
+    import pathlib
+    import shlex
+    import sys
+
+    inventory_path, peer_control_ip, node_name, host_ip = sys.argv[1:]
+    fabric = json.loads(pathlib.Path(inventory_path).read_text())
+    if fabric["nodeName"] != node_name:
+        raise SystemExit(
+            f"fabric inventory node {fabric['nodeName']} does not match scheduled node {node_name}"
+        )
+    if fabric["controlPlane"]["address"] != host_ip:
+        raise SystemExit(
+            f"fabric control address {fabric['controlPlane']['address']} does not match host IP {host_ip}"
+        )
+    links = [
+        link for link in fabric["links"]
+        if link["peerControlAddress"] == peer_control_ip
+    ]
+    if len(links) != 2:
+        raise SystemExit(
+            f"expected two rails to peer {peer_control_ip}, found {len(links)}"
+        )
+
+    hcas = []
+    gid_indexes = set()
+    netdevs = []
+    for link in links:
+        netdev = link["interface"]
+        netdevs.append(netdev)
+        hca_dir = pathlib.Path("/sys/class/net") / netdev / "device/infiniband"
+        hca_names = sorted(path.name for path in hca_dir.iterdir())
+        if len(hca_names) != 1:
+            raise SystemExit(f"expected one HCA for {netdev}, found {hca_names}")
+        hca = hca_names[0]
+        hcas.append(f"{hca}:1")
+
+        local_ip = ipaddress.ip_interface(link["address"]).ip
+        gid_root = pathlib.Path("/sys/class/infiniband") / hca / "ports/1"
+        matches = []
+        for gid_path in sorted((gid_root / "gids").iterdir(), key=lambda p: int(p.name)):
+            index = gid_path.name
+            try:
+                gid_type = (gid_root / "gid_attrs/types" / index).read_text().strip()
+                gid_netdev = (gid_root / "gid_attrs/ndevs" / index).read_text().strip()
+                gid = ipaddress.ip_address(gid_path.read_text().strip())
+            except (OSError, ValueError):
+                continue
+            if gid_type == "RoCE v2" and gid_netdev == netdev and gid.ipv4_mapped == local_ip:
+                matches.append(index)
+        if len(matches) != 1:
+            raise SystemExit(f"expected one RoCE v2 GID for {netdev}/{local_ip}, found {matches}")
+        gid_indexes.add(matches[0])
+
+    if len(gid_indexes) != 1:
+        raise SystemExit(f"selected rails use different GID indexes: {gid_indexes}")
+
+    values = {
+        "NCCL_IB_HCA": "=" + ",".join(hcas),
+        "NCCL_IB_GID_INDEX": next(iter(gid_indexes)),
+        "NCCL_SOCKET_IFNAME": "=" + fabric["controlPlane"]["interface"],
+        "GLOO_SOCKET_IFNAME": fabric["controlPlane"]["interface"],
+        "RDMA_PEER_NODE": links[0]["peerNode"],
+        "RDMA_PEER_NETDEVS": ",".join(netdevs),
+    }
+    for key, value in values.items():
+        print(f"export {key}={shlex.quote(value)}")
+    PY
+    )"
+
+    echo "fabric peer=$RDMA_PEER_NODE control=$PEER_CONTROL_IP rails=$RDMA_PEER_NETDEVS hcas=$NCCL_IB_HCA gid=$NCCL_IB_GID_INDEX"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tensorfold-v12-launch
+  namespace: llm-test
+data:
+  verify-checkpoint.py: |-
+    import json
+    import pathlib
+    import sys
+
+    # Cached snapshot: byte-identical mirror of the v1.2 recipe pin 9eaebb7c…
+    # (verified via HF tree LFS oids across all 120 shards + metadata files).
+    model_rev = "25a44fdbf16862a46b7cc9921142c6c81350af2f"
+    # v1.2 recipe pin for DFlash2; aligned into the cache by
+    # 05-dflash2-v12-cache-align.yaml.
+    drafter_rev = "bf582e4eacc1810f76656d1811693ff6c6737d2a"
+    hub = pathlib.Path("/models/.cache/huggingface/hub")
+    model_snap = hub / "models--Mia-AiLab--GLM-5.3-Flash-EXL3-TR3-4bpw/snapshots" / model_rev
+    drafter_snap = hub / "models--incoai--GLM-5.3-Flash-DFlash2/snapshots" / drafter_rev
+
+    if not model_snap.is_dir():
+        sys.exit(f"checkpoint snapshot missing: {model_snap}")
+    for name in ("config.json", "model.safetensors.index.json", "tokenizer.json",
+                 "tokenizer_config.json", "chat_template.jinja", "quantization_config.json"):
+        if not (model_snap / name).is_file():
+            sys.exit(f"checkpoint metadata missing: {model_snap / name}")
+    expected_shards = {f"model-{i:05d}-of-00120.safetensors" for i in range(1, 121)}
+    expected_bytes = 175642157752  # sum of the 120 shard sizes at the v1.2 pin
+    present = {p.name: p for p in model_snap.glob("model-*-of-00120.safetensors") if p.is_file()}
+    missing = sorted(expected_shards - present.keys())
+    size = sum(p.stat().st_size for p in present.values())
+    index_shards = set(json.loads((model_snap / "model.safetensors.index.json").read_text())["weight_map"].values())
+    if missing or set(present) != expected_shards or index_shards != expected_shards or size != expected_bytes:
+        sys.exit(f"checkpoint incomplete: shards={len(present)}/120 missing={missing[:3]} bytes={size}/{expected_bytes}")
+    if not drafter_snap.is_dir():
+        sys.exit(f"drafter snapshot missing (run 05-dflash2-v12-cache-align.yaml first): {drafter_snap}")
+    if not (drafter_snap / "config.json").is_file() or not (drafter_snap / "model.safetensors").is_file():
+        sys.exit(f"drafter snapshot incomplete: {drafter_snap}")
+    dsize = (drafter_snap / "model.safetensors").stat().st_size
+    if dsize != 2342169800:
+        sys.exit(f"drafter snapshot size mismatch: {dsize} != 2342169800")
+    print(f"checkpoint complete: {model_rev[:12]} (120 shards, {size} bytes, byte-identical to v1.2 pin)")
+    print(f"drafter complete: {drafter_rev[:12]} ({dsize} bytes)")
+  launch-head.sh: |-
+    #!/usr/bin/env bash
+    set -euo pipefail
+    say() { echo "[tensorfold-v12-head] $*"; }
+    MODEL_SNAP="/models/.cache/huggingface/hub/models--Mia-AiLab--GLM-5.3-Flash-EXL3-TR3-4bpw/snapshots/25a44fdbf16862a46b7cc9921142c6c81350af2f"
+    DRAFTER_SNAP="/models/.cache/huggingface/hub/models--incoai--GLM-5.3-Flash-DFlash2/snapshots/bf582e4eacc1810f76656d1811693ff6c6737d2a"
+    [ -d "$MODEL_SNAP" ] || { say "FATAL: checkpoint snapshot missing"; exit 1; }
+    [ -d "$DRAFTER_SNAP" ] || { say "FATAL: drafter snapshot missing"; exit 1; }
+    say "TensorFold version: $(tensorfold --version 2>/dev/null || echo unknown)"
+    say "selecting RoCE rails from node-local inventory"
+    . /opt/tensorfold/configure-rdma-fabric.sh
+    say "rank 0 launching (API 0.0.0.0:8880, master $HOST_IP:29551)"
+    exec tensorfold serve "$MODEL_SNAP" \
+      --tp 2 --rank 0 \
+      --master "$HOST_IP" --master-port 29551 \
+      --name GLM-5.3-Flash-EXL3 \
+      --host 0.0.0.0 --port 8880 \
+      --drafter "$DRAFTER_SNAP" \
+      --context 1048576 --parallel 4 --thinking --vision
+  launch-worker.sh: |-
+    #!/usr/bin/env bash
+    set -euo pipefail
+    say() { echo "[tensorfold-v12-worker] $*"; }
+    MODEL_SNAP="/models/.cache/huggingface/hub/models--Mia-AiLab--GLM-5.3-Flash-EXL3-TR3-4bpw/snapshots/25a44fdbf16862a46b7cc9921142c6c81350af2f"
+    DRAFTER_SNAP="/models/.cache/huggingface/hub/models--incoai--GLM-5.3-Flash-DFlash2/snapshots/bf582e4eacc1810f76656d1811693ff6c6737d2a"
+    [ -d "$MODEL_SNAP" ] || { say "FATAL: checkpoint snapshot missing"; exit 1; }
+    [ -d "$DRAFTER_SNAP" ] || { say "FATAL: drafter snapshot missing"; exit 1; }
+    say "TensorFold version: $(tensorfold --version 2>/dev/null || echo unknown)"
+    say "selecting RoCE rails from node-local inventory"
+    . /opt/tensorfold/configure-rdma-fabric.sh
+    say "rank 1 launching (master at $PEER_CONTROL_IP:29551)"
+    exec tensorfold serve "$MODEL_SNAP" \
+      --tp 2 --rank 1 \
+      --master "$PEER_CONTROL_IP" --master-port 29551 \
+      --drafter "$DRAFTER_SNAP" \
+      --context 1048576 --parallel 4 --thinking --vision
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tensorfold-v12-head-rendezvous
+  namespace: llm-test
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: tensorfold-v12-head
+  ports:
+    - name: master
+      port: 29551
+      targetPort: 29551
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tensorfold-v12-worker-rendezvous
+  namespace: llm-test
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: tensorfold-v12-worker
+  ports:
+    - name: master
+      port: 29551
+      targetPort: 29551
+      protocol: TCP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tensorfold-v12-head-start-gate
+  namespace: llm-test
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tensorfold-v12-head-start-gate
+  namespace: llm-test
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tensorfold-v12-head-start-gate
+  namespace: llm-test
+subjects:
+  - kind: ServiceAccount
+    name: tensorfold-v12-head-start-gate
+    namespace: llm-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tensorfold-v12-head-start-gate
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tensorfold-v12-worker
+  namespace: llm-test
+  labels:
+    app: tensorfold-v12-worker
+    lane: tensorfold-v12
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: tensorfold-v12-worker
+  template:
+    metadata:
+      labels:
+        app: tensorfold-v12-worker
+        lane: tensorfold-v12
+        app.kubernetes.io/name: tensorfold-glm53-v12
+    spec:
+      automountServiceAccountToken: false
+      runtimeClassName: nvidia-rdma
+      terminationGracePeriodSeconds: 120
+      hostNetwork: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: lane
+                    operator: In
+                    values: [tensorfold-v12]
+              topologyKey: kubernetes.io/hostname
+      initContainers:
+        - name: stage-model-cache
+          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:6ee3c6e0430040b69ddcb0c96c7fbbcb94a5bed47d48a8ba092626369ae533b9
+          imagePullPolicy: IfNotPresent
+          securityContext: {privileged: true}
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              # GB10 unified memory: reclaim host page cache before TensorFold's
+              # free-memory budgeting (it sizes the KV pool from MemAvailable).
+              echo "Memory before cache reclamation:"
+              grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
+              sync
+              echo 3 > /proc/sys/vm/drop_caches
+              echo "Memory after cache reclamation:"
+              grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+        - name: checkpoint-check
+          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:6ee3c6e0430040b69ddcb0c96c7fbbcb94a5bed47d48a8ba092626369ae533b9
+          imagePullPolicy: IfNotPresent
+          command: ["python3", "/launch/verify-checkpoint.py"]
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+            - name: launch
+              mountPath: /launch
+              readOnly: true
+      containers:
+        - name: tensorfold
+          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:6ee3c6e0430040b69ddcb0c96c7fbbcb94a5bed47d48a8ba092626369ae533b9
+          imagePullPolicy: IfNotPresent
+          command: ["bash", "/launch/launch-worker.sh"]
+          securityContext:
+            capabilities:
+              add: [IPC_LOCK]
+          resources:
+            requests:
+              cpu: "16"
+              memory: 64Gi
+              nvidia.com/gpu: "1"
+              rdma/hca_shared_devices: "1"
+            limits:
+              cpu: "32"
+              memory: 128Gi
+              nvidia.com/gpu: "1"
+              rdma/hca_shared_devices: "1"
+          env:
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            - name: HF_HUB_OFFLINE
+              value: "1"
+            - name: TENSORFOLD_NO_UPDATE_CHECK
+              value: "1"
+            # v1.2 KV profile: reserve 14.5 GiB, pool cap 12.5 GiB -> ~2.1-2.9M
+            # shared FP8 tokens at the measured start. Raise the reserve only if
+            # other workloads share the Sparks' memory.
+            - name: TENSORFOLD_MEMORY_RESERVE_GIB
+              value: "14.5"
+            - name: TF_GLM_CACHE_GIB
+              value: "12.5"
+            - name: TF_GLM_KV
+              value: fp8
+            - name: TF_GLM_DENSE
+              value: q4
+            - name: TF_GLM_COMM
+              value: roce
+            - name: TF_ROCE_MAX_KB
+              value: "512"
+            - name: TF_GLM_COPY_DRAFTS
+              value: "1"
+            - name: TF_GLM_COPY_MAX
+              value: "15"
+            - name: TF_GLM_DFLASH_POLICY
+              value: fnc7:0.3
+            - name: TF_GLM_HC_SPLIT
+              value: "1"
+            - name: TF_GLM_PREFILL_OVERLAP
+              value: "2"
+            - name: TF_GLM_KDA_CHUNKED
+              value: "1"
+            - name: TF_GLM_WIDE_GRAPHS
+              value: "16"
+            - name: TF_GLM_COPY_REPLY_MATCH
+              value: "16"
+            - name: TF_GLM_MULTI_LONE
+              value: "1"
+            - name: TF_GLM_MULTI_PREFILL
+              value: "1"
+            - name: TF_GLM_L2PF
+              value: "1"
+            - name: TF_GLM_EXL3_LOADS
+              value: nc
+            - name: TF_GLM_SHARED_PREFIX
+              value: "1"
+            # Recipe nccl_env(): four channels on the selected rails.
+            - name: NCCL_MIN_NCHANNELS
+              value: "4"
+            - name: NCCL_MAX_NCHANNELS
+              value: "4"
+            - name: NCCL_DEBUG
+              value: WARN
+            - name: NVIDIA_DRIVER_CAPABILITIES
+              value: compute,utility
+            - name: PEER_SERVICE
+              value: tensorfold-v12-head-rendezvous.llm-test.svc.cluster.local
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef: {fieldPath: spec.nodeName}
+            - name: HOST_IP
+              valueFrom:
+                fieldRef: {fieldPath: status.hostIP}
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: launch
+              mountPath: /launch
+              readOnly: true
+            - name: fabric-config
+              mountPath: /opt/tensorfold/configure-rdma-fabric.sh
+              subPath: configure-rdma-fabric.sh
+              readOnly: true
+            - name: fabric-inventory
+              mountPath: /etc/dgx-spark/rdma-fabric.json
+              readOnly: true
+            - name: kernel-cache
+              mountPath: /cache
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+        - name: launch
+          configMap:
+            name: tensorfold-v12-launch
+            defaultMode: 0555
+        - name: fabric-config
+          configMap:
+            name: tensorfold-v12-rdma-fabric
+            defaultMode: 0555
+        - name: fabric-inventory
+          hostPath:
+            path: /var/lib/dgx-spark/rdma-fabric.json
+            type: File
+        - name: kernel-cache
+          hostPath:
+            path: /var/lib/llm-test/tensorfold-v12-kernel-cache
+            type: DirectoryOrCreate
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tensorfold-v12-head
+  namespace: llm-test
+  labels:
+    app: tensorfold-v12-head
+    lane: tensorfold-v12
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: tensorfold-v12-head
+  template:
+    metadata:
+      labels:
+        app: tensorfold-v12-head
+        lane: tensorfold-v12
+        app.kubernetes.io/name: tensorfold-glm53-v12
+    spec:
+      serviceAccountName: tensorfold-v12-head-start-gate
+      automountServiceAccountToken: false
+      runtimeClassName: nvidia-rdma
+      terminationGracePeriodSeconds: 120
+      hostNetwork: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: lane
+                    operator: In
+                    values: [tensorfold-v12]
+              topologyKey: kubernetes.io/hostname
+      initContainers:
+        - name: stage-model-cache
+          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:6ee3c6e0430040b69ddcb0c96c7fbbcb94a5bed47d48a8ba092626369ae533b9
+          imagePullPolicy: IfNotPresent
+          securityContext: {privileged: true}
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              echo "Memory before cache reclamation:"
+              grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
+              sync
+              echo 3 > /proc/sys/vm/drop_caches
+              echo "Memory after cache reclamation:"
+              grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+        - name: checkpoint-check
+          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:6ee3c6e0430040b69ddcb0c96c7fbbcb94a5bed47d48a8ba092626369ae533b9
+          imagePullPolicy: IfNotPresent
+          command: ["python3", "/launch/verify-checkpoint.py"]
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+            - name: launch
+              mountPath: /launch
+              readOnly: true
+        - name: wait-for-rank1-start
+          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:6ee3c6e0430040b69ddcb0c96c7fbbcb94a5bed47d48a8ba092626369ae533b9
+          imagePullPolicy: IfNotPresent
+          command: ["python3", "-c"]
+          args:
+            - |
+              import json, pathlib, ssl, sys, time, urllib.parse, urllib.request
+              root = pathlib.Path("/var/run/secrets/kubernetes.io/serviceaccount")
+              token = (root / "token").read_text().strip()
+              tls = ssl.create_default_context(cafile=str(root / "ca.crt"))
+              headers = {"Authorization": "Bearer " + token}
+              query = urllib.parse.urlencode({"labelSelector": "app=tensorfold-v12-worker"})
+              base = "https://kubernetes.default.svc/api/v1/namespaces/llm-test/pods"
+              deadline = time.monotonic() + 1800
+              while time.monotonic() < deadline:
+                  request = urllib.request.Request(base + "?" + query, headers=headers)
+                  try:
+                      with urllib.request.urlopen(request, context=tls, timeout=10) as response:
+                          pods = json.load(response)["items"]
+                  except Exception as error:
+                      print(f"waiting for Kubernetes API: {error}", flush=True)
+                      time.sleep(3)
+                      continue
+                  for pod in pods:
+                      running = any(
+                          container.get("name") == "tensorfold" and container.get("state", {}).get("running")
+                          for container in pod.get("status", {}).get("containerStatuses", [])
+                      )
+                      if not running:
+                          continue
+                      name = urllib.parse.quote(pod["metadata"]["name"], safe="")
+                      log_query = urllib.parse.urlencode({"container": "tensorfold", "tailLines": 100})
+                      log_url = f"{base}/{name}/log?{log_query}"
+                      try:
+                          with urllib.request.urlopen(urllib.request.Request(log_url, headers=headers), context=tls, timeout=10) as response:
+                              logs = response.read().decode("utf-8", errors="replace")
+                      except Exception as error:
+                          print(f"waiting for rank-1 logs: {error}", flush=True)
+                          continue
+                      if "rank 1 launching" in logs:
+                          print(f"rank-1 completed peer/fabric setup in {name}; launching rank 0", flush=True)
+                          sys.exit(0)
+                  time.sleep(2)
+              sys.exit("timed out waiting for rank-1 peer setup")
+          volumeMounts:
+            - name: kubernetes-api
+              mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+              readOnly: true
+      containers:
+        - name: tensorfold
+          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:6ee3c6e0430040b69ddcb0c96c7fbbcb94a5bed47d48a8ba092626369ae533b9
+          imagePullPolicy: IfNotPresent
+          command: ["bash", "/launch/launch-head.sh"]
+          securityContext:
+            capabilities:
+              add: [IPC_LOCK]
+          resources:
+            requests:
+              cpu: "16"
+              memory: 64Gi
+              nvidia.com/gpu: "1"
+              rdma/hca_shared_devices: "1"
+            limits:
+              cpu: "32"
+              memory: 128Gi
+              nvidia.com/gpu: "1"
+              rdma/hca_shared_devices: "1"
+          ports:
+            - name: http
+              containerPort: 8880
+          env:
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            - name: HF_HUB_OFFLINE
+              value: "1"
+            - name: TENSORFOLD_NO_UPDATE_CHECK
+              value: "1"
+            - name: TENSORFOLD_MEMORY_RESERVE_GIB
+              value: "14.5"
+            - name: TF_GLM_CACHE_GIB
+              value: "12.5"
+            - name: TF_GLM_KV
+              value: fp8
+            - name: TF_GLM_DENSE
+              value: q4
+            - name: TF_GLM_COMM
+              value: roce
+            - name: TF_ROCE_MAX_KB
+              value: "512"
+            - name: TF_GLM_COPY_DRAFTS
+              value: "1"
+            - name: TF_GLM_COPY_MAX
+              value: "15"
+            - name: TF_GLM_DFLASH_POLICY
+              value: fnc7:0.3
+            - name: TF_GLM_HC_SPLIT
+              value: "1"
+            - name: TF_GLM_PREFILL_OVERLAP
+              value: "2"
+            - name: TF_GLM_KDA_CHUNKED
+              value: "1"
+            - name: TF_GLM_WIDE_GRAPHS
+              value: "16"
+            - name: TF_GLM_COPY_REPLY_MATCH
+              value: "16"
+            - name: TF_GLM_MULTI_LONE
+              value: "1"
+            - name: TF_GLM_MULTI_PREFILL
+              value: "1"
+            - name: TF_GLM_L2PF
+              value: "1"
+            - name: TF_GLM_EXL3_LOADS
+              value: nc
+            - name: TF_GLM_SHARED_PREFIX
+              value: "1"
+            - name: NCCL_MIN_NCHANNELS
+              value: "4"
+            - name: NCCL_MAX_NCHANNELS
+              value: "4"
+            - name: NCCL_DEBUG
+              value: WARN
+            - name: NVIDIA_DRIVER_CAPABILITIES
+              value: compute,utility
+            - name: PEER_SERVICE
+              value: tensorfold-v12-worker-rendezvous.llm-test.svc.cluster.local
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef: {fieldPath: spec.nodeName}
+            - name: HOST_IP
+              valueFrom:
+                fieldRef: {fieldPath: status.hostIP}
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: launch
+              mountPath: /launch
+              readOnly: true
+            - name: kubernetes-api
+              mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+              readOnly: true
+            - name: fabric-config
+              mountPath: /opt/tensorfold/configure-rdma-fabric.sh
+              subPath: configure-rdma-fabric.sh
+              readOnly: true
+            - name: fabric-inventory
+              mountPath: /etc/dgx-spark/rdma-fabric.json
+              readOnly: true
+            - name: kernel-cache
+              mountPath: /cache
+          readinessProbe:
+            httpGet: {path: /health, port: 8880}
+            periodSeconds: 10
+            failureThreshold: 6
+          startupProbe:
+            httpGet: {path: /health, port: 8880}
+            periodSeconds: 15
+            failureThreshold: 240
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+        - name: launch
+          configMap:
+            name: tensorfold-v12-launch
+            defaultMode: 0555
+        - name: kubernetes-api
+          projected:
+            defaultMode: 0400
+            sources:
+              - serviceAccountToken:
+                  path: token
+                  expirationSeconds: 3600
+              - configMap:
+                  name: kube-root-ca.crt
+                  items:
+                    - key: ca.crt
+                      path: ca.crt
+        - name: fabric-config
+          configMap:
+            name: tensorfold-v12-rdma-fabric
+            defaultMode: 0555
+        - name: fabric-inventory
+          hostPath:
+            path: /var/lib/dgx-spark/rdma-fabric.json
+            type: File
+        - name: kernel-cache
+          hostPath:
+            path: /var/lib/llm-test/tensorfold-v12-kernel-cache
+            type: DirectoryOrCreate
