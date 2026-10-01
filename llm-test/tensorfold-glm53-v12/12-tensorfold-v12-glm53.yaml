@@ -37,8 +37,8 @@
 # rank 1's fabric/peer setup marker. See README.md.
 #
 # Served model id: GLM-5.3-Flash-EXL3
-# API: http://<head-node>:8880/v1 (host network; upstream 8888 remapped to
-# 8880 here so the resident EXL3 lane keeps host port 8000).
+# API: http://<head-node>:8000/v1 (host network). The TP2 lanes are exclusive;
+# port 8000 is the established inter-node/firewall path used by the serving lane.
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -199,12 +199,12 @@ data:
     say "TensorFold version: $(tensorfold --version 2>/dev/null || echo unknown)"
     say "selecting RoCE rails from node-local inventory"
     . /opt/tensorfold/configure-rdma-fabric.sh
-    say "rank 0 launching (API 0.0.0.0:8880, master $HOST_IP:29551)"
+    say "rank 0 launching (API 0.0.0.0:8000, master $HOST_IP:29551)"
     exec tensorfold serve "$MODEL_SNAP" \
       --tp 2 --rank 0 \
       --master "$HOST_IP" --master-port 29551 \
       --name GLM-5.3-Flash-EXL3 \
-      --host 0.0.0.0 --port 8880 \
+      --host 0.0.0.0 --port 8000 \
       --drafter "$DRAFTER_SNAP" \
       --context 1048576 --parallel 4 --thinking --vision
   launch-worker.sh: |-
@@ -363,6 +363,34 @@ spec:
             - name: launch
               mountPath: /launch
               readOnly: true
+        # Must be the final init step: these Sparks retain VM cache after a
+        # large model exits, and TensorFold sizes its pool from MemAvailable.
+        - name: reclaim-vm-cache
+          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:6ee3c6e0430040b69ddcb0c96c7fbbcb94a5bed47d48a8ba092626369ae533b9
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
+          securityContext: {privileged: true}
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              threshold_kib=115343360 # 110 GiB
+              for attempt in $(seq 1 12); do
+                before=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+                echo "cache reclaim attempt ${attempt}/12: MemAvailable=${before} KiB before"
+                sync
+                echo 3 > /proc/sys/vm/drop_caches
+                after=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+                grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
+                if (( after >= threshold_kib )); then
+                  echo "cache reclaim passed: MemAvailable=${after} KiB (required ${threshold_kib} KiB)"
+                  exit 0
+                fi
+                sleep 5
+              done
+              echo "FATAL: MemAvailable remained below ${threshold_kib} KiB after cache reclamation" >&2
+              exit 1
       containers:
         - name: tensorfold
           image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:6ee3c6e0430040b69ddcb0c96c7fbbcb94a5bed47d48a8ba092626369ae533b9
@@ -605,6 +633,34 @@ spec:
             - name: kubernetes-api
               mountPath: /var/run/secrets/kubernetes.io/serviceaccount
               readOnly: true
+        # Keep this after the rank-1 gate so cache reclamation is immediately
+        # adjacent to TensorFold rank 0 startup.
+        - name: reclaim-vm-cache
+          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:6ee3c6e0430040b69ddcb0c96c7fbbcb94a5bed47d48a8ba092626369ae533b9
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
+          securityContext: {privileged: true}
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              threshold_kib=115343360 # 110 GiB
+              for attempt in $(seq 1 12); do
+                before=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+                echo "cache reclaim attempt ${attempt}/12: MemAvailable=${before} KiB before"
+                sync
+                echo 3 > /proc/sys/vm/drop_caches
+                after=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+                grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
+                if (( after >= threshold_kib )); then
+                  echo "cache reclaim passed: MemAvailable=${after} KiB (required ${threshold_kib} KiB)"
+                  exit 0
+                fi
+                sleep 5
+              done
+              echo "FATAL: MemAvailable remained below ${threshold_kib} KiB after cache reclamation" >&2
+              exit 1
       containers:
         - name: tensorfold
           image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:6ee3c6e0430040b69ddcb0c96c7fbbcb94a5bed47d48a8ba092626369ae533b9
@@ -626,7 +682,7 @@ spec:
               rdma/hca_shared_devices: "1"
           ports:
             - name: http
-              containerPort: 8880
+              containerPort: 8000
           env:
             - name: HF_HOME
               value: /models/.cache/huggingface
@@ -707,11 +763,11 @@ spec:
             - name: kernel-cache
               mountPath: /cache
           readinessProbe:
-            httpGet: {path: /health, port: 8880}
+            httpGet: {path: /health, port: 8000}
             periodSeconds: 10
             failureThreshold: 6
           startupProbe:
-            httpGet: {path: /health, port: 8880}
+            httpGet: {path: /health, port: 8000}
             periodSeconds: 15
             failureThreshold: 240
       volumes:

@@ -1,6 +1,6 @@
 # TensorFold v1.2 GLM-5.3-Flash lane — internal in-cluster API Service.
 #
-# Selects whichever DGX Spark receives the head pod (host network, port 8880).
+# Selects whichever DGX Spark receives the head pod (host network, port 8000).
 # Safe to stage with the lane: with the Deployments at replicas 0 it has no
 # endpoints and touches nothing. Client/LiteLLM cutover happens only at
 # activation (see README.md step 5).
@@ -18,5 +18,5 @@ spec:
   ports:
     - name: http
       protocol: TCP
-      port: 8880
-      targetPort: 8880
+      port: 8000
+      targetPort: 8000

@@ -10,19 +10,19 @@ data:
   config.yaml: |
     model_list:
       # Keep the public alias stable while Kubernetes follows the dynamically
-      # placed EXL3 GLM head through its ClusterIP Service.
+      # placed active GLM head through its ClusterIP Service.
       - model_name: dgx-spark
         litellm_params:
           model: hosted_vllm/GLM-5.3-Flash-EXL3
-          api_base: http://glm53-head.llm-test.svc.cluster.local:8000/v1
+          api_base: http://tensorfold-v12-head.llm-test.svc.cluster.local:8000/v1
           api_key: sk-local
-        # Match the vLLM --max-model-len 512000 context. max_tokens is
-        # retained for older LiteLLM clients; max_input_tokens is the
-        # authoritative prompt/context limit.
+        # Match TensorFold's native 1,048,576-token prompt/reply window.
+        # max_tokens is retained for older LiteLLM clients; max_input_tokens
+        # is the authoritative prompt/context limit.
         model_info:
-          max_input_tokens: 512000
-          max_output_tokens: 512000
-          max_tokens: 512000
+          max_input_tokens: 1048576
+          max_output_tokens: 1048576
+          max_tokens: 1048576
       - model_name: qwen3.8-flash-next-halogen
         litellm_params:
           model: openai/qwen3.8-flash-next-halogen

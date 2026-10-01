@@ -1,14 +1,17 @@
-# TensorFold GLM-5.3-Flash v1.2 recipe lane (2x DGX-Spark) — STAGED AT ZERO
+# TensorFold GLM-5.3-Flash v1.2 recipe lane (2x DGX-Spark) — ACTIVE
 
-**Status: STAGED, NOT SERVING.** Both Deployments are `replicas: 0`. First
-activation attempt on 2026-10-01 reached two-rail RoCE discovery and TP2
-rendezvous, then TensorFold refused startup because both Sparks exposed only
-~20 GiB `MemAvailable` after the resident EXL3 pair was stopped (estimated
-largest context: 0). No process owned the missing ~100 GiB of GB10 UMA memory;
-a cold node reboot or equivalent GPU/UMA reset is the next prerequisite before
-retrying. The resident EXL3 lane was restored. The attempt also found and fixed
-the NGC image's default `video` driver capability on init containers by forcing
-`NVIDIA_DRIVER_CAPABILITIES=compute,utility` everywhere.
+**Status: SERVING.** The live Deployments are scaled to one rank each; the
+checked-in replica counts remain zero so activation stays explicit. LiteLLM's
+`dgx-spark` alias routes to `tensorfold-v12-head:8000`. Direct tests from the
+`ai-proxy` pod and an end-to-end request through `ai.taildeab2.ts.net` passed.
+
+Activation requires a privileged final init step on each Spark to run
+`sync; echo 3 > /proc/sys/vm/drop_caches` and require at least 110 GiB
+`MemAvailable`. These nodes retain VM cache after a large model exits; without
+that gate TensorFold's startup budget can incorrectly estimate a zero-token
+window. All init containers also force
+`NVIDIA_DRIVER_CAPABILITIES=compute,utility` because the image default includes
+the unsupported `video` capability.
 
 This lane is the Kubernetes port of the MiaAI Lab recipe
 [GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold](https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold)
@@ -41,7 +44,7 @@ size (2,342,169,800). The lane fails fast at init if the cache drifts.
 - `12-tensorfold-v12-glm53.yaml` — the two-rank Deployments (`replicas: 0`),
   headless rendezvous Services (master port 29551), RoCE-fabric discovery
   ConfigMap, launch scripts, and the head's rank-1 start gate.
-- `services.yaml` — internal ClusterIP Service for the rank-0 API (port 8880).
+- `services.yaml` — internal ClusterIP Service for the rank-0 API (port 8000).
 
 ## Key pins
 
@@ -53,7 +56,7 @@ size (2,342,169,800). The lane fails fast at init if the cache drifts.
 | Checkpoint served | `Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw` cached snapshot `25a44fdb…` (byte-identical to the recipe pin `9eaebb7c…`) |
 | Drafter served | `incoai/GLM-5.3-Flash-DFlash2` @ `bf582e4e…` (v1.2 pin, cache-aligned) |
 | Served model id | `GLM-5.3-Flash-EXL3` |
-| API | `http://<head-node>:8880/v1` (host network; upstream 8888 remapped so the EXL3 lane keeps 8000) |
+| API | `http://<head-node>:8000/v1` (host network; the mutually exclusive TP2 lanes reuse the established inter-node port) |
 | Rendezvous | headless Services, master port 29551, control network 172.16.4.x |
 | KV profile | `TENSORFOLD_MEMORY_RESERVE_GIB=14.5`, `TF_GLM_CACHE_GIB=12.5`, KV `fp8` → ~2.1–2.9M shared tokens; window 1,048,576; `--parallel 4` |
 | Dense weights | `q4` (recipe default), RoCE comm with `TF_ROCE_MAX_KB=512` |
@@ -126,9 +129,9 @@ Notes:
 
 ```bash
 kubectl logs -n llm-test deploy/tensorfold-v12-head -c tensorfold --tail=50
-curl -s http://<head-node-ip>:8880/v1/models
-curl -s http://tensorfold-v12-head.llm-test.svc.cluster.local:8880/v1/models   # in-cluster
-curl -s http://<head-node-ip>:8880/v1/chat/completions -H 'Content-Type: application/json' \
+curl -s http://<head-node-ip>:8000/v1/models
+curl -s http://tensorfold-v12-head.llm-test.svc.cluster.local:8000/v1/models   # in-cluster
+curl -s http://<head-node-ip>:8000/v1/chat/completions -H 'Content-Type: application/json' \
   -d '{"model":"GLM-5.3-Flash-EXL3","messages":[{"role":"user","content":"Say OK."}],"max_tokens":2000}'
 ```
 
@@ -140,7 +143,7 @@ install-at-start pattern is retired with that lane).
 ## Step 5 — LiteLLM cutover (only once healthy)
 
 Mirror `../glm53-parity/services.yaml`: point a Service/alias at
-`tensorfold-v12-head.llm-test.svc.cluster.local:8880` with model id
+`tensorfold-v12-head.llm-test.svc.cluster.local:8000` with model id
 `GLM-5.3-Flash-EXL3`, then restart `ai-proxy`. The primary client endpoint
 remains `http://ai.taildeab2.ts.net/`.
 
@@ -159,22 +162,26 @@ kubectl scale deploy glm53-exl3-worker -n llm-test --replicas=1
 kubectl scale deploy glm53-exl3-head -n llm-test --replicas=1
 ```
 
-## First activation receipt (2026-10-01)
+## Activation receipt (2026-10-01)
 
-- Init initially failed because the image defaulted to NVIDIA capabilities
-  `compute,utility,video`, while the cluster RuntimeClass permits only
-  `compute,utility`; every init container now overrides the value.
-- Both ranks then passed cache verification, discovered the peer dynamically,
-  selected both CX7 rails (`mlx5_0` + `mlx5_2`, GID 3), and agreed on the head
-  rendezvous at `172.16.4.57:29551`.
-- TensorFold v0.5.0 rejected `--context 1048576` before loading weights:
-  `CUDA startup memory budget ... estimated largest ... 0 tokens`.
-- Host snapshots on sextant/octant showed ~121 GiB total but only ~20 GiB
-  `MemAvailable`, no NVIDIA compute process, <1 GiB normal anonymous RSS, and
-  no meaningful page cache after `drop_caches`. This indicates stale/unreported
-  GB10 UMA/CUDA allocation from the previous lane. Do not retry by guessing a
-  smaller context; reset/reboot the pair, verify >=110 GiB available per node,
-  then retry the same pinned profile.
+- The first attempt exposed two deployment requirements: override the image's
+  unsupported `video` driver capability, and reclaim the Sparks' known retained
+  VM cache immediately before each TensorFold process starts.
+- A dedicated final `reclaim-vm-cache` init now retries cache reclamation for a
+  bounded minute and fails closed below 110 GiB `MemAvailable`. The successful
+  run passed on the first attempt at ~116 GiB on both ranks.
+- Both ranks discovered the peer dynamically, selected both CX7 rails
+  (`mlx5_0` + `mlx5_2`, GID 3), and allocated the native 1,048,576-token window.
+  Rank 0 estimated 88.09 GiB within a 100.37 GiB budget; rank 1 estimated
+  86.29 GiB within 100.34 GiB.
+- The engine loaded successfully with a ~2.89M-token shared pool, DFlash2,
+  vision, four streams, and the full 1M per-request context.
+- Port 8880 was healthy only on head-node localhost but timed out from
+  `ai-proxy`. The mutually exclusive DGX lanes now consistently reuse the
+  established host/API and Service port 8000 (keel DEC-0023).
+- From the actual `ai-proxy` pod, `/health`, `/v1/models`, and a direct
+  completion passed. After LiteLLM cutover, the public `dgx-spark` alias returned
+  `LITELLM_TENSORFOLD_OK` in 1.05 seconds.
 
 ## Known risks / honest caveats
 
