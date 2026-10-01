@@ -331,6 +331,8 @@ spec:
         - name: stage-model-cache
           image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:6ee3c6e0430040b69ddcb0c96c7fbbcb94a5bed47d48a8ba092626369ae533b9
           imagePullPolicy: IfNotPresent
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
           securityContext: {privileged: true}
           command: ["/bin/bash", "-lc"]
           args:
@@ -351,6 +353,8 @@ spec:
         - name: checkpoint-check
           image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:6ee3c6e0430040b69ddcb0c96c7fbbcb94a5bed47d48a8ba092626369ae533b9
           imagePullPolicy: IfNotPresent
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
           command: ["python3", "/launch/verify-checkpoint.py"]
           volumeMounts:
             - name: models
@@ -521,6 +525,8 @@ spec:
         - name: stage-model-cache
           image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:6ee3c6e0430040b69ddcb0c96c7fbbcb94a5bed47d48a8ba092626369ae533b9
           imagePullPolicy: IfNotPresent
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
           securityContext: {privileged: true}
           command: ["/bin/bash", "-lc"]
           args:
@@ -539,6 +545,8 @@ spec:
         - name: checkpoint-check
           image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:6ee3c6e0430040b69ddcb0c96c7fbbcb94a5bed47d48a8ba092626369ae533b9
           imagePullPolicy: IfNotPresent
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
           command: ["python3", "/launch/verify-checkpoint.py"]
           volumeMounts:
             - name: models
@@ -550,6 +558,8 @@ spec:
         - name: wait-for-rank1-start
           image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:6ee3c6e0430040b69ddcb0c96c7fbbcb94a5bed47d48a8ba092626369ae533b9
           imagePullPolicy: IfNotPresent
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
           command: ["python3", "-c"]
           args:
             - |

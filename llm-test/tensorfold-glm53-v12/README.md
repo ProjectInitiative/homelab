@@ -1,7 +1,16 @@
 # TensorFold GLM-5.3-Flash v1.2 recipe lane (2x DGX-Spark) — STAGED AT ZERO
 
-**Status: STAGED, NOT SERVING.** Both Deployments are `replicas: 0`. This lane
-is the Kubernetes port of the MiaAI Lab recipe
+**Status: STAGED, NOT SERVING.** Both Deployments are `replicas: 0`. First
+activation attempt on 2026-10-01 reached two-rail RoCE discovery and TP2
+rendezvous, then TensorFold refused startup because both Sparks exposed only
+~20 GiB `MemAvailable` after the resident EXL3 pair was stopped (estimated
+largest context: 0). No process owned the missing ~100 GiB of GB10 UMA memory;
+a cold node reboot or equivalent GPU/UMA reset is the next prerequisite before
+retrying. The resident EXL3 lane was restored. The attempt also found and fixed
+the NGC image's default `video` driver capability on init containers by forcing
+`NVIDIA_DRIVER_CAPABILITIES=compute,utility` everywhere.
+
+This lane is the Kubernetes port of the MiaAI Lab recipe
 [GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold](https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold)
 @ `1f3d909b00b7be7aa8f00d3a33e0b9e7aa56d221` (v1.2, 2026-10-01): TensorFold
 v0.5.0 with 53 baked patches, a bigger shared KV pool (~2.1–2.9M tokens), a
@@ -149,6 +158,23 @@ kubectl wait --for=delete pod -l app=tensorfold-v12-worker -n llm-test --timeout
 kubectl scale deploy glm53-exl3-worker -n llm-test --replicas=1
 kubectl scale deploy glm53-exl3-head -n llm-test --replicas=1
 ```
+
+## First activation receipt (2026-10-01)
+
+- Init initially failed because the image defaulted to NVIDIA capabilities
+  `compute,utility,video`, while the cluster RuntimeClass permits only
+  `compute,utility`; every init container now overrides the value.
+- Both ranks then passed cache verification, discovered the peer dynamically,
+  selected both CX7 rails (`mlx5_0` + `mlx5_2`, GID 3), and agreed on the head
+  rendezvous at `172.16.4.57:29551`.
+- TensorFold v0.5.0 rejected `--context 1048576` before loading weights:
+  `CUDA startup memory budget ... estimated largest ... 0 tokens`.
+- Host snapshots on sextant/octant showed ~121 GiB total but only ~20 GiB
+  `MemAvailable`, no NVIDIA compute process, <1 GiB normal anonymous RSS, and
+  no meaningful page cache after `drop_caches`. This indicates stale/unreported
+  GB10 UMA/CUDA allocation from the previous lane. Do not retry by guessing a
+  smaller context; reset/reboot the pair, verify >=110 GiB available per node,
+  then retry the same pinned profile.
 
 ## Known risks / honest caveats
 
