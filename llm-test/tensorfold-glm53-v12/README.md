@@ -13,6 +13,14 @@ window. All init containers also force
 `NVIDIA_DRIVER_CAPABILITIES=compute,utility` because the image default includes
 the unsupported `video` capability.
 
+Both ranks use the cluster-scoped `llm-serving-critical` PriorityClass at
+`999999998`: the highest non-system application priority in this cluster. It
+preempts ordinary workloads and is preferred during node-pressure eviction,
+while Kubernetes/CSI/device-plugin and kubevirt cluster-critical storage/runtime
+pods remain above it. This reduces disruption risk but cannot make a rank
+survive host OOM or `NodeNotReady`; either rank loss still requires coordinated
+pair recreation.
+
 This lane is the Kubernetes port of the MiaAI Lab recipe
 [GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold](https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold)
 @ `1f3d909b00b7be7aa8f00d3a33e0b9e7aa56d221` (v1.2, 2026-10-01): TensorFold

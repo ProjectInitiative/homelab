@@ -40,6 +40,17 @@
 # API: http://<head-node>:8000/v1 (host network). The TP2 lanes are exclusive;
 # port 8000 is the established inter-node/firewall path used by the serving lane.
 ---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: llm-serving-critical
+value: 999999998
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority
+description: >-
+  Highest non-system priority for active distributed LLM serving ranks. Kept
+  below Kubernetes, CSI, device-plugin, and kubevirt cluster-critical classes.
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -312,6 +323,7 @@ spec:
         lane: tensorfold-v12
         app.kubernetes.io/name: tensorfold-glm53-v12
     spec:
+      priorityClassName: llm-serving-critical
       automountServiceAccountToken: false
       runtimeClassName: nvidia-rdma
       terminationGracePeriodSeconds: 120
@@ -533,6 +545,7 @@ spec:
         lane: tensorfold-v12
         app.kubernetes.io/name: tensorfold-glm53-v12
     spec:
+      priorityClassName: llm-serving-critical
       serviceAccountName: tensorfold-v12-head-start-gate
       automountServiceAccountToken: false
       runtimeClassName: nvidia-rdma
