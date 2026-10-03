@@ -39,13 +39,14 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             - name: HF_HOME
-              value: /staging/huggingface
-            # Keep Hugging Face locks/Xet state on chronometer's local disk;
-            # JuiceFS receives only the completed, dereferenced snapshot.
-            - name: HF_XET_CHUNK_CACHE_SIZE_BYTES
-              value: "0"
-            # The image includes current `hf` and `hf_xet`; use the Hub's
-            # resumable Xet path rather than the much slower direct-HTTP puller.
+              value: /models/.cache/huggingface
+            # Cap aggregate traffic below the gigabit site link.
+            - name: RATE
+              value: "62500000"
+            - name: PULL_MODELS
+              value: Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold@078455ffe6472f9a52fbc1139f58b9db2881b25c
+            - name: HF_HUB_DISABLE_XET
+              value: "1"
             - name: HF_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -57,44 +58,12 @@ spec:
             - |
               set -euo pipefail
               marker=/models/.tensorfold-v14-quant-download-complete
-              repo=Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold
-              rev=078455ffe6472f9a52fbc1139f58b9db2881b25c
-              local_snap=$HF_HOME/hub/models--Mia-AiLab--GLM-5.3-Flash-EXL3-4bpw-TensorFold/snapshots/$rev
-              snap=/models/.cache/huggingface/hub/models--Mia-AiLab--GLM-5.3-Flash-EXL3-4bpw-TensorFold/snapshots/$rev
+              snap=/models/.cache/huggingface/hub/models--Mia-AiLab--GLM-5.3-Flash-EXL3-4bpw-TensorFold/snapshots/078455ffe6472f9a52fbc1139f58b9db2881b25c
               rm -f "$marker"
-              # A prior interrupted pod may leave lock filenames; no downloader
-              # is alive when this Job starts, so remove only this repo's locks.
-              python3 -c 'import os,pathlib,shutil; shutil.rmtree(pathlib.Path(os.environ["HF_HOME"])/".locks/models--Mia-AiLab--GLM-5.3-Flash-EXL3-4bpw-TensorFold", ignore_errors=True)'
-              hf download "$repo" --revision "$rev" --cache-dir "$HF_HOME/hub"
-
-              # Materialize local cache symlinks as regular files in a temporary
-              # JuiceFS tree, then publish the complete snapshot in one rename.
-              python3 - "$local_snap" "$snap" <<'PY'
-              import concurrent.futures, pathlib, shutil, sys
-              src, dst = map(pathlib.Path, sys.argv[1:])
-              if not src.is_dir():
-                  raise SystemExit(f"local snapshot missing: {src}")
-              tmp = dst.with_name(dst.name + ".staging")
-              shutil.rmtree(tmp, ignore_errors=True)
-              tmp.mkdir(parents=True)
-              files = []
-              for path in src.rglob("*"):
-                  target = tmp / path.relative_to(src)
-                  if path.is_dir() and not path.is_symlink():
-                      target.mkdir(parents=True, exist_ok=True)
-                  elif path.is_file():
-                      target.parent.mkdir(parents=True, exist_ok=True)
-                      files.append((path, target))
-              with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
-                  futures = [pool.submit(shutil.copy2, source, target, follow_symlinks=True)
-                             for source, target in files]
-                  for i, future in enumerate(concurrent.futures.as_completed(futures), 1):
-                      future.result()
-                      print(f"copy {i}/{len(files)}", flush=True)
-              shutil.rmtree(dst, ignore_errors=True)
-              tmp.replace(dst)
-              print(f"published complete snapshot to {dst}")
-              PY
+              # Remove only the abandoned temporary tree from the superseded
+              # local-stage/copy attempt; preserve puller .part files for resume.
+              python3 -c 'import pathlib,shutil; shutil.rmtree(pathlib.Path("'$snap'.staging"), ignore_errors=True)'
+              python3 /opt/puller/puller.py
 
               python3 - "$snap" "$marker" <<'PY'
               import hashlib, json, pathlib, sys
@@ -136,28 +105,18 @@ spec:
               tmp.replace(marker)
               print(f"verified {len(shards)} shards, {total} bytes; receipt {marker}")
               PY
-              python3 -c 'import shutil; shutil.rmtree("/staging/huggingface", ignore_errors=True)'
               echo "TensorFold v1.4 quant complete"
           resources:
             requests:
               cpu: "500m"
               memory: 1Gi
-              ephemeral-storage: 220Gi
-            limits:
-              ephemeral-storage: 300Gi
           volumeMounts:
-            - name: staging
-              mountPath: /staging
             - name: models
               mountPath: /models
             - name: checksums
               mountPath: /checksums
               readOnly: true
       volumes:
-        - name: staging
-          hostPath:
-            path: /var/lib/llm-test/tensorfold-v14-staging
-            type: Directory
         - name: models
           persistentVolumeClaim:
             claimName: model-cache

@@ -46,8 +46,9 @@ layers total 11,372,502,373 bytes and carry `tf.patches=5e01f1bb74d8`.
 
 - `04-tensorfold-v14-checksums.yaml` — immutable SHA-256 inventory for all 83
   shards plus eight runtime metadata files at the pinned Hugging Face revision.
-- `05-tensorfold-v14-download.yaml` — suspended-in-Git Job using the pinned
-  puller-v5 image's resumable `hf`/Xet client for the new checkpoint. It verifies all 91 file digests, the exact
+- `05-tensorfold-v14-download.yaml` — suspended-in-Git Job using the standard
+  pinned puller-v5 directly against the shared `model-cache` PVC. It verifies
+  all 91 file digests, the exact
   83-shard index set, and 175,642,267,944 shard bytes before atomically writing
   `/models/.tensorfold-v14-quant-download-complete`. It deletes nothing.
 - `12-tensorfold-v14-glm53.yaml` — zero-replica TP2 lane, immutable cache gate,
@@ -73,14 +74,11 @@ kubectl logs -n llm-test -f job/tensorfold-v14-quant-pull-v1
 
 Completion is valid only when the Job is `Complete`, its log reports all 91
 SHA-256 checks plus 83 shards / 175,642,267,944 bytes, and the cryptographic
-receipt exists. Both serving init gates require that exact receipt. The pull runs on chronometer, requests 500m CPU / 1 GiB RAM plus a 220 GiB
-ephemeral-storage reservation, claims no GPU/HCA, and leaves the active Sparks
-alone. Hugging Face locks/Xet state stay in the dedicated node-local
-`/var/lib/llm-test/tensorfold-v14-staging` directory; only the completed
-snapshot is copied to JuiceFS (eight files in parallel), then the shared copy is
-SHA-256 verified. The local staging directory is removed after success. Xet
-chooses its own transfer concurrency; site-link and final JuiceFS copy traffic
-remain observable.
+receipt exists. Both serving init gates require that exact receipt. The pull
+runs on chronometer, requests 500m CPU / 1 GiB RAM, claims no GPU/HCA, writes
+resumable `.part` files directly to the shared PVC, and caps aggregate WAN
+traffic at 62.5 MB/s (about 500 Mbps, half of a 1 Gbps link). Shared site-link
+and JuiceFS traffic remain observable.
 
 ## Staging without cutover
 
