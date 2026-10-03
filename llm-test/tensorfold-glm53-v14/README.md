@@ -47,7 +47,8 @@ layers total 11,372,502,373 bytes and carry `tf.patches=5e01f1bb74d8`.
 - `04-tensorfold-v14-checksums.yaml` — immutable SHA-256 inventory for all 83
   shards plus eight runtime metadata files at the pinned Hugging Face revision.
 - `05-tensorfold-v14-download.yaml` — suspended-in-Git Job using the standard
-  pinned puller-v5 directly against the shared `model-cache` PVC. It verifies
+  pinned puller-v6 directly against the shared `model-cache` PVC. It logs
+  persisted file/byte progress and effective throughput every 30 seconds. It verifies
   all 91 file digests, the exact
   83-shard index set, and 175,642,267,944 shard bytes before atomically writing
   `/models/.tensorfold-v14-quant-download-complete`. It deletes nothing.

@@ -35,7 +35,7 @@ spec:
         kubernetes.io/hostname: chronometer
       containers:
         - name: puller
-          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:v5@sha256:4ac2072503bd68a509e556c1e1970ba498c4c7d632205879be623126b53e49ec
+          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:v6@sha256:7c832f622f68fd03cf4eb6a5705451a223be90e45d1b8a5396f77a43c2672062
           imagePullPolicy: IfNotPresent
           env:
             - name: HF_HOME
@@ -47,6 +47,8 @@ spec:
               value: Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold@078455ffe6472f9a52fbc1139f58b9db2881b25c
             - name: HF_HUB_DISABLE_XET
               value: "1"
+            - name: PROGRESS_INTERVAL
+              value: "30"
             - name: HF_TOKEN
               valueFrom:
                 secretKeyRef:

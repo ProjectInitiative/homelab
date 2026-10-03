@@ -32,6 +32,7 @@ Parameters (env):
   MAX_FILE_WORKERS   optional   concurrent file downloads total (default 8)
   MAX_REPO_WORKERS   optional   concurrent repos being pulled (default 2)
   MAX_DELETE_WORKERS optional   concurrent deletes (default 4)
+  PROGRESS_INTERVAL optional   progress log interval in seconds (default 30; 0 disables)
   HF_TOKEN           optional   token for gated / rate-limited repos
   HF_ENDPOINT        optional   override the Hugging Face endpoint
 """
@@ -101,6 +102,71 @@ class RateLimiter:
         delay = deadline - time.monotonic()
         if delay > 0:
             time.sleep(delay)
+
+
+class ProgressReporter:
+    """Periodically report bytes persisted to the cache without touching I/O."""
+
+    def __init__(self, jobs, interval):
+        self.files = [(j[1], j[3], j[4]) for j in jobs]
+        self.interval = max(0, interval)
+        self.stop_event = threading.Event()
+        self.thread = None
+        self.started = time.monotonic()
+        self.last_time = self.started
+        self.initial_bytes, _, _ = self._sample()
+        self.last_bytes = self.initial_bytes
+
+    def _sample(self):
+        current = completed = partial = 0
+        for dest, part, expected in self.files:
+            if os.path.isfile(dest):
+                size = os.path.getsize(dest)
+                completed += 1
+            elif os.path.isfile(part):
+                size = os.path.getsize(part)
+                partial += 1
+            else:
+                size = 0
+            current += min(size, expected) if expected is not None else size
+        return current, completed, partial
+
+    def _report(self, final=False):
+        now = time.monotonic()
+        current, completed, partial = self._sample()
+        elapsed = max(now - self.last_time, 1e-9)
+        total_elapsed = max(now - self.started, 1e-9)
+        interval_bytes = max(current - self.last_bytes, 0)
+        session_bytes = max(current - self.initial_bytes, 0)
+        expected = sum(size for _, _, size in self.files if size is not None)
+        pct = (100 * current / expected) if expected else 0
+        label = "final" if final else "progress"
+        log(
+            f"{label} files={completed}/{len(self.files)} partial={partial} "
+            f"cache={current/1e9:.2f}/{expected/1e9:.2f} GB ({pct:.1f}%) "
+            f"rate={interval_bytes/elapsed/1e6:.1f} MB/s "
+            f"avg={session_bytes/total_elapsed/1e6:.1f} MB/s"
+        )
+        self.last_time = now
+        self.last_bytes = current
+
+    def _run(self):
+        while not self.stop_event.wait(self.interval):
+            self._report()
+
+    def start(self):
+        if self.interval > 0 and self.files:
+            self.thread = threading.Thread(
+                target=self._run, name="puller-progress", daemon=True
+            )
+            self.thread.start()
+
+    def stop(self):
+        self.stop_event.set()
+        if self.thread:
+            self.thread.join(timeout=2)
+        if self.files:
+            self._report(final=True)
 
 
 def _delete_one(cache_root, ref):
@@ -195,7 +261,10 @@ def _download_file(job, limiter, headers, base_host):
     return (rel, got)
 
 
-def pull_models(cache_root, specs, token, rate, endpoint, file_workers, repo_workers):
+def pull_models(
+    cache_root, specs, token, rate, endpoint, file_workers, repo_workers,
+    progress_interval,
+):
     import httpx  # noqa: F401
     from huggingface_hub import HfApi
 
@@ -260,17 +329,27 @@ def pull_models(cache_root, specs, token, rate, endpoint, file_workers, repo_wor
             all_jobs.extend(fjobs)
 
     # Download all files in parallel; the shared limiter caps aggregate rate.
+    # The reporter samples persisted file sizes, so its rate includes JuiceFS
+    # write/flush stalls rather than merely counting received HTTP chunks.
     done = 0
     total_bytes = 0
-    with ThreadPoolExecutor(max_workers=file_workers) as ex:
-        futs = {ex.submit(_download_file, j, limiter, headers, base_host): j for j in all_jobs}
-        for fut in as_completed(futs):
-            rel, got = fut.result()
-            done += 1
-            total_bytes += got
-            if done % 10 == 0 or got == 0:
-                log(f"  {done}/{len(all_jobs)} files, {total_bytes/1e6:.1f} MB "
-                    + ("(rate-limited)" if limiter else ""))
+    progress = ProgressReporter(all_jobs, progress_interval)
+    progress.start()
+    try:
+        with ThreadPoolExecutor(max_workers=file_workers) as ex:
+            futs = {
+                ex.submit(_download_file, j, limiter, headers, base_host): j
+                for j in all_jobs
+            }
+            for fut in as_completed(futs):
+                rel, got = fut.result()
+                done += 1
+                total_bytes += got
+                if done % 10 == 0 or got == 0:
+                    log(f"  {done}/{len(all_jobs)} files, {total_bytes/1e6:.1f} MB "
+                        + ("(rate-limited)" if limiter else ""))
+    finally:
+        progress.stop()
 
     # Write refs/main per repo (full pulls only — see resolve()) so vllm /
     # start.sh resolution works.
@@ -293,20 +372,24 @@ def main():
     file_workers = env_int("MAX_FILE_WORKERS", 8)
     repo_workers = env_int("MAX_REPO_WORKERS", 2)
     del_workers = env_int("MAX_DELETE_WORKERS", 4)
+    progress_interval = env_int("PROGRESS_INTERVAL", 30)
 
     pull = [s.strip() for s in os.environ.get("PULL_MODELS", "").split(",") if s.strip()]
     delete = [s.strip() for s in os.environ.get("DELETE_MODELS", "").split(",") if s.strip()]
 
     log("cache_root=", cache_root, "rate=", rate,
         "file_workers=", file_workers, "repo_workers=", repo_workers,
-        "del_workers=", del_workers)
+        "del_workers=", del_workers, "progress_interval=", progress_interval)
     log("PULL:", pull)
     log("DELETE:", delete)
 
     if delete:
         delete_models(cache_root, delete, del_workers)
     if pull:
-        pull_models(cache_root, pull, token, rate, endpoint, file_workers, repo_workers)
+        pull_models(
+            cache_root, pull, token, rate, endpoint, file_workers, repo_workers,
+            progress_interval,
+        )
     if not pull and not delete:
         log("nothing to do (set PULL_MODELS and/or DELETE_MODELS)")
         sys.exit(2)
