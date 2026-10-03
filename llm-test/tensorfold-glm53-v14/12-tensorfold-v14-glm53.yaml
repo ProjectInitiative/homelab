@@ -557,6 +557,9 @@ spec:
         app: tensorfold-v14-head
         lane: tensorfold-v14
         app.kubernetes.io/name: tensorfold-glm53-v14
+        # Stable serving route. Move this label to a replacement head only
+        # after that lane passes direct API qualification.
+        serving.homelab.io/alias: dgx-spark
     spec:
       priorityClassName: llm-serving-critical
       serviceAccountName: tensorfold-v14-head-start-gate
@@ -802,14 +805,13 @@ spec:
               readOnly: true
             - name: kernel-cache
               mountPath: /cache
+          # TP2 ranks are a single failure domain. Do not let kubelet restart
+          # rank 0 alone during a slow cold load; readiness still withholds API
+          # traffic until the distributed engine is healthy.
           readinessProbe:
             httpGet: {path: /health, port: 8000}
             periodSeconds: 10
             failureThreshold: 6
-          startupProbe:
-            httpGet: {path: /health, port: 8000}
-            periodSeconds: 15
-            failureThreshold: 240
       volumes:
         - name: models
           persistentVolumeClaim:

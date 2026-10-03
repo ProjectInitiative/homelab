@@ -1,6 +1,6 @@
 # Shared LiteLLM router configuration. The `ai` LoadBalancer below selects the
-# LiteLLM pod directly; model backends are reached through their lane-local
-# ClusterIP Services.
+# LiteLLM pod directly. The public `dgx-spark` alias always targets the stable
+# dgx-spark-backend Service; cutovers move its activation label between lanes.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -14,7 +14,7 @@ data:
       - model_name: dgx-spark
         litellm_params:
           model: hosted_vllm/GLM-5.3-Flash-EXL3
-          api_base: http://tensorfold-v12-head.llm-test.svc.cluster.local:8000/v1
+          api_base: http://dgx-spark-backend.llm-test.svc.cluster.local:8000/v1
           api_key: sk-local
         # Match TensorFold's native 1,048,576-token prompt/reply window.
         # max_tokens is retained for older LiteLLM clients; max_input_tokens
@@ -41,6 +41,22 @@ data:
       allowed_fails_policy:
         AuthenticationErrorAllowedFails: 0
         TimeoutErrorAllowedFails: 1
+---
+# Stable backend identity for the public `dgx-spark` model group. Exactly one
+# qualified head pod should carry serving.homelab.io/alias=dgx-spark.
+apiVersion: v1
+kind: Service
+metadata:
+  name: dgx-spark-backend
+  namespace: llm-test
+spec:
+  selector:
+    serving.homelab.io/alias: dgx-spark
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8000
+      targetPort: 8000
 ---
 apiVersion: apps/v1
 kind: Deployment
