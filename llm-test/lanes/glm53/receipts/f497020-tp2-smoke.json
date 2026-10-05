@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-09-25",
+  "upstreamRevision": "f4970207e9fb2bdeac40d88b7cbef18c98aea310",
+  "image": "ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor@sha256:447114ee77d14c9b4732ee23978ada2a0ee9027868a231d6fd42700a8b25be1d",
+  "topology": {
+    "headNode": "sextant",
+    "workerNode": "octant",
+    "selectedHcas": [
+      "mlx5_0:1",
+      "mlx5_2:1"
+    ],
+    "gidIndex": 3,
+    "headRestarts": 0,
+    "workerRestarts": 0
+  },
+  "runtime": {
+    "overlayCount": 11,
+    "liveConfigMapMatchesVendorBytes": true,
+    "loadClone": 1,
+    "loadPrefetch": 0,
+    "draftKvCompact": 1,
+    "draftManagerBlockTokens": 896,
+    "draftBoundaryLookup": true,
+    "kvCacheTokens": 1578666,
+    "maxConcurrencyAt512k": 3.08,
+    "usableBlockIds": 591
+  },
+  "boot": {
+    "headMainWeightSeconds": 169.79,
+    "headDraftWeightSeconds": 4.02,
+    "workerMainWeightSeconds": 171.48,
+    "workerDraftWeightSeconds": 7.13,
+    "warmupRequestsPassed": 20,
+    "warmupRequestsTotal": 20,
+    "warmupSeconds": 16
+  },
+  "smoke": {
+    "litellmEndpoint": "http://ai.taildeab2.ts.net/v1/chat/completions",
+    "basicCompletionHttpStatus": 200,
+    "toolChoiceNoneHttpStatus": 200,
+    "toolChoiceNoneReturnedToolCalls": false,
+    "repeatedPrefix": {
+      "promptTokens": 77040,
+      "coldSeconds": 78.88,
+      "repeatSeconds": 2.15,
+      "cumulativePrefixHitRatePercent": 48.4
+    },
+    "fabricTraffic": {
+      "promptTokens": 58990,
+      "requestSeconds": 51.44,
+      "sextant": {
+        "mlx5_0": {"xmitMB": 25727.94, "recvMB": 25802.37},
+        "mlx5_2": {"xmitMB": 25552.30, "recvMB": 25613.96}
+      },
+      "octant": {
+        "mlx5_0": {"xmitMB": 26120.21, "recvMB": 26174.46},
+        "mlx5_2": {"xmitMB": 25927.46, "recvMB": 25971.98}
+      }
+    }
+  },
+  "qualification": {
+    "status": "boot-and-medium-prefix-smoke-passed",
+    "remaining": [
+      "representative long-prefill and concurrent long-context campaign",
+      "provenance-matched immutable image"
+    ]
+  }
+}

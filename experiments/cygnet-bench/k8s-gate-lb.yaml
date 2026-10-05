@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cygnet-gate
+  namespace: llm-test
+  labels:
+    app: cygnet-gate
+    tier: ai-platform
+  annotations:
+    # consumers should prefer this front door; per-leg Services remain for
+    # pinning tests and the A/B harness (GATE_BASE env)
+    keel.homelab.io/description: >-
+      Load-balanced front door over cygnet-classifier (AMD astrolabe) and
+      cygnet-classifier-nv (NVIDIA chronometer). Verdicts proven identical
+      across legs (231/231 agreement) so spread is safe.
+spec:
+  selector:
+    tier: ai-platform
+    role: classifier
+  ports:
+    - name: systemone
+      port: 8009
+      targetPort: 8009

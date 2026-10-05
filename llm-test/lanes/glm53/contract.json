@@ -1,14 +1,14 @@
 {
   "adoptionBlockers": [
-    "No immutable GHCR digest has been published or attested for recipe HEAD 6c228969a81d48372173bee55e5ad1b4753e656e; the pinned digest remains the older baseline image.",
-    "12-glm53-assets.yaml still embeds and 12-glm53-parity.yaml still mounts local exl3.py and patch_adaptive_k.py copies that would shadow files in a future image; refresh or remove them as one reviewed image migration.",
-    "Latest scheduler/overlay changes require a rebuilt, provenance-matched image and hardware requalification; they must not be copied piecemeal into the current image."
+    "No newer immutable GHCR image has been published or attested for reviewed recipe HEAD 943912cdcda25f4b7e02f4626656e873c6f14847; the published instanttensor tag still resolves to the older pinned digest.",
+    "The live Kubernetes overlay set remains based on the previous reviewed source snapshot f497020; the latest 943912 source is vendored for review only. Port and qualify the new cold-load/startup fixes and build or attest a matching image before adoption.",
+    "The combined loader-v2, fine-grained APC/Mamba, and compact-DFlash runtime passed TP2 boot and medium repeated-prefix smoke, but representative long-prefill/concurrency GPU qualification remains pending. GLM53_EXL3_MOE_FAST remains disabled pending a provenance-matched native rebuild."
   ],
   "fileAssertions": [
     {
       "count": 4,
       "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
-      "text": "ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3@sha256:eecb36e14dc34c92d46827fde7b09f7e0bf27e27c426ece126376c02dea6cd2f"
+      "text": "ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor@sha256:447114ee77d14c9b4732ee23978ada2a0ee9027868a231d6fd42700a8b25be1d"
     },
     {
       "count": 7,
@@ -83,7 +83,7 @@
     {
       "count": 2,
       "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
-      "text": "--kv-cache-memory-bytes 12884901888"
+      "text": "--kv-cache-memory-bytes 16106127360"
     },
     {
       "count": 1,
@@ -108,7 +108,7 @@
     {
       "count": 2,
       "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
-      "text": "{name: HEAD_IP, value: 172.16.5.55}"
+      "text": "runtimeClassName: nvidia-rdma"
     },
     {
       "count": 2,
@@ -116,14 +116,14 @@
       "text": "{name: MASTER_PORT, value: \"29521\"}"
     },
     {
-      "count": 1,
+      "count": 4,
       "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
-      "text": "kubernetes.io/hostname: chronometer"
+      "text": "rdma/hca_shared_devices: \"1\""
     },
     {
-      "count": 1,
+      "count": 2,
       "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
-      "text": "kubernetes.io/hostname: sextant"
+      "text": "{name: HEAD_SERVICE, value: glm53-head-rendezvous.llm-test.svc.cluster.local}"
     },
     {
       "count": 1,
@@ -164,14 +164,200 @@
       "count": 2,
       "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
       "text": "--mm-processor-cache-gb \"${MM_PROCESSOR_CACHE_GB}\""
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "{name: GLM53_DRAFT_KV_COMPACT, value: \"1\"}"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "{name: GLM53_LOAD_CLONE, value: \"1\"}"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "{name: GLM53_LOAD_PREFETCH, value: \"0\"}"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "{name: GLM53_KDA_BF16_LARGE_M, value: \"0\"}"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "configure-rdma-fabric.sh: |"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "publishNotReadyAddresses: true"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "requiredDuringSchedulingIgnoredDuringExecution:"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "{name: PEER_SERVICE, value: glm53-worker-rendezvous.llm-test.svc.cluster.local}"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "{name: PEER_SERVICE, value: glm53-head-rendezvous.llm-test.svc.cluster.local}"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "mountPath: /etc/dgx-spark/rdma-fabric.json"
+    },
+    {
+      "count": 2,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": ". /opt/glm53/configure-rdma-fabric.sh"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "fabric[\"nodeName\"] != node_name"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "fabric[\"controlPlane\"][\"address\"] != host_ip"
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "kubernetes.io/hostname: chronometer"
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "kubernetes.io/hostname: sextant"
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "kubernetes.io/hostname: octant"
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "172.16.5."
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "172.16.6."
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "172.16.7."
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "172.16.8."
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "172.16.9."
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "172.16.10."
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "mlx5_"
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "enp1s0f"
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "enP2p1s0f"
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "{name: NCCL_IB_HCA, value:"
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/12-glm53-parity.yaml",
+      "text": "{name: NCCL_SOCKET_IFNAME, value:"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/glm53-parity/services.yaml",
+      "text": "app: glm53-exl3-head"
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/services.yaml",
+      "text": "tailscale.com/hostname"
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/services.yaml",
+      "text": "glm-ai-proxy"
+    },
+    {
+      "count": 0,
+      "path": "llm-test/glm53-parity/services.yaml",
+      "text": "172.16.4.55"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/miaai-parity/services.yaml",
+      "text": "api_base: http://glm53-head.llm-test.svc.cluster.local:8000/v1"
+    },
+    {
+      "count": 0,
+      "path": "llm-test/miaai-parity/services.yaml",
+      "text": "api_base: http://172.16.4.55:8000/v1"
+    },
+    {
+      "count": 0,
+      "path": "llm-test/miaai-parity/services.yaml",
+      "text": "kubernetes.io/hostname: chronometer"
+    },
+    {
+      "count": 0,
+      "path": "llm-test/miaai-parity/services.yaml",
+      "text": "kind: Service\nmetadata:\n  name: ai-proxy"
+    },
+    {
+      "count": 1,
+      "path": "llm-test/miaai-parity/services.yaml",
+      "text": "tailscale.com/hostname: \"ai\""
+    },
+    {
+      "count": 0,
+      "path": "llm-test/30-qwen.yaml",
+      "text": "name: ai-halogen"
     }
   ],
   "lane": "glm53",
   "preservedPolicy": [
     "Serving Deployments remain replicas 0 with explicit worker -> head activation.",
-    "Port 8000, digest/model pins, 512k context, 16 sequences, 2048 batched tokens, 0.88 utilization, explicit 12 GiB KV cap, and mixed-prefill=off remain local policy.",
+    "TP2 placement is capability-based across any two DGX Sparks; common-network DNS carries rendezvous and node-local inventory selects the peer-facing RoCE rails.",
+    "Port 8000, immutable image/model pins, 512k context, 16 sequences, 2048 batched tokens, 0.88 utilization, explicit 15 GiB KV cap, and mixed-prefill=off remain local policy.",
     "Cache preflight, readiness probes, and post-health boot-shape warmup remain unchanged.",
-    "Only image=48, MM_IMAGE_TOKENS=2048, and MM_PROCESSOR_CACHE_GB=1 are adopted independently on both ranks."
+    "Adaptive-k, dense-FP8, auto/lazy loader staging, and compact DFlash pages are enabled; loader read-ahead and large-M KDA BF16 remain disabled for host/GPU memory headroom. Native thin-decode stays disabled pending a matched image."
   ],
   "schemaVersion": 1,
   "servingManifests": [

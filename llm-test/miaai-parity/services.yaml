@@ -1,31 +1,6 @@
-apiVersion: v1
-kind: Service
-metadata:
-  name: llm-head
-  namespace: llm-test
-spec:
-  selector:
-    app: deepseek-parity-head # 👈 Kept target app selector intact
-  ports:
-    - name: http
-      protocol: TCP
-      port: 8000
-      targetPort: 8000
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: llm-worker
-  namespace: llm-test
-spec:
-  selector:
-    app: deepseek-parity-worker # 👈 Kept target app selector intact
-  ports:
-    - name: startup
-      protocol: TCP
-      port: 9090
-      targetPort: 9090
----
+# Shared LiteLLM router configuration. The `ai` LoadBalancer below selects the
+# LiteLLM pod directly. The public `dgx-spark` alias always targets the stable
+# dgx-spark-backend Service; cutovers move its activation label between lanes.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -34,20 +9,20 @@ metadata:
 data:
   config.yaml: |
     model_list:
-      # The swap controller will update this active backend when the resident
-      # DGX model changes. Keep the public alias stable for clients.
+      # Keep the public alias stable while Kubernetes follows the dynamically
+      # placed active GLM head through its ClusterIP Service.
       - model_name: dgx-spark
         litellm_params:
           model: hosted_vllm/GLM-5.3-Flash-EXL3
-          api_base: http://172.16.4.55:8000/v1
+          api_base: http://dgx-spark-backend.llm-test.svc.cluster.local:8000/v1
           api_key: sk-local
-        # Match the vLLM --max-model-len 512000 context. max_tokens is
-        # retained for older LiteLLM clients; max_input_tokens is the
-        # authoritative prompt/context limit.
+        # Match TensorFold's native 1,048,576-token prompt/reply window.
+        # max_tokens is retained for older LiteLLM clients; max_input_tokens
+        # is the authoritative prompt/context limit.
         model_info:
-          max_input_tokens: 512000
-          max_output_tokens: 512000
-          max_tokens: 512000
+          max_input_tokens: 1048576
+          max_output_tokens: 1048576
+          max_tokens: 1048576
       - model_name: qwen3.8-flash-next-halogen
         litellm_params:
           model: openai/qwen3.8-flash-next-halogen
@@ -66,6 +41,22 @@ data:
       allowed_fails_policy:
         AuthenticationErrorAllowedFails: 0
         TimeoutErrorAllowedFails: 1
+---
+# Stable backend identity for the public `dgx-spark` model group. Exactly one
+# qualified head pod should carry serving.homelab.io/alias=dgx-spark.
+apiVersion: v1
+kind: Service
+metadata:
+  name: dgx-spark-backend
+  namespace: llm-test
+spec:
+  selector:
+    serving.homelab.io/alias: dgx-spark
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8000
+      targetPort: 8000
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -86,8 +77,6 @@ spec:
       labels:
         app: ai-proxy
     spec:
-      nodeSelector:
-        kubernetes.io/hostname: chronometer
       containers:
         - name: litellm
           image: ghcr.io/berriai/litellm:main-stable
@@ -133,20 +122,6 @@ spec:
         - name: config
           configMap:
             name: ai-proxy-config
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: ai-proxy
-  namespace: llm-test
-spec:
-  selector:
-    app: ai-proxy
-  ports:
-    - name: http
-      protocol: TCP
-      port: 8000
-      targetPort: 8000
 ---
 apiVersion: v1
 kind: Service

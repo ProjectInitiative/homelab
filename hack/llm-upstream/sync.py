@@ -23,18 +23,33 @@ FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 LANE_NAME = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 IMAGE_DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
-REQUIRED_MODEL_ROLES = {"glm53": {"weights", "draft"}, "dsv41": {"weights", "native"}}
+REQUIRED_MODEL_ROLES = {
+    "glm53": {"weights", "draft"},
+    "dsv41": {"weights", "native"},
+    # MiMo-V2.6 ships its EAGLE MTP drafter inside the checkpoint
+    # (model_mtp.safetensors); DFlash is an in-tree subfolder, so there is
+    # no separate draft repository to pin.
+    "mimo26": {"weights"},
+}
 REQUIRED_RUNTIME_REFERENCES = {
     "glm53": {
         "files/chat_template.jinja", "overlay/exl3.py", "overlay/patch_adaptive_k.py",
         "overlay/patch_apc_no_store.py", "overlay/patch_cache_reset.py",
         "overlay/patch_default_max_new_tokens.py", "overlay/patch_dense_fp8.py",
-        "overlay/patch_kv_capacity_log.py", "overlay/patch_scheduler_decode_floor.py",
-        "scripts/boot-shape-warmup.sh",
+        "overlay/patch_exl3_decode_pipeline.py", "overlay/patch_glm5_drafter_group.py",
+        "overlay/patch_hybrid_prefix_hit.py", "overlay/patch_kv_capacity_log.py",
+        "overlay/patch_loadclone.py", "overlay/patch_mamba_align_chunking.py",
+        "overlay/patch_mamba_align_state_free.py", "overlay/patch_scheduler_decode_floor.py",
+        "overlay/patch_tool_choice_none.py", "scripts/boot-shape-warmup.sh",
+        "overlay/patch_cold_load_uma.py", "overlay/patch_kpool_tail_seed_stride.py",
+        "overlay/patch_skip_cudagraph_profile.py", "overlay/patch_glm_video_placeholders.py",
     },
     "dsv41": {
         "overlay/exl3.py", "scripts/boot-shape-warmup.sh", "scripts/pack_engram.py",
         "scripts/prepare_engram_src.py",
+    },
+    "mimo26": {
+        "boot.py", "files/nccl.sh", "files/nfs-share.sh", "scripts/remote.py",
     },
 }
 ADOPTION_STATUSES = {"pending-review", "provenance-blocked", "runtime-current"}
@@ -579,6 +594,82 @@ def verify_required_references(vendor: Path, lock: dict) -> list[str]:
     return failures
 
 
+def verify_glm53_runtime_overlay(vendor: Path) -> list[str]:
+    """Bind executable ConfigMap bytes, mounts, and installer order to upstream."""
+    failures: list[str] = []
+    assets = safe_root_file("llm-test/glm53-parity/12-glm53-assets.yaml").read_text()
+    manifest = safe_root_file("llm-test/glm53-parity/12-glm53-parity.yaml").read_text()
+    selected_order = [
+        "patch_scheduler_decode_floor.py",
+        "patch_mamba_align_chunking.py",
+        "patch_glm5_drafter_group.py",
+        "patch_hybrid_prefix_hit.py",
+        "patch_mamba_align_state_free.py",
+        "patch_kv_capacity_log.py",
+        "patch_tool_choice_none.py",
+        "patch_adaptive_k.py",
+        "patch_dense_fp8.py",
+        "patch_loadclone.py",
+        "exl3.py",
+    ]
+    selected = set(selected_order)
+    payloads: dict[str, bytes] = {}
+    lines = assets.splitlines()
+    index = 0
+    while index < len(lines):
+        match = re.fullmatch(r"  ([A-Za-z0-9_.-]+): \|", lines[index])
+        if not match:
+            index += 1
+            continue
+        name = match.group(1)
+        index += 1
+        body: list[str] = []
+        while index < len(lines) and (lines[index].startswith("    ") or not lines[index]):
+            body.append(lines[index][4:] if lines[index].startswith("    ") else "")
+            index += 1
+        payloads[name] = ("\n".join(body) + "\n").encode()
+    if set(payloads) != selected:
+        failures.append(
+            f"glm53 runtime ConfigMap keys differ: expected={sorted(selected)} "
+            f"actual={sorted(payloads)}"
+        )
+    for name in selected_order:
+        if name not in payloads:
+            continue
+        source = checked_relative_file(vendor, f"overlay/{name}").read_bytes()
+        if payloads[name] != source:
+            failures.append(f"glm53 runtime ConfigMap payload differs from vendor: {name}")
+        mount = f"mountPath: /opt/glm53/{name}\n              subPath: {name}"
+        mount_count = manifest.count(mount)
+        if mount_count != 2:
+            failures.append(
+                f"glm53 runtime overlay mount mapping for {name} is {mount_count}, expected 2"
+            )
+    binding = "- name: overlay\n          configMap:\n            name: glm53-parity-overlay"
+    if manifest.count(binding) != 2:
+        failures.append("glm53 runtime ConfigMap must back both overlay volumes")
+    installer_order = [name for name in selected_order if name != "exl3.py"]
+    owned_orders: list[list[str]] = []
+    for loop in re.findall(r"for p in (.*?); do", manifest, flags=re.DOTALL):
+        tokens = re.findall(r"patch_[A-Za-z0-9_]+\.py", loop)
+        owned = [name for name in tokens if name in selected]
+        if owned:
+            owned_orders.append(owned)
+    if owned_orders != [installer_order, installer_order]:
+        failures.append(
+            f"glm53 runtime installer order differs: expected two {installer_order}, "
+            f"actual={owned_orders}"
+        )
+    for text in (
+        '{name: GLM53_LOAD_CLONE, value: "1"}',
+        '{name: GLM53_LOAD_PREFETCH, value: "0"}',
+        '{name: GLM53_DRAFT_KV_COMPACT, value: "1"}',
+    ):
+        if manifest.count(text) != 2:
+            failures.append(f"glm53 runtime env must appear once per rank: {text}")
+    return failures
+
+
 def verify_lane(lane: str) -> list[str]:
     lock_path, contract_path, vendor = lane_paths(lane)
     lock, contract = load_json(lock_path), load_json(contract_path)
@@ -610,6 +701,8 @@ def verify_lane(lane: str) -> list[str]:
         if not repo_matches or source["revision"] != lock["recipe"]["vendorRevision"] or source["files"] != expected:
             failures.append("SOURCE.json does not match locked repo/vendor revision/files")
     failures.extend(verify_required_references(vendor, lock))
+    if lane == "glm53":
+        failures.extend(verify_glm53_runtime_overlay(vendor))
 
     for assertion in contract["fileAssertions"]:
         target = safe_root_file(assertion["path"])

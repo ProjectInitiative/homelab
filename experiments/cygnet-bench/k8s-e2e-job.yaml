@@ -1,0 +1,20 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cygnet-e2e
+  namespace: llm-test
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels: { app: cygnet-e2e }
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: test
+          image: python:3.12-slim
+          command: ["python3", "/test/test_service.py"]
+          volumeMounts: [{ name: test, mountPath: /test }]
+      volumes:
+        - name: test
+          configMap: { name: cygnet-e2e-test }

@@ -6,11 +6,13 @@
 # the RATE parameter at job time.
 #
 # Build (on an aarch64 node, native):
-#   podman build -t registry.taildeab2.ts.net/homelab/glm53-cache-puller:v5 .
-#   podman push registry.taildeab2.ts.net/homelab/glm53-cache-puller:v5
-# Reference the image by a versioned tag (e.g. :v5) in the Job and bump it on
-# change. This private registry currently does not resolve Podman's reported
-# digest through containerd, so Jobs use versioned tags with pullPolicy Always.
+#   podman build -t registry.taildeab2.ts.net/homelab/glm53-cache-puller:v6 .
+#   podman push registry.taildeab2.ts.net/homelab/glm53-cache-puller:v6
+# Reference the image by an immutable digest in Jobs and bump the versioned tag
+# on change.
+#
+# v6 (2026-10-03): report persisted cache progress and effective interval /
+# average throughput every PROGRESS_INTERVAL seconds (default 30).
 #
 # v5 (2026-09-13): preserve and byte-range-resume interrupted .part files.
 #

@@ -279,28 +279,3 @@ spec:
       port: 8000
       targetPort: http
       protocol: TCP
----
-# Dedicated Tailscale endpoint for the Strix Halo model. Keep this separate
-# from `ai`, which fronts the host-network DGX Spark API on port 8000.
-apiVersion: v1
-kind: Service
-metadata:
-  name: ai-halogen
-  namespace: llm-test
-  labels:
-    app: qwen38-halogen
-    lane: qwen38-astrolabe
-  annotations:
-    tailscale.com/hostname: "ai-halogen"
-    tailscale.com/proxy-group: mc-ingress-proxy
-spec:
-  type: LoadBalancer
-  loadBalancerClass: tailscale
-  selector:
-    app: qwen38-halogen
-    lane: qwen38-astrolabe
-  ports:
-    - name: http
-      port: 80
-      targetPort: http
-      protocol: TCP

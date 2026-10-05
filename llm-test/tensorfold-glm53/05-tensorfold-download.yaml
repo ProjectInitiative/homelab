@@ -1,0 +1,66 @@
+# TensorFold GLM-5.3-Flash cache pull (non-Mia checkpoint TensorFold consumes).
+#
+# TensorFold refuses NVFP4/GPTQ/AWQ, so the "other" GLM-5.3-Flash it tests with
+# is the MLX 4-bit MTP checkpoint (MIT, ~169 GiB across 43 shards). The DFlash2
+# draft is already cached from the EXL3 lane; do not re-download it here.
+#
+# Job ships SUSPENDED: unsuspend explicitly when the download should run.
+# RATE = 100,000,000 B/s (100 MB/s, same pacing as the EXL3 puller job).
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tensorfold-cache-pull
+  namespace: llm-test
+  labels:
+    app: tensorfold-cache-pull
+    purpose: model-cache-preload
+spec:
+  suspend: true
+  ttlSecondsAfterFinished: 259200
+  backoffLimit: 2147483647
+  template:
+    metadata:
+      labels:
+        app: tensorfold-cache-pull
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      containers:
+        - name: puller
+          # v3: pacing-based rate limiter (same reusable importer as glm53 lane).
+          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:v3
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            - name: RATE
+              value: "100000000"
+            - name: PULL_MODELS
+              value: >-
+                Vontra/GLM-5.3-Flash-MLX-4bit-MTP@76add2a341a1cd90ad0e86bb69839ea9c35827c6
+            - name: DELETE_MODELS
+              value: ""
+            - name: HF_HUB_DISABLE_XET
+              value: "1"
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface
+                  key: HF_TOKEN
+                  optional: true
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache

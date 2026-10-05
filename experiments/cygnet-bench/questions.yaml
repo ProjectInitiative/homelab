@@ -1,0 +1,39 @@
+email_sensitivity:
+  type: noul
+  instructions: >-
+    Does this email contain personal, private, or sensitive information
+    that should not be sent to a cloud LLM provider?
+  criteria:
+    true: >-
+      Yes - the email contains personal, private, or sensitive information:
+      full names of private individuals, email addresses, phone numbers,
+      physical addresses, account numbers, financial details, API keys,
+      passwords, tokens, or credentials.
+    false: >-
+      No - the email contains no personal, private, or sensitive
+      information of any kind.
+secrets_credentials:
+  type: noul
+  instructions: >-
+    Does this text contain secrets, credentials, or authentication
+    material that must never leave the estate?
+  criteria:
+    true: >-
+      Yes - the text contains secrets or credentials: API keys, tokens,
+      passwords, private keys, certificates, connection strings with
+      embedded passwords, kubeconfig tokens, or cloud credentials.
+    false: >-
+      No - the text contains no secrets, credentials, or authentication
+      material.
+pii_personal:
+  type: noul
+  instructions: >-
+    Does this text contain personally identifiable information about
+    private individuals?
+  criteria:
+    true: >-
+      Yes - the text contains PII: names, email addresses, phone numbers,
+      physical addresses, government IDs, financial account numbers, or
+      medical information.
+    false: >-
+      No - the text contains no personally identifiable information.
