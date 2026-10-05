@@ -1,0 +1,32 @@
+# Internal (tailnet-only) S3 endpoint for garage.
+#
+# Unlike the funnel Ingress (garage-ts-funnel.yaml — public internet via
+# Tailscale Funnel, HTTPS 443 only), this LoadBalancer Service provisions a
+# proxy-group device reachable ONLY from tailnet devices — used for node
+# traffic that must not traverse the funnel (nix cache pulls, restic
+# backups, large object movement).
+#
+# The tailscale-operator takes the device hostname from the `hostname`
+# annotation: s3-internal.taildeab2.ts.net (port 3900 = S3 API, 3904 = k2v).
+apiVersion: v1
+kind: Service
+metadata:
+  name: s3-internal
+  namespace: garage
+  annotations:
+    tailscale.com/proxy-group: mc-ingress-proxy
+    tailscale.com/hostname: s3-internal
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  selector:
+    app.kubernetes.io/name: garage
+  ports:
+    - name: s3
+      protocol: TCP
+      port: 3900
+      targetPort: 3900
+    - name: k2v
+      protocol: TCP
+      port: 3904
+      targetPort: 3904

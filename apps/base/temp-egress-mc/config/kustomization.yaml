@@ -4,6 +4,7 @@ resources:
   - garage-nodeport.yaml
   - garage-ts-funnel.yaml
   - garage-lb.yaml
+  - garage-s3-internal.yaml
   - openbao-lb.yaml
   - postgres-ts.yaml
   - postgres-lb.yaml
