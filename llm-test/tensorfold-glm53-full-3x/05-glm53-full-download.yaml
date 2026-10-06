@@ -1,0 +1,156 @@
+# GLM-5.3 EXL3 (full model, 3x DGX Spark) checkpoint + DSpark drafter preload.
+#
+# Recipe: MiaAI-Lab/GLM-5.3-EXL3-3x-DGX-Sparks-TensorFold @ eb6414b488c3bc58605cad3dc96391c7584d6bec
+# Checkpoint: Mia-AiLab/GLM-5.3-EXL3-2.75bpw-TensorFold @ 2d747d0e30eca6e3fe37ba63c471cdf9172faa83
+#            (EXL3 routed experts at 2.75 bpw, 137 shards, ~273 GiB)
+# Drafter:   RedHatAI/GLM-5.3-speculator.dspark @ b374b95663447ea0e935151be4f3d6666e36e6d7
+#            (~2.4 GiB; staged as 4-bit copies on every Spark by the engine)
+#
+# The shared RWX model-cache PVC must have ~300 GiB free before this pull
+# (expand it first if needed — see README.md). The Job is suspended in Git and
+# explicitly unsuspended for the one-shot download. It never deletes anything.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: glm53-full-quant-pull-v1
+  namespace: llm-test
+  labels:
+    app: glm53-full-quant-pull
+    lane: glm53-full-3x
+    purpose: model-cache-preload
+spec:
+  ttlSecondsAfterFinished: 259200
+  suspend: true
+  backoffLimit: 2147483647
+  template:
+    metadata:
+      labels:
+        app: glm53-full-quant-pull
+        lane: glm53-full-3x
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      containers:
+        - name: puller
+          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:v6@sha256:7c832f622f68fd03cf4eb6a5705451a223be90e45d1b8a5396f77a43c2672062
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            # Cap aggregate traffic below the gigabit site link. 293 GiB at
+            # 62.5 MB/s is ~80 minutes of pure transfer; JuiceFS fan-out adds
+            # more. Resume-safe .part files; re-run the unsuspended Job to resume.
+            - name: RATE
+              value: "62500000"
+            - name: PULL_MODELS
+              value: >-
+                Mia-AiLab/GLM-5.3-EXL3-2.75bpw-TensorFold@2d747d0e30eca6e3fe37ba63c471cdf9172faa83,
+                RedHatAI/GLM-5.3-speculator.dspark@b374b95663447ea0e935151be4f3d6666e36e6d7
+            - name: HF_HUB_DISABLE_XET
+              value: "1"
+            - name: PROGRESS_INTERVAL
+              value: "30"
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface
+                  key: HF_TOKEN
+                  optional: true
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              marker=/models/.glm53-full-download-complete
+              model_snap=/models/.cache/huggingface/hub/models--Mia-AiLab--GLM-5.3-EXL3-2.75bpw-TensorFold/snapshots/2d747d0e30eca6e3fe37ba63c471cdf9172faa83
+              dspark_snap=/models/.cache/huggingface/hub/models--RedHatAI--GLM-5.3-speculator.dspark/snapshots/b374b95663447ea0e935151be4f3d6666e36e6d7
+              rm -f "$marker"
+              python3 /opt/puller/puller.py
+
+              python3 - "$model_snap" "$dspark_snap" "$marker" <<'PY'
+              import hashlib, json, pathlib, sys
+
+              model_root, dspark_root, marker = map(pathlib.Path, sys.argv[1:])
+
+              def verify(root: pathlib.Path, inv_path: str, manifest_sha: str, shard_count: int,
+                         weight_bytes: int, shard_glob: str) -> dict:
+                  expected = json.loads(pathlib.Path(inv_path).read_text())
+                  canonical = json.dumps(expected, sort_keys=True, separators=(",", ":")) + "\n"
+                  got_manifest = hashlib.sha256(canonical.encode()).hexdigest()
+                  if got_manifest != manifest_sha:
+                      raise SystemExit(f"checksum inventory drift for {root}: {got_manifest}")
+                  for i, (name, wanted) in enumerate(sorted(expected.items()), 1):
+                      path = root / name
+                      if not path.is_file():
+                          raise SystemExit(f"missing {path}")
+                      digest = hashlib.sha256()
+                      with path.open("rb") as fh:
+                          for chunk in iter(lambda: fh.read(8 * 1024 * 1024), b""):
+                              digest.update(chunk)
+                      if digest.hexdigest() != wanted:
+                          raise SystemExit(f"sha256 mismatch for {path.name}")
+                      if i % 10 == 0 or i == len(expected):
+                          print(f"  sha256 {i}/{len(expected)} OK", flush=True)
+                  indexed = set(json.loads((root / "model.safetensors.index.json").read_text())["weight_map"].values()) \
+                      if (root / "model.safetensors.index.json").is_file() else None
+                  if shard_count:
+                      shards = {p.name for p in root.glob(shard_glob) if p.is_file()}
+                      if indexed != shards or len(shards) != shard_count:
+                          raise SystemExit(f"index shard set mismatch: indexed={len(indexed or set())} present={len(shards)}")
+                      total = sum((root / n).stat().st_size for n in shards)
+                      if total != weight_bytes:
+                          raise SystemExit(f"weight bytes {total}, expected {weight_bytes}")
+                  else:
+                      total = (root / "model.safetensors").stat().st_size
+                      if total != weight_bytes:
+                          raise SystemExit(f"drafter bytes {total}, expected {weight_bytes}")
+                  print(f"verified {len(expected)} files, {total} bytes in {root.name}")
+                  return {"files": len(expected), "manifest_sha256": got_manifest, "weight_bytes": total}
+
+              model = verify(model_root, "/checksums/model/sha256.json",
+                             "215359dbbc07c2119b1b2f7fcbf9d7839972ad167761e4ccb8c783033fbf848c",
+                             137, 292_737_786_480, "model-*.safetensors")
+              dspark = verify(dspark_root, "/checksums/dspark/sha256.json",
+                              "e864c6877a4c1aa0e119f8387a131947e566b62345fbb9a6bad52d102b1f0d05",
+                              0, 2_499_134_874, "")
+
+              receipt = {
+                  "files": model["files"],
+                  "manifest_sha256": model["manifest_sha256"],
+                  "revision": "2d747d0e30eca6e3fe37ba63c471cdf9172faa83",
+                  "weight_bytes": model["weight_bytes"],
+                  "drafter_files": dspark["files"],
+                  "drafter_manifest_sha256": dspark["manifest_sha256"],
+                  "drafter_revision": "b374b95663447ea0e935151be4f3d6666e36e6d7",
+                  "drafter_bytes": dspark["weight_bytes"],
+              }
+              tmp = marker.with_suffix(".tmp")
+              tmp.write_text(json.dumps(receipt, sort_keys=True, separators=(",", ":")) + "\n")
+              tmp.replace(marker)
+              print(f"verified 137 shards + drafter; receipt {marker}")
+              PY
+              echo "GLM-5.3 EXL3 full-model cache complete"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: 1Gi
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: model-checksums
+              mountPath: /checksums/model
+              readOnly: true
+            - name: dspark-checksums
+              mountPath: /checksums/dspark
+              readOnly: true
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+        - name: model-checksums
+          configMap:
+            name: glm53-full-checksums
+        - name: dspark-checksums
+          configMap:
+            name: glm53-full-dspark-checksums
