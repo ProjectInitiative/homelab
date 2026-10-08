@@ -1,0 +1,28 @@
+# Tailnet exposure for Forgejo (HTTP + SSH), mirroring the mcp-kubernetes /
+# hermes-agent pattern: placeholder name renamed per-cluster via cluster
+# patches in clusters/*.yaml.
+# 3000 = web UI + git-over-HTTP; 2222 -> 22 = built-in SSH server for
+# git+ssh clone (no host sshd involved).
+apiVersion: v1
+kind: Service
+metadata:
+  name: forgejo-ts-placeholder
+  namespace: forgejo
+  labels:
+    app: forgejo
+  annotations:
+    tailscale.com/proxy-group: ingress-proxy
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: http
+    - name: ssh
+      protocol: TCP
+      port: 22
+      targetPort: ssh
+  selector:
+    app: forgejo

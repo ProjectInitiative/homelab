@@ -400,6 +400,27 @@ catalog:
             - username
             - password
           overwrite: true
+        - name: litellm-postgres-creds
+          mount: k8s
+          # The same OpenBao record also contains DATABASE_URL and
+          # LITELLM_SALT_KEY, but only the role credentials enter postgres-db.
+          path: "llm-test/litellm-postgres"
+          destination: "litellm-postgres-creds"
+          destinationType: "kubernetes.io/basic-auth"
+          destinationIncludes:
+            - username
+            - password
+          overwrite: true
+        - name: forgejo-postgres-creds
+          mount: k8s
+          # Forgejo DB role credentials (forgejo_user) for the CNPG DatabaseRole.
+          path: "forgejo/db"
+          destination: "forgejo-postgres-creds"
+          destinationType: "kubernetes.io/basic-auth"
+          destinationIncludes:
+            - username
+            - password
+          overwrite: true
     syncPolicy:
       automated:
         prune: false
@@ -756,6 +777,86 @@ catalog:
   hermes-agent:
     path: apps/base/hermes-agent/config
     syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
+  # Self-hosted forge + nix build farm (project: forgejo-ci).
+  # Single-replica by design: Forgejo is not HA-ready upstream; see the
+  # deployment.yaml rationale and keel/projects/forgejo-ci.md.
+  forgejo:
+    path: apps/base/forgejo/config
+    critical: true
+    annotations:
+      argocd.argoproj.io/sync-wave: "110"
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      namespace: production
+      audiences:
+        - vault
+      secrets:
+        - name: forgejo-secrets
+          mount: k8s
+          path: "forgejo/config"
+          destination: "forgejo-secrets"
+          overwrite: true
+    syncPolicy:
+      automated:
+        prune: false
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
+  # Nix build runners (one Deployment per arch via cluster nodeSelector patch).
+  # Credentials in OpenBao path forgejo/runner (uuid + token).
+  forgejo-runner:
+    path: apps/base/forgejo-runner/config
+    annotations:
+      argocd.argoproj.io/sync-wave: "120"
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      namespace: production
+      audiences:
+        - vault
+      secrets:
+        - name: forgejo-runner-credentials
+          mount: k8s
+          path: "forgejo/runner"
+          destination: "forgejo-runner-credentials"
+          overwrite: true
+    syncPolicy:
+      automated:
+        prune: false
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
+  # aarch64 runner: same manifests, pinned to sextant via cluster patch.
+  # OpenBao path forgejo/runner-arm carries the arch-specific credentials.
+  forgejo-runner-arm:
+    path: apps/base/forgejo-runner/config
+    annotations:
+      argocd.argoproj.io/sync-wave: "120"
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      namespace: production
+      audiences:
+        - vault
+      secrets:
+        - name: forgejo-runner-credentials
+          mount: k8s
+          path: "forgejo/runner-arm"
+          destination: "forgejo-runner-credentials"
+          overwrite: true
+    syncPolicy:
+      automated:
+        prune: false
+        selfHeal: true
       syncOptions:
         - CreateNamespace=true
         - ServerSideApply=true

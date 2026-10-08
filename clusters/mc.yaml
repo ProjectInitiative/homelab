@@ -275,6 +275,42 @@ apps:
             value: mc
   - name: nixos-remote-builder
     namespace: nixos-builder
+  # Forgejo + nix build runners (see keel/projects/forgejo-ci.md).
+  # Tailscale LB placeholder renamed to forgejo-lb-mc; HTTP+SSH on one svc.
+  - name: forgejo
+    namespace: forgejo
+    patches:
+      - patch: |-
+          - op: replace
+            path: /metadata/name
+            value: forgejo-lb-mc
+        target:
+          kind: Service
+          name: forgejo-ts-placeholder
+  - name: forgejo-runner
+    namespace: forgejo
+    patches:
+      # x86_64 runner on capstan1 (nvme cache + nix store PVCs are local-path,
+      # so pin the pod; Retain-class volumes keep state across restarts).
+      - patch: |-
+          - op: add
+            path: /spec/template/spec/nodeSelector
+            value:
+              kubernetes.io/hostname: capstan1
+        target:
+          kind: Deployment
+          name: forgejo-runner
+  - name: forgejo-runner-arm
+    namespace: forgejo
+    patches:
+      - patch: |-
+          - op: add
+            path: /spec/template/spec/nodeSelector
+            value:
+              kubernetes.io/hostname: sextant
+        target:
+          kind: Deployment
+          name: forgejo-runner
   - name: submariner-operator
     namespace: submariner-operator
     helm_values: |
