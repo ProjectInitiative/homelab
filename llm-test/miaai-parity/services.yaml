@@ -135,6 +135,7 @@ data:
     from __future__ import annotations
 
     import asyncio
+    import hashlib
     import logging
     import os
     import re
@@ -334,6 +335,11 @@ data:
         def __init__(self, **kwargs: Any) -> None:
             self.url = URL
             self.key = KEY
+            # Content-addressed verdict cache (DEC-0021 amend 1): hash(layer, chunk) -> P.
+            # Agentic consumers resend their whole context every turn; without this,
+            # every turn re-scores identical text. Byte-identical chunk ⇒ same verdict.
+            self._cache: dict[str, Optional[float]] = {}
+            self._cache_max = 8192
             super().__init__(**kwargs)
             if DISABLED:
                 log.warning("ai-gate: DISABLED by AI_GATE_DISABLED")
@@ -359,6 +365,15 @@ data:
                 },
             )
 
+        async def _cached_p(self, client, name: str, chunk: str, job) -> Optional[float]:
+            """Score one (layer, chunk), honoring the verdict cache. `job` is either a
+            float (cached P) or the cache key string (uncached)."""
+            if isinstance(job, float):
+                return job
+            p = await self._noul(client, name, chunk)
+            self._store(job, p)  # cache None too so outage chunks aren't re-spammed
+            return p
+
         async def _noul(self, client: httpx.AsyncClient, name: str, text: str) -> Optional[float]:
             """P(flag) for one question preset, or None if the layer could not be reached."""
             layer = QUESTIONS[name]
@@ -379,6 +394,35 @@ data:
             except Exception as exc:  # noqa: BLE001 — every failure must be classified
                 log.warning("ai-gate: layer %s unreachable: %s", name, exc)
                 return None
+
+        @staticmethod
+        def _chunks(texts: list[str], cap: int, overlap: int = 200) -> list[str]:
+            """Per-message chunking (DEC-0021 amend 2): score WHOLE context, never a
+            truncated head. Messages <= cap are one chunk; longer messages are cut on
+            fixed windows with overlap. Recall is strict OR across chunks."""
+            out: list[str] = []
+            for t in texts:
+                t = t.strip()
+                if not t:
+                    continue
+                if len(t) <= cap:
+                    out.append(t)
+                    continue
+                step = max(cap - overlap, 1)
+                for i in range(0, len(t), step):
+                    out.append(t[i : i + cap])
+            return out
+
+        def _cached(self, name: str, chunk: str) -> Optional[float] | str:
+            key = name + ":" + hashlib.sha256(chunk.encode()).hexdigest()
+            if key in self._cache:
+                return self._cache[key]
+            return key  # sentinel: uncached (a real verdict is always float)
+
+        def _store(self, key: str, p: Optional[float]) -> None:
+            if isinstance(key, str) and len(self._cache) >= self._cache_max:
+                self._cache.pop(next(iter(self._cache)))
+            self._cache[key] = p
 
         async def async_pre_call_hook(
             self,
@@ -410,47 +454,64 @@ data:
             if not prompt:
                 return data
 
-            # Layer 0: structural short-circuit (no classifier round-trip).
-            hit = _structural_hit(prompt[:TEXT_CAP])
+            # Layer 0: structural short-circuit over the FULL text (regex is cheap;
+            # truncating here is exactly the bug that let a 37K-context secret pass).
+            hit = _structural_hit(prompt)
             if hit:
                 log.warning("ai-gate: BLOCK regex layer=%s chars=%d", hit, len(prompt))
                 raise self._reject("regex")
 
-            # Layers 1..3 concurrently (vLLM batches; marginal cost per question is small).
-            capped = prompt[:TEXT_CAP]
+            # Layers 1..N: chunked, cached, concurrent (DEC-0021 amend 1+2).
+            # One decision wall-clock regardless of chunk count (vLLM batches).
+            chunks = self._chunks(texts, TEXT_CAP)
+            jobs: list[tuple[str, str, str]] = []  # (layer, chunk, cache_key_or_cached_P)
+            for name in ACTIVE_LAYERS:
+                for c in chunks:
+                    jobs.append((name, c, self._cached(name, c)))
+
             async with httpx.AsyncClient(timeout=TIMEOUT_S) as client:
-                results = await asyncio.gather(
-                    *(self._noul(client, name, capped) for name in ACTIVE_LAYERS)
+                scored = await asyncio.gather(
+                    *(
+                        self._cached_p(client, name, chunk, j)
+                        for (name, chunk, j) in jobs
+                    )
                 )
 
-            blocked_by: Optional[str] = None
-            errored_closed = False
-            for (name, layer), p in zip(
-                ((n, QUESTIONS[n]) for n in ACTIVE_LAYERS), results
-            ):
+            # Aggregate per layer: strict OR (max P across chunks) — recall-first.
+            layer_p: dict[str, Optional[float]] = {n: None for n in ACTIVE_LAYERS}
+            layer_err: dict[str, bool] = {n: False for n in ACTIVE_LAYERS}
+            for (name, _chunk, _j), p in zip(jobs, scored):
                 if p is None:
-                    if layer["on_error"] == "closed":
-                        errored_closed = True
+                    layer_err[name] = True
                     continue
-                if p >= layer["threshold"] and blocked_by is None:
-                    blocked_by = name
+                if layer_p[name] is None or p > layer_p[name]:
+                    layer_p[name] = p
 
-            if blocked_by is None and errored_closed and FAIL_MODE == "closed":
+            blocked_by: Optional[str] = None
+            for name in ACTIVE_LAYERS:
+                p = layer_p[name]
+                if p is not None and p >= QUESTIONS[name]["threshold"]:
+                    blocked_by = name
+                    break
+
+            if blocked_by is None and any(layer_err[n] and QUESTIONS[n]["on_error"] == "closed" for n in ACTIVE_LAYERS) and FAIL_MODE == "closed":
                 blocked_by = "sensitive"  # classifier outage: generic reject, fail closed
 
             if blocked_by is not None:
                 log.warning(
-                    "ai-gate: BLOCK layer=%s verdicts=%s chars=%d",
+                    "ai-gate: BLOCK layer=%s verdicts=%s chars=%d chunks=%d",
                     blocked_by,
-                    {n: (round(p, 3) if p is not None else "err") for (n, _), p in zip(QUESTIONS.items(), results)},
+                    {n: (round(layer_p[n], 3) if layer_p[n] is not None else "err") for n in ACTIVE_LAYERS},
                     len(prompt),
+                    len(chunks),
                 )
                 raise self._reject(blocked_by)
 
-            log.info(
-                "ai-gate: allow verdicts=%s chars=%d",
-                {n: (round(p, 3) if p is not None else "err") for n, p in zip(ACTIVE_LAYERS, results)},
+            log.warning(
+                "ai-gate: allow verdicts=%s chars=%d chunks=%d",
+                {n: (round(layer_p[n], 3) if layer_p[n] is not None else "err") for n in ACTIVE_LAYERS},
                 len(prompt),
+                len(chunks),
             )
             return data
 
