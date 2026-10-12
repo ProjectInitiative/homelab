@@ -1307,19 +1307,27 @@ data:
       <span class="k">chunks ${d.chunks||''}</span></div></div>`;
      (d.messages||[]).forEach(m=>{ h += `<div class="msg"><span class="role">${esc(m.role)}</span><br>${notice(typeof m.content==='string'?m.content:JSON.stringify(m.content))}</div>`; });
      o.innerHTML = h; }
+    const feedKeys = new Set(); let lastFeedJson = '';
+    function detailToggle(el){ const k = el.dataset.key; if (el.open) feedKeys.add(k); else feedKeys.delete(k); }
     async function loadFeed(){ const r = await fetch('/api/decisions'); const d = await r.json();
+     const j = JSON.stringify(d); if (j === lastFeedJson) return;  // skip re-render: no DOM churn while reading
+     lastFeedJson = j;
      document.getElementById('status').textContent = `${d.length} decisions buffered`;
      const f = document.getElementById('feed');
+     const scrollY = window.scrollY;
+     const liveKeys = new Set();
      f.innerHTML = d.length ? '' : '<div class="k">no decisions yet — run pi traffic through ai-gated, or use the playground</div>';
-     d.forEach((rec,i)=>{ const c=document.createElement('div'); c.className='card';
+     d.forEach((rec,i)=>{ const key = rec.ts+'|'+rec.kind; liveKeys.add(key); const c=document.createElement('div'); c.className='card';
       const share = rec.total_chars ? Math.round(100*rec.redacted_chars/rec.total_chars) : 0;
       c.innerHTML = `<div class="row"><span class="pill ${rec.kind}">${rec.kind}</span>
        <span class="k">${new Date(rec.ts*1000).toLocaleTimeString()}</span><span class="k">${esc(rec.model||'')}</span>
        <span class="lat">${rec.latency_ms} ms (scan ${rec.scan_ms} / score ${rec.score_ms} / refine ${rec.refine_ms})</span>
        <span class="k">${rec.redact_chunks}/${rec.chunks} chunks · ${rec.redacted_chars}/${rec.total_chars} chars (${share}%)</span></div>
        <div class="row"><span class="k">verdicts ${JSON.stringify(rec.verdicts)}</span></div>
-       <details><summary>final reconstruction</summary>${(rec.messages||[]).map(m=>`<div class="msg"><span class="role">${esc(m.role)}</span><br>${notice(typeof m.content==='string'?m.content:JSON.stringify(m.content))}</div>`).join('')}</details>`;
-      f.appendChild(c); }); }
+       <details data-key="${esc(key)}" ${feedKeys.has(key)?'open':''} ontoggle="detailToggle(this)"><summary>final reconstruction</summary>${(rec.messages||[]).map(m=>`<div class="msg"><span class="role">${esc(m.role)}</span><br>${notice(typeof m.content==='string'?m.content:JSON.stringify(m.content))}</div>`).join('')}</details>`;
+      f.appendChild(c); });
+     for (const k of [...feedKeys]) if (!liveKeys.has(k)) feedKeys.delete(k);  // prune evicted records
+     window.scrollTo(0, scrollY); } }
     document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{ document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
      document.getElementById('tab-feed').style.display=b.dataset.tab==='feed'?'':'none'; document.getElementById('tab-play').style.display=b.dataset.tab==='play'?'':'none'; });
     renderMsgs(); loadFeed(); setInterval(loadFeed, 5000);
