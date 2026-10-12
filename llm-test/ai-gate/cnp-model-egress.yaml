@@ -1,0 +1,30 @@
+# DRAFT — do not apply until the client audit in ../ai-gate/README.md step 6
+# passes. Enforces "chat-model lanes are only reachable from ai-proxy".
+# Decision-model traffic (cygnet-gate :8009) is intentionally untouched, and the
+# gate itself (ai-proxy -> cygnet-gate) is unaffected because these policies
+# only restrict ingress TO lane pods, not ai-proxy egress.
+#
+# AUDIT FIRST: from any pod outside ai-proxy, confirm nothing legitimately
+# dials lane :8000 (known consumers: none in-repo; check live with Hubble or
+# conntrack on the Spark nodes before applying).
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: lane-heads-proxy-only
+  namespace: llm-test
+spec:
+  endpointSelector:
+    matchLabels:
+      serving.homelab.io/lane-head: "true"   # label lane head pods at next rollout
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app: ai-proxy
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+    # rendezvous and intra-lane traffic is untouched: TP2 ranks talk hostNetwork
+    # port 29551 directly (not pod-network :8000), so this policy does not
+    # affect TensorFold distributed setup.
