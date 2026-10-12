@@ -293,13 +293,16 @@ class AiGate(CustomLogger):
             self._verdicts.pop(next(iter(self._verdicts)))
         self._verdicts[key] = p  # only successful scores are cached
 
-    def _aget(self, chunk: str) -> Optional[str]:
-        return self._actions.get(hashlib.sha256(chunk.encode()).hexdigest())
+    def _aget(self, role: str, chunk: str) -> Optional[str]:
+        # Role-scoped: the injection layer's applicability depends on origin
+        # (amend 3), so a user-role pass must not poison a tool-role decision
+        # for identical text.
+        return self._actions.get(hashlib.sha256((role + "\x00" + chunk).encode()).hexdigest())
 
-    def _aset(self, chunk: str, action: str) -> None:
+    def _aset(self, role: str, chunk: str, action: str) -> None:
         if len(self._actions) >= self._cache_max:
             self._actions.pop(next(iter(self._actions)))
-        self._actions[hashlib.sha256(chunk.encode()).hexdigest()] = action
+        self._actions[hashlib.sha256((role + "\x00" + chunk).encode()).hexdigest()] = action
 
     # ---- chunking -----------------------------------------------------------
 
@@ -392,8 +395,11 @@ class AiGate(CustomLogger):
 
         chunks = self._chunks(entries, TEXT_CAP)
 
-        # Layer 0: structural flags per chunk (cheap, full-precision).
-        regex_flagged = {ci for ci, c in enumerate(chunks) if _structural_hits(c["text"])}
+        # Layer 0: structural flags per chunk (cheap, full-precision); spans kept
+        # for surgical redaction.
+        for c in chunks:
+            c["hits"] = _structural_hits(c["text"])
+        regex_flagged = {ci for ci, c in enumerate(chunks) if c["hits"]}
 
         # Layers 1..N: chunked, cached, concurrent. One decision wall-clock
         # regardless of chunk count (vLLM batches). Origin policy (amend 3):
@@ -428,8 +434,8 @@ class AiGate(CustomLogger):
                     any_closed_error = True
             maxp = max(ps.values()) if ps else 0.0
 
-            akey = hashlib.sha256(c["text"].encode()).hexdigest()
-            action = self._aget(c["text"])
+            akey = None  # action cache is role-scoped; key derived in _aset/_aget
+            action = self._aget(c["role"], c["text"])
             if action is None:
                 if maxp >= HIGH:
                     action = "redact"
@@ -443,10 +449,11 @@ class AiGate(CustomLogger):
                         forced_local = True
                 else:
                     action = "pass"
-                self._aset(c["text"], action)
+                self._aset(c["role"], c["text"], action)
             c["action"] = action
             c["maxp"] = maxp
             c["category"] = ("regex" if "regex" in ps else max(ps, key=ps.get) if ps else "regex")
+            c["sem_high"] = any(p >= HIGH for n, p in ps.items() if n != "regex")
             if action == "redact":
                 redact_chars += c["b"] - c["a"]
 
@@ -454,38 +461,67 @@ class AiGate(CustomLogger):
             log.warning("ai-gate: BLOCK fail-closed classifier-unreachable chars=%d", total_chars)
             raise self._reject("sensitive")  # DEC-0020 posture: outage => no egress
 
-        # Rebuild: any message with a redacted chunk gets its whole text part
-        # replaced by the notice (v1 simplification; >99% of messages are
-        # single-chunk). Track the worst (highest-P) chunk per message part.
-        worst: dict[tuple[int, Optional[int]], dict] = {}
+        # Rebuild (DEC-0037 §3, surgical): redact exactly the flagged intervals —
+        # regex hits redact their matched spans, semantic hits redact the chunk
+        # window (sub-window refinement is a tracked follow-up) — and splice the
+        # origin-aware notices into the original text. Unflagged text survives,
+        # so a false positive costs only the flagged span, not the message.
+        intervals: dict[tuple[int, Optional[int], str], list[dict]] = {}
         for c in chunks:
             if c["action"] != "redact":
                 continue
-            k = (c["mi"], c["part"])
-            if k not in worst or c["maxp"] > worst[k]["maxp"] or (
-                c["maxp"] == worst[k]["maxp"] and c["category"] == "regex"
-            ):
-                worst[k] = c
-        if worst:
-            for (mi, pi), c in worst.items():
-                notice = build_placeholder(c["category"], None if c["category"] == "regex" else c["maxp"], c["role"])
+            lst = intervals.setdefault((c["mi"], c["part"], c["role"]), [])
+            if c["sem_high"] or not c["hits"]:
+                # semantic flag (or regex-flagged chunk with no locatable span):
+                # redact the whole window
+                lst.append({"a": c["a"], "b": c["b"], "category": c["category"], "p": (None if c["category"] == "regex" else c["maxp"])})
+            else:
+                # regex-only: span-precise
+                for _name, ha, hb in c["hits"]:
+                    lst.append({"a": c["a"] + ha, "b": c["a"] + hb, "category": "regex", "p": None})
+        if intervals:
+            redact_chars = 0
+            for (mi, pi, role), ivs in intervals.items():
+                ivs.sort(key=lambda x: x["a"])
+                merged: list[dict] = []
+                for iv in ivs:
+                    if merged and iv["a"] <= merged[-1]["b"] + 80:
+                        merged[-1]["b"] = max(merged[-1]["b"], iv["b"])
+                        if (iv["p"] or 0) > (merged[-1]["p"] or 0):
+                            merged[-1]["category"] = iv["category"]
+                            merged[-1]["p"] = iv["p"]
+                    else:
+                        merged.append(dict(iv))
                 msg = data["messages"][mi]
+                text = msg["content"][pi]["text"] if pi is not None else msg["content"]
+                out: list[str] = []
+                pos = 0
+                for iv in merged:
+                    out.append(text[pos : iv["a"]])
+                    out.append(build_placeholder(iv["category"], iv["p"], role))
+                    redact_chars += iv["b"] - iv["a"]
+                    pos = iv["b"]
+                out.append(text[pos:])
+                new_text = "".join(out)
                 if pi is None:
-                    msg["content"] = notice
+                    msg["content"] = new_text
                 else:
-                    msg["content"][pi]["text"] = notice
+                    msg["content"][pi]["text"] = new_text
             share = redact_chars / max(total_chars, 1)
             log.warning(
-                "ai-gate: redact msgs=%d chunks=%d/%d redacted_chars=%d share=%.2f%s",
-                len(worst), len(worst), len(chunks), redact_chars, share,
+                "ai-gate: redact parts=%d chunks=%d/%d redacted_chars=%d share=%.2f%s",
+                len(intervals), sum(1 for c in chunks if c["action"] == "redact"), len(chunks), redact_chars, share,
                 " degraded:high-redaction-share" if share > 0.40 else "",
             )
         elif forced_local:
             log.warning("ai-gate: force-local model=%s borderline chunks=%d", data["model"], sum(1 for c in chunks if c["action"] == "pass" and c["maxp"] >= LOW))
         else:
+            scored_any = {n: False for n in ACTIVE_LAYERS}
+            for (cj, name, _vk, _cached) in jobs:
+                scored_any[name] = True
             log.warning(
                 "ai-gate: allow verdicts=%s chars=%d chunks=%d",
-                {n: (round(v, 3) if v is not None else "err") for n, v in layer_max.items()},
+                {n: ((round(v, 3) if v is not None else "err") if scored_any[n] else "n/a") for n, v in layer_max.items()},
                 total_chars, len(chunks),
             )
         return data
