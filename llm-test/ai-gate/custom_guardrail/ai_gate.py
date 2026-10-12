@@ -301,21 +301,23 @@ class AiGate(CustomLogger):
             return None
 
     @staticmethod
-    def _chunks(texts: list[str], cap: int, overlap: int = 200) -> list[str]:
+    def _chunks(messages: list[tuple[str, str]], cap: int, overlap: int = 200) -> list[tuple[str, str]]:
         """Per-message chunking (DEC-0021 amend 2): score WHOLE context, never a
         truncated head. Messages <= cap are one chunk; longer messages are cut on
-        fixed windows with overlap. Recall is strict OR across chunks."""
-        out: list[str] = []
-        for t in texts:
+        fixed windows with overlap. Returns (role, chunk) — role drives origin
+        policy (DEC-0037 amend 3): prompt-injection does not apply to
+        principal-authored (user) text. Recall is strict OR across chunks."""
+        out: list[tuple[str, str]] = []
+        for role, t in messages:
             t = t.strip()
             if not t:
                 continue
             if len(t) <= cap:
-                out.append(t)
+                out.append((role, t))
                 continue
             step = max(cap - overlap, 1)
             for i in range(0, len(t), step):
-                out.append(t[i : i + cap])
+                out.append((role, t[i : i + cap]))
         return out
 
     def _cached(self, name: str, chunk: str) -> Optional[float] | str:
@@ -346,16 +348,17 @@ class AiGate(CustomLogger):
                 raise self._reject("sensitive")
             return data
 
-        texts: list[str] = []
+        messages: list[tuple[str, str]] = []  # (role, text)
         for msg in (data.get("messages") or [])[-HISTORY:]:
+            role = msg.get("role") or "unknown"
             content = msg.get("content")
             if isinstance(content, str):
-                texts.append(content)
+                messages.append((role, content))
             elif isinstance(content, list):
                 for part in content:
                     if isinstance(part, dict) and part.get("type") == "text":
-                        texts.append(part.get("text", ""))
-        prompt = "\n".join(t for t in texts if t).strip()
+                        messages.append((role, part.get("text", "")))
+        prompt = "\n".join(t for _, t in messages if t).strip()
         if not prompt:
             return data
 
@@ -367,11 +370,16 @@ class AiGate(CustomLogger):
             raise self._reject("regex")
 
         # Layers 1..N: chunked, cached, concurrent (DEC-0021 amend 1+2).
-        # One decision wall-clock regardless of chunk count (vLLM batches).
-        chunks = self._chunks(texts, TEXT_CAP)
+        # Origin policy (DEC-0037 amend 3): prompt-injection applies only to
+        # non-user chunks — principal-authored text cannot inject itself, and
+        # scoring it FPs on every legitimate "run this" instruction (measured
+        # 0.829 on 'can you run ./test-gate.sh'). Secrets layers apply to all.
+        chunks = self._chunks(messages, TEXT_CAP)
         jobs: list[tuple[str, str, str]] = []  # (layer, chunk, cache_key_or_cached_P)
         for name in ACTIVE_LAYERS:
-            for c in chunks:
+            for role, c in chunks:
+                if name == "prompt-injection" and role == "user":
+                    continue
                 jobs.append((name, c, self._cached(name, c)))
 
         async with httpx.AsyncClient(timeout=TIMEOUT_S) as client:
