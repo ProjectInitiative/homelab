@@ -68,6 +68,7 @@ import hashlib
 import logging
 import os
 import re
+import time
 from typing import Any, Optional
 
 import httpx
@@ -86,6 +87,9 @@ LOW = float(os.getenv("AI_GATE_LOW", "0.35"))
 HIGH = float(os.getenv("AI_GATE_HIGH", "0.80"))
 FORCE_LOCAL_MODEL = os.getenv("AI_GATE_FORCE_LOCAL_MODEL", "")
 LOCAL_MODELS = {m.strip() for m in os.getenv("AI_GATE_LOCAL_MODELS", "").split(",") if m.strip()}
+# Decision-feed target (gate-inspector): every redact/allow is pushed there
+# fire-and-forget with the final reconstruction, for the soak viewer. Empty = off.
+INSPECTOR_URL = os.getenv("AI_GATE_INSPECTOR_URL", "")
 
 # Layer 0 — strong structural credential formats (mirrors cygnet-bench sec_scan).
 # Placeholder-looking spans (EXAMPLE/YOUR/REDACTED/xxxx) are suppressed so
@@ -281,6 +285,7 @@ class AiGate(CustomLogger):
         self._verdicts: dict[str, Optional[float]] = {}
         self._actions: dict[str, str] = {}
         self._cache_max = 8192
+        self.last_timings: dict[str, float] = {}
         super().__init__(**kwargs)
         if DISABLED:
             log.warning("ai-gate: DISABLED by AI_GATE_DISABLED")
@@ -475,6 +480,7 @@ class AiGate(CustomLogger):
             return data
         if data.get("model") in LOCAL_MODELS:
             return data  # production exemption (DEC-0020: gate polices egress)
+        _t0 = time.perf_counter()
 
         # Collect (msg_idx, part_idx, role, text) for every text part.
         entries: list[tuple[int, Optional[int], str, str]] = []
@@ -492,6 +498,7 @@ class AiGate(CustomLogger):
             return data
 
         chunks = self._chunks(entries, TEXT_CAP)
+        _t_scan = time.perf_counter()
 
         # Layer 0: structural flags per chunk (cheap, full-precision); spans kept
         # for surgical redaction.
@@ -519,6 +526,7 @@ class AiGate(CustomLogger):
         any_closed_error = False
         redact_chars = 0
         forced_local = False
+        _t_scored = time.perf_counter()
         for ci, c in enumerate(chunks):
             ps: dict[str, float] = {}
             if ci in regex_flagged:
@@ -582,11 +590,13 @@ class AiGate(CustomLogger):
                 # regex-only: span-precise
                 for _name, ha, hb in c["hits"]:
                     lst.append({"a": c["a"] + ha, "b": c["a"] + hb, "category": "regex", "p": None})
+        _t_refine_done = _t_scored
         if refine_jobs:
             async with httpx.AsyncClient(timeout=TIMEOUT_S) as rclient:
                 refined = await asyncio.gather(
                     *(self._refine_chunk(rclient, chunks[ci], layers) for ci, layers in refine_jobs)
                 )
+            _t_refine_done = time.perf_counter()
             for (ci, _layers), res in zip(refine_jobs, refined):
                 c = chunks[ci]
                 lst = intervals[(c["mi"], c["part"], c["role"])]
@@ -625,8 +635,9 @@ class AiGate(CustomLogger):
                     msg["content"][pi]["text"] = new_text
             share = redact_chars / max(total_chars, 1)
             log.warning(
-                "ai-gate: redact parts=%d chunks=%d/%d redacted_chars=%d share=%.2f%s",
+                "ai-gate: redact parts=%d chunks=%d/%d redacted_chars=%d share=%.2f latency_ms=%.0f%s",
                 len(intervals), sum(1 for c in chunks if c["action"] == "redact"), len(chunks), redact_chars, share,
+                (time.perf_counter() - _t0) * 1000,
                 " degraded:high-redaction-share" if share > 0.40 else "",
             )
         elif forced_local:
@@ -636,11 +647,49 @@ class AiGate(CustomLogger):
             for (cj, name, _vk, _cached) in jobs:
                 scored_any[name] = True
             log.warning(
-                "ai-gate: allow verdicts=%s chars=%d chunks=%d",
+                "ai-gate: allow verdicts=%s chars=%d chunks=%d latency_ms=%.0f",
                 {n: ((round(v, 3) if v is not None else "err") if scored_any[n] else "n/a") for n, v in layer_max.items()},
-                total_chars, len(chunks),
+                total_chars, len(chunks), (time.perf_counter() - _t0) * 1000,
             )
+
+        # Decision feed (soak viewer): fire-and-forget push of the FINAL
+        # reconstruction + verdicts + timing. The reconstruction is exactly what
+        # would be forwarded, minus the secrets — tailnet-only UI, ring buffer.
+        if INSPECTOR_URL:
+            _t_end = time.perf_counter()
+            self.last_timings = {
+                "scan_ms": round((_t_scan - _t0) * 1000, 1),
+                "score_ms": round((_t_scored - _t_scan) * 1000, 1),
+                "refine_ms": round((_t_refine_done - _t_scored) * 1000, 1),
+                "total_ms": round((_t_end - _t0) * 1000, 1),
+            }
+            record = {
+                "ts": time.time(),
+                "model": data.get("model"),
+                "kind": "redact" if intervals else ("force_local" if forced_local else "allow"),
+                "verdicts": {n: (round(v, 3) if isinstance(v, float) else v) for n, v in layer_max.items()},
+                "chunks": len(chunks),
+                "redact_chunks": sum(1 for c in chunks if c["action"] == "redact"),
+                "redacted_chars": redact_chars,
+                "total_chars": total_chars,
+                "latency_ms": round((_t_end - _t0) * 1000, 1),
+                "scan_ms": round((_t_scan - _t0) * 1000, 1),
+                "score_ms": round((_t_scored - _t_scan) * 1000, 1),
+                "refine_ms": round((_t_refine_done - _t_scored) * 1000, 1),
+                "messages": data.get("messages"),
+            }
+            try:
+                asyncio.get_running_loop().create_task(self._push_decision(record))
+            except RuntimeError:
+                pass
         return data
+
+    async def _push_decision(self, record: dict) -> None:
+        try:
+            async with httpx.AsyncClient(timeout=3) as client:
+                await client.post(INSPECTOR_URL.rstrip("/") + "/decision", json=record)
+        except Exception:  # noqa: BLE001 — the feed must never break the gate
+            pass
 
     def _reject(self, category: str) -> Exception:
         from fastapi import HTTPException

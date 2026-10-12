@@ -166,6 +166,7 @@ data:
     import logging
     import os
     import re
+    import time
     from typing import Any, Optional
 
     import httpx
@@ -184,6 +185,9 @@ data:
     HIGH = float(os.getenv("AI_GATE_HIGH", "0.80"))
     FORCE_LOCAL_MODEL = os.getenv("AI_GATE_FORCE_LOCAL_MODEL", "")
     LOCAL_MODELS = {m.strip() for m in os.getenv("AI_GATE_LOCAL_MODELS", "").split(",") if m.strip()}
+    # Decision-feed target (gate-inspector): every redact/allow is pushed there
+    # fire-and-forget with the final reconstruction, for the soak viewer. Empty = off.
+    INSPECTOR_URL = os.getenv("AI_GATE_INSPECTOR_URL", "")
 
     # Layer 0 — strong structural credential formats (mirrors cygnet-bench sec_scan).
     # Placeholder-looking spans (EXAMPLE/YOUR/REDACTED/xxxx) are suppressed so
@@ -379,6 +383,7 @@ data:
             self._verdicts: dict[str, Optional[float]] = {}
             self._actions: dict[str, str] = {}
             self._cache_max = 8192
+            self.last_timings: dict[str, float] = {}
             super().__init__(**kwargs)
             if DISABLED:
                 log.warning("ai-gate: DISABLED by AI_GATE_DISABLED")
@@ -573,6 +578,7 @@ data:
                 return data
             if data.get("model") in LOCAL_MODELS:
                 return data  # production exemption (DEC-0020: gate polices egress)
+            _t0 = time.perf_counter()
 
             # Collect (msg_idx, part_idx, role, text) for every text part.
             entries: list[tuple[int, Optional[int], str, str]] = []
@@ -590,6 +596,7 @@ data:
                 return data
 
             chunks = self._chunks(entries, TEXT_CAP)
+            _t_scan = time.perf_counter()
 
             # Layer 0: structural flags per chunk (cheap, full-precision); spans kept
             # for surgical redaction.
@@ -617,6 +624,7 @@ data:
             any_closed_error = False
             redact_chars = 0
             forced_local = False
+            _t_scored = time.perf_counter()
             for ci, c in enumerate(chunks):
                 ps: dict[str, float] = {}
                 if ci in regex_flagged:
@@ -680,11 +688,13 @@ data:
                     # regex-only: span-precise
                     for _name, ha, hb in c["hits"]:
                         lst.append({"a": c["a"] + ha, "b": c["a"] + hb, "category": "regex", "p": None})
+            _t_refine_done = _t_scored
             if refine_jobs:
                 async with httpx.AsyncClient(timeout=TIMEOUT_S) as rclient:
                     refined = await asyncio.gather(
                         *(self._refine_chunk(rclient, chunks[ci], layers) for ci, layers in refine_jobs)
                     )
+                _t_refine_done = time.perf_counter()
                 for (ci, _layers), res in zip(refine_jobs, refined):
                     c = chunks[ci]
                     lst = intervals[(c["mi"], c["part"], c["role"])]
@@ -723,8 +733,9 @@ data:
                         msg["content"][pi]["text"] = new_text
                 share = redact_chars / max(total_chars, 1)
                 log.warning(
-                    "ai-gate: redact parts=%d chunks=%d/%d redacted_chars=%d share=%.2f%s",
+                    "ai-gate: redact parts=%d chunks=%d/%d redacted_chars=%d share=%.2f latency_ms=%.0f%s",
                     len(intervals), sum(1 for c in chunks if c["action"] == "redact"), len(chunks), redact_chars, share,
+                    (time.perf_counter() - _t0) * 1000,
                     " degraded:high-redaction-share" if share > 0.40 else "",
                 )
             elif forced_local:
@@ -734,11 +745,49 @@ data:
                 for (cj, name, _vk, _cached) in jobs:
                     scored_any[name] = True
                 log.warning(
-                    "ai-gate: allow verdicts=%s chars=%d chunks=%d",
+                    "ai-gate: allow verdicts=%s chars=%d chunks=%d latency_ms=%.0f",
                     {n: ((round(v, 3) if v is not None else "err") if scored_any[n] else "n/a") for n, v in layer_max.items()},
-                    total_chars, len(chunks),
+                    total_chars, len(chunks), (time.perf_counter() - _t0) * 1000,
                 )
+
+            # Decision feed (soak viewer): fire-and-forget push of the FINAL
+            # reconstruction + verdicts + timing. The reconstruction is exactly what
+            # would be forwarded, minus the secrets — tailnet-only UI, ring buffer.
+            if INSPECTOR_URL:
+                _t_end = time.perf_counter()
+                self.last_timings = {
+                    "scan_ms": round((_t_scan - _t0) * 1000, 1),
+                    "score_ms": round((_t_scored - _t_scan) * 1000, 1),
+                    "refine_ms": round((_t_refine_done - _t_scored) * 1000, 1),
+                    "total_ms": round((_t_end - _t0) * 1000, 1),
+                }
+                record = {
+                    "ts": time.time(),
+                    "model": data.get("model"),
+                    "kind": "redact" if intervals else ("force_local" if forced_local else "allow"),
+                    "verdicts": {n: (round(v, 3) if isinstance(v, float) else v) for n, v in layer_max.items()},
+                    "chunks": len(chunks),
+                    "redact_chunks": sum(1 for c in chunks if c["action"] == "redact"),
+                    "redacted_chars": redact_chars,
+                    "total_chars": total_chars,
+                    "latency_ms": round((_t_end - _t0) * 1000, 1),
+                    "scan_ms": round((_t_scan - _t0) * 1000, 1),
+                    "score_ms": round((_t_scored - _t_scan) * 1000, 1),
+                    "refine_ms": round((_t_refine_done - _t_scored) * 1000, 1),
+                    "messages": data.get("messages"),
+                }
+                try:
+                    asyncio.get_running_loop().create_task(self._push_decision(record))
+                except RuntimeError:
+                    pass
             return data
+
+        async def _push_decision(self, record: dict) -> None:
+            try:
+                async with httpx.AsyncClient(timeout=3) as client:
+                    await client.post(INSPECTOR_URL.rstrip("/") + "/decision", json=record)
+            except Exception:  # noqa: BLE001 — the feed must never break the gate
+                pass
 
         def _reject(self, category: str) -> Exception:
             from fastapi import HTTPException
@@ -1133,3 +1182,286 @@ spec:
       protocol: TCP
       port: 80
       targetPort: 8000
+---
+# gate-inspector: decision-feed viewer + playground (DEC-0037 soak tool).
+# Runs the same ai_gate module; the gate pushes every decision here
+# (AI_GATE_INSPECTOR_URL) and the playground runs the hook directly.
+# UI: http://gate-inspector.taildeab2.ts.net
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-inspector-code
+  namespace: llm-test
+data:
+  inspector.py: |
+    #!/usr/bin/env python3
+    """gate-inspector — decision-feed viewer + playground for the ai-gate.
+
+    Runs the SAME ai_gate module as the litellm guardrail, so playground
+    reconstructions are exactly what the gate would forward. stdlib-only server.
+
+    Routes:
+      GET  /                UI: live decision feed + playground
+      GET  /api/decisions   ring buffer of gate-pushed decision records
+      POST /decision        gate push target (AI_GATE_INSPECTOR_URL)
+      POST /inspect         playground: run the hook on arbitrary messages
+
+    Env: AI_GATE_URL (classifier), AI_GATE_INSPECTOR_URL (self, for gate pushes),
+         AI_GATE_KEY. Port 8770 (env INSPECTOR_PORT).
+    """
+    from __future__ import annotations
+
+    import asyncio
+    import json
+    import os
+    import sys
+    import threading
+    import time
+    from collections import deque
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    sys.path.insert(0, "/app")
+    from custom_guardrail.ai_gate import proxy_handler_instance as gate  # noqa: E402
+
+    PORT = int(os.environ.get("INSPECTOR_PORT", "8770"))
+    DECISIONS: deque = deque(maxlen=200)
+    LOCK = threading.Lock()
+
+
+    def _record_decisions(record: dict) -> None:
+        with LOCK:
+            DECISIONS.appendleft(record)
+
+
+    def _run_hook(model: str, messages: list) -> dict:
+        data = {"model": model, "messages": json.loads(json.dumps(messages))}
+        t0 = time.perf_counter()
+        asyncio.run(gate.async_pre_call_hook(None, None, data, "acompletion"))
+        wall_ms = round((time.perf_counter() - t0) * 1000, 1)
+        return {"messages": data.get("messages"), "wall_ms": wall_ms, "timings": dict(gate.last_timings)}
+
+
+    PAGE = r"""<!doctype html>
+    <html><head><meta charset="utf-8"><title>ai-gate inspector</title>
+    <style>
+     :root { --bg:#0f1115; --card:#181b22; --edge:#242936; --ink:#dde1ea; --dim:#8b93a5;
+             --ok:#3fb26f; --bad:#e05c5c; --warn:#d9a13b; --info:#5b9dd9; --acc:#8f7fe8; }
+     body { background:var(--bg); color:var(--ink); font:14px/1.5 ui-monospace,monospace; margin:0; }
+     header { display:flex; gap:16px; align-items:baseline; padding:12px 18px; border-bottom:1px solid var(--edge); }
+     header h1 { font-size:16px; margin:0; color:var(--acc); }
+     header .sub { color:var(--dim); font-size:12px; }
+     main { padding:18px; max-width:1200px; margin:0 auto; }
+     .tabs { display:flex; gap:8px; margin-bottom:14px; }
+     .tabs button { background:var(--card); color:var(--ink); border:1px solid var(--edge); padding:6px 14px; cursor:pointer; border-radius:4px; }
+     .tabs button.on { border-color:var(--acc); color:var(--acc); }
+     .card { background:var(--card); border:1px solid var(--edge); border-radius:6px; padding:12px 14px; margin-bottom:12px; }
+     .row { display:flex; gap:12px; flex-wrap:wrap; align-items:baseline; }
+     .k { color:var(--dim); font-size:12px; }
+     .pill { padding:1px 8px; border-radius:10px; font-size:12px; border:1px solid var(--edge); }
+     .redact { color:var(--warn); border-color:var(--warn); }
+     .allow { color:var(--ok); border-color:var(--ok); }
+     .force_local { color:var(--info); border-color:var(--info); }
+     .msg { border-left:3px solid var(--edge); padding:6px 10px; margin:8px 0; white-space:pre-wrap; word-break:break-word; }
+     .msg .role { color:var(--acc); font-size:12px; }
+     .msg .notice { background:#3a3320; color:var(--warn); border-radius:3px; padding:0 3px; }
+     textarea { width:100%; min-height:90px; background:var(--bg); color:var(--ink); border:1px solid var(--edge); border-radius:4px; font:inherit; box-sizing:border-box; }
+     select, input { background:var(--bg); color:var(--ink); border:1px solid var(--edge); border-radius:4px; padding:4px 6px; }
+     button.go { background:var(--acc); color:#0f1115; border:0; padding:8px 18px; border-radius:4px; cursor:pointer; font-weight:bold; }
+     table { width:100%; border-collapse:collapse; font-size:12px; }
+     td, th { text-align:left; padding:4px 8px; border-bottom:1px solid var(--edge); }
+     th { color:var(--dim); }
+     .lat { color:var(--info); }
+     details summary { cursor:pointer; color:var(--info); }
+    </style></head><body>
+    <header><h1>ai-gate inspector</h1><span class="sub" id="status">loading…</span>
+    <span class="sub">same module as the live gate — reconstructions are exact</span></header>
+    <main>
+    <div class="tabs"><button class="on" data-tab="feed">Live decision feed</button><button data-tab="play">Playground</button></div>
+    <div id="tab-feed">
+      <div class="k">Every redact / force_local / allow the gate decides, newest first. Click for the final reconstruction that would have been forwarded.</div>
+      <div id="feed"></div>
+    </div>
+    <div id="tab-play" style="display:none">
+      <div class="card"><div class="k">model</div><input id="p-model" value="dgx-spark" style="width:200px"></div>
+      <div id="p-msgs"></div>
+      <div style="margin:8px 0"><button class="go" onclick="addMsg()">+ message</button><button class="go" onclick="inspect()">Run through gate</button></div>
+      <div id="p-out"></div>
+    </div>
+    </main>
+    <script>
+    const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const notice = s => esc(s).replace(/\[([^\]]*withheld[^\]]*)\]/g, '<span class="notice">[$1]</span>');
+    let msgs = [{role:'user', content:'summarize the deploy log'},{role:'tool', content:'log line ok\nDEPLOY CREDS: VAULTTOKEN=VT-9x2mK4pQ-SECRET-778812\nlog line ok'}];
+    function renderMsgs(){ const d=document.getElementById('p-msgs'); d.innerHTML='';
+     msgs.forEach((m,i)=>{ const c=document.createElement('div'); c.className='card';
+      c.innerHTML = `<div class="row"><select onchange="msgs[${i}].role=this.value">${['user','assistant','tool','system'].map(r=>`<option ${r===m.role?'selected':''}>${r}</option>`).join('')}</select>
+       <button onclick="msgs.splice(${i},1);renderMsgs()">remove</button></div><textarea oninput="msgs[${i}].content=this.value">${esc(m.content)}</textarea>`;
+      d.appendChild(c); }); if(!msgs.length) addMsg(); }
+    function addMsg(){ msgs.push({role:'user',content:''}); renderMsgs(); }
+    async function inspect(){ const o=document.getElementById('p-out'); o.innerHTML='scanning…';
+     const r = await fetch('/inspect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:document.getElementById('p-model').value, messages:msgs})});
+     const d = await r.json();
+     let h = `<div class="card"><div class="row"><span class="k">verdicts</span> ${JSON.stringify(d.verdicts||{})}</div>
+      <div class="row"><span class="k">latency</span> <span class="lat">total ${d.wall_ms} ms</span>
+      <span class="k">scan ${d.timings?.scan_ms} · score ${d.timings?.score_ms} · refine ${d.timings?.refine_ms} ms</span>
+      <span class="k">chunks ${d.chunks||''}</span></div></div>`;
+     (d.messages||[]).forEach(m=>{ h += `<div class="msg"><span class="role">${esc(m.role)}</span><br>${notice(typeof m.content==='string'?m.content:JSON.stringify(m.content))}</div>`; });
+     o.innerHTML = h; }
+    async function loadFeed(){ const r = await fetch('/api/decisions'); const d = await r.json();
+     document.getElementById('status').textContent = `${d.length} decisions buffered`;
+     const f = document.getElementById('feed');
+     f.innerHTML = d.length ? '' : '<div class="k">no decisions yet — run pi traffic through ai-gated, or use the playground</div>';
+     d.forEach((rec,i)=>{ const c=document.createElement('div'); c.className='card';
+      const share = rec.total_chars ? Math.round(100*rec.redacted_chars/rec.total_chars) : 0;
+      c.innerHTML = `<div class="row"><span class="pill ${rec.kind}">${rec.kind}</span>
+       <span class="k">${new Date(rec.ts*1000).toLocaleTimeString()}</span><span class="k">${esc(rec.model||'')}</span>
+       <span class="lat">${rec.latency_ms} ms (scan ${rec.scan_ms} / score ${rec.score_ms} / refine ${rec.refine_ms})</span>
+       <span class="k">${rec.redact_chunks}/${rec.chunks} chunks · ${rec.redacted_chars}/${rec.total_chars} chars (${share}%)</span></div>
+       <div class="row"><span class="k">verdicts ${JSON.stringify(rec.verdicts)}</span></div>
+       <details><summary>final reconstruction</summary>${(rec.messages||[]).map(m=>`<div class="msg"><span class="role">${esc(m.role)}</span><br>${notice(typeof m.content==='string'?m.content:JSON.stringify(m.content))}</div>`).join('')}</details>`;
+      f.appendChild(c); }); }
+    document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{ document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+     document.getElementById('tab-feed').style.display=b.dataset.tab==='feed'?'':'none'; document.getElementById('tab-play').style.display=b.dataset.tab==='play'?'':'none'; });
+    renderMsgs(); loadFeed(); setInterval(loadFeed, 5000);
+    </script></body></html>"""
+
+
+    class Handler(BaseHTTPRequestHandler):
+        def _send(self, code: int, body: str, ctype: str = "application/json") -> None:
+            self.send_response(code)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body.encode())
+
+        def log_message(self, fmt, *args):  # one line per request
+            pass
+
+        def do_GET(self):
+            path = self.path.split("?")[0]
+            if path == "/" or path == "/index.html":
+                self._send(200, PAGE, "text/html; charset=utf-8")
+            elif path == "/api/decisions":
+                with LOCK:
+                    self._send(200, json.dumps(list(DECISIONS)))
+            else:
+                self._send(404, json.dumps({"error": "not found"}))
+
+        def do_POST(self):
+            path = self.path.split("?")[0]
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+                body = json.loads(self.rfile.read(length) or b"{}")
+            except Exception as exc:
+                self._send(400, json.dumps({"error": f"bad body: {exc}"}))
+                return
+            if path == "/decision":
+                body.setdefault("ts", time.time())
+                _record_decisions(body)
+                self._send(200, json.dumps({"ok": True}))
+            elif path == "/inspect":
+                try:
+                    self._send(200, json.dumps(_run_hook(body.get("model", "dgx-spark"), body.get("messages") or [])))
+                except Exception as exc:  # noqa: BLE001
+                    self._send(500, json.dumps({"error": str(exc)}))
+            else:
+                self._send(404, json.dumps({"error": "not found"}))
+
+
+    if __name__ == "__main__":
+        print(f"gate-inspector on :{PORT} (classifier {os.environ.get('AI_GATE_URL', 'unset')})")
+        ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gate-inspector
+  namespace: llm-test
+  labels:
+    app: gate-inspector
+    role: ai-platform-tooling
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gate-inspector
+  template:
+    metadata:
+      labels:
+        app: gate-inspector
+        role: ai-platform-tooling
+    spec:
+      containers:
+        - name: inspector
+          image: ghcr.io/berriai/litellm:main-stable
+          imagePullPolicy: IfNotPresent
+          # absolute venv python: a bare "python3" would miss httpx/litellm if
+          # /app is ever shadowed by a mount
+          command: ["/app/.venv/bin/python3", "/opt/inspector/inspector.py"]
+          ports:
+            - name: http
+              containerPort: 8770
+          readinessProbe:
+            httpGet:
+              path: /api/decisions
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /api/decisions
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 1
+              memory: 2Gi
+          env:
+            - name: AI_GATE_URL
+              value: http://cygnet-gate.llm-test.svc.cluster.local:8009/v1/systemone
+            - name: AI_GATE_INSPECTOR_URL
+              value: http://localhost:8770
+          volumeMounts:
+            - name: gate-code
+              mountPath: /app/custom_guardrail
+              readOnly: true
+            - name: inspector-code
+              mountPath: /opt/inspector
+              readOnly: true
+      volumes:
+        - name: gate-code
+          configMap:
+            name: ai-gate-code
+        - name: inspector-code
+          configMap:
+            name: ai-inspector-code
+            items:
+              - key: inspector.py
+                path: inspector.py
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gate-inspector
+  namespace: llm-test
+  annotations:
+    tailscale.com/hostname: "gate-inspector"
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  selector:
+    app: gate-inspector
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8770
