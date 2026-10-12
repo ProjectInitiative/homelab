@@ -31,6 +31,11 @@ v1 simplifications (documented in ai-classifier-gate record):
 Scanning scope: ALL messages every call — the verdict cache (hash -> P) makes
 re-scans ~free, and capping history would silently forward old secrets.
 
+Detection philosophy: the SEMANTIC layer is the general mechanism — any secret
+format scores in a ~1K-char chunk, so new formats need no gate change (chunk
+size = redaction granularity). The regex layer is a fast-path optimization for
+a dozen high-volume formats (exact spans, zero FP), NOT the safety backbone.
+
 Posture: verdict-not-forensics. Rejection bodies say the coarse category, never
 the matched span or probabilities. Full verdicts go to the proxy log only.
 
@@ -75,7 +80,7 @@ URL = os.getenv("AI_GATE_URL", "")
 KEY = os.getenv("AI_GATE_KEY", "")
 FAIL_MODE = os.getenv("AI_GATE_FAIL_MODE", "closed")
 TIMEOUT_S = int(os.getenv("AI_GATE_TIMEOUT_MS", "30000")) / 1000
-TEXT_CAP = int(os.getenv("AI_GATE_TEXT_CAP", "24000"))
+TEXT_CAP = int(os.getenv("AI_GATE_TEXT_CAP", "1000"))  # semantic chunk size, chars
 DISABLED = os.getenv("AI_GATE_DISABLED", "") == "1"
 LOW = float(os.getenv("AI_GATE_LOW", "0.35"))
 HIGH = float(os.getenv("AI_GATE_HIGH", "0.80"))
@@ -95,7 +100,12 @@ STRONG_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("google-api-key", re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b")),
     ("stripe-live", re.compile(r"\b(sk|pk)_live_[A-Za-z0-9]{20,}\b")),
     ("npm-token", re.compile(r"\bnpm_[A-Za-z0-9]{36}\b")),
-    ("pem-private-key", re.compile(r"-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----")),
+    # Full PEM block (header + base64 body + footer) — marker-only matching
+    # redacted the armor and leaked the body (found by the test-gate.sh canary,
+    # 2026-10-12). Non-greedy body; works across OPENSSH/RSA/EC/DSA.
+    ("pem-private-key", re.compile(
+        r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----"
+    )),
     ("jwt", re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b")),
     ("conn-cred", re.compile(r"\b[a-z][a-z0-9+.-]*://[^\s/:@]+:[^\s/@]+@[^\s]+")),
 ]
@@ -348,14 +358,102 @@ class AiGate(CustomLogger):
             log.warning("ai-gate: layer %s unreachable: %s", name, exc)
             return None
 
+    # ---- line-level localization (DEC-0037 amend 4) -------------------------
+
+    def _line_question(self, layer: str) -> dict:
+        """Per-line variant of a layer's question: the state carries the whole
+        flagged chunk (full context, no judgment loss) plus ONE candidate line;
+        the verdict is about that line only. Inherits the layer's tuning."""
+        q = dict(QUESTIONS[layer]["question"])
+        q["instructions"] = (
+            "You are given a context block, then one CANDIDATE LINE from it, after "
+            "the marker 'CANDIDATE LINE:'. Judge ONLY the candidate line; the rest "
+            "of the block is context for understanding. "
+        ) + q["instructions"]
+        return q
+
+    async def _score_line(self, client: httpx.AsyncClient, layer: str, chunk_text: str, line: str) -> Optional[float]:
+        vkey = "line:" + layer + ":" + hashlib.sha256((chunk_text + "\x00" + line).encode()).hexdigest()
+        if vkey in self._verdicts:
+            return self._verdicts[vkey]
+        q = self._line_question(layer)
+        p: Optional[float] = None
+        for _attempt in range(2):  # one retry; transient timeouts must not skew
+            try:
+                headers = {"Content-Type": "application/json"}
+                if self.key:
+                    headers["Authorization"] = f"Bearer {self.key}"
+                r = await client.post(
+                    self.url,
+                    json={"model": "von-latest",
+                          "state": chunk_text + "\n\nCANDIDATE LINE:\n" + line,
+                          "questions": {"decision": q}},
+                    headers=headers,
+                )
+                r.raise_for_status()
+                p = float(r.json()["answers"]["decision"]["noul"])
+                break
+            except Exception as exc:  # noqa: BLE001
+                log.warning("ai-gate: line-refine %s unreachable: %s", layer, exc)
+        if p is not None:
+            if len(self._verdicts) >= self._cache_max:
+                self._verdicts.pop(next(iter(self._verdicts)))
+            self._verdicts[vkey] = p
+        return p
+
+    async def _refine_chunk(self, client: httpx.AsyncClient, c: dict, layers: list[str]) -> Optional[list[dict]]:
+        """Narrow a semantically flagged chunk to the offending lines: score each
+        line with the WHOLE chunk as context (fan-out, cached), redact flagged
+        lines, then re-verify the reconstruction with the original detector —
+        if it still flags, return None (caller falls back to whole-window)."""
+        text = c["text"]
+        cands: list[tuple[int, str]] = []
+        pos = 0
+        for line in text.splitlines(keepends=True):
+            if len(line) > 500:
+                for i in range(0, len(line), 500):
+                    cands.append((pos + i, line[i : i + 500]))
+            elif line.strip():
+                cands.append((pos, line))
+            pos += len(line)
+        if len(cands) <= 2:
+            return None  # too few lines for localization to buy anything
+        line_ps = await asyncio.gather(
+            *(self._score_line(client, layer, text, line) for layer in layers for _pos, line in cands)
+        )
+        flagged: list[dict] = []
+        idx = 0
+        for layer in layers:
+            for offset, line in cands:
+                p = line_ps[idx]; idx += 1
+                if p is not None and p >= HIGH:
+                    flagged.append({"a": c["a"] + offset, "b": c["a"] + offset + len(line), "category": layer, "p": p})
+        if not flagged:
+            return None  # nothing line-level flagged: fall back to whole window
+
+        # Re-verify (amend 4): the reconstructed chunk must pass the original
+        # detector; if localization missed something, fail safe to whole-window.
+        candidate = text
+        for iv in sorted(flagged, key=lambda x: -x["a"]):
+            candidate = candidate[: iv["a"]] + build_placeholder(iv["category"], iv["p"], c["role"]) + candidate[iv["b"] :]
+        verify_ps = await asyncio.gather(
+            *(self._score(client, layer, candidate, None, None) for layer in layers)
+        )
+        if any(p is not None and p >= HIGH for p in verify_ps):
+            return None
+        return flagged
+
     async def _score(self, client, name: str, chunk_text: str, vkey: Optional[str], cached: Optional[float]) -> Optional[float]:
-        """Score one (layer, chunk) with verdict-cache read-through."""
+        """Score one (layer, chunk) with verdict-cache read-through and one retry
+        (a single transient timeout among many chunks must not fail the request)."""
         if cached is not None:
             return cached
         p = await self._noul(client, name, chunk_text)
+        if p is None:
+            p = await self._noul(client, name, chunk_text)
         if p is not None:
             self._vset(name + ":" + hashlib.sha256(chunk_text.encode()).hexdigest(), p)
-        return p  # None: uncached error — retried next turn (fail-closed handles it)
+        return p  # None: still unreachable after retry — fail-closed handles it
 
     # ---- pre-call: tiered verdict actions (DEC-0037) ------------------------
 
@@ -452,6 +550,7 @@ class AiGate(CustomLogger):
                 self._aset(c["role"], c["text"], action)
             c["action"] = action
             c["maxp"] = maxp
+            c["ps"] = ps
             c["category"] = ("regex" if "regex" in ps else max(ps, key=ps.get) if ps else "regex")
             c["sem_high"] = any(p >= HIGH for n, p in ps.items() if n != "regex")
             if action == "redact":
@@ -461,24 +560,41 @@ class AiGate(CustomLogger):
             log.warning("ai-gate: BLOCK fail-closed classifier-unreachable chars=%d", total_chars)
             raise self._reject("sensitive")  # DEC-0020 posture: outage => no egress
 
-        # Rebuild (DEC-0037 §3, surgical): redact exactly the flagged intervals —
-        # regex hits redact their matched spans, semantic hits redact the chunk
-        # window (sub-window refinement is a tracked follow-up) — and splice the
-        # origin-aware notices into the original text. Unflagged text survives,
-        # so a false positive costs only the flagged span, not the message.
+        # Rebuild (DEC-0037 §3 + amend 4): regex hits redact their exact spans;
+        # semantically flagged chunks get LINE-LEVEL localization (each line scored
+        # with the whole chunk as context, fan-out, re-verified — the reconstructed
+        # chunk must pass the original detector, else the whole window is redacted
+        # as fail-safe). Unflagged text survives, so FPs cost only flagged lines.
         intervals: dict[tuple[int, Optional[int], str], list[dict]] = {}
-        for c in chunks:
+        refine_jobs: list[tuple[int, list[str]]] = []
+        for ci, c in enumerate(chunks):
             if c["action"] != "redact":
                 continue
             lst = intervals.setdefault((c["mi"], c["part"], c["role"]), [])
             if c["sem_high"] or not c["hits"]:
-                # semantic flag (or regex-flagged chunk with no locatable span):
-                # redact the whole window
-                lst.append({"a": c["a"], "b": c["b"], "category": c["category"], "p": (None if c["category"] == "regex" else c["maxp"])})
+                # semantic flag: interrogate with the layers that drove the flag
+                # (all applicable layers if it was a borderline redact)
+                drivers = [n for n, p in c.get("ps", {}).items() if p >= HIGH]
+                if not drivers:
+                    drivers = [n for n in ACTIVE_LAYERS if not (n == "prompt-injection" and c["role"] == "user")]
+                refine_jobs.append((ci, drivers))
             else:
                 # regex-only: span-precise
                 for _name, ha, hb in c["hits"]:
                     lst.append({"a": c["a"] + ha, "b": c["a"] + hb, "category": "regex", "p": None})
+        if refine_jobs:
+            async with httpx.AsyncClient(timeout=TIMEOUT_S) as rclient:
+                refined = await asyncio.gather(
+                    *(self._refine_chunk(rclient, chunks[ci], layers) for ci, layers in refine_jobs)
+                )
+            for (ci, _layers), res in zip(refine_jobs, refined):
+                c = chunks[ci]
+                lst = intervals[(c["mi"], c["part"], c["role"])]
+                if res is None:
+                    # localization failed or still flags: fail safe to whole window
+                    lst.append({"a": c["a"], "b": c["b"], "category": c["category"], "p": (None if c["category"] == "regex" else c["maxp"])})
+                else:
+                    lst.extend(res)
         if intervals:
             redact_chars = 0
             for (mi, pi, role), ivs in intervals.items():
