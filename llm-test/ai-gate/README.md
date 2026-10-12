@@ -66,7 +66,13 @@ no restart) or re-apply the pre-gate services.yaml. The gate code ConfigMap is
 - `AI_GATE_FAIL_MODE=closed` keeps the DEC-0020 posture: classifier down ⇒ no
   data leaves the estate.
 - Add new detection goals as extra entries in `QUESTIONS` (config-not-code), the
-  same way gatepipe layers are declared.
+  same way gatepipe layers are declared. **Layer activation is per-deployment**
+  via `AI_GATE_LAYERS` (comma list, default `secret-material,prompt-injection`).
+  The `sensitive` PII/exfiltration layer is OFF for ai-proxy-test: coding-agent
+  contexts legitimately contain IPs/hostnames/system config and score ~0.8 on
+  that preset — it hard-blocked every pi request (0.819 on a 37K-char system
+  prompt). Enable it only for exfiltration-scanning consumers (email-classifier,
+  DEC-0022) where such content is the actual signal.
 
 ## Open items
 

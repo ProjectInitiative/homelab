@@ -235,6 +235,17 @@ data:
         },
     }
 
+    # Per-deployment layer activation (DEC-0037 §1: categories are config, not code).
+    # Default = core security only. The "sensitive" PII/exfiltration layer belongs to
+    # dedicated consumers (email-classifier, DEC-0022) — coding-agent contexts
+    # legitimately contain IPs/hostnames/system config and score ~0.8 on that
+    # preset, which would hard-block every request.
+    ACTIVE_LAYERS = [
+        l.strip()
+        for l in os.getenv("AI_GATE_LAYERS", "secret-material,prompt-injection").split(",")
+        if l.strip() in QUESTIONS
+    ]
+
     CATEGORY = {
         "regex": "the prompt contains credential-shaped material",
         "secret-material": "the prompt contains real, usable secret material",
@@ -409,12 +420,14 @@ data:
             capped = prompt[:TEXT_CAP]
             async with httpx.AsyncClient(timeout=TIMEOUT_S) as client:
                 results = await asyncio.gather(
-                    *(self._noul(client, name, capped) for name in QUESTIONS)
+                    *(self._noul(client, name, capped) for name in ACTIVE_LAYERS)
                 )
 
             blocked_by: Optional[str] = None
             errored_closed = False
-            for (name, layer), p in zip(QUESTIONS.items(), results):
+            for (name, layer), p in zip(
+                ((n, QUESTIONS[n]) for n in ACTIVE_LAYERS), results
+            ):
                 if p is None:
                     if layer["on_error"] == "closed":
                         errored_closed = True
@@ -436,7 +449,7 @@ data:
 
             log.info(
                 "ai-gate: allow verdicts=%s chars=%d",
-                {n: (round(p, 3) if p is not None else "err") for (n, _), p in zip(QUESTIONS.items(), results)},
+                {n: (round(p, 3) if p is not None else "err") for n, p in zip(ACTIVE_LAYERS, results)},
                 len(prompt),
             )
             return data
