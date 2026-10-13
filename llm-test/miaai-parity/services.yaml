@@ -1169,9 +1169,9 @@ metadata:
     app: ai-proxy-test
     role: gated-test-endpoint
 spec:
-  # Canary stays 1 replica, but surge-rollout (not Recreate) so its restarts
-  # are also zero-downtime.
-  replicas: 1
+  # 2 replicas like ai-proxy: surge rollout (not Recreate) so restarts are
+  # zero-downtime and the canary survives node drains.
+  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -1188,7 +1188,11 @@ spec:
     spec:
       containers:
         - name: litellm
-          image: ghcr.io/berriai/litellm:main-stable
+          # Digest-pinned like ai-proxy: a scale-up/rollout must never silently
+          # pull a new :main-stable release (upstream now refuses to start
+          # without a master key — pin + set a master key deliberately when
+          # upgrading).
+          image: ghcr.io/berriai/litellm@sha256:87f34979b9f8cb274fac90ca8a4fdda07d8480de22755562a26adeb95ce20d02
           imagePullPolicy: IfNotPresent
           args: ["--config", "/app/config.yaml", "--port", "8000"]
           ports:
@@ -1283,6 +1287,17 @@ spec:
             name: ai-proxy-alloy-config
         - name: alloy-storage
           emptyDir: {}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ai-proxy-test
+  namespace: llm-test
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: ai-proxy-test
 ---
 # Gated test entry: ai-gated.taildeab2.ts.net -> ai-proxy-test. Direct machine
 # identity (no proxy-group) like ai-direct; swap clients here during gate
