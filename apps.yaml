@@ -775,7 +775,9 @@ catalog:
     annotations:
       argocd.argoproj.io/sync-wave: "120"
     syncPolicy:
-      automated: false
+      automated:
+        prune: false
+        selfHeal: true
       # Initial adoption intentionally uses Argo's default client-side apply:
       # the live resources are owned by kubectl-client-side-apply, and forcing
       # SSA conflicts would be an unnecessary risk during ownership handoff.
@@ -792,7 +794,9 @@ catalog:
     annotations:
       argocd.argoproj.io/sync-wave: "121"
     syncPolicy:
-      automated: false
+      automated:
+        prune: false
+        selfHeal: true
       syncOptions:
         - ServerSideApply=true
 
