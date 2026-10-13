@@ -343,5 +343,13 @@ apps:
           kind: Service
           annotationSelector: tailscale.com/proxy-group=ingress-proxy
 
+  # AI control plane adoption. Both Applications initially require an explicit
+  # Argo sync; ai-proxy adopts live objects with prune off, while Conductor is
+  # Observe-only and does not own the shared llm-test Namespace.
+  - name: ai-proxy
+    namespace: llm-test
+  - name: conductor
+    namespace: llm-test
+
   # Hermes is intentionally disabled until its PostgreSQL/JuiceFS storage
   # design is finalized. Catalog/manifests remain available for later.

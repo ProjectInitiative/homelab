@@ -767,6 +767,35 @@ catalog:
         - CreateNamespace=true
         - ServerSideApply=true
 
+  # Adopt the existing LiteLLM gateway, test proxy, inspector, telemetry, and
+  # stable backend Service without changing their live specifications. Initial
+  # sync is deliberately manual and non-pruning for a safe ownership handoff.
+  ai-proxy:
+    path: llm-test/miaai-parity
+    annotations:
+      argocd.argoproj.io/sync-wave: "120"
+    syncPolicy:
+      automated: false
+      # Initial adoption intentionally uses Argo's default client-side apply:
+      # the live resources are owned by kubectl-client-side-apply, and forcing
+      # SSA conflicts would be an unnecessary risk during ownership handoff.
+      syncOptions: []
+
+  # External controller-runtime operator. The immutable source revision itself
+  # pins an immutable multi-arch image and starts the pool in Observe mode.
+  conductor:
+    repoURL: https://github.com/ProjectInitiative/conductor.git
+    targetRevision: ef57052c07d733128a5a7ee7c9ddc964b7ebc558
+    path: generator
+    plugin:
+      name: cdk8s-v1.0
+    annotations:
+      argocd.argoproj.io/sync-wave: "121"
+    syncPolicy:
+      automated: false
+      syncOptions:
+        - ServerSideApply=true
+
   hermes-memory:
     path: apps/base/hermes-memory/config
     syncPolicy:

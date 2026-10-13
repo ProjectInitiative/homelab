@@ -7,7 +7,7 @@ This directory is the active MiaAI lane. Do not apply files under `../archive/le
 - `12-miaai-assets.yaml`: complete MiaAI profile, patch tree, and runtime assets.
 - `12-deepseek-miaai-parity.yaml`: parity Deployments, init containers, and upstream vLLM command. Deployments intentionally default to `replicas: 0`.
 - `deepseek-services.yaml`: lane-local head/worker Services; apply only while activating this dormant lane.
-- `services.yaml`: shared LiteLLM router plus two Tailscale endpoints: `ai` retains `mc-ingress-proxy`; `ai-direct` omits `tailscale.com/proxy-group` for the node-style endpoint. Both select the same LiteLLM pod.
+- `services.yaml`: Argo-owned shared LiteLLM router, test proxy, inspector, telemetry sidecars, stable backend Service, and Tailscale endpoints. `kustomization.yaml` is the `ai-proxy` Application entry point; do not apply `services.yaml` manually after ownership handoff.
 - `12-miaai-profile.env`: source profile used to build the assets.
 - `12-miaai-parity-diff.*`: parity comparison records.
 
@@ -48,11 +48,9 @@ kubectl scale deployment deepseek-parity-head -n llm-test --replicas=1
 kubectl wait --for=condition=Ready pod -l app=deepseek-parity-head \
   -n llm-test --timeout=180s
 
-# After the GitOps CNPG database and OpenBao values are ready, project the
-# LiteLLM runtime credentials and apply the router plus Alloy sidecar.
-kubectl apply -f llm-test/miaai-parity/litellm-secrets.yaml
-kubectl get vaultstaticsecret litellm-database -n llm-test
-kubectl apply -f llm-test/miaai-parity/services.yaml
+# The shared proxy stack is a separate Argo Application. Do not apply
+# services.yaml from this lane procedure; sync the ai-proxy Application during
+# the reviewed GitOps ownership handoff.
 ```
 
 ## Verify
@@ -75,9 +73,11 @@ curl http://ai.taildeab2.ts.net/v1/models
 
 The shared `ai` endpoint is served by LiteLLM. It exposes the active DGX backend as `dgx-spark` and the Strix Halo backend as `qwen3.8-flash-next-halogen`, routing by the requested OpenAI `model` field. Both backends are reached through normal Kubernetes Services (`glm53-head` and `qwen38-halogen-astrolabe`). Background backend health checks remove failed deployments from routing.
 
-## LiteLLM usage database and metrics (experimental/manual runtime)
+## LiteLLM usage database and metrics
 
-Only the database objects are GitOps-managed: `bootstrap/base/cnpg/database/litellm-role.yaml` and `litellm-database.yaml` extend the existing three-instance `postgres-cluster`. The Postgres app also projects only `username` and `password` from OpenBao into `postgres-db` for CNPG's `DatabaseRole`. LiteLLM, its VSO projection into `llm-test`, the Alloy sidecar, and the Grafana dashboard remain manual/experimental.
+The `ai-proxy` Argo Application now owns `services.yaml`, including both LiteLLM Deployments, the inspector, Alloy sidecars, PDBs, stable backend Service, and Tailscale endpoints. Its first sync is deliberately manual and non-pruning so Argo can adopt the live objects in place. Experimental model lanes remain outside the Application.
+
+The database objects are also GitOps-managed: `bootstrap/base/cnpg/database/litellm-role.yaml` and `litellm-database.yaml` extend the existing three-instance `postgres-cluster`. The Postgres app projects only `username` and `password` from OpenBao into `postgres-db` for CNPG's `DatabaseRole`. The application-side VSO projection is included in the `ai-proxy` Application; the Grafana dashboard remains a manual import until dashboard provisioning is added.
 
 ### OpenBao contract and rollout order
 
@@ -94,10 +94,9 @@ CNPG gets the `username`/`password` pair through the GitOps `postgres-cluster` a
 
 ### Prometheus-only test (no database required)
 
-The current `services.yaml` intentionally has no database URL or credential references, so the metrics path can be tested now. Applying it recreates the single LiteLLM replica and causes a brief API interruption.
+The current `services.yaml` intentionally has no database URL or credential references, so the metrics path can be tested without the database. Sync `ai-proxy` through Argo rather than applying the file directly; its two-replica surge rollout and PDB preserve availability.
 
 ```bash
-kubectl apply -f llm-test/miaai-parity/services.yaml
 kubectl rollout status deployment/ai-proxy -n llm-test
 kubectl logs -n llm-test deploy/ai-proxy -c litellm --tail=100
 kubectl logs -n llm-test deploy/ai-proxy -c alloy --tail=100
@@ -116,7 +115,6 @@ After a short completion through `ai`, confirm `up=1` and a request counter in D
 After the OpenBao record exists and the GitOps database/role plus VSO secret in `postgres-db` are Ready:
 
 ```bash
-kubectl apply -f llm-test/miaai-parity/litellm-secrets.yaml
 kubectl get vaultstaticsecret litellm-database -n llm-test
 kubectl get secret litellm-database -n llm-test
 ```
