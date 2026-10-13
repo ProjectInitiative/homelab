@@ -1,0 +1,1201 @@
+# GLM-5.3 EXL3 full model (3x DGX Spark / GB10 / SM121, TensorFold) — STAGED.
+#
+# Kubernetes port of the MiaAI Lab recipe
+# GLM-5.3-EXL3-3x-DGX-Sparks-TensorFold @ eb6414b (TensorFold v0.6.0 + 110
+# patches baked into the lane image by 14-glm53-full-image-build.yaml):
+# 78-layer MLA/DSA GLM-5.3 with 256 routed experts and an MTP head, one rank
+# per Spark over the 3-cable ConnectX-7 triangle, DSpark speculative drafting,
+# copy drafts, RoCE all-gathers (patch 0006 with multi-Spark routes), 4-bit
+# dense weights, fp4 KV cache, context parallelism for the 499,712-token
+# window, and the NVMe prompt cache.
+#
+#   Image:   registry.taildeab2.ts.net/homelab/glm53-full-exl3:4f3223245926
+#            (built by 14-glm53-full-image-build.yaml FROM the verified flash
+#            v1.4 image sha256:14f15591..., layers tf.patches=4f3223245926;
+#            pin the pushed digest into these Deployments after the build)
+#   Model:   Mia-AiLab/GLM-5.3-EXL3-2.75bpw-TensorFold
+#            @ 2d747d0e30eca6e3fe37ba63c471cdf9172faa83 (137 shards, ~273 GiB)
+#   Drafter: RedHatAI/GLM-5.3-speculator.dspark @ b374b95663447ea0e935151be4f3d6666e36e6d7
+#
+# Fabric adaptation (same contract as the TensorFold TP2 lanes, extended to
+# the triangle):
+#   - Capability scheduling: `nvidia-rdma` RuntimeClass + required hostname
+#     anti-affinity on lane=glm53-full-3x place the three ranks on the three
+#     eligible Sparks (a fourth GPU node cannot satisfy the triangle and the
+#     pod stays Pending — fail-safe by design).
+#   - Rendezvous/config rides the common 172.16.4.x network via headless
+#     Service DNS (master port 29561; ranks 2 and 1 first, then rank 0).
+#   - RoCE rails are selected per rank from the node-local inventory
+#     (/var/lib/dgx-spark/rdma-fabric.json): for TP=3 the recipe's nccl_env_n
+#     exports EVERY RoCE device toward EVERY peer (one subnet per cable), with
+#     NCCL_CROSS_NIC=1 + subnet-aware routing, no P2P/SHM, and 4 channels.
+#     patch 0006 reads TF_ROCE_HCA; a single GID index is exported only when
+#     every selected rail shares one RoCE v2 IPv4 GID index, else the engine
+#     resolves each device's own entry (upstream behavior). No node, link IP,
+#     netdev, or mlx5_N is hardcoded.
+#
+# PRE-DEPLOY convention: all three Deployments declare `replicas: 0`. This
+# lane is an exclusive 3-GPU tenant: the resident TP2 flash pair must be
+# stopped before scaling (and the third Spark must be cabled into the
+# triangle with its inventory listing both peers). Activation order is
+# worker2 (rank 2), worker1 (rank 1), then head (rank 0); every rank's fabric
+# discovery waits for all three rendezvous DNS names, and the head's init
+# gate waits for both workers' "rank N launching" logs. See README.md.
+#
+# Served model id: GLM-5.3-EXL3
+# API: http://<head-node>:8888/v1 (host network; services.yaml adds the
+# in-cluster Service). Port 8888 is the recipe's default and deliberately not
+# the flash lanes' 8000 — this lane must never fight the resident pair for
+# the serving port even by accident.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: glm53-full-rdma-fabric
+  namespace: llm-test
+  labels:
+    lane: glm53-full-3x
+data:
+  configure-rdma-fabric.sh: |
+    #!/bin/bash
+    # TP=3 triangle discovery, same contract as the TP2 lanes: validate the
+    # node-local inventory against this pod's node/host, then export the NCCL
+    # env selecting EVERY peer-facing RoCE rail. Upstream nccl_env_n for TP>2:
+    # bootstrap socket on the shared control network, every RoCE device toward
+    # every peer (each cable's subnet reaches one peer; NCCL_CROSS_NIC=1 plus
+    # subnet-aware routing pairs devices across cables), no P2P/SHM transport
+    # (one GPU a node). TensorFold drives collectives through NCCL, and patch
+    # 0006's RoCE all-gather reads TF_ROCE_HCA with the NCCL fallback — both
+    # exported here. One GID index is exported only when all selected rails
+    # share it; otherwise each device resolves its own RoCE v2 IPv4 entry.
+    set -euo pipefail
+    : "${PEER_SERVICES:?PEER_SERVICES is required}"
+    : "${HOST_IP:?HOST_IP is required}"
+    : "${NODE_NAME:?NODE_NAME is required}"
+    inventory=/etc/dgx-spark/rdma-fabric.json
+    test -s "$inventory"
+
+    declare -a PEER_IPS=()
+    for svc in ${PEER_SERVICES//,/ }; do
+      echo "waiting for peer endpoint $svc"
+      while true; do
+        ip="$(getent ahostsv4 "$svc" 2>/dev/null | awk -v self="$HOST_IP" '$1 != self { print $1; exit }' || true)"
+        [ -n "$ip" ] && break
+        sleep 2
+      done
+      echo "  $svc -> $ip"
+      PEER_IPS+=("$ip")
+    done
+
+    fabric_env="$(python3 - "$inventory" "$NODE_NAME" "$HOST_IP" "${PEER_IPS[@]}" <<'PY'
+    import ipaddress
+    import json
+    import pathlib
+    import shlex
+    import sys
+
+    inventory_path, node_name, host_ip, *peer_ips = sys.argv[1:]
+    fabric = json.loads(pathlib.Path(inventory_path).read_text())
+    if fabric["nodeName"] != node_name:
+        raise SystemExit(
+            f"fabric inventory node {fabric['nodeName']} does not match scheduled node {node_name}"
+        )
+    if fabric["controlPlane"]["address"] != host_ip:
+        raise SystemExit(
+            f"fabric control address {fabric['controlPlane']['address']} does not match host IP {host_ip}"
+        )
+
+    hcas = []
+    netdevs = []
+    peers = []
+    gid_indexes = set()
+    for peer in peer_ips:
+        links = [link for link in fabric["links"] if link["peerControlAddress"] == peer]
+        if not links:
+            raise SystemExit(
+                f"no RDMA links to peer {peer} in the fabric inventory: the triangle cable is missing"
+            )
+        peer_node = None
+        for link in links:
+            netdev = link["interface"]
+            hca_dir = pathlib.Path("/sys/class/net") / netdev / "device/infiniband"
+            hca_names = sorted(path.name for path in hca_dir.iterdir())
+            if len(hca_names) != 1:
+                raise SystemExit(f"expected one HCA for {netdev}, found {hca_names}")
+            hca = hca_names[0]
+            if hca not in hcas:
+                hcas.append(hca)
+            if netdev not in netdevs:
+                netdevs.append(netdev)
+            peer_node = peer_node or link.get("peerNode")
+
+            local_ip = ipaddress.ip_interface(link["address"]).ip
+            gid_root = pathlib.Path("/sys/class/infiniband") / hca / "ports/1"
+            matches = []
+            for gid_path in sorted((gid_root / "gids").iterdir(), key=lambda p: int(p.name)):
+                index = gid_path.name
+                try:
+                    gid_type = (gid_root / "gid_attrs/types" / index).read_text().strip()
+                    gid_netdev = (gid_root / "gid_attrs/ndevs" / index).read_text().strip()
+                    gid = ipaddress.ip_address(gid_path.read_text().strip())
+                except (OSError, ValueError):
+                    continue
+                if gid_type == "RoCE v2" and gid_netdev == netdev and gid.ipv4_mapped == local_ip:
+                    matches.append(index)
+            if len(matches) != 1:
+                raise SystemExit(f"expected one RoCE v2 GID for {netdev}/{local_ip}, found {matches}")
+            gid_indexes.add(matches[0])
+        peers.append(peer_node or peer)
+
+    values = {
+        "NCCL_IB_HCA": "=" + ",".join(hcas),
+        "TF_ROCE_HCA": ",".join(hcas),
+        "NCCL_SOCKET_IFNAME": "=" + fabric["controlPlane"]["interface"],
+        "GLOO_SOCKET_IFNAME": fabric["controlPlane"]["interface"],
+        "RDMA_PEER_NODE": ",".join(peers),
+        "RDMA_PEER_NETDEVS": ",".join(netdevs),
+    }
+    if len(gid_indexes) == 1:
+        values["NCCL_IB_GID_INDEX"] = next(iter(gid_indexes))
+        values["TF_ROCE_GID_INDEX"] = next(iter(gid_indexes))
+    else:
+        print(f"rails use differing GID indexes {sorted(gid_indexes)}; leaving the index to per-device resolution",
+              file=sys.stderr)
+    for key, value in values.items():
+        print(f"export {key}={shlex.quote(str(value))}")
+    PY
+    )" || { echo "fabric discovery failed" >&2; exit 1; }
+    eval "$fabric_env"
+    echo "fabric peers=${PEER_IPS[*]} rails=$NCCL_IB_HCA gid=${NCCL_IB_GID_INDEX:-per-device}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: glm53-full-launch
+  namespace: llm-test
+  labels:
+    lane: glm53-full-3x
+data:
+  verify-checkpoint.py: |-
+    import json
+    import pathlib
+    import sys
+
+    # Exact pins from the recipe's scripts/config.sh (MODEL_ID, MODEL_REVISION,
+    # DSPARK_ID, DSPARK_REVISION). The downloader and this gate both use the
+    # immutable full revisions; the receipt binds them to the SHA-256
+    # inventories in 04-glm53-full-checksums.yaml.
+    model_rev = "2d747d0e30eca6e3fe37ba63c471cdf9172faa83"
+    drafter_rev = "b374b95663447ea0e935151be4f3d6666e36e6d7"
+    hub = pathlib.Path("/models/.cache/huggingface/hub")
+    model_snap = hub / "models--Mia-AiLab--GLM-5.3-EXL3-2.75bpw-TensorFold/snapshots" / model_rev
+    drafter_snap = hub / "models--RedHatAI--GLM-5.3-speculator.dspark/snapshots" / drafter_rev
+    receipt_path = pathlib.Path("/models/.glm53-full-download-complete")
+    expected_receipt = {
+        "files": 144,
+        "manifest_sha256": "215359dbbc07c2119b1b2f7fcbf9d7839972ad167761e4ccb8c783033fbf848c",
+        "revision": model_rev,
+        "weight_bytes": 292737786480,
+        "drafter_files": 4,
+        "drafter_manifest_sha256": "e864c6877a4c1aa0e119f8387a131947e566b62345fbb9a6bad52d102b1f0d05",
+        "drafter_revision": drafter_rev,
+        "drafter_bytes": 2499134874,
+    }
+    try:
+        receipt = json.loads(receipt_path.read_text())
+    except (FileNotFoundError, json.JSONDecodeError) as exc:
+        sys.exit(f"checkpoint cryptographic receipt missing/invalid: {receipt_path}: {exc}")
+    if receipt != expected_receipt:
+        sys.exit(f"checkpoint cryptographic receipt mismatch: {receipt}")
+
+    if not model_snap.is_dir():
+        sys.exit(f"checkpoint snapshot missing: {model_snap}")
+    for name in ("config.json", "model.safetensors.index.json", "tokenizer.json",
+                 "tokenizer_config.json", "chat_template.jinja", "quantization_config.json"):
+        if not (model_snap / name).is_file():
+            sys.exit(f"checkpoint metadata missing: {model_snap / name}")
+    index_shards = set(json.loads((model_snap / "model.safetensors.index.json").read_text())["weight_map"].values())
+    expected_shards = {f"model-{i:05d}-of-00137.safetensors" for i in range(1, 138)}
+    if index_shards != expected_shards:
+        sys.exit(f"checkpoint index shard set mismatch: {len(index_shards)} indexed vs 137 expected")
+    present = {p.name for p in model_snap.glob("model-*-of-00137.safetensors") if p.is_file()}
+    missing = sorted(expected_shards - present)
+    if missing:
+        sys.exit(f"checkpoint incomplete: missing {missing[:3]}")
+    size = sum((model_snap / name).stat().st_size for name in expected_shards)
+    if size != 292737786480:
+        sys.exit(f"checkpoint shard bytes {size} != 292737786480")
+    if not drafter_snap.is_dir():
+        sys.exit(f"drafter snapshot missing (run 05-glm53-full-download.yaml first): {drafter_snap}")
+    if not (drafter_snap / "config.json").is_file() or not (drafter_snap / "model.safetensors").is_file():
+        sys.exit(f"drafter snapshot incomplete: {drafter_snap}")
+    dsize = (drafter_snap / "model.safetensors").stat().st_size
+    if dsize != 2499134874:
+        sys.exit(f"drafter snapshot size mismatch: {dsize} != 2499134874")
+    print(f"checkpoint complete: {model_rev[:12]} (137 shards, {size} bytes, 2.75bpw EXL3)")
+    print(f"drafter complete: {drafter_rev[:12]} ({dsize} bytes)")
+  launch-rank0.sh: |-
+    #!/usr/bin/env bash
+    set -euo pipefail
+    say() { echo "[glm53-full-head] $*"; }
+    MODEL_SNAP="/models/.cache/huggingface/hub/models--Mia-AiLab--GLM-5.3-EXL3-2.75bpw-TensorFold/snapshots/2d747d0e30eca6e3fe37ba63c471cdf9172faa83"
+    DRAFTER_SNAP="/models/.cache/huggingface/hub/models--RedHatAI--GLM-5.3-speculator.dspark/snapshots/b374b95663447ea0e935151be4f3d6666e36e6d7"
+    [ -d "$MODEL_SNAP" ] || { say "FATAL: checkpoint snapshot missing"; exit 1; }
+    [ -d "$DRAFTER_SNAP" ] || { say "FATAL: drafter snapshot missing"; exit 1; }
+    say "TensorFold version: $(tensorfold --version 2>/dev/null || echo unknown)"
+    say "selecting RoCE rails for the 3-Spark triangle from node-local inventory"
+    . /opt/tensorfold/configure-rdma-fabric.sh
+    say "rank 0 launching (API 0.0.0.0:8888, master $HOST_IP:29561)"
+    exec tensorfold serve "$MODEL_SNAP" \
+      --tp 3 --rank 0 \
+      --master "$HOST_IP" --master-port 29561 \
+      --name GLM-5.3-EXL3 \
+      --host 0.0.0.0 --port 8888 \
+      --drafter "$DRAFTER_SNAP" \
+      --context 499712 --max-tokens 32768 --thinking
+  launch-rank1.sh: |-
+    #!/usr/bin/env bash
+    set -euo pipefail
+    say() { echo "[glm53-full-worker1] $*"; }
+    MODEL_SNAP="/models/.cache/huggingface/hub/models--Mia-AiLab--GLM-5.3-EXL3-2.75bpw-TensorFold/snapshots/2d747d0e30eca6e3fe37ba63c471cdf9172faa83"
+    DRAFTER_SNAP="/models/.cache/huggingface/hub/models--RedHatAI--GLM-5.3-speculator.dspark/snapshots/b374b95663447ea0e935151be4f3d6666e36e6d7"
+    [ -d "$MODEL_SNAP" ] || { say "FATAL: checkpoint snapshot missing"; exit 1; }
+    [ -d "$DRAFTER_SNAP" ] || { say "FATAL: drafter snapshot missing"; exit 1; }
+    say "TensorFold version: $(tensorfold --version 2>/dev/null || echo unknown)"
+    say "selecting RoCE rails for the 3-Spark triangle from node-local inventory"
+    . /opt/tensorfold/configure-rdma-fabric.sh
+    while true; do
+      HEAD_CONTROL_IP="$(getent ahostsv4 "$HEAD_SERVICE" 2>/dev/null | awk -v self="$HOST_IP" '$1 != self { print $1; exit }' || true)"
+      [ -n "$HEAD_CONTROL_IP" ] && break
+      sleep 2
+    done
+    export HEAD_CONTROL_IP
+    say "rank 1 launching (master at $HEAD_CONTROL_IP:29561)"
+    exec tensorfold serve "$MODEL_SNAP" \
+      --tp 3 --rank 1 \
+      --master "$HEAD_CONTROL_IP" --master-port 29561 \
+      --drafter "$DRAFTER_SNAP" \
+      --context 499712 --max-tokens 32768 --thinking
+  launch-rank2.sh: |-
+    #!/usr/bin/env bash
+    set -euo pipefail
+    say() { echo "[glm53-full-worker2] $*"; }
+    MODEL_SNAP="/models/.cache/huggingface/hub/models--Mia-AiLab--GLM-5.3-EXL3-2.75bpw-TensorFold/snapshots/2d747d0e30eca6e3fe37ba63c471cdf9172faa83"
+    DRAFTER_SNAP="/models/.cache/huggingface/hub/models--RedHatAI--GLM-5.3-speculator.dspark/snapshots/b374b95663447ea0e935151be4f3d6666e36e6d7"
+    [ -d "$MODEL_SNAP" ] || { say "FATAL: checkpoint snapshot missing"; exit 1; }
+    [ -d "$DRAFTER_SNAP" ] || { say "FATAL: drafter snapshot missing"; exit 1; }
+    say "TensorFold version: $(tensorfold --version 2>/dev/null || echo unknown)"
+    say "selecting RoCE rails for the 3-Spark triangle from node-local inventory"
+    . /opt/tensorfold/configure-rdma-fabric.sh
+    while true; do
+      HEAD_CONTROL_IP="$(getent ahostsv4 "$HEAD_SERVICE" 2>/dev/null | awk -v self="$HOST_IP" '$1 != self { print $1; exit }' || true)"
+      [ -n "$HEAD_CONTROL_IP" ] && break
+      sleep 2
+    done
+    export HEAD_CONTROL_IP
+    say "rank 2 launching (master at $HEAD_CONTROL_IP:29561)"
+    exec tensorfold serve "$MODEL_SNAP" \
+      --tp 3 --rank 2 \
+      --master "$HEAD_CONTROL_IP" --master-port 29561 \
+      --drafter "$DRAFTER_SNAP" \
+      --context 499712 --max-tokens 32768 --thinking
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: glm53-full-r0-rendezvous
+  namespace: llm-test
+  labels:
+    lane: glm53-full-3x
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: glm53-full-head
+  ports:
+    - name: master
+      port: 29561
+      targetPort: 29561
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: glm53-full-r1-rendezvous
+  namespace: llm-test
+  labels:
+    lane: glm53-full-3x
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: glm53-full-worker1
+  ports:
+    - name: master
+      port: 29561
+      targetPort: 29561
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: glm53-full-r2-rendezvous
+  namespace: llm-test
+  labels:
+    lane: glm53-full-3x
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: glm53-full-worker2
+  ports:
+    - name: master
+      port: 29561
+      targetPort: 29561
+      protocol: TCP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: glm53-full-head-gate
+  namespace: llm-test
+  labels:
+    lane: glm53-full-3x
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: glm53-full-head-gate
+  namespace: llm-test
+  labels:
+    lane: glm53-full-3x
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: glm53-full-head-gate
+  namespace: llm-test
+  labels:
+    lane: glm53-full-3x
+subjects:
+  - kind: ServiceAccount
+    name: glm53-full-head-gate
+    namespace: llm-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: glm53-full-head-gate
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: glm53-full-worker1
+  namespace: llm-test
+  labels:
+    app: glm53-full-worker1
+    lane: glm53-full-3x
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: glm53-full-worker1
+  template:
+    metadata:
+      labels:
+        app: glm53-full-worker1
+        lane: glm53-full-3x
+        app.kubernetes.io/name: glm53-full-exl3
+    spec:
+      priorityClassName: llm-serving-critical
+      automountServiceAccountToken: false
+      runtimeClassName: nvidia-rdma
+      terminationGracePeriodSeconds: 120
+      hostNetwork: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: lane
+                    operator: In
+                    values: [glm53-full-3x]
+              topologyKey: kubernetes.io/hostname
+      initContainers:
+        - name: stage-model-cache
+          image: registry.taildeab2.ts.net/homelab/glm53-full-exl3:4f3223245926
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
+          securityContext: {privileged: true}
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              # GB10 unified memory: reclaim host page cache before TensorFold's
+              # free-memory budgeting (it sizes the KV pool from MemAvailable).
+              echo "Memory before cache reclamation:"
+              grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
+              sync
+              echo 3 > /proc/sys/vm/drop_caches
+              echo "Memory after cache reclamation:"
+              grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
+              # The hub/ layout alias already exists in the shared PVC
+              # (created by the earlier flash-lane pulls); mount is read-only.
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+        - name: checkpoint-check
+          image: registry.taildeab2.ts.net/homelab/glm53-full-exl3:4f3223245926
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
+          command: ["python3", "/launch/verify-checkpoint.py"]
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+            - name: launch
+              mountPath: /launch
+              readOnly: true
+        # Must be the final init step: these Sparks retain VM cache after a
+        # large model exits, and TensorFold sizes its pool from MemAvailable.
+        - name: reclaim-vm-cache
+          image: registry.taildeab2.ts.net/homelab/glm53-full-exl3:4f3223245926
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
+          securityContext: {privileged: true}
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              threshold_kib=115343360 # 110 GiB
+              for attempt in $(seq 1 12); do
+                before=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+                echo "cache reclaim attempt ${attempt}/12: MemAvailable=${before} KiB before"
+                sync
+                echo 3 > /proc/sys/vm/drop_caches
+                after=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+                grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
+                if (( after >= threshold_kib )); then
+                  echo "cache reclaim passed: MemAvailable=${after} KiB (required ${threshold_kib} KiB)"
+                  exit 0
+                fi
+                sleep 5
+              done
+              echo "FATAL: MemAvailable remained below ${threshold_kib} KiB after cache reclamation" >&2
+              exit 1
+      containers:
+        - name: tensorfold
+          image: registry.taildeab2.ts.net/homelab/glm53-full-exl3:4f3223245926
+          imagePullPolicy: IfNotPresent
+          command: ["bash", "/launch/launch-rank1.sh"]
+          securityContext:
+            capabilities:
+              add: [IPC_LOCK]
+          resources:
+            requests:
+              cpu: "16"
+              memory: 64Gi
+              nvidia.com/gpu: "1"
+              rdma/hca_shared_devices: "1"
+            limits:
+              cpu: "32"
+              memory: 128Gi
+              nvidia.com/gpu: "1"
+              rdma/hca_shared_devices: "1"
+          env:
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            - name: HF_HUB_OFFLINE
+              value: "1"
+            - name: TENSORFOLD_NO_UPDATE_CHECK
+              value: "1"
+            # Recipe defaults (scripts/config.sh): long-context mode. The
+            # memory reserve is FLOOR_GIB(4) + OVERHEAD_GIB(10); the KV pool
+            # caps at 1 GiB of kept states and 8 entries.
+            - name: TENSORFOLD_MEMORY_RESERVE_GIB
+              value: "14"
+            - name: TF_GLM_CP
+              value: "1"
+            - name: TF_GLM_CP_GRAPHS
+              value: "1"
+            - name: TF_GLM_KV
+              value: fp4
+            - name: TF_GLM_DENSE
+              value: q4
+            - name: TF_GLM_MTP
+              value: "0"
+            - name: TF_GLM_PREFILL_ROWS
+              value: "3072"
+            - name: TF_GLM_CP_RAW_Q
+              value: "0"
+            - name: TF_GLM_HC_SPLIT
+              value: "1"
+            - name: TF_GLM_PREFILL_OVERLAP
+              value: "1"
+            - name: TF_GLM_COMM
+              value: roce
+            - name: TF_ROCE_MAX_KB
+              value: "512"
+            - name: TF_GLM_COPY_DRAFTS
+              value: "1"
+            - name: TF_GLM_COPY_MAX
+              value: "15"
+            - name: TF_GLM_COPY_HYBRID
+              value: "1"
+            - name: TF_GLM_DISK_CACHE
+              value: /cache/pcache
+            - name: TF_GLM_DISK_CACHE_GIB
+              value: "64"
+            - name: TF_GLM_SHARED_PREFIX
+              value: "1"
+            - name: TF_GLM_CLEAR_THINKING
+              value: "0"
+            - name: TF_GLM_STREAM_SMOOTH
+              value: "1"
+            - name: TF_GLM_STREAM_SMOOTH_MS
+              value: "400"
+            - name: TENSORFOLD_NUCLEUS_UNION
+              value: "1"
+            - name: TF_GLM_CACHE_GIB
+              value: "1"
+            - name: TF_GLM_CACHE_ENTRIES
+              value: "8"
+            # Recipe nccl_env_n() for TP>2: cross-NIC + subnet-aware routing on
+            # the triangle, no P2P/SHM (one GPU a node), four channels.
+            - name: NCCL_CROSS_NIC
+              value: "1"
+            - name: NCCL_IB_SUBNET_AWARE_ROUTING
+              value: "1"
+            - name: NCCL_P2P_DISABLE
+              value: "1"
+            - name: NCCL_SHM_DISABLE
+              value: "1"
+            - name: NCCL_MIN_NCHANNELS
+              value: "4"
+            - name: NCCL_MAX_NCHANNELS
+              value: "4"
+            - name: NCCL_DEBUG
+              value: WARN
+            - name: NVIDIA_DRIVER_CAPABILITIES
+              value: compute,utility
+            # The other two ranks' rendezvous Services; the rails to each are
+            # selected from the node-local fabric inventory at container start.
+            - name: PEER_SERVICES
+              value: glm53-full-r0-rendezvous.llm-test.svc.cluster.local,glm53-full-r2-rendezvous.llm-test.svc.cluster.local
+            - name: HEAD_SERVICE
+              value: glm53-full-r0-rendezvous.llm-test.svc.cluster.local
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef: {fieldPath: spec.nodeName}
+            - name: HOST_IP
+              valueFrom:
+                fieldRef: {fieldPath: status.hostIP}
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: launch
+              mountPath: /launch
+              readOnly: true
+            - name: fabric-config
+              mountPath: /opt/tensorfold/configure-rdma-fabric.sh
+              subPath: configure-rdma-fabric.sh
+              readOnly: true
+            - name: fabric-inventory
+              mountPath: /etc/dgx-spark/rdma-fabric.json
+              readOnly: true
+            - name: kernel-cache
+              mountPath: /cache
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+        - name: launch
+          configMap:
+            name: glm53-full-launch
+            defaultMode: 0555
+        - name: fabric-config
+          configMap:
+            name: glm53-full-rdma-fabric
+            defaultMode: 0555
+        - name: fabric-inventory
+          hostPath:
+            path: /var/lib/dgx-spark/rdma-fabric.json
+            type: File
+        - name: kernel-cache
+          hostPath:
+            path: /var/lib/llm-test/glm53-full-3x-cache
+            type: DirectoryOrCreate
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: glm53-full-worker2
+  namespace: llm-test
+  labels:
+    app: glm53-full-worker2
+    lane: glm53-full-3x
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: glm53-full-worker2
+  template:
+    metadata:
+      labels:
+        app: glm53-full-worker2
+        lane: glm53-full-3x
+        app.kubernetes.io/name: glm53-full-exl3
+    spec:
+      priorityClassName: llm-serving-critical
+      automountServiceAccountToken: false
+      runtimeClassName: nvidia-rdma
+      terminationGracePeriodSeconds: 120
+      hostNetwork: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: lane
+                    operator: In
+                    values: [glm53-full-3x]
+              topologyKey: kubernetes.io/hostname
+      initContainers:
+        - name: stage-model-cache
+          image: registry.taildeab2.ts.net/homelab/glm53-full-exl3:4f3223245926
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
+          securityContext: {privileged: true}
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              echo "Memory before cache reclamation:"
+              grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
+              sync
+              echo 3 > /proc/sys/vm/drop_caches
+              echo "Memory after cache reclamation:"
+              grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
+              # The hub/ layout alias already exists in the shared PVC
+              # (created by the earlier flash-lane pulls); mount is read-only.
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+        - name: checkpoint-check
+          image: registry.taildeab2.ts.net/homelab/glm53-full-exl3:4f3223245926
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
+          command: ["python3", "/launch/verify-checkpoint.py"]
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+            - name: launch
+              mountPath: /launch
+              readOnly: true
+        - name: reclaim-vm-cache
+          image: registry.taildeab2.ts.net/homelab/glm53-full-exl3:4f3223245926
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
+          securityContext: {privileged: true}
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              threshold_kib=115343360 # 110 GiB
+              for attempt in $(seq 1 12); do
+                before=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+                echo "cache reclaim attempt ${attempt}/12: MemAvailable=${before} KiB before"
+                sync
+                echo 3 > /proc/sys/vm/drop_caches
+                after=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+                grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
+                if (( after >= threshold_kib )); then
+                  echo "cache reclaim passed: MemAvailable=${after} KiB (required ${threshold_kib} KiB)"
+                  exit 0
+                fi
+                sleep 5
+              done
+              echo "FATAL: MemAvailable remained below ${threshold_kib} KiB after cache reclamation" >&2
+              exit 1
+      containers:
+        - name: tensorfold
+          image: registry.taildeab2.ts.net/homelab/glm53-full-exl3:4f3223245926
+          imagePullPolicy: IfNotPresent
+          command: ["bash", "/launch/launch-rank2.sh"]
+          securityContext:
+            capabilities:
+              add: [IPC_LOCK]
+          resources:
+            requests:
+              cpu: "16"
+              memory: 64Gi
+              nvidia.com/gpu: "1"
+              rdma/hca_shared_devices: "1"
+            limits:
+              cpu: "32"
+              memory: 128Gi
+              nvidia.com/gpu: "1"
+              rdma/hca_shared_devices: "1"
+          env:
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            - name: HF_HUB_OFFLINE
+              value: "1"
+            - name: TENSORFOLD_NO_UPDATE_CHECK
+              value: "1"
+            - name: TENSORFOLD_MEMORY_RESERVE_GIB
+              value: "14"
+            - name: TF_GLM_CP
+              value: "1"
+            - name: TF_GLM_CP_GRAPHS
+              value: "1"
+            - name: TF_GLM_KV
+              value: fp4
+            - name: TF_GLM_DENSE
+              value: q4
+            - name: TF_GLM_MTP
+              value: "0"
+            - name: TF_GLM_PREFILL_ROWS
+              value: "3072"
+            - name: TF_GLM_CP_RAW_Q
+              value: "0"
+            - name: TF_GLM_HC_SPLIT
+              value: "1"
+            - name: TF_GLM_PREFILL_OVERLAP
+              value: "1"
+            - name: TF_GLM_COMM
+              value: roce
+            - name: TF_ROCE_MAX_KB
+              value: "512"
+            - name: TF_GLM_COPY_DRAFTS
+              value: "1"
+            - name: TF_GLM_COPY_MAX
+              value: "15"
+            - name: TF_GLM_COPY_HYBRID
+              value: "1"
+            - name: TF_GLM_DISK_CACHE
+              value: /cache/pcache
+            - name: TF_GLM_DISK_CACHE_GIB
+              value: "64"
+            - name: TF_GLM_SHARED_PREFIX
+              value: "1"
+            - name: TF_GLM_CLEAR_THINKING
+              value: "0"
+            - name: TF_GLM_STREAM_SMOOTH
+              value: "1"
+            - name: TF_GLM_STREAM_SMOOTH_MS
+              value: "400"
+            - name: TENSORFOLD_NUCLEUS_UNION
+              value: "1"
+            - name: TF_GLM_CACHE_GIB
+              value: "1"
+            - name: TF_GLM_CACHE_ENTRIES
+              value: "8"
+            - name: NCCL_CROSS_NIC
+              value: "1"
+            - name: NCCL_IB_SUBNET_AWARE_ROUTING
+              value: "1"
+            - name: NCCL_P2P_DISABLE
+              value: "1"
+            - name: NCCL_SHM_DISABLE
+              value: "1"
+            - name: NCCL_MIN_NCHANNELS
+              value: "4"
+            - name: NCCL_MAX_NCHANNELS
+              value: "4"
+            - name: NCCL_DEBUG
+              value: WARN
+            - name: NVIDIA_DRIVER_CAPABILITIES
+              value: compute,utility
+            - name: PEER_SERVICES
+              value: glm53-full-r0-rendezvous.llm-test.svc.cluster.local,glm53-full-r1-rendezvous.llm-test.svc.cluster.local
+            - name: HEAD_SERVICE
+              value: glm53-full-r0-rendezvous.llm-test.svc.cluster.local
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef: {fieldPath: spec.nodeName}
+            - name: HOST_IP
+              valueFrom:
+                fieldRef: {fieldPath: status.hostIP}
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: launch
+              mountPath: /launch
+              readOnly: true
+            - name: fabric-config
+              mountPath: /opt/tensorfold/configure-rdma-fabric.sh
+              subPath: configure-rdma-fabric.sh
+              readOnly: true
+            - name: fabric-inventory
+              mountPath: /etc/dgx-spark/rdma-fabric.json
+              readOnly: true
+            - name: kernel-cache
+              mountPath: /cache
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+        - name: launch
+          configMap:
+            name: glm53-full-launch
+            defaultMode: 0555
+        - name: fabric-config
+          configMap:
+            name: glm53-full-rdma-fabric
+            defaultMode: 0555
+        - name: fabric-inventory
+          hostPath:
+            path: /var/lib/dgx-spark/rdma-fabric.json
+            type: File
+        - name: kernel-cache
+          hostPath:
+            path: /var/lib/llm-test/glm53-full-3x-cache
+            type: DirectoryOrCreate
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: glm53-full-head
+  namespace: llm-test
+  labels:
+    app: glm53-full-head
+    lane: glm53-full-3x
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: glm53-full-head
+  template:
+    metadata:
+      labels:
+        app: glm53-full-head
+        lane: glm53-full-3x
+        app.kubernetes.io/name: glm53-full-exl3
+        # Deliberately NO serving.homelab.io/alias: the staged lane must never
+        # take the dgx-spark serving route from the resident flash pair. Move
+        # a qualified alias here only at explicit cutover (README.md).
+    spec:
+      priorityClassName: llm-serving-critical
+      serviceAccountName: glm53-full-head-gate
+      automountServiceAccountToken: false
+      runtimeClassName: nvidia-rdma
+      terminationGracePeriodSeconds: 120
+      hostNetwork: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: lane
+                    operator: In
+                    values: [glm53-full-3x]
+              topologyKey: kubernetes.io/hostname
+      initContainers:
+        - name: stage-model-cache
+          image: registry.taildeab2.ts.net/homelab/glm53-full-exl3:4f3223245926
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
+          securityContext: {privileged: true}
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              echo "Memory before cache reclamation:"
+              grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
+              sync
+              echo 3 > /proc/sys/vm/drop_caches
+              echo "Memory after cache reclamation:"
+              grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
+              # The hub/ layout alias already exists in the shared PVC
+              # (created by the earlier flash-lane pulls); mount is read-only.
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+        - name: checkpoint-check
+          image: registry.taildeab2.ts.net/homelab/glm53-full-exl3:4f3223245926
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
+          command: ["python3", "/launch/verify-checkpoint.py"]
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+            - name: launch
+              mountPath: /launch
+              readOnly: true
+        - name: wait-for-ranks
+          image: registry.taildeab2.ts.net/homelab/glm53-full-exl3:4f3223245926
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
+          command: ["python3", "-c"]
+          args:
+            - |
+              import json, pathlib, ssl, sys, time, urllib.parse, urllib.request
+              root = pathlib.Path("/var/run/secrets/kubernetes.io/serviceaccount")
+              token = (root / "token").read_text().strip()
+              tls = ssl.create_default_context(cafile=str(root / "ca.crt"))
+              headers = {"Authorization": "Bearer " + token}
+              base = "https://kubernetes.default.svc/api/v1/namespaces/llm-test/pods"
+              targets = {"glm53-full-worker1": "rank 1 launching", "glm53-full-worker2": "rank 2 launching"}
+              deadline = time.monotonic() + 3600
+              pending = dict(targets)
+              while time.monotonic() < deadline and pending:
+                  query = urllib.parse.urlencode({"labelSelector": "lane=glm53-full-3x"})
+                  request = urllib.request.Request(base + "?" + query, headers=headers)
+                  try:
+                      with urllib.request.urlopen(request, context=tls, timeout=10) as response:
+                          pods = json.load(response)["items"]
+                  except Exception as error:
+                      print(f"waiting for Kubernetes API: {error}", flush=True)
+                      time.sleep(3)
+                      continue
+                  for app, marker in list(pending.items()):
+                      for pod in pods:
+                          if pod.get("metadata", {}).get("labels", {}).get("app") != app:
+                              continue
+                          running = any(
+                              container.get("name") == "tensorfold" and container.get("state", {}).get("running")
+                              for container in pod.get("status", {}).get("containerStatuses", [])
+                          )
+                          if not running:
+                              continue
+                          name = urllib.parse.quote(pod["metadata"]["name"], safe="")
+                          log_query = urllib.parse.urlencode({"container": "tensorfold", "tailLines": 100})
+                          log_url = f"{base}/{name}/log?{log_query}"
+                          try:
+                              with urllib.request.urlopen(urllib.request.Request(log_url, headers=headers), context=tls, timeout=10) as response:
+                                  logs = response.read().decode("utf-8", errors="replace")
+                          except Exception as error:
+                              print(f"waiting for rank logs ({app}): {error}", flush=True)
+                              continue
+                          if marker in logs:
+                              print(f"{app} completed fabric/peer setup in {pod['metadata']['name']}", flush=True)
+                              del pending[app]
+                              break
+                  if pending:
+                      time.sleep(2)
+              if pending:
+                  sys.exit(f"timed out waiting for rank startup: {sorted(pending)}")
+              print("both workers completed fabric/peer setup; launching rank 0", flush=True)
+          volumeMounts:
+            - name: kubernetes-api
+              mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+              readOnly: true
+        # Keep this after the rank gates so cache reclamation is immediately
+        # adjacent to TensorFold rank 0 startup.
+        - name: reclaim-vm-cache
+          image: registry.taildeab2.ts.net/homelab/glm53-full-exl3:4f3223245926
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
+          securityContext: {privileged: true}
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              threshold_kib=115343360 # 110 GiB
+              for attempt in $(seq 1 12); do
+                before=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+                echo "cache reclaim attempt ${attempt}/12: MemAvailable=${before} KiB before"
+                sync
+                echo 3 > /proc/sys/vm/drop_caches
+                after=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+                grep -E '^(MemFree|MemAvailable|Cached|Buffers|Active\(file\)|Inactive\(file\)|SReclaimable):' /proc/meminfo || true
+                if (( after >= threshold_kib )); then
+                  echo "cache reclaim passed: MemAvailable=${after} KiB (required ${threshold_kib} KiB)"
+                  exit 0
+                fi
+                sleep 5
+              done
+              echo "FATAL: MemAvailable remained below ${threshold_kib} KiB after cache reclamation" >&2
+              exit 1
+      containers:
+        - name: tensorfold
+          image: registry.taildeab2.ts.net/homelab/glm53-full-exl3:4f3223245926
+          imagePullPolicy: IfNotPresent
+          command: ["bash", "/launch/launch-rank0.sh"]
+          securityContext:
+            capabilities:
+              add: [IPC_LOCK]
+          resources:
+            requests:
+              cpu: "16"
+              memory: 64Gi
+              nvidia.com/gpu: "1"
+              rdma/hca_shared_devices: "1"
+            limits:
+              cpu: "32"
+              memory: 128Gi
+              nvidia.com/gpu: "1"
+              rdma/hca_shared_devices: "1"
+          ports:
+            - name: http
+              containerPort: 8888
+          env:
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            - name: HF_HUB_OFFLINE
+              value: "1"
+            - name: TENSORFOLD_NO_UPDATE_CHECK
+              value: "1"
+            - name: TENSORFOLD_MEMORY_RESERVE_GIB
+              value: "14"
+            - name: TF_GLM_CP
+              value: "1"
+            - name: TF_GLM_CP_GRAPHS
+              value: "1"
+            - name: TF_GLM_KV
+              value: fp4
+            - name: TF_GLM_DENSE
+              value: q4
+            - name: TF_GLM_MTP
+              value: "0"
+            - name: TF_GLM_PREFILL_ROWS
+              value: "3072"
+            - name: TF_GLM_CP_RAW_Q
+              value: "0"
+            - name: TF_GLM_HC_SPLIT
+              value: "1"
+            - name: TF_GLM_PREFILL_OVERLAP
+              value: "1"
+            - name: TF_GLM_COMM
+              value: roce
+            - name: TF_ROCE_MAX_KB
+              value: "512"
+            - name: TF_GLM_COPY_DRAFTS
+              value: "1"
+            - name: TF_GLM_COPY_MAX
+              value: "15"
+            - name: TF_GLM_COPY_HYBRID
+              value: "1"
+            - name: TF_GLM_DISK_CACHE
+              value: /cache/pcache
+            - name: TF_GLM_DISK_CACHE_GIB
+              value: "64"
+            - name: TF_GLM_SHARED_PREFIX
+              value: "1"
+            - name: TF_GLM_CLEAR_THINKING
+              value: "0"
+            - name: TF_GLM_STREAM_SMOOTH
+              value: "1"
+            - name: TF_GLM_STREAM_SMOOTH_MS
+              value: "400"
+            - name: TENSORFOLD_NUCLEUS_UNION
+              value: "1"
+            - name: TF_GLM_CACHE_GIB
+              value: "1"
+            - name: TF_GLM_CACHE_ENTRIES
+              value: "8"
+            - name: NCCL_CROSS_NIC
+              value: "1"
+            - name: NCCL_IB_SUBNET_AWARE_ROUTING
+              value: "1"
+            - name: NCCL_P2P_DISABLE
+              value: "1"
+            - name: NCCL_SHM_DISABLE
+              value: "1"
+            - name: NCCL_MIN_NCHANNELS
+              value: "4"
+            - name: NCCL_MAX_NCHANNELS
+              value: "4"
+            - name: NCCL_DEBUG
+              value: WARN
+            - name: NVIDIA_DRIVER_CAPABILITIES
+              value: compute,utility
+            - name: PEER_SERVICES
+              value: glm53-full-r1-rendezvous.llm-test.svc.cluster.local,glm53-full-r2-rendezvous.llm-test.svc.cluster.local
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef: {fieldPath: spec.nodeName}
+            - name: HOST_IP
+              valueFrom:
+                fieldRef: {fieldPath: status.hostIP}
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: launch
+              mountPath: /launch
+              readOnly: true
+            - name: kubernetes-api
+              mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+              readOnly: true
+            - name: fabric-config
+              mountPath: /opt/tensorfold/configure-rdma-fabric.sh
+              subPath: configure-rdma-fabric.sh
+              readOnly: true
+            - name: fabric-inventory
+              mountPath: /etc/dgx-spark/rdma-fabric.json
+              readOnly: true
+            - name: kernel-cache
+              mountPath: /cache
+          # The three ranks are a single failure domain. Do not let kubelet
+          # restart rank 0 alone during a slow cold load; readiness still
+          # withholds API traffic until the distributed engine is healthy.
+          readinessProbe:
+            httpGet: {path: /health, port: 8888}
+            periodSeconds: 10
+            failureThreshold: 6
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+        - name: launch
+          configMap:
+            name: glm53-full-launch
+            defaultMode: 0555
+        - name: kubernetes-api
+          projected:
+            defaultMode: 0400
+            sources:
+              - serviceAccountToken:
+                  path: token
+                  expirationSeconds: 3600
+              - configMap:
+                  name: kube-root-ca.crt
+                  items:
+                    - key: ca.crt
+                      path: ca.crt
+        - name: fabric-config
+          configMap:
+            name: glm53-full-rdma-fabric
+            defaultMode: 0555
+        - name: fabric-inventory
+          hostPath:
+            path: /var/lib/dgx-spark/rdma-fabric.json
+            type: File
+        - name: kernel-cache
+          hostPath:
+            path: /var/lib/llm-test/glm53-full-3x-cache
+            type: DirectoryOrCreate

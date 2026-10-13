@@ -1,0 +1,15 @@
+# Dedicated LiteLLM database role. The password is sourced from OpenBao via
+# the postgres-cluster Application's VaultStaticSecret projection.
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: litellm-user
+  namespace: postgres-db
+spec:
+  cluster:
+    name: postgres-cluster
+  name: litellm_user
+  ensure: present
+  login: true
+  passwordSecret:
+    name: litellm-postgres-creds

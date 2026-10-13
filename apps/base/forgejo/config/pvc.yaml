@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: forgejo-data
+  namespace: forgejo
+  labels:
+    app: forgejo
+  annotations:
+    # Keep the PVC if the app is ever pruned from git.
+    argocd.argoproj.io/sync-options: Delete=false
+spec:
+  # local-path-nvme-sticky: fast local NVMe, Retain reclaim (survives app
+  # deletion). Git repos + app data want local-disk latency; bulk objects
+  # (LFS/attachments/artifacts) live on Garage S3 instead.
+  # To allow rescheduling to any node later, switch storageClassName to
+  # juicefs-sc (RWX, network-backed) - see deployment.yaml rationale.
+  storageClassName: local-path-nvme-sticky
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi

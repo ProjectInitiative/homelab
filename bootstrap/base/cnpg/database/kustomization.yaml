@@ -5,4 +5,7 @@ resources:
   - juicefs-database.yaml
   - juicefs-role.yaml
   - dev-juicefs-database.yaml
+  - litellm-role.yaml
+  - litellm-database.yaml
+  - forgejo-database.yaml
   - object-store.yaml

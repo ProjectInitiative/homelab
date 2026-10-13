@@ -1,0 +1,87 @@
+# Non-sensitive Forgejo configuration (rendered into app.ini via
+# FORGEJO__<SECTION>__KEY env vars by the official image).
+# Sensitive values (DB password, secret key, LFS JWT, internal token)
+# come from OpenBao/VSO as the forgejo-secrets secret - see forgejo-secrets.yaml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: forgejo-env
+  namespace: forgejo
+  labels:
+    app: forgejo
+data:
+  FORGEJO__DEFAULT__APP_NAME: "keel forge"
+  FORGEJO__DEFAULT__RUN_MODE: "prod"
+  FORGEJO__DEFAULT__RUN_USER: "git"
+  FORGEJO__DEFAULT__WORK_PATH: "/data"
+
+  # Server: tailnet-only; ROOT_URL is set per exposure (Service below).
+  FORGEJO__server__PROTOCOL: "http"
+  FORGEJO__server__HTTP_ADDR: "0.0.0.0"
+  FORGEJO__server__HTTP_PORT: "3000"
+  FORGEJO__server__DOMAIN: "git.taildeab2.ts.net"
+  FORGEJO__server__ROOT_URL: "https://git.taildeab2.ts.net/"
+  FORGEJO__server__DISABLE_SSH: "false"
+  # Built-in SSH server on 2222 (no host sshd dependency); exposed via the
+  # same tailscale LoadBalancer Service as HTTP.
+  FORGEJO__server__START_SSH_SERVER: "true"
+  FORGEJO__server__SSH_LISTEN_PORT: "2222"
+  FORGEJO__server__SSH_PORT: "22"
+  FORGEJO__server__SSH_DOMAIN: "git.taildeab2.ts.net"
+
+  # Database (host/DB/user; password from VSO secret).
+  FORGEJO__database__DB_TYPE: "postgres"
+  FORGEJO__database__HOST: "postgres-cluster-rw.postgres-db.svc.cluster.local:5432"
+  FORGEJO__database__NAME: "forgejo"
+  FORGEJO__database__USER: "forgejo_user"
+  FORGEJO__database__SSL_MODE: "disable"
+
+  # Single-replica posture (Forgejo is NOT HA-ready upstream; see design doc):
+  # keep memory/level backends; revisit with valkey + RWX if ever scaled out.
+  FORGEJO__queue__TYPE: "level"
+  FORGEJO__session__PROVIDER: "file"
+  FORGEJO__session__PROVIDER_CONFIG: "/data/sessions"
+  FORGEJO__cache__ADAPTER: "memory"
+
+  # Git LFS on the existing Garage S3 endpoint (cluster-internal).
+  FORGEJO__server__LFS_START_SERVER: "true"
+  FORGEJO__lfs__STORAGE_TYPE: "minio"
+  FORGEJO__lfs__MINIO_ENDPOINT: "garage.garage.svc.cluster.local:3900"
+  FORGEJO__lfs__MINIO_LOCATION: "us-east-1"
+  FORGEJO__lfs__MINIO_BUCKET: "forgejo-lfs"
+  FORGEJO__lfs__MINIO_USE_SSL: "false"
+  FORGEJO__lfs__MINIO_CHECKSUM_ALGORITHM: "default"
+
+  # Attachments also on Garage.
+  FORGEJO__attachment__STORAGE_TYPE: "minio"
+  FORGEJO__attachment__MINIO_ENDPOINT: "garage.garage.svc.cluster.local:3900"
+  FORGEJO__attachment__MINIO_LOCATION: "us-east-1"
+  FORGEJO__attachment__MINIO_BUCKET: "forgejo-attachments"
+  FORGEJO__attachment__MINIO_USE_SSL: "false"
+
+  # Actions (Forgejo CI) enabled; artifacts on Garage.
+  FORGEJO__actions__ENABLED: "true"
+  FORGEJO__storage.actions_log__STORAGE_TYPE: "minio"
+  FORGEJO__storage.actions_log__MINIO_ENDPOINT: "garage.garage.svc.cluster.local:3900"
+  FORGEJO__storage.actions_log__MINIO_LOCATION: "us-east-1"
+  FORGEJO__storage.actions_log__MINIO_BUCKET: "forgejo-actions-logs"
+  FORGEJO__storage.actions_log__MINIO_USE_SSL: "false"
+  FORGEJO__storage.artifacts__STORAGE_TYPE: "minio"
+  FORGEJO__storage.artifacts__MINIO_ENDPOINT: "garage.garage.svc.cluster.local:3900"
+  FORGEJO__storage.artifacts__MINIO_LOCATION: "us-east-1"
+  FORGEJO__storage.artifacts__MINIO_BUCKET: "forgejo-actions-artifacts"
+  FORGEJO__storage.artifacts__MINIO_USE_SSL: "false"
+
+  # Mirror behavior: pull-mirrors of GitHub repos (the "for now mirror" phase).
+  # DEFAULT_INTERVAL is the check interval; MIN_INTERVAL floor is 10m.
+  FORGEJO__mirror__ENABLED: "true"
+  FORGEJO__mirror__DEFAULT_INTERVAL: "30m"
+  FORGEJO__mirror__MIN_INTERVAL: "10m"
+  FORGEJO__cron.update_mirrors__SCHEDULE: "@every 10m"
+  FORGEJO__migrations__ALLOW_LOCALNETWORKS: "true"
+
+  # Mailer disabled (no outbound SMTP path on the estate yet).
+  FORGEJO__mailer__ENABLED: "false"
+
+  # Installer lock: admin user seeded via VSO secret + forgejo admin CLI job.
+  FORGEJO__security__INSTALL_LOCK: "true"

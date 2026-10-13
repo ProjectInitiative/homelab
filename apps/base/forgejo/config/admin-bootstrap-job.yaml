@@ -1,0 +1,61 @@
+# One-shot admin bootstrap: seeds the admin user from the VSO-synced secret.
+# Argo runs it once (hook) per fresh install; re-apply safe via `|| true` on
+# user-exists. Password comes from forgejo-secrets (OpenBao path forgejo/admin).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: forgejo-admin-bootstrap
+  namespace: forgejo
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  backoffLimit: 4
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: forgejo-admin-bootstrap
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: bootstrap
+          image: codeberg.org/forgejo/forgejo:9.0
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              forgejo admin user create \
+                --admin \
+                --username "$ADMIN_USER" \
+                --password "$ADMIN_PASSWORD" \
+                --email "$ADMIN_EMAIL" \
+                --must-change-password=false || echo "admin exists, skipping"
+          env:
+            - name: ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: forgejo-secrets
+                  key: ADMIN_USER
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: forgejo-secrets
+                  key: ADMIN_PASSWORD
+            - name: ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: forgejo-secrets
+                  key: ADMIN_EMAIL
+            - name: FORGEJO__database__DB_TYPE
+              value: "postgres"
+            - name: FORGEJO__database__HOST
+              value: "postgres-cluster-rw.postgres-db.svc.cluster.local:5432"
+            - name: FORGEJO__database__NAME
+              value: "forgejo"
+            - name: FORGEJO__database__USER
+              value: "forgejo_user"
+            - name: FORGEJO__database__PASSWD
+              valueFrom:
+                secretKeyRef:
+                  name: forgejo-secrets
+                  key: DB_PASSWORD

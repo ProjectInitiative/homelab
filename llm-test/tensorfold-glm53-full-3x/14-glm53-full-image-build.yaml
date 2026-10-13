@@ -1,0 +1,194 @@
+# On-demand, native-arm64 build of the pinned MiaAI GLM-5.3-EXL3 3x DGX Spark
+# TensorFold recipe (the full-model sibling of the 2x flash recipe this lane
+# extends). It reproduces scripts/prepare.sh's FAST build: FROM the verified
+# GLM-5.3-Flash v1.4 published image (TensorFold v0.6.0 + recipe patches
+# 0001-0068, tf.patches=5e01f1bb74d8, verified arm64) plus only this recipe's
+# 42 full-model patches (0100-0141) — a layer of a few hundred KB. The checkout
+# is checksum-gated: the git revision AND the recipe's own image hash
+# (sha256 over all 110 patches + IMAGE_EXTRAS, scripts/config.sh image_hash())
+# must both match the pins before anything is built.
+#
+# Bump the Job/ConfigMap name, UPSTREAM_REV, and PATCH_HASH together per
+# reviewed source. It does not start or change serving Pods.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: glm53-full-image-build-eb6414b-v1
+  namespace: llm-test
+  labels:
+    app.kubernetes.io/name: glm53-full-image-build
+    lane: glm53-full-3x
+immutable: true
+data:
+  buildkitd.toml: |
+    [registry."local-registry.registry.svc.cluster.local:5000"]
+      http = true
+  prepare-source.sh: |
+    #!/bin/sh
+    set -eu
+    src=/workspace/src
+    mkdir -p "$src"
+    git init "$src"
+    git -C "$src" remote add origin https://github.com/MiaAI-Lab/GLM-5.3-EXL3-3x-DGX-Sparks-TensorFold.git
+    git -C "$src" fetch --depth 1 --no-tags origin "$UPSTREAM_REV"
+    git -C "$src" checkout --detach FETCH_HEAD
+    actual=$(git -C "$src" rev-parse HEAD)
+    [ "$actual" = "$UPSTREAM_REV" ] || { echo "revision mismatch: $actual" >&2; exit 1; }
+
+    # Recipe image hash: sha256 over all recipe patches plus the IMAGE_EXTRAS
+    # pip line (scripts/config.sh image_hash()). This is exactly the string
+    # the upstream release's tf.patches label and its GHCR tag encode.
+    IMAGE_EXTRAS='av==18.1.0 xgrammar>=0.2.8,<0.3'
+    hash=$( (cat "$src"/patches/*.patch; echo "$IMAGE_EXTRAS") | sha256sum | awk '{print substr($1, 1, 12)}')
+    [ "$hash" = "$PATCH_HASH" ] || { echo "patch hash mismatch: $hash != $PATCH_HASH" >&2; exit 1; }
+
+    # Stage only the full-model patches (0100-0141) for the FAST build; the
+    # flash base already carries 0001-0068 and re-applying them would fail.
+    mkdir -p "$src/tf-patches-full"
+    for p in "$src"/patches/*.patch; do
+      case "$(basename "$p")" in
+        01[0-4][0-9]-*) cp "$p" "$src/tf-patches-full/" ;;
+      esac
+    done
+    count=$(ls "$src/tf-patches-full" | wc -l)
+    [ "$count" = "42" ] || { echo "expected 42 full-model patches, found $count" >&2; exit 1; }
+
+    cat > "$src/Dockerfile" <<DOCKERFILE
+    FROM ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:14f15591eae5d6a540f09218d3852068962fe5381371bbfefe0e9194cd834529
+    COPY tf-patches-full /opt/tf-patches-full
+    RUN cd "\$(python -c 'import os, tensorfold; print(os.path.dirname(os.path.dirname(tensorfold.__file__)))')" && \\
+        for p in /opt/tf-patches-full/*.patch; do echo "applying \$p"; patch -p0 --forward < "\$p" || exit 1; done && \\
+        python -c "import tensorfold.cuda.server, tensorfold.families.glm_moe_dsa, tensorfold.families.glm5_next.cuda.engine"
+    ARG UPSTREAM_REV=unknown
+    LABEL tf.patches=4f3223245926 tf.base=flash-5e01f1bb74d8 \\
+          org.opencontainers.image.source="https://github.com/MiaAI-Lab/GLM-5.3-EXL3-3x-DGX-Sparks-TensorFold" \\
+          org.opencontainers.image.revision="\$UPSTREAM_REV"
+    DOCKERFILE
+    echo "prepared source=$actual patches=$PATCH_HASH (42 full-model patches on the flash base)"
+  build-image.sh: |
+    #!/bin/sh
+    set -eu
+    src=/workspace/src
+    image="local-registry.registry.svc.cluster.local:5000/homelab/glm53-full-exl3:${IMAGE_TAG}"
+    echo "building $image from $UPSTREAM_REV (patches=$PATCH_HASH)"
+    exec buildctl-daemonless.sh build \
+      --frontend dockerfile.v0 \
+      --local "context=$src" \
+      --local "dockerfile=$src" \
+      --opt "build-arg:UPSTREAM_REV=$UPSTREAM_REV" \
+      --output "type=image,name=$image,push=true,oci-mediatypes=false" \
+      --progress=plain
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: glm53-full-image-build-eb6414b-v1
+  namespace: llm-test
+  labels:
+    app.kubernetes.io/name: glm53-full-image-build
+    lane: glm53-full-3x
+    purpose: image-build
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 7200
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: glm53-full-image-build
+        lane: glm53-full-3x
+        purpose: image-build
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      # CoreDNS currently forwards through the host's 127.0.0.53 stub, which
+      # is not reachable from ordinary pod network namespaces. Keep cluster DNS
+      # first for *.svc lookups, then add the node's working upstream resolvers.
+      dnsConfig:
+        nameservers:
+          - 172.16.1.1
+          - 1.1.1.1
+      securityContext:
+        fsGroup: 1000
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values: [arm64]
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  lane: glm53-full-3x
+      initContainers:
+        - name: fetch-and-prepare
+          image: alpine/git:v2.52.0
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args: ["/build/prepare-source.sh"]
+          env:
+            - name: UPSTREAM_REV
+              value: "eb6414b488c3bc58605cad3dc96391c7584d6bec"
+            - name: PATCH_HASH
+              value: "4f3223245926"
+          resources:
+            requests: {cpu: 250m, memory: 256Mi}
+            limits: {cpu: "1", memory: 1Gi}
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - {name: workspace, mountPath: /workspace}
+            - {name: build-config, mountPath: /build, readOnly: true}
+      containers:
+        - name: buildkit
+          image: moby/buildkit:v0.26.2-rootless
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args: ["/build/build-image.sh"]
+          env:
+            - name: UPSTREAM_REV
+              value: "eb6414b488c3bc58605cad3dc96391c7584d6bec"
+            - name: PATCH_HASH
+              value: "4f3223245926"
+            - name: IMAGE_TAG
+              value: "4f3223245926"
+            - name: BUILDKITD_FLAGS
+              value: "--oci-worker-no-process-sandbox --config=/build/buildkitd.toml"
+          resources:
+            requests: {cpu: "8", memory: 32Gi, ephemeral-storage: 40Gi}
+            limits: {cpu: "12", memory: 48Gi, ephemeral-storage: 55Gi}
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            # Rootless BuildKit needs setuid newuidmap for its user namespace;
+            # keep the official rootless profile (not privileged mode).
+            seccompProfile:
+              type: Unconfined
+            appArmorProfile:
+              type: Unconfined
+          volumeMounts:
+            - {name: workspace, mountPath: /workspace, readOnly: true}
+            - {name: buildkit-state, mountPath: /home/user/.local/share/buildkit}
+            - {name: build-config, mountPath: /build, readOnly: true}
+      volumes:
+        - name: workspace
+          emptyDir:
+            sizeLimit: 1Gi
+        # The flash base image (~25 GB compressed) is pulled and unpacked into
+        # the builder state to run the patch layer on it.
+        - name: buildkit-state
+          emptyDir:
+            sizeLimit: 55Gi
+        - name: build-config
+          configMap:
+            name: glm53-full-image-build-eb6414b-v1
+            defaultMode: 0555

@@ -1,0 +1,28 @@
+# Forgejo database in the existing CNPG postgres-cluster (mc).
+# Follows the juicefs/litellm pattern: declarative Database + DatabaseRole CRs,
+# credentials come from OpenBao via the postgres-cluster app's VaultStaticSecret
+# (see apps.yaml postgres-cluster.vaultSecrets -> forgejo-postgres-creds).
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: forgejo-user
+  namespace: postgres-db
+spec:
+  cluster:
+    name: postgres-cluster
+  name: forgejo_user
+  ensure: present
+  login: true
+  passwordSecret:
+    name: forgejo-postgres-creds
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: forgejo
+  namespace: postgres-db
+spec:
+  cluster:
+    name: postgres-cluster
+  name: forgejo
+  owner: forgejo_user

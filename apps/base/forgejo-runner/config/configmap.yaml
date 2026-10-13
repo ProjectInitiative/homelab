@@ -1,0 +1,47 @@
+# Runner daemon config: labels define which jobs this runner accepts.
+# - nix-x86_64 / nix-aarch64: the build-farm labels consumed by the dotfiles
+#   workflow's per-arch matrix. Jobs run `nix build` in a nix-provided image.
+# - docker: generic CI jobs (act-compatible default image).
+# The server connection (url/uuid/token) is rendered at runtime from the VSO
+# secret via an entrypoint that execs with env (kept simple here: config reads
+# env through shell expansion in the deployment's command; if the runner
+# version lacks env interpolation, switch to `forgejo-runner register` in an
+# init container using the same secret).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: forgejo-runner-config
+  labels:
+    app: forgejo-runner
+data:
+  config.yml: |
+    log:
+      level: info
+
+    runner:
+      labels:
+        - nix-x86_64:docker://ghcr.io/projectinitiative/nixos-remote-builder:latest
+        - nix-aarch64:docker://ghcr.io/projectinitiative/nixos-remote-builder:latest
+        - docker:docker://ghcr.io/catthehacker/ubuntu:act-22.04
+      capacity: 2
+      timeout: 3h
+      # Job working dirs under /data (PVC-backed).
+      file: /data/.runner
+      envs: {}
+
+    container:
+      # Nix needs its own sandbox; job containers run unprivileged.
+      privileged: false
+      options: "-v /tmp:/tmp"
+      valid_volumes:
+        - /tmp
+      docker_host: "-"
+
+    host:
+      workdir_parent: /data/workdir
+
+    server:
+      address: ""
+      # uuid/token injected at runtime from the forgejo-runner-credentials
+      # secret (VSO). The runner also supports `forgejo-runner create-runner-file
+      # --secret ...` for offline registration; see project record.
