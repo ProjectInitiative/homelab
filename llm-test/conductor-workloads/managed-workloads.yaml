@@ -1,0 +1,92 @@
+apiVersion: conductor.projectinitiative.io/v1alpha1
+kind: ManagedWorkload
+metadata:
+  name: tensorfold-v14
+  namespace: llm-test
+spec:
+  poolRef: dgx-spark
+  desiredState: Resident
+  priority: 100
+  driver:
+    type: DeploymentSet
+    deploymentSet:
+      recoveryPolicy: RecreateTogether
+      members:
+        - name: tensorfold-v14-worker
+          role: worker
+          startOrder: 10
+          stopOrder: 20
+          replicas: 1
+          readyGate: ContainersRunning
+        - name: tensorfold-v14-head
+          role: head
+          startOrder: 20
+          stopOrder: 10
+          replicas: 1
+          readyGate: DeploymentAvailable
+  qualification:
+    serviceName: dgx-spark-backend
+    path: /health
+    timeout: 45m
+  routing:
+    serviceName: dgx-spark-backend
+    selector:
+      serving.homelab.io/alias: dgx-spark
+---
+apiVersion: conductor.projectinitiative.io/v1alpha1
+kind: ManagedWorkload
+metadata:
+  name: cygnet-classifier-amd
+  namespace: llm-test
+spec:
+  poolRef: cygnet-amd
+  desiredState: Resident
+  priority: 50
+  driver:
+    type: DeploymentSet
+    deploymentSet:
+      members:
+        - name: cygnet-classifier
+          role: classifier
+          startOrder: 10
+          stopOrder: 10
+          replicas: 1
+          readyGate: DeploymentAvailable
+  qualification:
+    serviceName: cygnet-classifier
+    path: /health
+    port: 8009
+    timeout: 10m
+  routing:
+    serviceName: cygnet-classifier
+    selector:
+      app: cygnet-classifier
+---
+apiVersion: conductor.projectinitiative.io/v1alpha1
+kind: ManagedWorkload
+metadata:
+  name: cygnet-classifier-nvidia
+  namespace: llm-test
+spec:
+  poolRef: cygnet-nvidia
+  desiredState: Resident
+  priority: 50
+  driver:
+    type: DeploymentSet
+    deploymentSet:
+      members:
+        - name: cygnet-classifier-nv
+          role: classifier
+          startOrder: 10
+          stopOrder: 10
+          replicas: 1
+          readyGate: DeploymentAvailable
+  qualification:
+    serviceName: cygnet-classifier-nv
+    path: /health
+    port: 8009
+    timeout: 10m
+  routing:
+    serviceName: cygnet-classifier-nv
+    selector:
+      app: cygnet-classifier-nv
