@@ -1,0 +1,63 @@
+apiVersion: conductor.projectinitiative.io/v1alpha1
+kind: ResourcePool
+metadata:
+  name: dgx-spark
+  namespace: llm-test
+spec:
+  managementMode: Manage
+  capacity:
+    slots: 1
+  nodeSelector:
+    ai-compute: "true"
+    nvidia.com/gpu.present: "true"
+  routing:
+    serviceName: dgx-spark-backend
+    selector:
+      serving.homelab.io/alias: dgx-spark
+  policy:
+    notReadyGracePeriod: 2m
+    requireFencing: true
+    defaultMinDwell: 15m
+    cooldown: 5m
+---
+apiVersion: conductor.projectinitiative.io/v1alpha1
+kind: ResourcePool
+metadata:
+  name: cygnet-amd
+  namespace: llm-test
+spec:
+  managementMode: Observe
+  capacity:
+    slots: 1
+  nodeSelector:
+    kubernetes.io/hostname: astrolabe
+  routing:
+    serviceName: cygnet-classifier
+    selector:
+      app: cygnet-classifier
+  policy:
+    notReadyGracePeriod: 2m
+    requireFencing: true
+    defaultMinDwell: 15m
+    cooldown: 5m
+---
+apiVersion: conductor.projectinitiative.io/v1alpha1
+kind: ResourcePool
+metadata:
+  name: cygnet-nvidia
+  namespace: llm-test
+spec:
+  managementMode: Observe
+  capacity:
+    slots: 1
+  nodeSelector:
+    kubernetes.io/hostname: chronometer
+  routing:
+    serviceName: cygnet-classifier-nv
+    selector:
+      app: cygnet-classifier-nv
+  policy:
+    notReadyGracePeriod: 2m
+    requireFencing: true
+    defaultMinDwell: 15m
+    cooldown: 5m
