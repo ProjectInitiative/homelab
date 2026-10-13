@@ -175,6 +175,25 @@ data:
 
     log = logging.getLogger("ai_gate")
 
+    # Prometheus metrics (DEC-0020/0037 observability): exported via the litellm
+    # process's /metrics (same default registry), scraped by the alloy sidecar,
+    # remote-written to dinghy. Cardinality-safe: verdict/layer/stage labels only,
+    # never content. Guarded import — the gate must run without prometheus_client.
+    try:
+        from prometheus_client import Counter, Histogram
+        M_DECISIONS = Counter("ai_gate_decisions_total", "Gate decisions", ["verdict"])
+        M_BLOCKED = Counter("ai_gate_blocked_total", "Chunks/blocks by category", ["category"])
+        M_LAYER_SCORE = Histogram("ai_gate_layer_score", "P(flag) per layer per chunk", ["layer"],
+                                  buckets=(.05, .1, .2, .3, .35, .5, .6, .7, .8, .9, .95, 1.0))
+        M_STAGE = Histogram("ai_gate_stage_seconds", "Stage latency", ["stage"],
+                            buckets=(.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 30))
+        M_CHARS = Counter("ai_gate_chars_total", "Chars scanned / redacted", ["kind"])
+        M_CACHE = Counter("ai_gate_cache_total", "Verdict-cache lookups", ["result"])
+        M_RESPONSE_REDACT = Counter("ai_gate_response_redact_total", "Post-call response spans redacted")
+        METRICS_OK = True
+    except Exception:  # noqa: BLE001
+        METRICS_OK = False
+
     URL = os.getenv("AI_GATE_URL", "")
     KEY = os.getenv("AI_GATE_KEY", "")
     FAIL_MODE = os.getenv("AI_GATE_FAIL_MODE", "closed")
@@ -614,6 +633,8 @@ data:
                         continue
                     vkey, cached = self._vget(name, c["text"])
                     jobs.append((ci, name, vkey, cached))
+                    if METRICS_OK:
+                        M_CACHE.labels("hit" if cached is not None else "miss").inc()
             async with httpx.AsyncClient(timeout=TIMEOUT_S) as client:
                 scored = await asyncio.gather(
                     *(self._score(client, name, chunks[ci]["text"], vkey, cached) for (ci, name, vkey, cached) in jobs)
@@ -630,6 +651,8 @@ data:
                 if ci in regex_flagged:
                     ps["regex"] = 1.0
                 for (cj, name, _vk, _cached), p in zip(jobs, scored):
+                    if METRICS_OK and p is not None:
+                        M_LAYER_SCORE.labels(name).observe(p)
                     if cj == ci and p is not None:
                         ps[name] = max(ps.get(name, 0.0), p)
                         if layer_max[name] is None or p > layer_max[name]:
@@ -749,10 +772,20 @@ data:
                     {n: ((round(v, 3) if v is not None else "err") if scored_any[n] else "n/a") for n, v in layer_max.items()},
                     total_chars, len(chunks), (time.perf_counter() - _t0) * 1000,
                 )
+                if METRICS_OK:
+                    M_DECISIONS.labels("allow").inc()
 
             # Decision feed (soak viewer): fire-and-forget push of the FINAL
             # reconstruction + verdicts + timing. The reconstruction is exactly what
             # would be forwarded, minus the secrets — tailnet-only UI, ring buffer.
+            if METRICS_OK:
+                M_CHARS.labels("scanned").inc(total_chars)
+                M_STAGE.labels("scan").observe(_t_scan - _t0)
+                M_STAGE.labels("score").observe(_t_scored - _t_scan)
+                M_STAGE.labels("refine").observe(_t_refine_done - _t_scored)
+                M_STAGE.labels("total").observe(time.perf_counter() - _t0)
+                if intervals:
+                    M_CHARS.labels("redacted").inc(redact_chars)
             if INSPECTOR_URL:
                 _t_end = time.perf_counter()
                 self.last_timings = {
@@ -826,6 +859,8 @@ data:
                 for name, a, b in sorted(hits, key=lambda h: -h[1]):
                     new = new[:a] + _RESPONSE_MARKER.format(category="credential-shaped material") + new[b:]
                 msg.content = new
+                if METRICS_OK:
+                    M_RESPONSE_REDACT.inc(len(hits))
                 log.warning(
                     "ai-gate: redact-response spans=%d kinds=%s chars=%d",
                     len(hits), sorted({h[0] for h in hits}), len(content),
@@ -856,7 +891,10 @@ data:
   config.alloy: |
     prometheus.scrape "litellm" {
       job_name = "litellm"
-      targets = [{ "__address__" = "127.0.0.1:8000", cluster = "mc" }]
+      # pod label (Downward API via env) makes each replica's counter series
+      # unique; without it, two pods writing identical job/cluster/instance
+      # labels collide into one flapping series and inflate increase()/rate().
+      targets = [{ "__address__" = "127.0.0.1:8000", cluster = "mc", pod = env("POD_NAME") }]
       metrics_path = "/metrics"
       scrape_interval = "30s"
       scrape_timeout = "10s"
@@ -877,9 +915,17 @@ metadata:
   labels:
     app: ai-proxy
 spec:
-  replicas: 1
+  # HA: LiteLLM here is stateless (no DB yet; config/gate-code from ConfigMaps,
+  # in-memory verdict caches are per-pod and content-addressed), so 2 replicas
+  # + surge rollout give zero-downtime restarts. maxUnavailable 0 = the old pod
+  # only retires after the new one is Ready. Tailscale LBs (ai/ai-direct) then
+  # always have >=1 ready endpoint.
+  replicas: 2
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: ai-proxy
@@ -888,11 +934,29 @@ spec:
       labels:
         app: ai-proxy
     spec:
+      # Let in-flight streams finish on the retiring pod after endpoints update.
+      terminationGracePeriodSeconds: 120
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app: ai-proxy
       containers:
         - name: litellm
-          image: ghcr.io/berriai/litellm:main-stable
+          # Digest-pinned to the currently-running build so this HA rollout
+          # cannot silently pick up a new :main-stable version. Unpin
+          # deliberately when upgrading.
+          image: ghcr.io/berriai/litellm@sha256:87f34979b9f8cb274fac90ca8a4fdda07d8480de22755562a26adeb95ce20d02
           imagePullPolicy: IfNotPresent
           args: ["--config", "/app/config.yaml", "--port", "8000"]
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "5"]
           ports:
             - name: http
               containerPort: 8000
@@ -940,6 +1004,11 @@ spec:
         - name: alloy
           image: grafana/alloy:v1.4.2
           imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           args:
             - run
             - /etc/alloy/config.alloy
@@ -972,6 +1041,17 @@ spec:
             name: ai-proxy-alloy-config
         - name: alloy-storage
           emptyDir: {}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ai-proxy
+  namespace: llm-test
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: ai-proxy
 ---
 apiVersion: v1
 kind: Service
@@ -1089,9 +1169,14 @@ metadata:
     app: ai-proxy-test
     role: gated-test-endpoint
 spec:
+  # Canary stays 1 replica, but surge-rollout (not Recreate) so its restarts
+  # are also zero-downtime.
   replicas: 1
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: ai-proxy-test
@@ -1146,6 +1231,10 @@ spec:
             # warm p95 is ~1s but the classifier JIT-compiles per prompt-shape bucket.
             - name: AI_GATE_TIMEOUT_MS
               value: "30000"
+            - name: AI_GATE_INSPECTOR_URL
+              value: http://gate-inspector.llm-test.svc.cluster.local:80
+            - name: AI_GATE_LAYERS
+              value: secret-material,prompt-injection
           volumeMounts:
             - name: config
               mountPath: /app/config.yaml
@@ -1154,6 +1243,34 @@ spec:
             - name: gate-code
               mountPath: /app/custom_guardrail
               readOnly: true
+        - name: alloy
+          image: grafana/alloy:v1.4.2
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          args:
+            - run
+            - /etc/alloy/config.alloy
+            - --storage.path=/tmp/alloy
+            - --server.http.listen-addr=127.0.0.1:12345
+            - --stability.level=generally-available
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          volumeMounts:
+            - name: alloy-config
+              mountPath: /etc/alloy/config.alloy
+              subPath: config.alloy
+              readOnly: true
+            - name: alloy-storage
+              mountPath: /tmp/alloy
       volumes:
         - name: config
           configMap:
@@ -1161,6 +1278,11 @@ spec:
         - name: gate-code
           configMap:
             name: ai-gate-code
+        - name: alloy-config
+          configMap:
+            name: ai-proxy-alloy-config
+        - name: alloy-storage
+          emptyDir: {}
 ---
 # Gated test entry: ai-gated.taildeab2.ts.net -> ai-proxy-test. Direct machine
 # identity (no proxy-group) like ai-direct; swap clients here during gate
@@ -1327,7 +1449,7 @@ data:
        <details data-key="${esc(key)}" ${feedKeys.has(key)?'open':''} ontoggle="detailToggle(this)"><summary>final reconstruction</summary>${(rec.messages||[]).map(m=>`<div class="msg"><span class="role">${esc(m.role)}</span><br>${notice(typeof m.content==='string'?m.content:JSON.stringify(m.content))}</div>`).join('')}</details>`;
       f.appendChild(c); });
      for (const k of [...feedKeys]) if (!liveKeys.has(k)) feedKeys.delete(k);  // prune evicted records
-     window.scrollTo(0, scrollY); } }
+     window.scrollTo(0, scrollY); }
     document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{ document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
      document.getElementById('tab-feed').style.display=b.dataset.tab==='feed'?'':'none'; document.getElementById('tab-play').style.display=b.dataset.tab==='play'?'':'none'; });
     renderMsgs(); loadFeed(); setInterval(loadFeed, 5000);
