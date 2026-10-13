@@ -891,9 +891,9 @@ data:
   config.alloy: |
     prometheus.scrape "litellm" {
       job_name = "litellm"
-      # pod label (Downward API via env) makes each replica's counter series
-      # unique; without it, two pods writing identical job/cluster/instance
-      # labels collide into one flapping series and inflate increase()/rate().
+      // pod label (Downward API via env) makes each replica's counter series
+      // unique; without it, two pods writing identical job/cluster/instance
+      // labels collide into one flapping series and inflate increase()/rate().
       targets = [{ "__address__" = "127.0.0.1:8000", cluster = "mc", pod = env("POD_NAME") }]
       metrics_path = "/metrics"
       scrape_interval = "30s"
