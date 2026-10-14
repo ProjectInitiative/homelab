@@ -47,6 +47,23 @@ data:
           model: openai/qwen3.8-flash-next-halogen
           api_base: http://qwen38-halogen-astrolabe.llm-test.svc.cluster.local:8000/v1
           api_key: sk-local
+      # ChatGPT/Codex subscription via the chatgpt/ provider (OAuth device
+      # flow; tokens on the shared litellm-chatgpt-tokens RWX PVC — refresh
+      # rewrites auth.json in place, so all replicas MUST share one copy).
+      # Background health checks disabled: they would burn subscription quota
+      # (and classifier calls on the -gated alias) every 30s.
+      - model_name: codex
+        litellm_params:
+          model: chatgpt/gpt-5.3-codex
+        model_info:
+          mode: responses
+          disable_background_health_check: true
+      - model_name: codex-gated
+        litellm_params:
+          model: chatgpt/gpt-5.3-codex
+        model_info:
+          mode: responses
+          disable_background_health_check: true
     general_settings:
       background_health_checks: true
       health_check_interval: 30
@@ -894,6 +911,21 @@ data:
       }
     }
 ---
+# Shared ChatGPT/Codex OAuth token store (auth.json written by the device-flow
+# login pod and rewritten in place by the proxy on refresh). RWX so both
+# ai-proxy replicas share ONE copy — per-pod copies diverge at first refresh.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: litellm-chatgpt-tokens
+  namespace: llm-test
+spec:
+  accessModes: ["ReadWriteMany"]
+  storageClassName: juicefs-sc
+  resources:
+    requests:
+      storage: 1Mi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -989,12 +1021,18 @@ spec:
             # -gated twins in model_list are scanned. Change selection by
             # requesting a different alias — no restart needed.
             - name: AI_GATE_LOCAL_MODELS
-              value: dgx-spark,qwen3.8-flash-next-halogen
+              value: dgx-spark,qwen3.8-flash-next-halogen,codex
+            - name: AI_GATE_INSPECTOR_URL
+              value: http://gate-inspector.llm-test.svc.cluster.local:80
+            - name: CHATGPT_TOKEN_DIR
+              value: /tokens/chatgpt
           volumeMounts:
             - name: config
               mountPath: /app/config.yaml
               subPath: config.yaml
               readOnly: true
+            - name: chatgpt-tokens
+              mountPath: /tokens/chatgpt
             - name: gate-code
               mountPath: /app/custom_guardrail
               readOnly: true
@@ -1030,6 +1068,9 @@ spec:
         - name: config
           configMap:
             name: ai-proxy-config
+        - name: chatgpt-tokens
+          persistentVolumeClaim:
+            claimName: litellm-chatgpt-tokens
         - name: gate-code
           configMap:
             name: ai-gate-code
