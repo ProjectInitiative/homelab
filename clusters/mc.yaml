@@ -322,6 +322,7 @@ apps:
         brokerK8sRemoteNamespace: "submariner-k8s-broker"
         brokerK8sApiServer: "control-cluster-proxy.taildeab2.ts.net"
         natEnabled: true
+        globalCidr: "242.0.0.0/16"
       ipsec:
         pskSecret: submariner-ipsec-psk
 

@@ -98,3 +98,58 @@ Then reachable from the other cluster at:
 ```
 <service>.<namespace>.svc.clusterset.local:<port>
 ```
+
+## Verified Secret Contract (submariner-operator 0.24)
+
+From operator source (release-0.24 `submariner_controller.go`), the broker
+secret named by `brokerK8sSecret` is read for exactly two keys:
+
+| Key | Format | Notes |
+|---|---|---|
+| `token` | raw SA token | overrides `brokerK8sApiServerToken` |
+| `ca.crt` | raw PEM (unencoded) | operator base64-encodes internally; may be omitted |
+
+The API server URL comes from the CR spec (`brokerK8sApiServer`), NOT the
+secret — no `brokerURL` key is consumed. `brokerK8sApiServer` must be
+scheme-less (admiral prepends `https://`).
+
+PSK secret: literal key `psk` (libreswan mounts
+`/var/run/secrets/submariner.io/<secretName>/psk`).
+
+Values are stored RAW in OpenBao KV (`k8s/submariner/broker-info`,
+`k8s/submariner/ipsec-psk`) — VSO base64-encodes at sync time.
+
+## OpenBao Namespace Gotcha
+
+OpenBao runs with enterprise-style namespaces (`production`). Every
+VaultAuth/VaultStaticSecret MUST set `namespace: production` (apps.yaml
+`vaultSecrets.namespace`); without it VSO authenticates against the root
+namespace where no kubernetes_cluster_* mounts exist → 403 permission
+denied.
+
+## Broker RBAC
+
+The token stored in broker-info is for SA `submariner-broker-admin` in
+cc's `submariner-k8s-broker` namespace. It needs a Role (RoleBinding) in
+that namespace covering submariner.io clusters/endpoints + core secrets/
+configmaps/serviceaccounts + lighthouse serviceexports/serviceimports.
+
+## Gateway Nodes
+
+The submariner-gateway DaemonSet only schedules on nodes labeled
+`submariner.io/gateway=true`. mc: capstan1 labeled. cc: needs one labeled
+node once its operator comes up.
+
+## Gateway Node Labels (HA)
+
+The submariner-gateway DaemonSet schedules only on nodes labeled
+`submariner.io/gateway=true`. All nodes on both clusters are labeled for
+active/passive HA: every node runs a gateway pod, exactly one is ACTIVE,
+the rest passive; leader election fails over automatically.
+
+To keep this declarative, the label must be set at node provisioning time:
+- mc (NixOS): add to `dotfiles` k3s `--node-label submariner.io/gateway=true`
+- cc (VPS): add to the k3s install args
+
+If a node is added without the label, the gateway DS won't schedule there
+(degraded HA, not broken mesh).

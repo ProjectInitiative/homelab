@@ -145,14 +145,14 @@ apps:
     namespace: kube-system
   - name: submariner-k8s-broker
     namespace: submariner-k8s-broker
+  - name: submariner-globalnet
+    namespace: submariner-k8s-broker
   - name: submariner-operator
     namespace: submariner-operator
     helm_values: |
       broker:
-        server: https://kubernetes.default.svc
+        server: kubernetes.default.svc:443
         namespace: submariner-k8s-broker
-        token: ""
-        ca: ""
         globalnet: true
         insecure: true
       ipsec:
@@ -162,7 +162,11 @@ apps:
         clusterId: "cc"
         clusterCidr: "10.42.0.0/16"
         serviceCidr: "10.43.0.0/16"
+        brokerK8sSecret: "submariner-broker-info"
+        brokerK8sRemoteNamespace: "submariner-k8s-broker"
+        brokerK8sApiServer: "kubernetes.default.svc:443"
         natEnabled: true
+        globalCidr: "242.1.0.0/16"
 
   - name: mcp-kubernetes
     namespace: mcp-system
