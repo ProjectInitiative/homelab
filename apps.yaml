@@ -667,6 +667,54 @@ catalog:
         - CreateNamespace=true
         - ServerSideApply=true
 
+  # Adopt the existing LiteLLM gateway, test proxy, inspector, telemetry, and
+  # stable backend Service without changing their live specifications. Initial
+  # sync is deliberately manual and non-pruning for a safe ownership handoff.
+  ai-proxy:
+    path: llm-test/miaai-parity
+    annotations:
+      argocd.argoproj.io/sync-wave: "120"
+    syncPolicy:
+      automated:
+        prune: false
+        selfHeal: true
+      # Initial adoption intentionally uses Argo's default client-side apply:
+      # the live resources are owned by kubectl-client-side-apply, and forcing
+      # SSA conflicts would be an unnecessary risk during ownership handoff.
+      syncOptions: []
+
+  # External controller-runtime operator. The immutable source revision itself
+  # pins an immutable multi-arch image and starts the pool in Observe mode.
+  conductor:
+    repoURL: https://github.com/ProjectInitiative/conductor.git
+    targetRevision: 818aa571cbc98904b37f0a232aca1adeebd7d05a
+    path: generator
+    plugin:
+      name: cdk8s-v1.0
+    annotations:
+      argocd.argoproj.io/sync-wave: "121"
+    syncPolicy:
+      automated:
+        prune: false
+        selfHeal: true
+      syncOptions:
+        - ServerSideApply=true
+
+  # Homelab-owned Conductor policy. This is intentionally separate from the
+  # operator package so Manage/Observe and workload membership changes do not
+  # require a Conductor code or image revision.
+  conductor-workloads:
+    path: llm-test/conductor-workloads
+    annotations:
+      argocd.argoproj.io/sync-wave: "122"
+    syncPolicy:
+      automated:
+        prune: false
+        selfHeal: true
+      syncOptions:
+        - ServerSideApply=true
+        - SkipDryRunOnMissingResource=true
+
   # Apps
   tailscale-proxy-groups:
     path: apps/base/tailscale-proxy-groups/config
