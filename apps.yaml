@@ -625,7 +625,7 @@ catalog:
     sources:
       - repoURL: https://submariner-io.github.io/submariner-charts/charts
         chart: submariner-k8s-broker
-        targetRevision: 0.7.0
+        targetRevision: 0.24.0
     syncPolicy:
       syncOptions:
         - CreateNamespace=true
