@@ -163,8 +163,6 @@ apps:
         clusterCidr: "10.42.0.0/16"
         serviceCidr: "10.43.0.0/16"
         brokerK8sSecret: "submariner-broker-info"
-        brokerK8sRemoteNamespace: "submariner-k8s-broker"
-        brokerK8sApiServer: "kubernetes.default.svc:443"
         natEnabled: true
         globalCidr: "242.1.0.0/16"
 

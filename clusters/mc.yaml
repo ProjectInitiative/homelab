@@ -314,17 +314,23 @@ apps:
   - name: submariner-operator
     namespace: submariner-operator
     helm_values: |
+      broker:
+        server: control-cluster-proxy.taildeab2.ts.net
+        namespace: submariner-k8s-broker
+        globalnet: true
+        # Proxy serves a Let's Encrypt cert; broker secret ca.crt is cc's k3s CA.
+        # Skip validation (tailnet-encrypted path) — same rationale as the OpenBao cc mount.
+        insecure: true
+      ipsec:
+        pskSecret: submariner-ipsec-psk
+        debug: false
       submariner:
         clusterId: "mc"
         clusterCidr: "10.42.0.0/16"
         serviceCidr: "10.43.0.0/16"
         brokerK8sSecret: "submariner-broker-info"
-        brokerK8sRemoteNamespace: "submariner-k8s-broker"
-        brokerK8sApiServer: "control-cluster-proxy.taildeab2.ts.net"
         natEnabled: true
         globalCidr: "242.0.0.0/16"
-      ipsec:
-        pskSecret: submariner-ipsec-psk
 
   - name: argo
     namespace: argo
