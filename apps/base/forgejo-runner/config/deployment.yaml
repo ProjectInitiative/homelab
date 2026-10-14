@@ -4,9 +4,9 @@
 # - label type `host` is NOT used; instead we run the runner inside a pod and
 #   let jobs use a nix-capable container image (docker label). Nix does its own
 #   sandboxing, so no DinD/privileged is required for `nix build` itself.
-# - One runner per arch: x86_64 (capstan1) and aarch64 (sextant). The same
-#   Deployment is instantiated twice via cluster patches changing
-#   spec.template.spec.nodeSelector (see clusters/mc.yaml).
+# - Two runners: x86_64 (capstan1, this file; pinned via clusters/mc.yaml
+#   patch) and aarch64 (apps/base/forgejo-runner-arm, sextant baked in).
+#   Distinct config dirs so the two Argo apps never share resource names.
 # - Runner credentials (uuid/token) come from OpenBao via VSO
 #   (forgejo-runner/credentials) so re-registration is a secret rotate, not a
 #   gitops edit. Offline registration flow: forgejo forgejo-cli actions

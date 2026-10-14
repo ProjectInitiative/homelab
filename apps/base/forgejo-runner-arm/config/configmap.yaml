@@ -1,0 +1,41 @@
+# Runner daemon config for the aarch64 runner (sextant).
+# Labels define which jobs this runner accepts: arm builds + generic docker.
+# The x86_64 runner (apps/base/forgejo-runner) keeps nix-x86_64 + the
+# remote-builder-image labels for cross-arch builds.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: forgejo-runner-arm-config
+  labels:
+    app: forgejo-runner-arm
+data:
+  config.yml: |
+    log:
+      level: info
+
+    runner:
+      labels:
+        - nix-aarch64:docker://ghcr.io/projectinitiative/nixos-remote-builder:latest
+        - docker:docker://ghcr.io/catthehacker/ubuntu:act-22.04
+      capacity: 2
+      timeout: 3h
+      # Job working dirs under /data (PVC-backed).
+      file: /data/.runner
+      envs: {}
+
+    container:
+      # Nix needs its own sandbox; job containers run unprivileged.
+      privileged: false
+      options: "-v /tmp:/tmp"
+      valid_volumes:
+        - /tmp
+      docker_host: "-"
+
+    host:
+      workdir_parent: /data/workdir
+
+    server:
+      address: ""
+      # uuid/token injected at runtime from the forgejo-runner-arm-credentials
+      # secret (VSO). The runner also supports `forgejo-runner create-runner-file
+      # --secret ...` for offline registration; see project record.

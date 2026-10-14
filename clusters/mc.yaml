@@ -302,15 +302,7 @@ apps:
           name: forgejo-runner
   - name: forgejo-runner-arm
     namespace: forgejo
-    patches:
-      - patch: |-
-          - op: add
-            path: /spec/template/spec/nodeSelector
-            value:
-              kubernetes.io/hostname: sextant
-        target:
-          kind: Deployment
-          name: forgejo-runner
+    # sextant nodeSelector is baked into apps/base/forgejo-runner-arm/config.
   - name: submariner-operator
     namespace: submariner-operator
     helm_values: |
