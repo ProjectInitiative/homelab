@@ -1,0 +1,30 @@
+{
+  "spec": {
+    "containers": [
+      {
+        "name": "chatgpt-login",
+        "image": "ghcr.io/berriai/litellm@sha256:87f34979b9f8cb274fac90ca8a4fdda07d8480de22755562a26adeb95ce20d02",
+        "stdin": true,
+        "stdinOnce": true,
+        "tty": true,
+        "command": [
+          "python3",
+          "-c",
+          "from litellm.llms.chatgpt.authenticator import Authenticator; Authenticator().get_access_token()"
+        ],
+        "env": [
+          { "name": "CHATGPT_TOKEN_DIR", "value": "/tokens/chatgpt" }
+        ],
+        "volumeMounts": [
+          { "name": "tokens", "mountPath": "/tokens/chatgpt" }
+        ]
+      }
+    ],
+    "volumes": [
+      {
+        "name": "tokens",
+        "persistentVolumeClaim": { "claimName": "litellm-chatgpt-tokens" }
+      }
+    ]
+  }
+}
