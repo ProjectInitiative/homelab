@@ -52,15 +52,20 @@ data:
       # rewrites auth.json in place, so all replicas MUST share one copy).
       # Background health checks disabled: they would burn subscription quota
       # (and classifier calls on the -gated alias) every 30s.
+      # Model: gpt-5.3-codex et al. are REJECTED by the backend ("not
+      # supported when using Codex with a ChatGPT account") — the Plus-plan
+      # lineup rotates; gpt-5.6-sol verified working 2026-10-14 (probe:
+      # codex-model-probe.py + codex-model-probe ConfigMap). Re-probe when
+      # the lineup changes.
       - model_name: codex
         litellm_params:
-          model: chatgpt/gpt-5.3-codex
+          model: chatgpt/gpt-5.6-sol
         model_info:
           mode: responses
           disable_background_health_check: true
       - model_name: codex-gated
         litellm_params:
-          model: chatgpt/gpt-5.3-codex
+          model: chatgpt/gpt-5.6-sol
         model_info:
           mode: responses
           disable_background_health_check: true
