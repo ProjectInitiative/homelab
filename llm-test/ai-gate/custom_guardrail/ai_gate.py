@@ -57,9 +57,13 @@ Env:
   AI_GATE_HIGH             redact threshold (default 0.80)
   AI_GATE_FORCE_LOCAL_MODEL  model alias to rewrite borderline requests to; empty =
                            degrade borderline to redact (test phase, all-local proxy)
-  AI_GATE_LOCAL_MODELS     comma list of models exempt from scanning (production);
-                           used for gated-vs-ungated model selection: ungated aliases
-                           (e.g. dgx-spark) are exempt, -gated aliases are scanned
+  AI_GATE_LOCAL_MODELS     comma list of models exempt from scanning (legacy;
+                           superseded by AI_GATE_GATED_SUFFIX on the main proxy)
+  AI_GATE_GATED_SUFFIX     when set (e.g. "-gated"), ONLY models whose alias
+                           ends with this suffix are scanned — enables zero-
+                           maintenance gated/ungated selection for auto-
+                           discovered model sets; leave unset on the canary
+                           (ai-proxy-test scans everything)
                            empty = police all routes (test phase)
 """
 
@@ -89,6 +93,15 @@ LOW = float(os.getenv("AI_GATE_LOW", "0.35"))
 HIGH = float(os.getenv("AI_GATE_HIGH", "0.80"))
 FORCE_LOCAL_MODEL = os.getenv("AI_GATE_FORCE_LOCAL_MODEL", "")
 LOCAL_MODELS = {m.strip() for m in os.getenv("AI_GATE_LOCAL_MODELS", "").split(",") if m.strip()}
+GATED_SUFFIX = os.getenv("AI_GATE_GATED_SUFFIX", "")
+
+
+def _is_gated(model: object) -> bool:
+    """Suffix rule when configured (auto-discovered sets), else exempt-list rule."""
+    m = str(model or "")
+    if GATED_SUFFIX:
+        return m.endswith(GATED_SUFFIX)
+    return m not in LOCAL_MODELS
 # Decision-feed target (gate-inspector): every redact/allow is pushed there
 # fire-and-forget with the final reconstruction, for the soak viewer. Empty = off.
 INSPECTOR_URL = os.getenv("AI_GATE_INSPECTOR_URL", "")
@@ -480,8 +493,8 @@ class AiGate(CustomLogger):
             if FAIL_MODE == "closed":
                 raise self._reject("sensitive")
             return data
-        if data.get("model") in LOCAL_MODELS:
-            return data  # production exemption (DEC-0020: gate polices egress)
+        if _is_gated(data.get("model")) is False:
+            return data  # ungated alias (suffix rule or exemption list)
         _t0 = time.perf_counter()
 
         # Collect (msg_idx, part_idx, role, text) for every text part.
@@ -715,7 +728,7 @@ class AiGate(CustomLogger):
     # ---- post-call: response-side exfil scan (DEC-0037 §5) ------------------
 
     async def async_post_call_success_hook(self, data: dict, user_api_key_dict: Any, response: Any) -> Any:
-        if DISABLED or data.get("model") in LOCAL_MODELS:
+        if DISABLED or _is_gated(data.get("model")) is False:
             return response  # exempt aliases skip response-side redaction too
         if response is None or not hasattr(response, "choices"):
             return response
