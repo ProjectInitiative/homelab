@@ -58,6 +58,8 @@ Env:
   AI_GATE_FORCE_LOCAL_MODEL  model alias to rewrite borderline requests to; empty =
                            degrade borderline to redact (test phase, all-local proxy)
   AI_GATE_LOCAL_MODELS     comma list of models exempt from scanning (production);
+                           used for gated-vs-ungated model selection: ungated aliases
+                           (e.g. dgx-spark) are exempt, -gated aliases are scanned
                            empty = police all routes (test phase)
 """
 
@@ -713,7 +715,9 @@ class AiGate(CustomLogger):
     # ---- post-call: response-side exfil scan (DEC-0037 §5) ------------------
 
     async def async_post_call_success_hook(self, data: dict, user_api_key_dict: Any, response: Any) -> Any:
-        if DISABLED or response is None or not hasattr(response, "choices"):
+        if DISABLED or data.get("model") in LOCAL_MODELS:
+            return response  # exempt aliases skip response-side redaction too
+        if response is None or not hasattr(response, "choices"):
             return response
         for choice in getattr(response, "choices", []) or []:
             msg = getattr(choice, "message", None)

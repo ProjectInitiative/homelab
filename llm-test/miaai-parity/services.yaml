@@ -29,6 +29,24 @@ data:
           model: openai/qwen3.8-flash-next-halogen
           api_base: http://qwen38-halogen-astrolabe.llm-test.svc.cluster.local:8000/v1
           api_key: sk-local
+      # GATED twins: same upstreams, ai-gate active (secret-material +
+      # prompt-injection). Ungated aliases above are exempt via
+      # AI_GATE_LOCAL_MODELS — selection is by model name, so clients pick the
+      # policy per request and keep a fallback if the gate breaks.
+      - model_name: dgx-spark-gated
+        litellm_params:
+          model: hosted_vllm/GLM-5.3-Flash-EXL3
+          api_base: http://dgx-spark-backend.llm-test.svc.cluster.local:8000/v1
+          api_key: sk-local
+        model_info:
+          max_input_tokens: 512000
+          max_output_tokens: 32768
+          max_tokens: 512000
+      - model_name: qwen3.8-flash-next-halogen-gated
+        litellm_params:
+          model: openai/qwen3.8-flash-next-halogen
+          api_base: http://qwen38-halogen-astrolabe.llm-test.svc.cluster.local:8000/v1
+          api_key: sk-local
     general_settings:
       background_health_checks: true
       health_check_interval: 30
@@ -36,12 +54,12 @@ data:
       health_check_ignore_transient_errors: true
       # When the DB is added later, persist usage/spend logs but not prompts.
       store_prompts_in_spend_logs: false
-    # NOTE: the sensitivity gate is NOT enabled on the production ai-proxy.
-    # Gated testing runs on the parallel ai-proxy-test Deployment + ai-gated
-    # Tailscale LB (same file, bottom) so tuning can never lock out the
-    # unrestricted endpoint. Flip ai-proxy over only after the canary soak.
+    # Sensitivity gate LIVE with per-model selection: plain aliases exempt
+    # (AI_GATE_LOCAL_MODELS), -gated twins scanned. Canaried on ai-proxy-test
+    # / ai-gated (DEC-0037 soak) before this flip.
     litellm_settings:
       callbacks:
+        - custom_guardrail.ai_gate.proxy_handler_instance
         - prometheus
       # This proxy is already tailnet-only. Alloy scrapes it from the same Pod.
       require_auth_for_metrics_endpoint: false
@@ -157,6 +175,8 @@ data:
       AI_GATE_FORCE_LOCAL_MODEL  model alias to rewrite borderline requests to; empty =
                                degrade borderline to redact (test phase, all-local proxy)
       AI_GATE_LOCAL_MODELS     comma list of models exempt from scanning (production);
+                               used for gated-vs-ungated model selection: ungated aliases
+                               (e.g. dgx-spark) are exempt, -gated aliases are scanned
                                empty = police all routes (test phase)
     """
 
@@ -175,25 +195,6 @@ data:
     from litellm.proxy._types import UserAPIKeyAuth
 
     log = logging.getLogger("ai_gate")
-
-    # Prometheus metrics (DEC-0020/0037 observability): exported via the litellm
-    # process's /metrics (same default registry), scraped by the alloy sidecar,
-    # remote-written to dinghy. Cardinality-safe: verdict/layer/stage labels only,
-    # never content. Guarded import — the gate must run without prometheus_client.
-    try:
-        from prometheus_client import Counter, Histogram
-        M_DECISIONS = Counter("ai_gate_decisions_total", "Gate decisions", ["verdict"])
-        M_BLOCKED = Counter("ai_gate_blocked_total", "Chunks/blocks by category", ["category"])
-        M_LAYER_SCORE = Histogram("ai_gate_layer_score", "P(flag) per layer per chunk", ["layer"],
-                                  buckets=(.05, .1, .2, .3, .35, .5, .6, .7, .8, .9, .95, 1.0))
-        M_STAGE = Histogram("ai_gate_stage_seconds", "Stage latency", ["stage"],
-                            buckets=(.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 30))
-        M_CHARS = Counter("ai_gate_chars_total", "Chars scanned / redacted", ["kind"])
-        M_CACHE = Counter("ai_gate_cache_total", "Verdict-cache lookups", ["result"])
-        M_RESPONSE_REDACT = Counter("ai_gate_response_redact_total", "Post-call response spans redacted")
-        METRICS_OK = True
-    except Exception:  # noqa: BLE001
-        METRICS_OK = False
 
     URL = os.getenv("AI_GATE_URL", "")
     KEY = os.getenv("AI_GATE_KEY", "")
@@ -634,8 +635,6 @@ data:
                         continue
                     vkey, cached = self._vget(name, c["text"])
                     jobs.append((ci, name, vkey, cached))
-                    if METRICS_OK:
-                        M_CACHE.labels("hit" if cached is not None else "miss").inc()
             async with httpx.AsyncClient(timeout=TIMEOUT_S) as client:
                 scored = await asyncio.gather(
                     *(self._score(client, name, chunks[ci]["text"], vkey, cached) for (ci, name, vkey, cached) in jobs)
@@ -652,8 +651,6 @@ data:
                 if ci in regex_flagged:
                     ps["regex"] = 1.0
                 for (cj, name, _vk, _cached), p in zip(jobs, scored):
-                    if METRICS_OK and p is not None:
-                        M_LAYER_SCORE.labels(name).observe(p)
                     if cj == ci and p is not None:
                         ps[name] = max(ps.get(name, 0.0), p)
                         if layer_max[name] is None or p > layer_max[name]:
@@ -773,20 +770,10 @@ data:
                     {n: ((round(v, 3) if v is not None else "err") if scored_any[n] else "n/a") for n, v in layer_max.items()},
                     total_chars, len(chunks), (time.perf_counter() - _t0) * 1000,
                 )
-                if METRICS_OK:
-                    M_DECISIONS.labels("allow").inc()
 
             # Decision feed (soak viewer): fire-and-forget push of the FINAL
             # reconstruction + verdicts + timing. The reconstruction is exactly what
             # would be forwarded, minus the secrets — tailnet-only UI, ring buffer.
-            if METRICS_OK:
-                M_CHARS.labels("scanned").inc(total_chars)
-                M_STAGE.labels("scan").observe(_t_scan - _t0)
-                M_STAGE.labels("score").observe(_t_scored - _t_scan)
-                M_STAGE.labels("refine").observe(_t_refine_done - _t_scored)
-                M_STAGE.labels("total").observe(time.perf_counter() - _t0)
-                if intervals:
-                    M_CHARS.labels("redacted").inc(redact_chars)
             if INSPECTOR_URL:
                 _t_end = time.perf_counter()
                 self.last_timings = {
@@ -845,7 +832,9 @@ data:
         # ---- post-call: response-side exfil scan (DEC-0037 §5) ------------------
 
         async def async_post_call_success_hook(self, data: dict, user_api_key_dict: Any, response: Any) -> Any:
-            if DISABLED or response is None or not hasattr(response, "choices"):
+            if DISABLED or data.get("model") in LOCAL_MODELS:
+                return response  # exempt aliases skip response-side redaction too
+            if response is None or not hasattr(response, "choices"):
                 return response
             for choice in getattr(response, "choices", []) or []:
                 msg = getattr(choice, "message", None)
@@ -860,8 +849,6 @@ data:
                 for name, a, b in sorted(hits, key=lambda h: -h[1]):
                     new = new[:a] + _RESPONSE_MARKER.format(category="credential-shaped material") + new[b:]
                 msg.content = new
-                if METRICS_OK:
-                    M_RESPONSE_REDACT.inc(len(hits))
                 log.warning(
                     "ai-gate: redact-response spans=%d kinds=%s chars=%d",
                     len(hits), sorted({h[0] for h in hits}), len(content),
@@ -881,7 +868,6 @@ data:
     # LiteLLM requires an INSTANCE here, not the class:
     #   callbacks: ["custom_guardrail.ai_gate.proxy_handler_instance", ...]
     proxy_handler_instance = AiGate()
-
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -994,6 +980,16 @@ spec:
               value: http://cygnet-gate.llm-test.svc.cluster.local:8009/v1/systemone
             - name: AI_GATE_FAIL_MODE
               value: closed
+            # 3 concurrent cold-JIT prompt shapes exceeded 5s on first hit.
+            - name: AI_GATE_TIMEOUT_MS
+              value: "30000"
+            - name: AI_GATE_LAYERS
+              value: secret-material,prompt-injection
+            # Per-model gating: these plain aliases bypass the gate; the
+            # -gated twins in model_list are scanned. Change selection by
+            # requesting a different alias — no restart needed.
+            - name: AI_GATE_LOCAL_MODELS
+              value: dgx-spark,qwen3.8-flash-next-halogen
           volumeMounts:
             - name: config
               mountPath: /app/config.yaml
