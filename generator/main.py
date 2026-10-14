@@ -33,6 +33,17 @@ catalog = apps_catalog.get("catalog", {})
 
 def apply_patch_to_source(src_obj, patch_content, patch_target=None):
     """Add a Kustomize patch to an Argo CD source's kustomize config."""
+    if "chart" in src_obj:
+        # A chart source is rendered via Helm; a kustomize block on the same
+        # source makes the CMP fail with "multiple application sources
+        # defined: Kustomize,Helm". Patch helm-rendered output via helm
+        # values instead (or use the kustomized-git-helm plugin).
+        print(
+            f"  [WARN] Patch applied to a Helm chart source ({src_obj.get('chart')}); "
+            "the generated source will mix kustomize+helm and the CMP will "
+            "reject it. Prefer helm values.",
+            file=sys.stderr,
+        )
     if "kustomize" not in src_obj:
         src_obj["kustomize"] = {}
     patch_entry = {"patch": patch_content}
@@ -296,13 +307,23 @@ class ClusterAppsChart(Chart):
         if app_def.get("critical", False):
             if sources:
                 primary_src = sources[0]
-                if "plugin" not in primary_src:
-                    primary_src["plugin"] = {}
-                if "env" not in primary_src["plugin"]:
-                    primary_src["plugin"]["env"] = []
-                primary_src["plugin"]["env"].append(
-                    {"name": "ADD_PROTECTED_LABEL", "value": "true"}
-                )
+                if "plugin" in primary_src:
+                    # The kustomized-git-helm CMP consumes ADD_PROTECTED_LABEL
+                    # env and adds the label as a kustomize commonLabel.
+                    if "env" not in primary_src["plugin"]:
+                        primary_src["plugin"]["env"] = []
+                    primary_src["plugin"]["env"].append(
+                        {"name": "ADD_PROTECTED_LABEL", "value": "true"}
+                    )
+                else:
+                    # Plain kustomize/chart sources cannot also declare a
+                    # plugin block (CMP: "multiple application sources
+                    # defined"). Add the protection label via kustomize
+                    # commonLabels instead — same end state (the PDB selector
+                    # matches pods carrying policy.homelab.io/protected).
+                    kust = primary_src.setdefault("kustomize", {})
+                    labels = kust.setdefault("commonLabels", {})
+                    labels["policy.homelab.io/protected"] = "true"
 
             pdb_source = {
                 "repoURL": "https://github.com/projectinitiative/homelab.git",

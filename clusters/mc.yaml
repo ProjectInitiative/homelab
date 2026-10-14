@@ -53,23 +53,8 @@ apps:
     namespace: kubevirt
   - name: tailscale-operator
     namespace: tailscale
-    patches:
-      - patch: |-
-          apiVersion: apps/v1
-          kind: Deployment
-          metadata:
-            name: operator
-          spec:
-            template:
-              spec:
-                containers:
-                  - name: operator
-                    env:
-                      - name: OPERATOR_HOSTNAME
-                        value: mc-tailscale-operator
-        target:
-          kind: Deployment
-          name: operator
+    # OPERATOR_HOSTNAME moved to helm values (apps.yaml): a kustomize patch on
+    # a chart source makes the CMP fail ("Kustomize,Helm").
   - name: openbao
     namespace: openbao
   - name: openbao-auth-config
