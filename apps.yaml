@@ -892,10 +892,12 @@ catalog:
         - CreateNamespace=true
         - ServerSideApply=true
 
-  # aarch64 runner: same manifests, pinned to sextant via cluster patch.
+  # aarch64 runner: separate config dir (forgejo-runner-arm) pinned to sextant.
+  # The old setup deployed the same base twice into one namespace; the two
+  # apps fought over one Deployment while PVCs bound to the other node.
   # OpenBao path forgejo/runner-arm carries the arch-specific credentials.
   forgejo-runner-arm:
-    path: apps/base/forgejo-runner/config
+    path: apps/base/forgejo-runner-arm/config
     annotations:
       argocd.argoproj.io/sync-wave: "120"
     vaultSecrets:
@@ -905,10 +907,10 @@ catalog:
       audiences:
         - vault
       secrets:
-        - name: forgejo-runner-credentials
+        - name: forgejo-runner-arm-credentials
           mount: k8s
           path: "forgejo/runner-arm"
-          destination: "forgejo-runner-credentials"
+          destination: "forgejo-runner-arm-credentials"
           overwrite: true
     syncPolicy:
       automated:

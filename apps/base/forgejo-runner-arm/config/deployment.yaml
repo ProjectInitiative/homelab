@@ -1,0 +1,117 @@
+# Forgejo aarch64 runner for the dotfiles nix build pipeline.
+#
+# Separate config dir from apps/base/forgejo-runner (the x86_64 variant):
+# both apps used to deploy the SAME base with identical resource names into
+# the forgejo namespace, so the two Argo apps fought over one Deployment
+# while the PVCs stayed bound to the other node's PVs (both apps Degraded).
+# Distinct names let both runners coexist; sextant is baked in here.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: forgejo-runner-arm
+  labels:
+    app: forgejo-runner-arm
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: forgejo-runner-arm
+  template:
+    metadata:
+      labels:
+        app: forgejo-runner-arm
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      nodeSelector:
+        kubernetes.io/hostname: sextant
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: runner
+          image: code.forgejo.org/forgejo/runner:6.3.1
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              mkdir -p /data /config
+              cp /config-src/config.yml /config/config.yml
+              chown -R 1000:1000 /data /config
+              exec forgejo-runner daemon --config /config/config.yml
+          env:
+            - name: RUNNER_UUID
+              valueFrom:
+                secretKeyRef:
+                  name: forgejo-runner-arm-credentials
+                  key: uuid
+            - name: RUNNER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: forgejo-runner-arm-credentials
+                  key: token
+          volumeMounts:
+            - name: config
+              mountPath: /config-src
+              readOnly: true
+            - name: data
+              mountPath: /data
+            - name: nix-store
+              mountPath: /nix
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "8"
+              memory: 16Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: config
+          configMap:
+            name: forgejo-runner-arm-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: forgejo-runner-arm-cache
+        - name: nix-store
+          persistentVolumeClaim:
+            claimName: forgejo-runner-arm-nix
+        - name: tmp
+          emptyDir:
+            sizeLimit: 8Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: forgejo-runner-arm-cache
+  labels:
+    app: forgejo-runner-arm
+  annotations:
+    argocd.argoproj.io/sync-options: Delete=false
+spec:
+  storageClassName: local-path-nvme-sticky
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: forgejo-runner-arm-nix
+  labels:
+    app: forgejo-runner-arm
+  annotations:
+    argocd.argoproj.io/sync-options: Delete=false
+spec:
+  storageClassName: local-path-nvme-sticky
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 100Gi
