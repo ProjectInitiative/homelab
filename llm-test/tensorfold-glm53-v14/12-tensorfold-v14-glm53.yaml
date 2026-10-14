@@ -1,13 +1,13 @@
 # TensorFold GLM-5.3-Flash current recipe lane (v1.10 runtime; legacy v14 resource names).
 #
 # Kubernetes port of the MiaAI Lab recipe
-# GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold @ 549fdc5 (v1.10 release
-# marker): TensorFold v0.6.0 with 96 patches baked into the published GHCR
-# image (patches a1897d591f70), DFlash2 + copy drafts, 4-bit dense weights,
+# GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold @ 3fd60df (latest reviewed
+# upstream state): published TensorFold v0.6.0 image e66c657a433d with the
+# latest 107-patch runtime, DFlash2 + copy drafts, 4-bit dense weights,
 # FP8 KV, vision, smoother concurrent streaming/fill, and RoCE all-gather.
 #
 #   Image:   ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold
-#            @sha256:bc34d7d63f978cf601f42863b284bc95a567c50c10e9adb0866a635be568bf5f
+#            @sha256:14b5072e8e9918f1080153f57321415a387bc7d78cf9c9b44a7aeae2d4399ccf
 #            (upstream-pinned v1.10 arm64 image, tf.patches=a1897d591f70)
 #   Model:   Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold
 #            @ 078455ffe6472f9a52fbc1139f58b9db2881b25c — MiaAI's v1.4
@@ -15,7 +15,7 @@
 #   Draft:   incoai/GLM-5.3-Flash-DFlash2
 #            @ bf582e4eacc1810f76656d1811693ff6c6737d2a (unchanged from v1.2).
 #   KV pool: MEMORY_RESERVE_GIB=14.5 / KV_POOL_GIB=12.5 -> ~2.1–2.9M tokens
-#            shared FP8 pool, 1,048,576-token window, 4 streams.
+#            shared FP8 pool, 750,000-token window, 4 streams.
 #
 # Fabric adaptation (same contract as the glm53 EXL3 and prior TensorFold lanes):
 #   - Capability scheduling: `nvidia-rdma` RuntimeClass + required hostname
@@ -216,7 +216,7 @@ data:
       --name GLM-5.3-Flash-EXL3 \
       --host 0.0.0.0 --port 8000 \
       --drafter "$DRAFTER_SNAP" \
-      --context 1048576 --parallel 4 --max-tokens 32768 --thinking --vision
+      --context 750000 --parallel 4 --max-tokens 32768 --thinking --vision
   launch-worker.sh: |-
     #!/usr/bin/env bash
     set -euo pipefail
@@ -233,7 +233,7 @@ data:
       --tp 2 --rank 1 \
       --master "$PEER_CONTROL_IP" --master-port 29551 \
       --drafter "$DRAFTER_SNAP" \
-      --context 1048576 --parallel 4 --max-tokens 32768 --thinking --vision
+      --context 750000 --parallel 4 --max-tokens 32768 --thinking --vision
 ---
 apiVersion: v1
 kind: Service
@@ -340,7 +340,7 @@ spec:
               topologyKey: kubernetes.io/hostname
       initContainers:
         - name: stage-model-cache
-          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:bc34d7d63f978cf601f42863b284bc95a567c50c10e9adb0866a635be568bf5f
+          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:14b5072e8e9918f1080153f57321415a387bc7d78cf9c9b44a7aeae2d4399ccf
           imagePullPolicy: IfNotPresent
           env:
             - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
@@ -362,7 +362,7 @@ spec:
               mountPath: /models
               readOnly: true
         - name: checkpoint-check
-          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:bc34d7d63f978cf601f42863b284bc95a567c50c10e9adb0866a635be568bf5f
+          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:14b5072e8e9918f1080153f57321415a387bc7d78cf9c9b44a7aeae2d4399ccf
           imagePullPolicy: IfNotPresent
           env:
             - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
@@ -377,7 +377,7 @@ spec:
         # Must be the final init step: these Sparks retain VM cache after a
         # large model exits, and TensorFold sizes its pool from MemAvailable.
         - name: reclaim-vm-cache
-          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:bc34d7d63f978cf601f42863b284bc95a567c50c10e9adb0866a635be568bf5f
+          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:14b5072e8e9918f1080153f57321415a387bc7d78cf9c9b44a7aeae2d4399ccf
           imagePullPolicy: IfNotPresent
           env:
             - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
@@ -404,7 +404,7 @@ spec:
               exit 1
       containers:
         - name: tensorfold
-          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:bc34d7d63f978cf601f42863b284bc95a567c50c10e9adb0866a635be568bf5f
+          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:14b5072e8e9918f1080153f57321415a387bc7d78cf9c9b44a7aeae2d4399ccf
           imagePullPolicy: IfNotPresent
           command: ["bash", "/launch/launch-worker.sh"]
           securityContext:
@@ -584,7 +584,7 @@ spec:
               topologyKey: kubernetes.io/hostname
       initContainers:
         - name: stage-model-cache
-          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:bc34d7d63f978cf601f42863b284bc95a567c50c10e9adb0866a635be568bf5f
+          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:14b5072e8e9918f1080153f57321415a387bc7d78cf9c9b44a7aeae2d4399ccf
           imagePullPolicy: IfNotPresent
           env:
             - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
@@ -604,7 +604,7 @@ spec:
               mountPath: /models
               readOnly: true
         - name: checkpoint-check
-          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:bc34d7d63f978cf601f42863b284bc95a567c50c10e9adb0866a635be568bf5f
+          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:14b5072e8e9918f1080153f57321415a387bc7d78cf9c9b44a7aeae2d4399ccf
           imagePullPolicy: IfNotPresent
           env:
             - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
@@ -617,7 +617,7 @@ spec:
               mountPath: /launch
               readOnly: true
         - name: wait-for-rank1-start
-          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:bc34d7d63f978cf601f42863b284bc95a567c50c10e9adb0866a635be568bf5f
+          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:14b5072e8e9918f1080153f57321415a387bc7d78cf9c9b44a7aeae2d4399ccf
           imagePullPolicy: IfNotPresent
           env:
             - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
@@ -669,7 +669,7 @@ spec:
         # Keep this after the rank-1 gate so cache reclamation is immediately
         # adjacent to TensorFold rank 0 startup.
         - name: reclaim-vm-cache
-          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:bc34d7d63f978cf601f42863b284bc95a567c50c10e9adb0866a635be568bf5f
+          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:14b5072e8e9918f1080153f57321415a387bc7d78cf9c9b44a7aeae2d4399ccf
           imagePullPolicy: IfNotPresent
           env:
             - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
@@ -696,7 +696,7 @@ spec:
               exit 1
       containers:
         - name: tensorfold
-          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:bc34d7d63f978cf601f42863b284bc95a567c50c10e9adb0866a635be568bf5f
+          image: ghcr.io/miaai-lab/glm-5.3-flash-exl3-2x-dgx-sparks-tensorfold@sha256:14b5072e8e9918f1080153f57321415a387bc7d78cf9c9b44a7aeae2d4399ccf
           imagePullPolicy: IfNotPresent
           command: ["bash", "/launch/launch-head.sh"]
           securityContext:
