@@ -1541,9 +1541,7 @@ spec:
     spec:
       containers:
         - name: inspector
-          # Match the exact image currently running; GitOps adoption must not
-          # silently advance the inspector on the mutable main-stable tag.
-          image: ghcr.io/berriai/litellm@sha256:87f34979b9f8cb274fac90ca8a4fdda07d8480de22755562a26adeb95ce20d02
+          image: ghcr.io/berriai/litellm:main-stable
           imagePullPolicy: IfNotPresent
           # absolute venv python: a bare "python3" would miss httpx/litellm if
           # /app is ever shadowed by a mount
