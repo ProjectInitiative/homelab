@@ -139,3 +139,17 @@ configmaps/serviceaccounts + lighthouse serviceexports/serviceimports.
 The submariner-gateway DaemonSet only schedules on nodes labeled
 `submariner.io/gateway=true`. mc: capstan1 labeled. cc: needs one labeled
 node once its operator comes up.
+
+## Gateway Node Labels (HA)
+
+The submariner-gateway DaemonSet schedules only on nodes labeled
+`submariner.io/gateway=true`. All nodes on both clusters are labeled for
+active/passive HA: every node runs a gateway pod, exactly one is ACTIVE,
+the rest passive; leader election fails over automatically.
+
+To keep this declarative, the label must be set at node provisioning time:
+- mc (NixOS): add to `dotfiles` k3s `--node-label submariner.io/gateway=true`
+- cc (VPS): add to the k3s install args
+
+If a node is added without the label, the gateway DS won't schedule there
+(degraded HA, not broken mesh).
