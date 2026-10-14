@@ -404,7 +404,7 @@ catalog:
           mount: k8s
           # The same OpenBao record also contains DATABASE_URL and
           # LITELLM_SALT_KEY, but only the role credentials enter postgres-db.
-          path: "llm-test/litellm-postgres"
+          path: "litellm/postgres"
           destination: "litellm-postgres-creds"
           destinationType: "kubernetes.io/basic-auth"
           destinationIncludes:
