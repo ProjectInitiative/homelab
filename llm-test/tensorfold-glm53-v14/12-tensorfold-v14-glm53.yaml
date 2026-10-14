@@ -15,7 +15,7 @@
 #   Draft:   incoai/GLM-5.3-Flash-DFlash2
 #            @ bf582e4eacc1810f76656d1811693ff6c6737d2a (unchanged from v1.2).
 #   KV pool: MEMORY_RESERVE_GIB=14.5 / KV_POOL_GIB=12.5 -> ~2.1–2.9M tokens
-#            shared FP8 pool, 1,048,576-token window, 4 streams.
+#            shared FP8 pool, 750,000-token window, 4 streams.
 #
 # Fabric adaptation (same contract as the glm53 EXL3 and prior TensorFold lanes):
 #   - Capability scheduling: `nvidia-rdma` RuntimeClass + required hostname
@@ -216,7 +216,7 @@ data:
       --name GLM-5.3-Flash-EXL3 \
       --host 0.0.0.0 --port 8000 \
       --drafter "$DRAFTER_SNAP" \
-      --context 1048576 --parallel 4 --max-tokens 32768 --thinking --vision
+      --context 750000 --parallel 4 --max-tokens 32768 --thinking --vision
   launch-worker.sh: |-
     #!/usr/bin/env bash
     set -euo pipefail
@@ -233,7 +233,7 @@ data:
       --tp 2 --rank 1 \
       --master "$PEER_CONTROL_IP" --master-port 29551 \
       --drafter "$DRAFTER_SNAP" \
-      --context 1048576 --parallel 4 --max-tokens 32768 --thinking --vision
+      --context 750000 --parallel 4 --max-tokens 32768 --thinking --vision
 ---
 apiVersion: v1
 kind: Service
