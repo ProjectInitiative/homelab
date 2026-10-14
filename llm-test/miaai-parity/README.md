@@ -81,7 +81,7 @@ Only the database objects are GitOps-managed: `bootstrap/base/cnpg/database/lite
 
 ### OpenBao contract and rollout order
 
-Before committing/syncing the Postgres app changes, create the KV-v2 record in OpenBao namespace `production`, mount `k8s`, path `llm-test/litellm-postgres`, with these fields:
+Before committing/syncing the Postgres app changes, create the KV-v2 record in OpenBao namespace `production`, mount `k8s`, path `litellm/postgres`, with these fields:
 
 - `username`: `litellm_user`
 - `password`: the database role password (raw value for CNPG)

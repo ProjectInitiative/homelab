@@ -1172,7 +1172,7 @@ spec:
             - name: CHATGPT_TOKEN_DIR
               value: /tokens/chatgpt
             # Database-backed usage history (litellm DB). Secret is projected
-            # from OpenBao k8s/llm-test/litellm-postgres by litellm-secrets.yaml.
+            # from OpenBao k8s/litellm/postgres by litellm-secrets.yaml.
             # Pod cannot start until Secret/litellm-database exists.
             - name: DATABASE_URL
               valueFrom:
