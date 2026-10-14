@@ -1,0 +1,14 @@
+# Submariner Globalnet CIDR allocation map — lives at the broker (cc) and is
+# watched by each cluster's globalnet daemonset. Both clusters share identical
+# pod/service CIDRs (10.42/16, 10.43/16), so globalnet assigns each a distinct
+# virtual range. 242.0.0.0/16 is from Submariner's reserved globalnet space
+# (240.0.0.0/13 is unusable per submariner docs; 242.x is the conventional pick).
+# mc gets 242.0.0.0/16, cc gets 242.1.0.0/16.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: globalCIDRMap
+  namespace: submariner-k8s-broker
+data:
+  mc: "242.0.0.0/16"
+  cc: "242.1.0.0/16"

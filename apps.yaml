@@ -631,6 +631,14 @@ catalog:
         - CreateNamespace=true
         - ServerSideApply=true
 
+  submariner-globalnet:
+    annotations:
+      argocd.argoproj.io/sync-wave: "45"
+    path: bootstrap/base/submariner-globalnet/config
+    syncPolicy:
+      syncOptions:
+        - ServerSideApply=true
+
   submariner-operator:
     annotations:
       argocd.argoproj.io/sync-wave: "50"

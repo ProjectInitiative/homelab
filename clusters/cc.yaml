@@ -145,6 +145,8 @@ apps:
     namespace: kube-system
   - name: submariner-k8s-broker
     namespace: submariner-k8s-broker
+  - name: submariner-globalnet
+    namespace: submariner-k8s-broker
   - name: submariner-operator
     namespace: submariner-operator
     helm_values: |
@@ -164,6 +166,7 @@ apps:
         brokerK8sRemoteNamespace: "submariner-k8s-broker"
         brokerK8sApiServer: "kubernetes.default.svc:443"
         natEnabled: true
+        globalCidr: "242.1.0.0/16"
 
   - name: mcp-kubernetes
     namespace: mcp-system
