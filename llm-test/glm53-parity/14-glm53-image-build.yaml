@@ -1,0 +1,183 @@
+# On-demand, native-arm64 build of the pinned current MiaAI TensorFold recipe.
+# The upstream repo has no checked-in Dockerfile; this mirrors scripts/prepare.sh.
+# Bump the Job name/tag, UPSTREAM_REV, and prepare.sh hash together.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: glm53-image-build-3fd60df-v1
+  namespace: llm-test
+  labels:
+    app.kubernetes.io/name: glm53-image-build
+immutable: true
+data:
+  buildkitd.toml: |
+    [registry."local-registry.registry.svc.cluster.local:5000"]
+      http = true
+  prepare-source.sh: |
+    #!/bin/sh
+    set -eu
+    src=/workspace/src
+    mkdir -p "$src"
+    git init "$src"
+    git -C "$src" remote add origin https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks.git
+    git -C "$src" fetch --depth 1 --no-tags origin "$UPSTREAM_REV"
+    git -C "$src" checkout --detach FETCH_HEAD
+    actual=$(git -C "$src" rev-parse HEAD)
+    [ "$actual" = "$UPSTREAM_REV" ] || { echo "revision mismatch: $actual" >&2; exit 1; }
+    prepare_sha=$(sha256sum "$src/scripts/prepare.sh" | awk '{print $1}')
+    [ "$prepare_sha" = "$UPSTREAM_PREPARE_SHA256" ] || {
+      echo "prepare.sh checksum mismatch: $prepare_sha" >&2
+      exit 1
+    }
+
+    # Current upstream has no checked-in Dockerfile. Reproduce its
+    # scripts/prepare.sh recipe from the pinned source and bake every patch.
+    cat > "$src/Dockerfile" <<'DOCKERFILE'
+    ARG BASE_IMAGE=nvcr.io/nvidia/pytorch:26.07-py3
+    FROM ${BASE_IMAGE}
+    ARG TF_SPEC
+    ARG EXTRAS
+    RUN pip install --no-cache-dir --upgrade "${TF_SPEC}" && pip install --no-cache-dir ${EXTRAS} && tensorfold --version
+    COPY . /opt/tf-patches
+    RUN cd "$(python -c 'import os, tensorfold; print(os.path.dirname(os.path.dirname(tensorfold.__file__)))')" && \
+        for p in /opt/tf-patches/patches/*.patch; do [ -e "$p" ] || continue; echo "applying $p"; patch -p0 --forward < "$p" || exit 1; done && \
+        python -c "import tensorfold.cuda.server, tensorfold.families.glm5_next.cuda.engine, tensorfold.vision.glm, av, xgrammar"
+    ARG PATCHES_HASH
+    ARG UPSTREAM_REV
+    ARG RECIPE_STAMP=unknown
+    LABEL tf.patches=${PATCHES_HASH}
+    LABEL org.opencontainers.image.source="https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold" \
+          org.opencontainers.image.revision="${UPSTREAM_REV}" \
+          io.projectinitiative.glm53.recipe.stamp="${RECIPE_STAMP}"
+    ENV HF_HOME=/root/.cache/huggingface TORCH_EXTENSIONS_DIR=/cache/torch_extensions TRITON_CACHE_DIR=/cache/triton
+    WORKDIR /workspace
+    DOCKERFILE
+    echo "prepared GLM53 source=$actual prepare.sh.sha256=$prepare_sha"
+  build-image.sh: |
+    #!/bin/sh
+    set -eu
+    src=/workspace/src
+    recipe_stamp=$(sha256sum "$src/Dockerfile" | awk '{print $1}')
+    patches_hash=$( (cat "$src"/patches/*.patch 2>/dev/null; printf '%s\n' 'av==18.1.0 xgrammar>=0.2.8,<0.3') | sha256sum | cut -c1-12)
+    image="local-registry.registry.svc.cluster.local:5000/homelab/glm53-exl3:${IMAGE_TAG}"
+    echo "building $image from $UPSTREAM_REV (recipe=$recipe_stamp)"
+    exec buildctl-daemonless.sh build \
+      --frontend dockerfile.v0 \
+      --local "context=$src" \
+      --local "dockerfile=$src" \
+      --opt "build-arg:BASE_IMAGE=nvcr.io/nvidia/pytorch:26.07-py3" \
+      --opt "build-arg:TF_SPEC=git+https://github.com/ashhart/TensorFold.git@v0.6.0" \
+      --opt "build-arg:EXTRAS=av==18.1.0 xgrammar>=0.2.8,<0.3" \
+      --opt "build-arg:PATCHES_HASH=$patches_hash" \
+      --opt "build-arg:UPSTREAM_REV=$UPSTREAM_REV" \
+      --opt "build-arg:RECIPE_STAMP=$recipe_stamp" \
+      --output "type=image,name=$image,push=true,oci-mediatypes=false" \
+      --progress=plain
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: glm53-image-build-3fd60df-v1
+  namespace: llm-test
+  labels:
+    app.kubernetes.io/name: glm53-image-build
+    purpose: image-build
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 7200
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: glm53-image-build
+        purpose: image-build
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      # CoreDNS currently forwards through the host's 127.0.0.53 stub, which
+      # is not reachable from ordinary pod network namespaces. Keep cluster DNS
+      # first for *.svc lookups, then add the node's working upstream resolvers.
+      dnsConfig:
+        nameservers:
+          - 172.16.1.1
+          - 1.1.1.1
+      securityContext:
+        fsGroup: 1000
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values: [arm64]
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: glm53-exl3
+      initContainers:
+        - name: fetch-and-prepare
+          image: alpine/git:v2.52.0
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args: ["/build/prepare-source.sh"]
+          env:
+            - name: UPSTREAM_REV
+              value: "3fd60dfc836fab0f1ed0fd4f0afaf2a1d62b2aab"
+            - name: UPSTREAM_PREPARE_SHA256
+              value: "0934ef783a596c3eb5bff8cede4d578e438223e15effc8a894b70549fae9ad24"
+          resources:
+            requests: {cpu: 250m, memory: 256Mi}
+            limits: {cpu: "1", memory: 1Gi}
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - {name: workspace, mountPath: /workspace}
+            - {name: build-config, mountPath: /build, readOnly: true}
+      containers:
+        - name: buildkit
+          image: moby/buildkit:v0.26.2-rootless
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args: ["/build/build-image.sh"]
+          env:
+            - name: UPSTREAM_REV
+              value: "3fd60dfc836fab0f1ed0fd4f0afaf2a1d62b2aab"
+            - name: IMAGE_TAG
+              value: "3fd60df-e66c657a433d"
+            - name: BUILDKITD_FLAGS
+              value: "--oci-worker-no-process-sandbox --config=/build/buildkitd.toml"
+          resources:
+            requests: {cpu: "8", memory: 32Gi, ephemeral-storage: 40Gi}
+            limits: {cpu: "12", memory: 48Gi, ephemeral-storage: 55Gi}
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            # Rootless BuildKit needs setuid newuidmap for its user namespace;
+            # keep the official rootless profile (not privileged mode).
+            seccompProfile:
+              type: Unconfined
+            appArmorProfile:
+              type: Unconfined
+          volumeMounts:
+            - {name: workspace, mountPath: /workspace, readOnly: true}
+            - {name: buildkit-state, mountPath: /home/user/.local/share/buildkit}
+            - {name: build-config, mountPath: /build, readOnly: true}
+      volumes:
+        - name: workspace
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: buildkit-state
+          emptyDir:
+            sizeLimit: 55Gi
+        - name: build-config
+          configMap:
+            name: glm53-image-build-3fd60df-v1
+            defaultMode: 0555
