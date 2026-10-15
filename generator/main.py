@@ -357,6 +357,46 @@ class ClusterAppsChart(Chart):
                 "labels": {"vault-auth": "enabled"}
             }
 
+        # === 8b. Pod Security Admission (OQ-0036 / RISK-0027) ===
+        # Every app-managed namespace gets enforce=baseline by default
+        # (blocks privileged, hostNetwork, hostPath, ... but NOT runAsUser 0
+        # — the forgejo data-perms init container stays fine).
+        # audit/warn=restricted surfaces what would break under the stricter
+        # profile without blocking anything. Infra namespaces that
+        # legitimately need privileged pods are allow-listed (audit
+        # 2026-10-15): CSI drivers, kubevirt, piraeus, mesh dataplane,
+        # tailscale proxies. Per-app override: podSecurity: privileged.
+        _PRIVILEGED_NAMESPACES = {
+            "kube-system",
+            "kubevirt",
+            "piraeus-datastore",
+            "submariner-operator",
+            "submariner-k8s-broker",
+            "tailscale",
+        }
+        _psa_privileged = (
+            app_def.get("podSecurity") == "privileged"
+            or target_ns in _PRIVILEGED_NAMESPACES
+        )
+        _psa_labels = {
+            "pod-security.kubernetes.io/enforce": (
+                "privileged" if _psa_privileged else "baseline"
+            ),
+            "pod-security.kubernetes.io/enforce-version": "latest",
+        }
+        if not _psa_privileged:
+            _psa_labels.update(
+                {
+                    "pod-security.kubernetes.io/audit": "restricted",
+                    "pod-security.kubernetes.io/audit-version": "latest",
+                    "pod-security.kubernetes.io/warn": "restricted",
+                    "pod-security.kubernetes.io/warn-version": "latest",
+                }
+            )
+        if "managedNamespaceMetadata" not in sync_policy:
+            sync_policy["managedNamespaceMetadata"] = {"labels": {}}
+        sync_policy["managedNamespaceMetadata"]["labels"].update(_psa_labels)
+
         # === 9. Construct the Application CR dict ===
         app_manifest = {
             "apiVersion": "argoproj.io/v1alpha1",
