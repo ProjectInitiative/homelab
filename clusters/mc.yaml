@@ -288,6 +288,8 @@ apps:
   - name: forgejo-runner-arm
     namespace: forgejo
     # sextant nodeSelector is baked into apps/base/forgejo-runner-arm/config.
+  - name: cert-manager-issuers
+    namespace: cert-manager
   - name: submariner-operator
     namespace: submariner-operator
     helm_values: |

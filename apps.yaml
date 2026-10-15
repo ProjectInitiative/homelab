@@ -772,6 +772,101 @@ catalog:
         prune: true
         selfHeal: false
 
+  # --- Public ingress stack (OQ-0037, DEC-0042) ---
+
+  # Let's Encrypt staging+prod ClusterIssuers; CF API token from OpenBao
+  # (create zone:DNS:Edit token, `bao kv put k8s/cert-manager/cloudflare api-token=...`).
+  cert-manager-issuers:
+    path: bootstrap/base/cert-manager-issuers
+    annotations:
+      argocd.argoproj.io/sync-wave: "45"
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      namespace: production
+      audiences:
+        - vault
+      secrets:
+        - name: cloudflare-api-token
+          mount: k8s
+          path: "cert-manager/cloudflare"
+          destination: "cloudflare-api-token"
+          overwrite: true
+    syncPolicy:
+      syncOptions:
+        - ServerSideApply=true
+
+  # STAGED (not yet in clusters/*.yaml): Ingress hosts -> Cloudflare DNS.
+  # Enable on mc after the zone-scoped CF token is in OpenBao.
+  external-dns:
+    sources:
+      - repoURL: https://kubernetes-sigs.github.io/external-dns/
+        chart: external-dns
+        targetRevision: 1.18.0
+        helm:
+          values: |
+            provider:
+              name: cloudflare
+            env:
+              - name: CF_API_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: cloudflare-api-token
+                    key: api-token
+            policy: upsert-only
+            txtOwnerId: homelab-mc
+            sources:
+              - ingress
+              - service
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      namespace: production
+      audiences:
+        - vault
+      secrets:
+        - name: cloudflare-api-token
+          mount: k8s
+          path: "cert-manager/cloudflare"
+          destination: "cloudflare-api-token"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
+  # STAGED (not yet in clusters/*.yaml): experiments/exposure path via
+  # Cloudflare Tunnels — any Ingress with ingressClassName: cloudflare-tunnel
+  # gets a tunnel + DNS record (no inbound ports, TLS at CF edge).
+  # Needs a tunnel token: `bao kv put k8s/cloudflare-tunnel/token token=...`.
+  cloudflare-tunnel-controller:
+    sources:
+      - repoURL: https://helm.strrl.dev
+        chart: cloudflare-tunnel-ingress-controller
+        targetRevision: 1.2.4
+        helm:
+          values: |
+            cloudflare:
+              enabled: true
+              apiToken: ""
+              accountId: ""
+            # token via existing secret:
+            existingTunnelTokenSecretRef: cloudflare-tunnel-token
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      namespace: production
+      audiences:
+        - vault
+      secrets:
+        - name: cloudflare-tunnel-token
+          mount: k8s
+          path: "cloudflare-tunnel/token"
+          destination: "cloudflare-tunnel-token"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
   immich:
     path: apps/base/immich/config
     critical: true

@@ -11,7 +11,7 @@ metadata:
   labels:
     app: forgejo
   annotations:
-    tailscale.com/proxy-group: ingress-proxy
+    tailscale.com/proxy-group: mc-ingress-proxy
 spec:
   type: LoadBalancer
   loadBalancerClass: tailscale
