@@ -27,6 +27,21 @@ spec:
             # alias in the garage namespace.
             url: "http://us-east-1.garage.svc.cluster.local:3900/iso/nixos.qcow2"
             secretRef: argo-s3-creds
+    - metadata:
+        name: argo-data
+      spec:
+        pvc:
+          accessModes:
+            - ReadWriteMany
+          volumeMode: Filesystem
+          resources:
+            requests:
+              # JuiceFS capacity is soft/elastic: the label is not a
+              # prepayment; data lands in garage S3 + local NVMe cache.
+              storage: 1Ti
+          storageClassName: juicefs-sc
+        source:
+          blank: {}
   template:
     metadata:
       labels:
@@ -39,10 +54,14 @@ spec:
           sockets: 1
           threads: 1
         memory:
-          guest: 4Gi
+          guest: 8Gi
         devices:
           disks:
             - name: root
+              disk:
+                bus: virtio
+              dedicatedIOThread: true
+            - name: data
               disk:
                 bus: virtio
               dedicatedIOThread: true
@@ -61,6 +80,9 @@ spec:
         - name: root
           dataVolume:
             name: argo-root
+        - name: data
+          dataVolume:
+            name: argo-data
         - name: cloudinit
           cloudInitNoCloud:
             userData: |
