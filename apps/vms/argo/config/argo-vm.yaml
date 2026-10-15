@@ -6,7 +6,7 @@ metadata:
   labels:
     app: argo
 spec:
-  runStrategy: Halted
+  runStrategy: Always
   dataVolumeTemplates:
     - metadata:
         name: argo-root
@@ -21,7 +21,11 @@ spec:
           storageClassName: juicefs-sc
         source:
           s3:
-            url: "http://garage.garage:3900/iso/nixos.qcow2"
+            # Host's first DNS label IS the SigV4 region CDI signs with
+            # (extractRegion falls back to host.split('.')[0]); Garage
+            # expects us-east-1, so import via the us-east-1 ExternalName
+            # alias in the garage namespace.
+            url: "http://us-east-1.garage.svc.cluster.local:3900/iso/nixos.qcow2"
             secretRef: argo-s3-creds
   template:
     metadata:
