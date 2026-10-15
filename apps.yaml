@@ -475,6 +475,10 @@ catalog:
             apiServerProxyConfig:
               mode: "true"
               allowImpersonation: "true"
+            operatorConfig:
+              extraEnv:
+                - name: OPERATOR_HOSTNAME
+                  value: mc-tailscale-operator
     vaultSecrets:
       createAuth: true
       role: openbao-secrets-operator
