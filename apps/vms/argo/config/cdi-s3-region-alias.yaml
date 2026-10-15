@@ -1,0 +1,18 @@
+# CDI S3 region alias for kubevirt DataVolume imports from Garage.
+# CDI's extractRegion() signs SigV4 with the endpoint host's first DNS label
+# (fallback for non-AWS URLs), so importing via garage.garage signs with region
+# "garage" while this Garage expects us-east-1 -> AuthorizationHeaderMalformed.
+# A Service named us-east-1 makes the first label the region; ExternalName
+# resolves straight to the garage Service, zero traffic overhead.
+apiVersion: v1
+kind: Service
+metadata:
+  name: us-east-1
+  namespace: garage
+  labels:
+    app.kubernetes.io/part-of: argo-vm
+  annotations:
+    homelab.io/purpose: "CDI S3 import region alias (extractRegion uses host first label)"
+spec:
+  type: ExternalName
+  externalName: garage.garage.svc.cluster.local
