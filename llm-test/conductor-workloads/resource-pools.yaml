@@ -8,8 +8,8 @@ spec:
   capacity:
     slots: 1
   nodeSelector:
-    ai-compute: "true"
-    nvidia.com/gpu.present: "true"
+    gpu: dgx-spark
+    gpu-vendor: nvidia
   routing:
     serviceName: dgx-spark-backend
     selector:
@@ -51,7 +51,8 @@ spec:
   capacity:
     slots: 1
   nodeSelector:
-    kubernetes.io/hostname: chronometer
+    gpu: dgx-spark
+    gpu-vendor: nvidia
   routing:
     serviceName: cygnet-classifier-nv
     selector:
