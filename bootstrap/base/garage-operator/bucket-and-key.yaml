@@ -1,0 +1,34 @@
+# STAGED — NOT DEPLOYED. Requires the management handle above to be Ready.
+# Bucket + scoped key for the ESU sound-library extraction upload workflow.
+# The GarageKey generates a Secret `esu-uploader` containing:
+#   access-key-id, secret-access-key, endpoint, host, scheme, region
+# (secretTemplate defaults; rename via spec.secretTemplate if needed).
+---
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageBucket
+metadata:
+  name: esu-sound-library
+  namespace: garage
+spec:
+  clusterRef:
+    name: existing-garage
+  # bucket name == global alias == esu-sound-library (S3 URL: http://<endpoint>/esu-sound-library)
+  globalAlias: esu-sound-library
+  # No quota: the extracted library is ~75MB/samples; full WAV dumps are a few GB.
+  # Add quotas.maxSize later if this becomes a general-purpose bucket.
+---
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageKey
+metadata:
+  name: esu-uploader
+  namespace: garage
+spec:
+  clusterRef:
+    name: existing-garage
+  name: ESU sound-library uploader
+  bucketPermissions:
+    - bucketRef:
+        name: esu-sound-library
+      read: true
+      write: true
+      owner: false

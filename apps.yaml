@@ -492,6 +492,35 @@ catalog:
           destination: "operator-oauth"
           overwrite: true
   
+
+  # STAGED, NOT DEPLOYED: garage-operator for CRD-based bucket/key provisioning
+  # against the existing garage cluster. Enable by adding "garage-operator" to
+  # clusters/mc.yaml apps. See docs/garage-operator-staging.md for the full checklist.
+  garage-operator:
+    path: bootstrap/base/garage-operator
+    # plugin + operator helm rendering intentionally omitted until enablement;
+    # vaultSecrets block prepared for the admin token secret:
+    # vaultSecrets:
+    #   createAuth: true
+    #   role: openbao-secrets-operator
+    #   namespace: production
+    #   audiences:
+    #     - vault
+    #   secrets:
+    #     - name: garage-admin-token
+    #       mount: k8s
+    #       path: "garage/operator-admin"
+    #       destination: "garage-admin-token"
+    #       destinationKeys:
+    #       - kubeKey: admin-token
+    #         vaultKey: admin-token
+    syncPolicy:
+      automated:
+        prune: false
+        selfHeal: false   # disabled: nothing should sync until deliberately enabled
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
   garage-mem:
     path: bootstrap/mc/garage-mem
 
