@@ -13,7 +13,7 @@ catalog:
       syncOptions:
         - CreateNamespace=false
         - ServerSideApply=true
-  
+
   admin-access:
     path: bootstrap/base/admin-access
     annotations:
@@ -22,7 +22,7 @@ catalog:
       syncOptions:
         - CreateNamespace=false
         - ServerSideApply=true
-  
+
   local-path-provisioner:
     path: bootstrap/base/local-path-provisioner/config
     annotations:
@@ -33,7 +33,7 @@ catalog:
         - ServerSideApply=true
         - ApplyOutOfSyncOnly=true
         - RespectIgnoreDifferences=true
-  
+
   policies:
     path: bootstrap/base/policies
     annotations:
@@ -44,7 +44,7 @@ catalog:
         - ServerSideApply=true
         - ApplyOutOfSyncOnly=true
         - RespectIgnoreDifferences=true
-  
+
   sc-local-path:
     path: bootstrap/base/lpp
     directory:
@@ -62,7 +62,7 @@ catalog:
         - CreateNamespace=false
         - ServerSideApply=true
         - ApplyOutOfSyncOnly=true
-  
+
   tpm-device-plugin:
     path: bootstrap/base/tpm-device-plugin/plugin
     annotations:
@@ -148,7 +148,7 @@ catalog:
         - ServerSideApply=true
         - ApplyOutOfSyncOnly=true
         - RespectIgnoreDifferences=true
-  
+
   openbao:
     annotations:
       argocd.argoproj.io/sync-wave: "90"
@@ -182,12 +182,12 @@ catalog:
         - /webhooks/0/clientConfig/caBundle
         kind: MutatingWebhookConfiguration
         name: openbao-agent-injector-cfg
-  
+
   openbao-auth-config:
     path: bootstrap/base/openbao-auth-config/config
     syncPolicy:
       syncOptions: []
-  
+
   openbao-secrets-operator:
     repoURL: https://github.com/hashicorp/vault-secrets-operator.git
     path: chart
@@ -196,7 +196,7 @@ catalog:
       values: |
         defaultVaultConnection:
           enabled: false
-  
+
   csi-snapshotter:
     path: bootstrap/base/csi-snapshotter/config
     syncPolicy:
@@ -233,7 +233,7 @@ catalog:
       syncOptions:
         - CreateNamespace=true
         - ServerSideApply=true
-  
+
   ingress:
     annotations:
       argocd.argoproj.io/sync-wave: "45"
@@ -464,7 +464,7 @@ catalog:
       syncOptions:
         - CreateNamespace=true
         - ServerSideApply=true
-  
+
   tailscale-operator:
     sources:
       - repoURL: https://pkgs.tailscale.com/helmcharts
@@ -491,33 +491,13 @@ catalog:
           path: "tailscale-operator"
           destination: "operator-oauth"
           overwrite: true
-  
 
-  # STAGED, NOT DEPLOYED: garage-operator for CRD-based bucket/key provisioning
-  # against the existing garage cluster. Enable by adding "garage-operator" to
-  # clusters/mc.yaml apps. See docs/garage-operator-staging.md for the full checklist.
   garage-operator:
     path: bootstrap/base/garage-operator
-    # plugin + operator helm rendering intentionally omitted until enablement;
-    # vaultSecrets block prepared for the admin token secret:
-    # vaultSecrets:
-    #   createAuth: true
-    #   role: openbao-secrets-operator
-    #   namespace: production
-    #   audiences:
-    #     - vault
-    #   secrets:
-    #     - name: garage-admin-token
-    #       mount: k8s
-    #       path: "garage/operator-admin"
-    #       destination: "garage-admin-token"
-    #       destinationKeys:
-    #       - kubeKey: admin-token
-    #         vaultKey: admin-token
     syncPolicy:
       automated:
         prune: false
-        selfHeal: false   # disabled: nothing should sync until deliberately enabled
+        selfHeal: false
       syncOptions:
         - CreateNamespace=true
         - ServerSideApply=true
@@ -761,7 +741,7 @@ catalog:
     path: apps/base/tailscale-proxy-groups/config
     syncPolicy:
       syncOptions: []
-  
+
   temp-egress-mc:
     path: apps/base/temp-egress-mc/config
 
@@ -769,10 +749,10 @@ catalog:
     path: apps/base/temp-egress-cc/config
     syncPolicy:
       syncOptions: []
-  
+
   dnsutils:
     path: apps/base/dnsutils/config
-  
+
   docker-registry:
     path: apps/base/docker-registry/config
     vaultSecrets:
@@ -846,7 +826,7 @@ catalog:
       syncOptions:
         - CreateNamespace=true
         - ServerSideApply=true
-  
+
   privateer:
     path: apps/base/privateer/config
 

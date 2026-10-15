@@ -1,26 +1,2 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
-# garage-operator (rajsinghtech) — CRD-driven management of buckets/keys/admin-tokens
-# against the EXISTING garage cluster in this namespace.
-#
-# STAGED, NOT DEPLOYED: this directory is referenced by apps.yaml (garage-operator
-# entry) but the app is NOT enabled in clusters/mc.yaml. Nothing syncs until someone
-# deliberately adds it to a cluster's app list.
-#
-# Components (when enabled):
-#   - operator + CRDs from the pinned OCI helm chart (webhooks need cert-manager, present)
-#   - management-handle GarageCluster (connectTo) — NO workloads, just admin-API access
-#   - GarageAdminToken template resource for the token secret shape
-#   - GarageBucket + GarageKey for the esu-sound-library upload workflow
-#
-# Enablement steps (see ../../docs/garage-operator-staging.md):
-#   1. Create vault kv-v2 secret garage/operator-admin (key: admin-token)
-#   2. Add GARAGE_ADMIN_TOKEN env to garage pods (see staging doc §2)
-#   3. Add `garage-operator` to clusters/mc.yaml apps list; sync via Argo
-#   4. kubectl wait --for=condition=Ready garagecluster/existing-garage -n garage
-
-helm:
-  # Rendered via the kustomize-helm CMP pattern below; chart pinned by digest-friendly version tag
-  # oci://ghcr.io/rajsinghtech/charts/garage-operator
-  version: 0.8.2
