@@ -55,6 +55,11 @@ spec:
         - name: forgejo
           image: codeberg.org/forgejo/forgejo:9.0
           imagePullPolicy: IfNotPresent
+          # No container securityContext: this tag is the s6-overlay image —
+          # it must start as root and drops to git (uid 1000) internally
+          # (runAsUser: 1000 breaks s6: "unable to open .s6-svscan/lock"),
+          # and dropping ALL caps would strip SETUID/SETGID. Pod-level
+          # fsGroup: 1000 keeps the PVC writable by the git user.
           envFrom:
             - configMapRef:
                 name: forgejo-env
@@ -159,13 +164,8 @@ spec:
             periodSeconds: 10
             failureThreshold: 30
           securityContext:
-            runAsNonRoot: true
-            runAsUser: 1000
-            runAsGroup: 1000
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: false
-            capabilities:
-              drop: ["ALL"]
       volumes:
         - name: data
           persistentVolumeClaim:
