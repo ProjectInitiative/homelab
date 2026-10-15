@@ -64,6 +64,9 @@ spec:
             - name: data
               disk:
                 bus: virtio
+                # stable /dev/disk/by-id/virtio-argodata for the guest's
+                # fileSystems entry (survives disk reordering)
+                serial: argodata
               dedicatedIOThread: true
             - name: cloudinit
               disk:
