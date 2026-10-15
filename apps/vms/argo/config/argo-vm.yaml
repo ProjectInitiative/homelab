@@ -32,6 +32,7 @@ spec:
       labels:
         app: argo
     spec:
+      evictionStrategy: LiveMigrate
       domain:
         cpu:
           cores: 4
