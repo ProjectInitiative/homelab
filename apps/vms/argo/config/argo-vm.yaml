@@ -109,3 +109,4 @@ spec:
                 - qemu-guest-agent
               runcmd:
                 - [ systemctl, enable, --now, qemu-guest-agent ]
+                - [ bash, -c, "set -e; if ! blkid /dev/disk/by-id/virtio-argodata | grep -q ext4; then mkfs.ext4 -L argo-data /dev/disk/by-id/virtio-argodata; fi; mkdir -p /data/nix /nix; mountpoint -q /data || mount /dev/disk/by-id/virtio-argodata /data; mountpoint -q /nix || mount --bind /data/nix /nix; grep -q virtio-argodata /etc/fstab || echo '/dev/disk/by-id/virtio-argodata /data ext4 defaults,nofail 0 2' >> /etc/fstab; grep -q '/data/nix /nix' /etc/fstab || echo '/data/nix /nix none bind 0 0' >> /etc/fstab; df -h /data /nix /" ]
