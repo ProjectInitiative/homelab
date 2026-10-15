@@ -1,0 +1,21 @@
+# STAGED — NOT DEPLOYED. Requires garage-operator CRDs + operator running first.
+# Management-handle GarageCluster: zero workloads; the operator only talks to the
+# existing garage Admin API in this namespace.
+# The admin token secret is materialized by OpenBao (VaultStaticSecret, see the
+# garage-operator apps.yaml entry's vaultSecrets block when enabled).
+apiVersion: garage.rajsingh.info/v1beta2
+kind: GarageCluster
+metadata:
+  name: existing-garage
+  namespace: garage
+  labels:
+    app.kubernetes.io/managed-by: garage-operator
+spec:
+  connectTo:
+    # In-cluster admin API of the existing garage StatefulSet (port 3903).
+    # The `garage` Service exposes only 3900/3902 today — enablement adds the
+    # admin port to that Service (see staging doc §2, step 3).
+    adminApiEndpoint: http://garage.garage.svc:3903
+    adminTokenSecretRef:
+      name: garage-admin-token
+      key: admin-token
