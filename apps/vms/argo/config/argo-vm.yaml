@@ -70,7 +70,8 @@ spec:
                   sudo: ALL=(ALL) NOPASSWD:ALL
                   lock_passwd: false
                   ssh_authorized_keys:
-                    - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAplaceholder"
+                    - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDRiGsoimWWFcrnXlN8+AcdkZba43h1D26D5Ep3KDDYe"
+                    - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK6b4wiCCBSbEqZv26gzCue1iUYpKHluMSvpAGIq1647"
               ssh_pwauth: true
               ssh_import_id: none
               chpasswd:
