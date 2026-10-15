@@ -28,11 +28,11 @@
 #     patch (0006) reads TF_ROCE_HCA / TF_ROCE_GID_INDEX with NCCL_* fallbacks,
 #     both provided here. No node, link IP, netdev, or mlx5_N is hardcoded.
 #
-# PRE-DEPLOY convention: both Deployments declare `replicas: 0`. This lane is
-# an exclusive 2-GPU swap with the resident glm53-exl3 pair (same GPUs, host
-# network): stop the resident pair BEFORE scaling this lane. Activation order
-# is worker (rank 1) first, then head (rank 0); the head's init gate waits for
-# rank 1's fabric/peer setup marker. See README.md.
+# The Deployments intentionally omit `replicas`: Conductor owns scaling and
+# coordinated recovery for this dynamic lane. This lane is an exclusive 2-GPU
+# swap with the resident glm53-exl3 pair (same GPUs, host network). Activation
+# order is worker (rank 1) first, then head (rank 0); the head's init gate waits
+# for rank 1's fabric/peer setup marker. See README.md.
 #
 # Served model id: GLM-5.3-Flash-EXL3
 # API: http://<head-node>:8000/v1 (host network). The TP2 lanes are exclusive;
@@ -216,7 +216,7 @@ data:
       --name GLM-5.3-Flash-EXL3 \
       --host 0.0.0.0 --port 8000 \
       --drafter "$DRAFTER_SNAP" \
-      --context 750000 --parallel 4 --max-tokens 32768 --thinking --vision
+      --context 512000 --parallel 6 --max-tokens 32768 --thinking --vision
   launch-worker.sh: |-
     #!/usr/bin/env bash
     set -euo pipefail
@@ -233,7 +233,7 @@ data:
       --tp 2 --rank 1 \
       --master "$PEER_CONTROL_IP" --master-port 29551 \
       --drafter "$DRAFTER_SNAP" \
-      --context 750000 --parallel 4 --max-tokens 32768 --thinking --vision
+      --context 512000 --parallel 6 --max-tokens 32768 --thinking --vision
 ---
 apiVersion: v1
 kind: Service
@@ -309,7 +309,6 @@ metadata:
     app: tensorfold-v14-worker
     lane: tensorfold-v14
 spec:
-  replicas: 0
   strategy:
     type: Recreate
   selector:
@@ -317,6 +316,8 @@ spec:
       app: tensorfold-v14-worker
   template:
     metadata:
+      annotations:
+        homelab.io/rollout-reason: context-512000-parallel-6
       labels:
         app: tensorfold-v14-worker
         lane: tensorfold-v14
@@ -413,7 +414,9 @@ spec:
           resources:
             requests:
               cpu: "16"
-              memory: 64Gi
+              # Startup measurements are ~85GiB; reserve headroom so the
+              # scheduler does not place unrelated memory-heavy workloads here.
+              memory: 96Gi
               nvidia.com/gpu: "1"
               rdma/hca_shared_devices: "1"
             limits:
@@ -549,7 +552,6 @@ metadata:
     app: tensorfold-v14-head
     lane: tensorfold-v14
 spec:
-  replicas: 0
   strategy:
     type: Recreate
   selector:
@@ -557,6 +559,8 @@ spec:
       app: tensorfold-v14-head
   template:
     metadata:
+      annotations:
+        homelab.io/rollout-reason: context-512000-parallel-6
       labels:
         app: tensorfold-v14-head
         lane: tensorfold-v14
@@ -705,7 +709,9 @@ spec:
           resources:
             requests:
               cpu: "16"
-              memory: 64Gi
+              # Startup measurements are ~85GiB; reserve headroom so the
+              # scheduler does not place unrelated memory-heavy workloads here.
+              memory: 96Gi
               nvidia.com/gpu: "1"
               rdma/hca_shared_devices: "1"
             limits:

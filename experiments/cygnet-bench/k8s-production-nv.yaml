@@ -16,9 +16,11 @@ spec:
     metadata:
       labels: { app: cygnet-classifier-nv, role: classifier, tier: ai-platform }
     spec:
-      # chronometer = NVIDIA DGX Spark (ARM64, GB10)
+      # Run on any NVIDIA DGX Spark; Kubernetes selects a node with an
+      # available GPU plus the requested CPU and memory.
       nodeSelector:
-        kubernetes.io/hostname: chronometer
+        gpu: dgx-spark
+        gpu-vendor: nvidia
       runtimeClassName: nvidia
       tolerations:
         - key: node.kubernetes.io/memory-pressure
@@ -53,8 +55,8 @@ spec:
           resources:
             limits:
               nvidia.com/gpu: 1
-              memory: 40Gi
-            requests: { cpu: "8", memory: 24Gi }
+              memory: 64Gi
+            requests: { cpu: "8", memory: 56Gi }
           volumeMounts:
             - { name: models, mountPath: /models, readOnly: true }
           startupProbe:
