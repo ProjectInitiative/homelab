@@ -62,11 +62,12 @@ spec:
                 bus: virtio
               dedicatedIOThread: true
             - name: data
+              # stable /dev/disk/by-id/virtio-argodata for the guest's
+              # fileSystems entry (survives disk reordering) — serial is a
+              # Disk-level field in the kubevirt API, not under .disk
+              serial: argodata
               disk:
                 bus: virtio
-                # stable /dev/disk/by-id/virtio-argodata for the guest's
-                # fileSystems entry (survives disk reordering)
-                serial: argodata
               dedicatedIOThread: true
             - name: cloudinit
               disk:
