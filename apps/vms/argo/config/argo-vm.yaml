@@ -116,6 +116,11 @@ spec:
               # not just first boot. All commands are idempotent.
               # NixOS guest: no /bin/bash and cloud-init's subprocess PATH
               # lacks /run/current-system/sw/bin — use sh -c with absolute paths.
+              # The data disk gets a COPY of the nix store BEFORE the bind
+              # mount — binding an empty dir over /nix hides the store and
+              # bricks the guest (sshd and every unit exec from /nix/store).
+              # The bind is deliberately NOT in fstab: at boot fstab would
+              # mount it before cloud-init can ensure the copy exists.
               bootcmd:
                 - [ /run/current-system/sw/bin/systemctl, enable, --now, qemu-guest-agent ]
-                - [ /bin/sh, -c, "set -e; SW=/run/current-system/sw/bin; if ! $SW/blkid /dev/disk/by-id/virtio-argodata | $SW/grep -q ext4; then $SW/mkfs.ext4 -L argo-data /dev/disk/by-id/virtio-argodata; fi; $SW/mkdir -p /data/nix /nix; $SW/mountpoint -q /data || /run/wrappers/bin/mount /dev/disk/by-id/virtio-argodata /data; $SW/mountpoint -q /nix || /run/wrappers/bin/mount --bind /data/nix /nix; $SW/grep -q virtio-argodata /etc/fstab || echo '/dev/disk/by-id/virtio-argodata /data ext4 defaults,nofail 0 2' >> /etc/fstab; $SW/grep -q '/data/nix /nix' /etc/fstab || echo '/data/nix /nix none bind 0 0' >> /etc/fstab; $SW/df -h /data /nix /" ]
+                - [ /bin/sh, -c, "set -e; SW=/run/current-system/sw/bin; RW=/run/wrappers/bin; DISK=/dev/disk/by-id/virtio-argodata; if ! $SW/blkid $DISK | $SW/grep -q ext4; then $SW/mkfs.ext4 -L argo-data $DISK; fi; $SW/mkdir -p /data /data/nix /nix; $SW/mountpoint -q /data || $RW/mount $DISK /data; if [ ! -f /data/nix/.store-initialized ]; then $SW/cp -a /nix/. /data/nix/ && $SW/touch /data/nix/.store-initialized; fi; $SW/mountpoint -q /nix || $RW/mount --bind /data/nix /nix; $SW/grep -q virtio-argodata /etc/fstab || echo '/dev/disk/by-id/virtio-argodata /data ext4 defaults,nofail 0 2' >> /etc/fstab; $SW/df -h /data /nix /" ]
