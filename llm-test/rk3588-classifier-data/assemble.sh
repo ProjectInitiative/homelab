@@ -48,8 +48,16 @@ for f in "$GEN"/*.jsonl DATA-SPEC.md; do
 done
 kubectl -n "$NS" delete pod rkcls-uploader --wait=false >/dev/null
 
-echo "== 3. publish SFT code ConfigMap =="
+echo "== 3. publish SFT code + eval-corpus ConfigMaps =="
+CORPUS=../../experiments/cygnet-bench/corpus
 kubectl create configmap rkcls-sft-code -n "$NS" \
   --from-file=sft_train.py=train/sft_train.py \
   --dry-run=client -o yaml | kubectl apply -f -
+kubectl create configmap rkcls-eval-corpus -n "$NS" \
+  --from-file=prompts.jsonl="$CORPUS/prompts.jsonl" \
+  --from-file=edge_cases.jsonl="$CORPUS/edge_cases.jsonl" \
+  --from-file=injection.jsonl="$CORPUS/injection.jsonl" \
+  --dry-run=client -o yaml | kubectl apply -f -
 echo "== done. unsuspend the training job when ready: kubectl -n $NS patch job rkcls-sft-v1 --type=merge -p '{\"spec\":{\"suspend\":false}}' =="
+
+# (rkcls-eval-corpus configmap is published alongside the code CM)
