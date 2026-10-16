@@ -49,6 +49,11 @@ spec:
     spec:
       evictionStrategy: LiveMigrate
       domain:
+        firmware:
+          # Pinning a NEW uuid forces a new cloud-init instance-id (kubevirt
+          # derives it from firmware uuid) so per-instance modules re-run after
+          # the storage setup was added to the existing guest disk.
+          uuid: 4cb45ba1-e040-433c-ba83-c585a4b56aed
         cpu:
           cores: 4
           sockets: 1
@@ -107,6 +112,8 @@ spec:
                   kyle:changeme
               packages:
                 - qemu-guest-agent
-              runcmd:
+              # bootcmd = per-boot (PER_ALWAYS): re-runs on every restart,
+              # not just first boot. All commands are idempotent.
+              bootcmd:
                 - [ systemctl, enable, --now, qemu-guest-agent ]
                 - [ bash, -c, "set -e; if ! blkid /dev/disk/by-id/virtio-argodata | grep -q ext4; then mkfs.ext4 -L argo-data /dev/disk/by-id/virtio-argodata; fi; mkdir -p /data/nix /nix; mountpoint -q /data || mount /dev/disk/by-id/virtio-argodata /data; mountpoint -q /nix || mount --bind /data/nix /nix; grep -q virtio-argodata /etc/fstab || echo '/dev/disk/by-id/virtio-argodata /data ext4 defaults,nofail 0 2' >> /etc/fstab; grep -q '/data/nix /nix' /etc/fstab || echo '/data/nix /nix none bind 0 0' >> /etc/fstab; df -h /data /nix /" ]
