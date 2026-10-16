@@ -45,3 +45,7 @@ snapshot-cdk8s/
 
 # pi session artifacts
 .pi-subagents/
+
+# rkcls training data — synthetic secrets look real by design; lives on the PVC
+llm-test/rk3588-classifier-data/gen/
+

@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: qwen3guard-eval
+  namespace: llm-test
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels: { app: qwen3guard-eval }
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: eval
+          image: python:3.12-slim
+          env:
+            - name: QWEN3GUARD_BASE
+              value: "http://qwen3guard.llm-test.svc.cluster.local:80"
+          command: ["sh", "-c", "python3 /app/qwen3guard_eval.py --concurrency 8 --out /results-mnt/qwen3guard-eval/guard-eval.json"]
+          volumeMounts:
+            - { name: app, mountPath: /app, readOnly: true }
+            - { name: results, mountPath: /results-mnt }
+      volumes:
+        - name: app
+          configMap: { name: qwen3guard-eval-code }
+        # results on the shared RWX PVC so they survive pod completion
+        - name: results
+          persistentVolumeClaim: { claimName: model-cache }

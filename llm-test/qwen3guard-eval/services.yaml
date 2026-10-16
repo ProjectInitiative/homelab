@@ -1,0 +1,111 @@
+# Qwen3Guard-Gen-0.6B baseline on the cygnet security corpus.
+# Serves the UNMODIFIED guard model on sextant (the DGX Spark without
+# tensorfold; cygnet-nv shares this GPU at util 0.26, we take 0.10 — the GB10
+# has 128GiB unified memory, plenty for a 0.6B).
+# Same TRITON_LIBCUDA_PATH symlink dance as cygnet/k8s-production-nv.yaml.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qwen3guard
+  namespace: llm-test
+  labels: { app: qwen3guard, purpose: guard-baseline }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: qwen3guard } }
+  template:
+    metadata:
+      labels: { app: qwen3guard }
+    spec:
+      nodeSelector:
+        gpu: dgx-spark
+        gpu-vendor: nvidia
+        kubernetes.io/hostname: sextant
+      runtimeClassName: nvidia
+      tolerations:
+        - key: node.kubernetes.io/memory-pressure
+          operator: Exists
+          effect: NoSchedule
+# GPU sharing: sextant's single device-plugin slot is held by cygnet-nv, so we
+# do NOT request nvidia.com/gpu (that would never schedule). runtimeClassName
+# nvidia injects the device through the container runtime with
+# NVIDIA_VISIBLE_DEVICES=all instead; both vLLMs share the GB10's 128GiB.
+      containers:
+        - name: engine
+          image: vllm/vllm-openai:v0.30.0
+          command: ["/bin/bash", "-ec"]
+          args:
+            - |
+              mkdir -p /run/triton-cuda-driver
+              ln -sfn /usr/lib/aarch64-linux-gnu/libcuda.so.1 /run/triton-cuda-driver/libcuda.so.1
+              ln -sfn /usr/lib/aarch64-linux-gnu/libcuda.so.1 /run/triton-cuda-driver/libcuda.so
+              export TRITON_LIBCUDA_PATH=/run/triton-cuda-driver
+              MARKER="$HF_HOME/hub/models--Qwen--Qwen3Guard-Gen-0.6B/.download-complete"
+              if [ ! -f "$MARKER" ]; then
+                echo "downloading Qwen/Qwen3Guard-Gen-0.6B into shared cache..."
+                python3 - <<'PY'
+              from huggingface_hub import snapshot_download
+              import os
+              snapshot_download(
+                  repo_id="Qwen/Qwen3Guard-Gen-0.6B",
+                  cache_dir=os.environ["HF_HOME"],
+                  token=os.environ.get("HF_TOKEN") or None,
+              )
+              PY
+                mkdir -p "$(dirname "$MARKER")"; touch "$MARKER"
+                echo "download complete"
+              else
+                echo "weights cached, skipping download"
+              fi
+              exec vllm serve Qwen/Qwen3Guard-Gen-0.6B \
+                --served-model-name Qwen/Qwen3Guard-Gen-0.6B \
+                --host 0.0.0.0 --port 8891 \
+                --max-model-len 32768 \
+                --gpu-memory-utilization 0.10
+          env:
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: all
+            - name: HF_HOME
+              value: /models-rw/.cache/huggingface
+            - name: HF_HUB_DISABLE_XET
+              value: "1"
+            - name: VLLM_LOGGING_LEVEL
+              value: INFO
+          envFrom:
+            - secretRef: { name: huggingface }
+          resources:
+            limits:
+              memory: 32Gi
+            requests: { cpu: "4", memory: 16Gi }
+          volumeMounts:
+            - { name: models, mountPath: /models, readOnly: true }
+            # writable second mount of the same RWX PVC for the HF cache
+            - { name: models, mountPath: /models-rw }
+          startupProbe:
+            httpGet: { path: /health, port: 8891 }
+            periodSeconds: 15
+            failureThreshold: 80
+          readinessProbe:
+            httpGet: { path: /health, port: 8891 }
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /health, port: 8891 }
+            periodSeconds: 30
+            failureThreshold: 5
+      volumes:
+        - name: models
+          persistentVolumeClaim: { claimName: model-cache }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qwen3guard
+  namespace: llm-test
+  labels: { app: qwen3guard }
+spec:
+  selector: { app: qwen3guard }
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8891
