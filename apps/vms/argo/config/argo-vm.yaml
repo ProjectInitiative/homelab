@@ -114,6 +114,8 @@ spec:
                 - qemu-guest-agent
               # bootcmd = per-boot (PER_ALWAYS): re-runs on every restart,
               # not just first boot. All commands are idempotent.
+              # NixOS guest: no /bin/bash and cloud-init's subprocess PATH
+              # lacks /run/current-system/sw/bin — use sh -c with absolute paths.
               bootcmd:
-                - [ systemctl, enable, --now, qemu-guest-agent ]
-                - [ bash, -c, "set -e; if ! blkid /dev/disk/by-id/virtio-argodata | grep -q ext4; then mkfs.ext4 -L argo-data /dev/disk/by-id/virtio-argodata; fi; mkdir -p /data/nix /nix; mountpoint -q /data || mount /dev/disk/by-id/virtio-argodata /data; mountpoint -q /nix || mount --bind /data/nix /nix; grep -q virtio-argodata /etc/fstab || echo '/dev/disk/by-id/virtio-argodata /data ext4 defaults,nofail 0 2' >> /etc/fstab; grep -q '/data/nix /nix' /etc/fstab || echo '/data/nix /nix none bind 0 0' >> /etc/fstab; df -h /data /nix /" ]
+                - [ /run/current-system/sw/bin/systemctl, enable, --now, qemu-guest-agent ]
+                - [ /bin/sh, -c, "set -e; SW=/run/current-system/sw/bin; if ! $SW/blkid /dev/disk/by-id/virtio-argodata | $SW/grep -q ext4; then $SW/mkfs.ext4 -L argo-data /dev/disk/by-id/virtio-argodata; fi; $SW/mkdir -p /data/nix /nix; $SW/mountpoint -q /data || /run/wrappers/bin/mount /dev/disk/by-id/virtio-argodata /data; $SW/mountpoint -q /nix || /run/wrappers/bin/mount --bind /data/nix /nix; $SW/grep -q virtio-argodata /etc/fstab || echo '/dev/disk/by-id/virtio-argodata /data ext4 defaults,nofail 0 2' >> /etc/fstab; $SW/grep -q '/data/nix /nix' /etc/fstab || echo '/data/nix /nix none bind 0 0' >> /etc/fstab; $SW/df -h /data /nix /" ]
