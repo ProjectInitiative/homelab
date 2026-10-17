@@ -1,5 +1,5 @@
 # Post-training serving + eval for rkcls-v2.
-# Deploy AFTER rkcls-sft-v1 completes (artifacts at /data/rkcls/artifacts/rkcls-v3/final
+# Deploy AFTER rkcls-sft-v1 completes (artifacts at /data/rkcls/artifacts/rkcls-v1/final
 # on the model-cache PVC). Shared-GPU pattern: no device-plugin request.
 # Then: kubectl -n llm-test delete job rkcls-eval-ft --ignore-not-found; kubectl apply -f eval-job-ft.yaml
 ---
@@ -35,9 +35,9 @@ spec:
               ln -sfn /usr/lib/aarch64-linux-gnu/libcuda.so.1 /run/triton-cuda-driver/libcuda.so.1
               ln -sfn /usr/lib/aarch64-linux-gnu/libcuda.so.1 /run/triton-cuda-driver/libcuda.so
               export TRITON_LIBCUDA_PATH=/run/triton-cuda-driver
-              test -f /data/rkcls/artifacts/rkcls-v3/final/config.json || { echo "artifacts not ready"; exit 1; }
-              exec vllm serve /data/rkcls/artifacts/rkcls-v3/final \
-                --served-model-name rkcls-v3 \
+              test -f /data/rkcls/artifacts/rkcls-v1/final/config.json || { echo "artifacts not ready"; exit 1; }
+              exec vllm serve /data/rkcls/artifacts/rkcls-v1/final \
+                --served-model-name rkcls-v1 \
                 --host 0.0.0.0 --port 8894 \
                 --max-model-len 8192 \
                 --gpu-memory-utilization 0.10
@@ -73,7 +73,7 @@ spec:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: rkcls-eval-v3
+  name: rkcls-eval-v1r
   namespace: llm-test
 spec:
   backoffLimit: 0
@@ -86,9 +86,9 @@ spec:
           image: python:3.12-slim
           env:
             - { name: GUARD_BASE, value: "http://rkcls-served.llm-test.svc.cluster.local:80" }
-            - { name: GUARD_MODEL, value: rkcls-v3 }
+            - { name: GUARD_MODEL, value: rkcls-v1 }
             - { name: GUARD_STYLE, value: finetuned }
-          command: ["sh", "-c", "python3 /app/guard_eval.py --concurrency 8 --out /results-mnt/rkcls-v3-eval.json"]
+          command: ["sh", "-c", "python3 /app/guard_eval.py --concurrency 8 --out /results-mnt/rkcls-v1-reeval.json"]
           volumeMounts:
             - { name: app, mountPath: /app, readOnly: true }
             - { name: corpus, mountPath: /app/corpus, readOnly: true }

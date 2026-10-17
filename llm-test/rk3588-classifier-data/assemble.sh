@@ -19,7 +19,7 @@ for p in sorted(pathlib.Path('gen').glob('*.jsonl')):
     flagged = [r for r in rows if scan(r['content'])['flag']]
     exp_flag = [r for r in rows if r['expected'] == 'flag']
     print(f"{p.name}: {len(rows)} rows | {len(exp_flag)} flag-expected | regex flags {len(flagged)}")
-    if p.stem in ('secrets-flag',):
+    if p.stem.startswith('secrets'):
         bad = [r['id'] for r in exp_flag if not scan(r['content'])['flag']]
         if bad:
             ok = False

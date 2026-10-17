@@ -14,7 +14,7 @@ import pathlib
 import random
 
 HF = pathlib.Path("/models-rw/.cache/huggingface")
-OUT = pathlib.Path("/data/rkcls/seed-sft.jsonl")  # v3: off-policy harm rows relabeled pass
+OUT = pathlib.Path("/data/rkcls/seed-sft.jsonl")  # v4: aligned seed only, generic pass capped
 SEED = 1729
 rng = random.Random(SEED)
 
@@ -59,14 +59,13 @@ for snap in cache_snapshots("datasets--allenai--wildguardmix"):
             harmful = str(r.get("prompt_harm_label", "")).lower() == "harmful"
             (flag_pool if harmful else pass_pool).append(p)
         rng.shuffle(flag_pool); rng.shuffle(pass_pool)
-        for p in flag_pool[:1200]:
-            emit("wildguardmix", "pass", "harm_prompt_offpolicy", p)
-        for p in pass_pool[:1200]:
+        for p in pass_pool[:300]:
             emit("wildguardmix", "pass", "harm_prompt_benign", p)
         print("wildguardmix: kept", len([r for r in rows if r['generator']=='convert-wildguardmix']))
         break
 
-# ---- XSTest: over-refusal benign negatives -------------------------------
+# ---- XSTest: over-refusal benign negatives (capped 200, v4) ---------------
+XSTEST_POOL = []
 for snap in cache_snapshots("datasets--walledai--XSTest"):
     for f in find_files(snap, ["parquet", "jsonl", "csv"]):
         if f.endswith(".parquet"):
@@ -74,14 +73,17 @@ for snap in cache_snapshots("datasets--walledai--XSTest"):
             t = pq.read_table(f).to_pylist()
             for r in t:
                 p = (r.get("prompt") or r.get("request") or "").strip()
-                emit("xstest", "pass", "over_refusal_benign", p)
+                XSTEST_POOL.append(p)
         elif f.endswith(".jsonl"):
             for line in open(f):
                 r = json.loads(line)
                 p = (r.get("prompt") or r.get("request") or "").strip()
-                emit("xstest", "pass", "over_refusal_benign", p)
+                XSTEST_POOL.append(p)
         break
     break
+rng.shuffle(XSTEST_POOL)
+for p in XSTEST_POOL[:200]:
+    emit("xstest", "pass", "over_refusal_benign", p)
 print("xstest:", len([r for r in rows if r['generator']=='convert-xstest']))
 
 # ---- deepset/prompt-injections (parquet: text/label) ----------------------
@@ -123,9 +125,7 @@ for snap in cache_snapshots("datasets--nvidia--Aegis-AI-Content-Safety-Dataset-2
             unsafe = str(r.get("prompt_label", "")).lower() == "unsafe"
             (flag_pool if unsafe else pass_pool).append(text)
         rng.shuffle(flag_pool); rng.shuffle(pass_pool)
-        for p in flag_pool[:700]:
-            emit("aegis2", "pass", "aegis_unsafe_offpolicy", p)
-        for p in pass_pool[:500]:
+        for p in pass_pool[:300]:
             emit("aegis2", "pass", "aegis_safe", p)
         break
     break
