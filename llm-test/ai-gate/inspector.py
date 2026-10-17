@@ -31,10 +31,25 @@ PORT = int(os.environ.get("INSPECTOR_PORT", "8770"))
 DECISIONS: deque = deque(maxlen=200)
 LOCK = threading.Lock()
 
+# Durable decision log (rkcls verdict-distillation soak). Records carry the
+# POST-REDACTION reconstruction only — the gate strips secret spans before the
+# feed fires, so this file never contains live secret material (DEC-0037
+# verdict-not-forensics posture). Estate-internal PVC, rotated at 64 MiB.
+DECISIONS_LOG = os.environ.get("DECISIONS_LOG", "")
+DECISIONS_LOG_MAX = 64 << 20
+
 
 def _record_decisions(record: dict) -> None:
     with LOCK:
         DECISIONS.appendleft(record)
+        if DECISIONS_LOG:
+            try:
+                if os.path.exists(DECISIONS_LOG) and os.path.getsize(DECISIONS_LOG) > DECISIONS_LOG_MAX:
+                    os.replace(DECISIONS_LOG, DECISIONS_LOG + ".1")
+                with open(DECISIONS_LOG, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(record, ensure_ascii=False) + "\n")
+            except OSError:
+                pass  # the log must never break the viewer or the ring buffer
 
 
 def _run_hook(model: str, messages: list) -> dict:

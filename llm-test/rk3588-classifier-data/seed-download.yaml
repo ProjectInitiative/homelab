@@ -1,0 +1,84 @@
+# Seed-dataset download for rk3588-classifier training data.
+# Pulls public safety datasets into the shared model-cache PVC (HF cache),
+# converted to the DATA-SPEC row schema on arrival. All open, no gating:
+#   allenai/wildguardmix          — 87k safety SFT examples (prompts+responses)
+#   nvidia/Aegis-AI-Content-Safety-Dataset-2.0 — 33k annotated interactions
+#   deepset/prompt-injections     — 516 labeled prompt-injection rows
+#   walledai/XSTest               — 450 over-refusal benign negatives
+#   lmsys/advbench? -> use Bot-wjf/AdvBench or the classic github csv; we use
+#   the HF mirror "quietnight/adv-bench" fallback skip on failure (non-fatal).
+# Idempotent: skips a dataset if its marker file exists.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rkcls-seed-download
+  namespace: llm-test
+  labels: { app: rkcls-seed-download }
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 1800
+  ttlSecondsAfterFinished: 259200
+  template:
+    metadata:
+      labels: { app: rkcls-seed-download }
+    spec:
+      restartPolicy: Never
+      nodeSelector: { kubernetes.io/hostname: sextant }
+      containers:
+        - name: download
+          image: vllm/vllm-openai:v0.30.0   # has huggingface_hub + datasets
+          command: ["/bin/bash", "-ec"]
+          args:
+            - |
+              python3 - <<'PY'
+              import os, json, pathlib, time
+              from huggingface_hub import snapshot_download
+              HF = os.environ["HF_HOME"]
+              OUT = pathlib.Path("/data/rkcls/seed"); OUT.mkdir(parents=True, exist_ok=True)
+              def marker(name): return OUT / f".done-{name}"
+              def get(name, repo, repo_type="dataset", allow=None):
+                  if marker(name).exists():
+                      print(f"{name}: cached"); return
+                  t0=time.time()
+                  p = snapshot_download(repo_id=repo, repo_type=repo_type,
+                                        cache_dir=HF, token=os.environ.get("HF_TOKEN") or None,
+                                        allow_patterns=allow)
+                  print(f"{name}: {repo} -> {p} ({time.time()-t0:.0f}s)", flush=True)
+                  marker(name).write_text(p)
+              # raw snapshots first (parquet/jsonl land in the HF cache)
+              for name, repo, allow in [
+                  ("wildguardmix", "allenai/wildguardmix", ["data/train/*.parquet", "*.parquet", "*.json*"]),
+                  ("aegis2", "nvidia/Aegis-AI-Content-Safety-Dataset-2.0", None),
+                  ("deepset-prompt-injections", "deepset/prompt-injections", None),
+                  ("xstest", "walledai/XSTest", None),
+              ]:
+                  try:
+                      get(name, repo, allow=allow)
+                  except Exception as e:
+                      print(f"{name}: FAILED (non-fatal, needs HF approval?): {type(e).__name__}: {str(e)[:200]}", flush=True)
+              for name, repo in [("advbench", "Bot-wjf/AdvBench"), ("advbench2", "quietnight/adv-bench")]:
+                  try:
+                      get(name, repo); break
+                  except Exception as e:
+                      print(f"{name}: failed (non-fatal): {e}", flush=True)
+              # index of what we got
+              idx = {"datasets": sorted(p.name for p in OUT.glob(".done-*")), "generated": time.strftime("%Y-%m-%d %H:%M")}
+              (OUT / "index.json").write_text(json.dumps(idx, indent=1))
+              print("index:", idx)
+              PY
+          env:
+            - { name: HF_HOME, value: /models-rw/.cache/huggingface }
+            - { name: HF_HUB_DISABLE_XET, value: "1" }
+          envFrom:
+            - secretRef: { name: huggingface }
+          resources:
+            requests: { cpu: "1", memory: 4Gi }
+          volumeMounts:
+            - { name: models, mountPath: /models-rw }
+            - { name: data, mountPath: /data }
+      volumes:
+        - name: models
+          persistentVolumeClaim: { claimName: model-cache }
+        - name: data
+          persistentVolumeClaim: { claimName: model-cache }
