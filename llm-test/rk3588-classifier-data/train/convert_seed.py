@@ -14,7 +14,7 @@ import pathlib
 import random
 
 HF = pathlib.Path("/models-rw/.cache/huggingface")
-OUT = pathlib.Path("/data/rkcls/seed-sft.jsonl")
+OUT = pathlib.Path("/data/rkcls/seed-sft.jsonl")  # v3: off-policy harm rows relabeled pass
 SEED = 1729
 rng = random.Random(SEED)
 
@@ -60,7 +60,7 @@ for snap in cache_snapshots("datasets--allenai--wildguardmix"):
             (flag_pool if harmful else pass_pool).append(p)
         rng.shuffle(flag_pool); rng.shuffle(pass_pool)
         for p in flag_pool[:1200]:
-            emit("wildguardmix", "flag", "harm_prompt", p)
+            emit("wildguardmix", "pass", "harm_prompt_offpolicy", p)
         for p in pass_pool[:1200]:
             emit("wildguardmix", "pass", "harm_prompt_benign", p)
         print("wildguardmix: kept", len([r for r in rows if r['generator']=='convert-wildguardmix']))
@@ -124,7 +124,7 @@ for snap in cache_snapshots("datasets--nvidia--Aegis-AI-Content-Safety-Dataset-2
             (flag_pool if unsafe else pass_pool).append(text)
         rng.shuffle(flag_pool); rng.shuffle(pass_pool)
         for p in flag_pool[:700]:
-            emit("aegis2", "flag", "aegis_unsafe", p)
+            emit("aegis2", "pass", "aegis_unsafe_offpolicy", p)
         for p in pass_pool[:500]:
             emit("aegis2", "pass", "aegis_safe", p)
         break
