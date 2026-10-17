@@ -1560,10 +1560,25 @@ data:
     DECISIONS: deque = deque(maxlen=200)
     LOCK = threading.Lock()
 
+    # Durable decision log (rkcls verdict-distillation soak). Records carry the
+    # POST-REDACTION reconstruction only — the gate strips secret spans before the
+    # feed fires, so this file never contains live secret material (DEC-0037
+    # verdict-not-forensics posture). Estate-internal PVC, rotated at 64 MiB.
+    DECISIONS_LOG = os.environ.get("DECISIONS_LOG", "")
+    DECISIONS_LOG_MAX = 64 << 20
+
 
     def _record_decisions(record: dict) -> None:
         with LOCK:
             DECISIONS.appendleft(record)
+            if DECISIONS_LOG:
+                try:
+                    if os.path.exists(DECISIONS_LOG) and os.path.getsize(DECISIONS_LOG) > DECISIONS_LOG_MAX:
+                        os.replace(DECISIONS_LOG, DECISIONS_LOG + ".1")
+                    with open(DECISIONS_LOG, "a", encoding="utf-8") as f:
+                        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+                except OSError:
+                    pass  # the log must never break the viewer or the ring buffer
 
 
     def _run_hook(model: str, messages: list) -> dict:
@@ -1660,7 +1675,7 @@ data:
        <details data-key="${esc(key)}" ${feedKeys.has(key)?'open':''} ontoggle="detailToggle(this)"><summary>final reconstruction</summary>${(rec.messages||[]).map(m=>`<div class="msg"><span class="role">${esc(m.role)}</span><br>${notice(typeof m.content==='string'?m.content:JSON.stringify(m.content))}</div>`).join('')}</details>`;
       f.appendChild(c); });
      for (const k of [...feedKeys]) if (!liveKeys.has(k)) feedKeys.delete(k);  // prune evicted records
-     window.scrollTo(0, scrollY); }
+     window.scrollTo(0, scrollY); } }
     document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{ document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
      document.getElementById('tab-feed').style.display=b.dataset.tab==='feed'?'':'none'; document.getElementById('tab-play').style.display=b.dataset.tab==='play'?'':'none'; });
     renderMsgs(); loadFeed(); setInterval(loadFeed, 5000);
@@ -1712,7 +1727,6 @@ data:
     if __name__ == "__main__":
         print(f"gate-inspector on :{PORT} (classifier {os.environ.get('AI_GATE_URL', 'unset')})")
         ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -1771,6 +1785,10 @@ spec:
               value: http://cygnet-gate.llm-test.svc.cluster.local:8009/v1/systemone
             - name: AI_GATE_INSPECTOR_URL
               value: http://localhost:8770
+            # durable decision log -> model-cache PVC subPath rkcls-decisions
+            # (post-redaction records only; consumed by rkcls distillation)
+            - name: DECISIONS_LOG
+              value: /data/decisions.jsonl
           volumeMounts:
             - name: gate-code
               mountPath: /app/custom_guardrail
@@ -1778,6 +1796,8 @@ spec:
             - name: inspector-code
               mountPath: /opt/inspector
               readOnly: true
+            - name: decisions-log
+              mountPath: /data
       volumes:
         - name: gate-code
           configMap:
@@ -1788,6 +1808,9 @@ spec:
             items:
               - key: inspector.py
                 path: inspector.py
+        - name: decisions-log
+          persistentVolumeClaim:
+            claimName: model-cache
 ---
 apiVersion: v1
 kind: Service
