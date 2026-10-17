@@ -73,7 +73,7 @@ spec:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: rkcls-eval-v1r
+  name: rkcls-evalr
   namespace: llm-test
 spec:
   backoffLimit: 0
@@ -88,7 +88,7 @@ spec:
             - { name: GUARD_BASE, value: "http://rkcls-served.llm-test.svc.cluster.local:80" }
             - { name: GUARD_MODEL, value: rkcls-v1 }
             - { name: GUARD_STYLE, value: finetuned }
-          command: ["sh", "-c", "python3 /app/guard_eval.py --concurrency 8 --out /results-mnt/rkcls-v1-reeval.json"]
+          command: ["sh", "-c", "python3 /app/guard_eval.py --concurrency 8 --out /results-mnt/rkcls-eval.json"]
           volumeMounts:
             - { name: app, mountPath: /app, readOnly: true }
             - { name: corpus, mountPath: /app/corpus, readOnly: true }
