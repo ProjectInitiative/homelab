@@ -1,0 +1,102 @@
+# Post-training serving + eval for rkcls-v2.
+# Deploy AFTER rkcls-sft-v1 completes (artifacts at /data/rkcls/artifacts/rkcls-v1/final
+# on the model-cache PVC). Shared-GPU pattern: no device-plugin request.
+# Then: kubectl -n llm-test delete job rkcls-eval-ft --ignore-not-found; kubectl apply -f eval-job-ft.yaml
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rkcls-served
+  namespace: llm-test
+  labels: { app: rkcls-served, purpose: rkcls-v2-eval }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: rkcls-served } }
+  template:
+    metadata:
+      labels: { app: rkcls-served }
+    spec:
+      nodeSelector:
+        gpu: dgx-spark
+        gpu-vendor: nvidia
+        kubernetes.io/hostname: sextant
+      runtimeClassName: nvidia
+      tolerations:
+        - key: node.kubernetes.io/memory-pressure
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: engine
+          image: vllm/vllm-openai:v0.30.0
+          command: ["/bin/bash", "-ec"]
+          args:
+            - |
+              mkdir -p /run/triton-cuda-driver
+              ln -sfn /usr/lib/aarch64-linux-gnu/libcuda.so.1 /run/triton-cuda-driver/libcuda.so.1
+              ln -sfn /usr/lib/aarch64-linux-gnu/libcuda.so.1 /run/triton-cuda-driver/libcuda.so
+              export TRITON_LIBCUDA_PATH=/run/triton-cuda-driver
+              test -f /data/rkcls/artifacts/rkcls-v1/final/config.json || { echo "artifacts not ready"; exit 1; }
+              exec vllm serve /data/rkcls/artifacts/rkcls-v1/final \
+                --served-model-name rkcls-v1 \
+                --host 0.0.0.0 --port 8894 \
+                --max-model-len 8192 \
+                --gpu-memory-utilization 0.10
+          env:
+            - { name: NVIDIA_VISIBLE_DEVICES, value: all }
+          resources:
+            limits: { memory: 32Gi }
+            requests: { cpu: "1", memory: 8Gi }
+          volumeMounts:
+            - { name: models, mountPath: /models, readOnly: true }
+            - { name: data, mountPath: /data }
+          startupProbe:
+            httpGet: { path: /health, port: 8894 }
+            periodSeconds: 15
+            failureThreshold: 120
+          readinessProbe:
+            httpGet: { path: /health, port: 8894 }
+            periodSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: models
+          persistentVolumeClaim: { claimName: model-cache }
+        - name: data
+          persistentVolumeClaim: { claimName: model-cache }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: rkcls-served, namespace: llm-test, labels: { app: rkcls-served } }
+spec:
+  selector: { app: rkcls-served }
+  ports: [{ name: http, port: 80, targetPort: 8894 }]
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rkcls-eval
+  namespace: llm-test
+spec:
+  backoffLimit: 0
+  template:
+    metadata: { labels: { app: rkcls-eval-ft } }
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: eval
+          image: python:3.12-slim
+          env:
+            - { name: GUARD_BASE, value: "http://rkcls-served.llm-test.svc.cluster.local:80" }
+            - { name: GUARD_MODEL, value: rkcls-v1 }
+            - { name: GUARD_STYLE, value: finetuned }
+          command: ["sh", "-c", "python3 /app/guard_eval.py --concurrency 8 --out /results-mnt/rkcls-eval.json"]
+          volumeMounts:
+            - { name: app, mountPath: /app, readOnly: true }
+            - { name: corpus, mountPath: /app/corpus, readOnly: true }
+            - { name: results, mountPath: /results-mnt }
+      volumes:
+        - name: app
+          configMap: { name: guard-falsify-code }
+        - name: corpus
+          configMap: { name: rkcls-eval-corpus }
+        - name: results
+          persistentVolumeClaim: { claimName: model-cache }

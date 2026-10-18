@@ -28,6 +28,21 @@ wall, this builds the fine-tuning data and the SFT job.
    qwen3guard deployment pattern (`GUARD_STYLE=finetuned` in guard_eval.py)
    against cygnet's held-out 231 + the synthetic heldout slice.
 
+## What lives where (artifact policy)
+
+- **git (this repo)**: code, configs, and **metrics-only eval JSONs**
+  (`rkcls-*-eval.json` — scores/ids/thresholds/latency; no prompt text, no
+  secret-shaped strings). These are the evidence chain for the ablation
+  record in keel.
+- **PVC (`model-cache:/data/rkcls/`)**: ALL content-bearing data — training
+  rows (`gen/*.jsonl`, gitignored here), model artifacts, soak logs
+  (`rkcls-decisions/decisions.jsonl`), backfill corpora. Never commit
+  content-bearing files: `gen/` is gitignored by policy, and anything with a
+  `messages`/`content` field stays out of git regardless of redaction.
+- **Garage bucket** (future, only if needed): archival exports if soak or
+  backfill data must outlive the PVC. Not provisioned yet — revisit at
+  ~100MB+ of content-bearing data.
+
 ## Quick start (next session)
 
 ```sh

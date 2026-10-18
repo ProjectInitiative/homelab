@@ -35,12 +35,12 @@ PY
 
 [ "$UPLOAD" = "--upload-only" ] || true
 
-echo "== 2. upload gen/ + spec to PVC =="
+echo "== 2. upload gen/ + spec to PVC (cleaning remote gen/ first) =="
 kubectl -n "$NS" delete pod rkcls-uploader --ignore-not-found --wait=false >/dev/null 2>&1 || true
 kubectl -n "$NS" run rkcls-uploader --restart=Never --image=busybox:stable \
   --overrides '{"spec":{"containers":[{"name":"up","image":"busybox:stable","command":["sleep","3600"],"volumeMounts":[{"name":"data","mountPath":"/data"}]}],"volumes":[{"name":"data","persistentVolumeClaim":{"claimName":"model-cache"}}]}}' >/dev/null
 kubectl -n "$NS" wait --for=condition=Ready pod/rkcls-uploader --timeout=90s >/dev/null
-kubectl -n "$NS" exec rkcls-uploader -- mkdir -p /data/rkcls/gen
+kubectl -n "$NS" exec rkcls-uploader -- sh -c "mkdir -p /data/rkcls/gen && rm -f /data/rkcls/gen/*.jsonl /data/rkcls/seed-sft.jsonl"
 for f in "$GEN"/*.jsonl DATA-SPEC.md; do
   gzip -c "$f" | base64 -w0 | kubectl -n "$NS" exec -i rkcls-uploader -- \
     sh -c "base64 -d | gunzip > /data/rkcls/$f"
