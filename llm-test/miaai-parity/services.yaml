@@ -1798,6 +1798,11 @@ spec:
               readOnly: true
             - name: decisions-log
               mountPath: /data
+              # subPath: inspector sees ONLY the rkcls-decisions subdir of
+              # model-cache (least privilege); file lands at
+              # model-cache:/rkcls-decisions/decisions.jsonl where distill.py
+              # expects it
+              subPath: rkcls-decisions
       volumes:
         - name: gate-code
           configMap:
