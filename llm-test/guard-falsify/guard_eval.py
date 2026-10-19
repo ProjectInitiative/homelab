@@ -46,7 +46,9 @@ GRANITE_QUESTIONS = {
     },
 }
 
-FT_RE = re.compile(r"^\s*(flag|pass)\b[:,]?\s*([a-z_]*)", re.IGNORECASE)
+# v4: prefix-tolerant — the model often continues ("passing", "flagged") but
+# the first token carries the verdict.
+FT_RE = re.compile(r"^\s*(flag|pass)(?::\s*([a-z_]+))?", re.IGNORECASE)
 
 
 def _post(payload: dict, timeout: float = 180.0) -> dict:
