@@ -49,8 +49,9 @@ Env:
   AI_GATE_URL              cygnet-gate /v1/systemone endpoint (required)
   AI_GATE_KEY              optional bearer for the classifier
   AI_GATE_TIMEOUT_MS       per-question timeout (default 30000; cold JIT buckets)
+  AI_GATE_MAX_CONCURRENCY  maximum in-flight classifier requests (default 8)
   AI_GATE_FAIL_MODE        closed (default) | open — fallback on total gate outage
-  AI_GATE_TEXT_CAP         chunk size in chars (default 24000)
+  AI_GATE_TEXT_CAP         chunk size in chars (default 1000)
   AI_GATE_LAYERS           active semantic layers (default secret-material,prompt-injection)
   AI_GATE_DISABLED         "1" disables the gate entirely (break-glass)
   AI_GATE_LOW              pass/redact boundary lower bound (default 0.35)
@@ -87,6 +88,7 @@ URL = os.getenv("AI_GATE_URL", "")
 KEY = os.getenv("AI_GATE_KEY", "")
 FAIL_MODE = os.getenv("AI_GATE_FAIL_MODE", "closed")
 TIMEOUT_S = int(os.getenv("AI_GATE_TIMEOUT_MS", "30000")) / 1000
+MAX_CONCURRENCY = max(1, int(os.getenv("AI_GATE_MAX_CONCURRENCY", "8")))
 TEXT_CAP = int(os.getenv("AI_GATE_TEXT_CAP", "1000"))  # semantic chunk size, chars
 DISABLED = os.getenv("AI_GATE_DISABLED", "") == "1"
 LOW = float(os.getenv("AI_GATE_LOW", "0.35"))
@@ -300,6 +302,10 @@ class AiGate(CustomLogger):
         self._verdicts: dict[str, Optional[float]] = {}
         self._actions: dict[str, str] = {}
         self._cache_max = 8192
+        # Chunking is intentional, but one HTTP request per chunk overloads
+        # cygnet-gate on large conversations and causes fail-closed rejection.
+        self._request_semaphore: Optional[asyncio.Semaphore] = None
+        self._request_loop: Optional[asyncio.AbstractEventLoop] = None
         self.last_timings: dict[str, float] = {}
         super().__init__(**kwargs)
         if DISABLED:
@@ -357,25 +363,40 @@ class AiGate(CustomLogger):
 
     # ---- classifier ---------------------------------------------------------
 
+    def _request_slot(self) -> asyncio.Semaphore:
+        """Return a semaphore bound to the current callback event loop."""
+        loop = asyncio.get_running_loop()
+        if self._request_semaphore is None or self._request_loop is not loop:
+            self._request_semaphore = asyncio.Semaphore(MAX_CONCURRENCY)
+            self._request_loop = loop
+        return self._request_semaphore
+
+    def _headers(self) -> dict[str, str]:
+        headers = {"Content-Type": "application/json"}
+        if self.key:
+            headers["Authorization"] = f"Bearer {self.key}"
+        return headers
+
+    async def _classifier_post(self, client: httpx.AsyncClient, payload: dict[str, Any]) -> httpx.Response:
+        """Bound classifier fan-out; TIMEOUT_S remains per dispatched request."""
+        async with self._request_slot():
+            return await client.post(self.url, json=payload, headers=self._headers())
+
     async def _noul(self, client: httpx.AsyncClient, name: str, text: str) -> Optional[float]:
         """P(flag) for one question preset, or None if the layer could not be reached."""
         layer = QUESTIONS[name]
         try:
-            headers = {"Content-Type": "application/json"}
-            if self.key:
-                headers["Authorization"] = f"Bearer {self.key}"
-            r = await client.post(
-                self.url,
-                # The cygnet shim expects the question under the fixed key
-                # "decision" (one question per call); the layer name is our
-                # own bookkeeping, not part of the wire format.
-                json={"model": "von-latest", "state": text, "questions": {"decision": layer["question"]}},
-                headers=headers,
+            # The cygnet shim expects the question under the fixed key
+            # "decision" (one question per call); the layer name is our
+            # own bookkeeping, not part of the wire format.
+            r = await self._classifier_post(
+                client,
+                {"model": "von-latest", "state": text, "questions": {"decision": layer["question"]}},
             )
             r.raise_for_status()
             return float(r.json()["answers"]["decision"]["noul"])
         except Exception as exc:  # noqa: BLE001 — every failure must be classified
-            log.warning("ai-gate: layer %s unreachable: %s", name, exc)
+            log.warning("ai-gate: layer %s unreachable: %r", name, exc)
             return None
 
     # ---- line-level localization (DEC-0037 amend 4) -------------------------
@@ -400,21 +421,17 @@ class AiGate(CustomLogger):
         p: Optional[float] = None
         for _attempt in range(2):  # one retry; transient timeouts must not skew
             try:
-                headers = {"Content-Type": "application/json"}
-                if self.key:
-                    headers["Authorization"] = f"Bearer {self.key}"
-                r = await client.post(
-                    self.url,
-                    json={"model": "von-latest",
-                          "state": chunk_text + "\n\nCANDIDATE LINE:\n" + line,
-                          "questions": {"decision": q}},
-                    headers=headers,
+                r = await self._classifier_post(
+                    client,
+                    {"model": "von-latest",
+                     "state": chunk_text + "\n\nCANDIDATE LINE:\n" + line,
+                     "questions": {"decision": q}},
                 )
                 r.raise_for_status()
                 p = float(r.json()["answers"]["decision"]["noul"])
                 break
             except Exception as exc:  # noqa: BLE001
-                log.warning("ai-gate: line-refine %s unreachable: %s", layer, exc)
+                log.warning("ai-gate: line-refine %s unreachable: %r", layer, exc)
         if p is not None:
             if len(self._verdicts) >= self._cache_max:
                 self._verdicts.pop(next(iter(self._verdicts)))
