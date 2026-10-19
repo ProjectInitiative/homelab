@@ -42,11 +42,6 @@ def load_rows() -> tuple[list[dict], list[dict]]:
             line = line.strip()
             if line:
                 rows.append(json.loads(line))
-    if (DATA / "seed-sft.jsonl").exists():
-        for line in (DATA / "seed-sft.jsonl").open():
-            line = line.strip()
-            if line:
-                rows.append(json.loads(line))
     if not rows:
         raise SystemExit(f"no training rows found under {GEN} or sft-train.jsonl")
 
