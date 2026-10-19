@@ -25,7 +25,11 @@ spec:
             # (extractRegion falls back to host.split('.')[0]); Garage
             # expects us-east-1, so import via the us-east-1 ExternalName
             # alias in the garage namespace.
-            url: "http://us-east-1.garage.svc.cluster.local:3900/iso/nixos.qcow2"
+            # nixos-estate.qcow2 = full estate image built from
+            # dotfiles kubevirtConfigurations.argo (kylepzak user, native
+            # fileSystems incl. /data + /nix bind with self-healing store
+            # seed). nixos.qcow2 = old minimal bootstrap image (rollback).
+            url: "http://us-east-1.garage.svc.cluster.local:3900/iso/nixos-estate.qcow2"
             secretRef: argo-s3-creds
     - metadata:
         name: argo-data
@@ -69,9 +73,6 @@ spec:
               disk:
                 bus: virtio
               dedicatedIOThread: true
-            - name: cloudinit
-              disk:
-                bus: virtio
           interfaces:
             - name: default
               masquerade: {}
@@ -87,26 +88,7 @@ spec:
         - name: data
           dataVolume:
             name: argo-data
-        - name: cloudinit
-          cloudInitNoCloud:
-            userData: |
-              #cloud-config
-              hostname: argo
-              users:
-                - name: kyle
-                  sudo: ALL=(ALL) NOPASSWD:ALL
-                  lock_passwd: false
-                  ssh_authorized_keys:
-                    - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDRiGsoimWWFcrnXlN8+AcdkZba43h1D26D5Ep3KDDYe"
-                    - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK6b4wiCCBSbEqZv26gzCue1iUYpKHluMSvpAGIq1647"
-              ssh_pwauth: true
-              ssh_import_id: none
-              chpasswd:
-                expire: false
-                list: |
-                  kyle:changeme
-              packages:
-                - qemu-guest-agent
-              runcmd:
-                - [ systemctl, enable, --now, qemu-guest-agent ]
-                - [ bash, -c, "set -e; if ! blkid /dev/disk/by-id/virtio-argodata | grep -q ext4; then mkfs.ext4 -L argo-data /dev/disk/by-id/virtio-argodata; fi; mkdir -p /data/nix /nix; mountpoint -q /data || mount /dev/disk/by-id/virtio-argodata /data; mountpoint -q /nix || mount --bind /data/nix /nix; grep -q virtio-argodata /etc/fstab || echo '/dev/disk/by-id/virtio-argodata /data ext4 defaults,nofail 0 2' >> /etc/fstab; grep -q '/data/nix /nix' /etc/fstab || echo '/data/nix /nix none bind 0 0' >> /etc/fstab; df -h /data /nix /" ]
+      # No cloud-init disk: the estate image configures users (kylepzak),
+      # ssh keys, hostname, qemu-guest-agent and all storage natively via
+      # the dotfiles hosts/argo module. cloud-init stays enabled in the
+      # image but has no datasource and is a no-op.

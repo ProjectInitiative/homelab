@@ -1,0 +1,69 @@
+# SFT job for the RK3588 edge classifier — DO NOT APPLY until the data
+# assembly step lands gen/*.jsonl + sft-train.jsonl on the PVC (see
+# DATA-SPEC.md). Scheduled on sextant (the DGX Spark without tensorfold).
+# Base image per Arm's DGX Spark fine-tuning path; pinned lib set installed
+# at startup (~2 min). Full-parameter FT of Qwen3-0.6B fits the GB10's
+# 128GiB unified memory without tricks; no device-plugin request (shared
+# GPU pattern, NVIDIA_VISIBLE_DEVICES=all).
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rkcls-sft-v1
+  namespace: llm-test
+  labels: { app: rkcls-sft, version: v1 }
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 604800
+  suspend: true   # unsuspend when data assembly is done
+  template:
+    metadata:
+      labels: { app: rkcls-sft }
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        gpu: dgx-spark
+        gpu-vendor: nvidia
+        kubernetes.io/hostname: sextant
+      runtimeClassName: nvidia
+      tolerations:
+        - key: node.kubernetes.io/memory-pressure
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: train
+          image: nvcr.io/nvidia/pytorch:25.11-py3
+          command: ["/bin/bash", "-ec"]
+          args:
+            - |
+              echo "== installing pinned training libs (Arm DGX Spark path) =="
+              pip install -q "accelerate==1.15.0" "datasets==5.0.1" \
+                             "transformers==4.57.1" "trl==1.13.0"
+              python3 -c "import torch; print('torch', torch.__version__, 'cuda', torch.cuda.is_available())"
+              nvidia-smi --query-gpu=name,memory.total --format=csv || true
+              python3 /app/sft_train.py \
+                --base-model Qwen/Qwen3-0.6B \
+                --out /data/rkcls/artifacts/rkcls-v1 \
+                --epochs 3 --lr 1e-5 --per-device-bs 4 --grad-accum 4
+          env:
+            - { name: NVIDIA_VISIBLE_DEVICES, value: all }
+            - { name: NVIDIA_DRIVER_CAPABILITIES, value: compute,utility }
+            - { name: HF_HOME, value: /models-rw/.cache/huggingface }
+            - { name: HF_HUB_DISABLE_XET, value: "1" }
+            - { name: TOKENIZERS_PARALLELISM, value: "false" }
+          envFrom:
+            - secretRef: { name: huggingface }
+          resources:
+            limits: { memory: 64Gi }
+            requests: { cpu: "2", memory: 20Gi }
+          volumeMounts:
+            - { name: models, mountPath: /models-rw }
+            - { name: data, mountPath: /data }
+            - { name: app, mountPath: /app, readOnly: true }
+      volumes:
+        - name: models
+          persistentVolumeClaim: { claimName: model-cache }
+        - name: data
+          persistentVolumeClaim: { claimName: model-cache }
+        - name: app
+          configMap: { name: rkcls-sft-code }
