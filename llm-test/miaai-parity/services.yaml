@@ -315,8 +315,9 @@ data:
       AI_GATE_URL              cygnet-gate /v1/systemone endpoint (required)
       AI_GATE_KEY              optional bearer for the classifier
       AI_GATE_TIMEOUT_MS       per-question timeout (default 30000; cold JIT buckets)
+      AI_GATE_MAX_CONCURRENCY  maximum in-flight classifier requests (default 8)
       AI_GATE_FAIL_MODE        closed (default) | open — fallback on total gate outage
-      AI_GATE_TEXT_CAP         chunk size in chars (default 24000)
+      AI_GATE_TEXT_CAP         chunk size in chars (default 1000)
       AI_GATE_LAYERS           active semantic layers (default secret-material,prompt-injection)
       AI_GATE_DISABLED         "1" disables the gate entirely (break-glass)
       AI_GATE_LOW              pass/redact boundary lower bound (default 0.35)
