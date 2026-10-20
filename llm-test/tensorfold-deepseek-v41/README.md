@@ -15,6 +15,7 @@ The checkpoint is approximately 196 GiB and the two Engram shards approximately 
 ## Files
 
 - `05-deepseek-v41-download.yaml`: resumable cache preload for the checkpoint and Engram shards.
+- `06-deepseek-v41-prepare.yaml`: suspended CPU preparation for the kit, token map, TP2 rank-cache files, and served model view.
 - `12-deepseek-v41.yaml`: standby TP2 head/worker Deployments and internal Service.
 - `managed-workload.yaml`: Conductor registration, standby until deliberately promoted.
 - `zig/Dockerfile` + `zig/patches/`: upstream reproducible image recipe; the staged deployment uses the pinned published image.
@@ -25,6 +26,9 @@ The checkpoint is approximately 196 GiB and the two Engram shards approximately 
 kubectl apply -f llm-test/tensorfold-deepseek-v41/05-deepseek-v41-download.yaml
 kubectl -n llm-test patch job deepseek-v41-cache-pull-v1 --type=merge -p '{"spec":{"suspend":false}}'
 kubectl -n llm-test logs -f job/deepseek-v41-cache-pull-v1
+kubectl apply -f llm-test/tensorfold-deepseek-v41/06-deepseek-v41-prepare.yaml
+kubectl -n llm-test patch job deepseek-v41-prepare-v1 --type=merge -p '{"spec":{"suspend":false}}'
+kubectl -n llm-test logs -f job/deepseek-v41-prepare-v1
 kubectl apply -f llm-test/tensorfold-deepseek-v41/12-deepseek-v41.yaml
 kubectl apply -f llm-test/tensorfold-deepseek-v41/managed-workload.yaml
 ```

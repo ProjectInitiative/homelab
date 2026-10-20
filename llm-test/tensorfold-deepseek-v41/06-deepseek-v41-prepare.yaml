@@ -1,0 +1,60 @@
+# CPU preparation after the raw preload: kit, token map, rank files and served view.
+# Suspended deliberately because it reads/writes roughly 200+ GiB and must not run
+# while a resident DGX TensorFold lane owns the GPUs.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: deepseek-v41-prepare-v1
+  namespace: llm-test
+  labels: {app: deepseek-v41-prepare, lane: deepseek-v41}
+spec:
+  ttlSecondsAfterFinished: 259200
+  suspend: true
+  backoffLimit: 0
+  template:
+    metadata: {labels: {app: deepseek-v41-prepare, lane: deepseek-v41}}
+    spec:
+      restartPolicy: Never
+      nodeSelector: {kubernetes.io/hostname: chronometer}
+      containers:
+        - name: prepare
+          image: ghcr.io/miaai-lab/deepseek-v4.1-flash-1017-2x-dgx-sparks-tensorfold@sha256:4ed15dceaf0a210052d5db89c74145794d8ee45f63a3436878ac3ec01cea38b5
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              test -f /models/.deepseek-v41-raw-download-complete
+              REV=45ee5d0fd106c94a3d77f721e09cbb2f50e5a16b
+              DATA=/models/tensorfold-dsv41/45ee5d0f
+              SNAP=/models/.cache/huggingface/hub/models--Mia-AiLab--DeepSeek-V4.1-Flash-1017-EXL3-EAQ-v1-2.9-bpw/snapshots/$REV
+              KITREV=abe07c7d509a0199cc7fec15263be2aa52ac652f
+              KITDIR=/models/tensorfold-dsv41/kit-abe07c7d
+              KIT=$KITDIR/kit
+              mkdir -p "$DATA" "$KITDIR"
+              if [ ! -d "$KITDIR/.git" ]; then
+                git init -q "$KITDIR"
+                git -C "$KITDIR" remote add origin https://github.com/bertholomus/deepseek-v4.1-tensorfold-tp2-2xgb10.git
+              fi
+              git -C "$KITDIR" fetch -q --depth 1 origin "$KITREV"
+              git -C "$KITDIR" checkout -q --detach FETCH_HEAD
+              test "$(git -C "$KITDIR" rev-parse HEAD)" = "$KITREV"
+              mkdir -p "$KIT"
+              python3 /opt/tensorfold/tools/inputs/make_rope.py "$SNAP/config.json" /models/tensorfold-dsv41/kit-abe07c7d/kit
+              python3 /opt/tensorfold/tools/inputs/make_bias_vl.py "$SNAP" "$KIT/vision/gate_bias_vl.safetensors"
+              python3 /opt/tensorfold/tools/inputs/make_token_map.py "$SNAP" "$DATA/dsv41_token_map.json"
+              mkdir -p "$DATA/rank-cache"
+              tf-dsv41-rank-cache "$SNAP" "$DATA/rank-cache" 0 2
+              tf-dsv41-rank-cache "$SNAP" "$DATA/rank-cache" 1 2
+              mkdir -p "$DATA/model.new"
+              for f in "$SNAP"/*; do ln -s "$(realpath -s --relative-to="$DATA/model.new" "$f")" "$DATA/model.new/"; done
+              rm -f "$DATA/model.new/chat_template.jinja"
+              curl -fsSL https://raw.githubusercontent.com/MiaAI-Lab/DeepSeek-v4.1-Flash-1017-2x-DGX-Sparks/31eea4608f8bb292a92e2f7a1db400e928620c78/model/chat_template.jinja -o "$DATA/model.new/chat_template.jinja"
+              echo '2ad469968493ff62065c26f49a6b12e5f6968ef51f6321bc5a7361c21c3cc477  '"$DATA/model.new/chat_template.jinja" | sha256sum -c -
+              rm -rf "$DATA/model" && mv "$DATA/model.new" "$DATA/model"
+              printf '{"model_revision":"%s","kit_revision":"%s","rank_cache":"tp2","chat_template_sha256":"2ad469968493ff62065c26f49a6b12e5f6968ef51f6321bc5a7361c21c3cc477"}\n' "$REV" "$KITREV" > /models/.deepseek-v41-prepared
+              echo 'DeepSeek v4.1 preparation complete'
+          resources: {requests: {cpu: "8", memory: 8Gi}, limits: {cpu: "32", memory: 32Gi}}
+          volumeMounts: [{name: models, mountPath: /models}]
+      volumes:
+        - name: models
+          persistentVolumeClaim: {claimName: model-cache}
