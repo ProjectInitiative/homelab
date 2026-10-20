@@ -13,7 +13,7 @@
 #   kubectl logs -n llm-test deploy/ai-proxy-test -c litellm -f | grep --line-buffered "ai-gate:"
 
 set -u
-GATE_BASE="${GATE_BASE:-http://ai-gated.taildeab2.ts.net}"
+GATE_BASE="${GATE_BASE:-http://ai-test.taildeab2.ts.net}"
 MODEL="${MODEL:-dgx-spark}"
 KEY="${KEY:-sk-test}"
 AGENTS_FILE="${AGENTS_FILE:-$HOME/development/homelab/AGENTS.md}"
