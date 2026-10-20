@@ -1206,6 +1206,17 @@ spec:
                 secretKeyRef:
                   name: litellm-database
                   key: LITELLM_SALT_KEY
+            # Master key: flips the gateway to authenticated-only and enables
+            # the Admin UI (/ui) + virtual keys. Secret is projected from
+            # OpenBao k8s/litellm/master-key by litellm-secrets.yaml.
+            # BREAKING on first rollout: every unauthenticated client (pi,
+            # scripts hitting ai.taildeab2.ts.net) must present a key after
+            # this lands. ai-proxy-test intentionally stays unauthenticated.
+            - name: LITELLM_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-master-key
+                  key: LITELLM_MASTER_KEY
           volumeMounts:
             - name: config
               mountPath: /app/config.yaml
