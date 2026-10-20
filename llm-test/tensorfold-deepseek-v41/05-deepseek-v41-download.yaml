@@ -31,7 +31,7 @@ spec:
             - {name: HF_HUB_DISABLE_XET, value: "1"}
             - name: PULL_MODELS
               value: >-
-                Mia-AiLab/DeepSeek-V4.1-Flash-1017-EXL3-EAQ-v1-2.9-bpw@6d54be4fca338d79b17c3b03cc9a423bb3ac6718,
+                Mia-AiLab/DeepSeek-V4.1-Flash-1017-EXL3-EAQ-v1-2.9-bpw@45ee5d0fd106c94a3d77f721e09cbb2f50e5a16b,
                 deepseek-ai/DeepSeek-V4.1-Flash-1017@1bae0e1088993b9b82de08f59de5be5a34e42170#config.json|model.safetensors.index.json|model-00047-of-00048.safetensors|model-00048-of-00048.safetensors
             - name: HF_TOKEN
               valueFrom:
@@ -46,7 +46,7 @@ spec:
               python3 - "$marker" <<'PY'
               import hashlib, json, pathlib
               root = pathlib.Path('/models/.cache/huggingface/hub')
-              model = root / 'models--Mia-AiLab--DeepSeek-V4.1-Flash-1017-EXL3-EAQ-v1-2.9-bpw/snapshots/6d54be4fca338d79b17c3b03cc9a423bb3ac6718'
+              model = root / 'models--Mia-AiLab--DeepSeek-V4.1-Flash-1017-EXL3-EAQ-v1-2.9-bpw/snapshots/45ee5d0fd106c94a3d77f721e09cbb2f50e5a16b'
               engram = root / 'models--deepseek-ai--DeepSeek-V4.1-Flash-1017/snapshots/1bae0e1088993b9b82de08f59de5be5a34e42170'
               for p in (model / 'config.json', model / 'model.safetensors.index.json', engram / 'config.json', engram / 'model.safetensors.index.json'):
                   if not p.is_file(): raise SystemExit(f'missing {p}')
@@ -58,7 +58,7 @@ spec:
               shards = sorted(indexed)
               if len(shards) != 39: raise SystemExit(f'checkpoint index has {len(shards)} shards, expected 39')
               total = sum((model / n).stat().st_size for n in shards)
-              receipt = {'checkpoint_revision': '6d54be4fca338d79b17c3b03cc9a423bb3ac6718', 'checkpoint_shards': len(shards), 'checkpoint_weight_bytes': total, 'engram_revision': '1bae0e1088993b9b82de08f59de5be5a34e42170', 'engram_bytes': sum(want.values())}
+              receipt = {'checkpoint_revision': '45ee5d0fd106c94a3d77f721e09cbb2f50e5a16b', 'checkpoint_shards': len(shards), 'checkpoint_weight_bytes': total, 'engram_revision': '1bae0e1088993b9b82de08f59de5be5a34e42170', 'engram_bytes': sum(want.values())}
               pathlib.Path(__import__('sys').argv[1]).write_text(json.dumps(receipt, sort_keys=True) + '\n')
               print(json.dumps(receipt, sort_keys=True))
               PY

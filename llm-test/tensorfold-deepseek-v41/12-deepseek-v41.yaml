@@ -31,7 +31,7 @@ data:
     #!/usr/bin/env bash
     set -euo pipefail
     test -f /models/.deepseek-v41-prepared || { echo 'raw cache exists but rank-cache/kit preparation is incomplete'; exit 1; }
-    DATA=/models/tensorfold-dsv41/6d54be4f
+    DATA=/models/tensorfold-dsv41/45ee5d0f
     KIT=/models/tensorfold-dsv41/kit-abe07c7d/kit
     ENGRAM=/models/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-V4.1-Flash-1017/snapshots/1bae0e1088993b9b82de08f59de5be5a34e42170
     exec tf-dsv41-lanes "$DATA/model" "$DATA/rank-cache" 1 2 deepseek-v41-rendezvous.llm-test.svc.cluster.local 29620 "$KIT" --engram "$ENGRAM" --token-map "$DATA/dsv41_token_map.json" --pool 1048576 --streams 4 --drafts 1 --graphs 1 --side 1 --prefetch 1 --aio 1 --rdma "${TF_RDMA_DEVICES:?TF_RDMA_DEVICES must be set by the node fabric setup}"
@@ -39,7 +39,7 @@ data:
     #!/usr/bin/env bash
     set -euo pipefail
     test -f /models/.deepseek-v41-prepared || { echo 'raw cache exists but rank-cache/kit preparation is incomplete'; exit 1; }
-    DATA=/models/tensorfold-dsv41/6d54be4f
+    DATA=/models/tensorfold-dsv41/45ee5d0f
     KIT=/models/tensorfold-dsv41/kit-abe07c7d/kit
     ENGRAM=/models/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-V4.1-Flash-1017/snapshots/1bae0e1088993b9b82de08f59de5be5a34e42170
     . /launch/fabric-env.sh

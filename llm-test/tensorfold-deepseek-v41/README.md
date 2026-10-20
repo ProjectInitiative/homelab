@@ -4,7 +4,7 @@ Staged, **not activated** (`ManagedWorkload.spec.desiredState: Standby`). This i
 
 ## Pins
 
-- Checkpoint: `Mia-AiLab/DeepSeek-V4.1-Flash-1017-EXL3-EAQ-v1-2.9-bpw` @ `6d54be4fca338d79b17c3b03cc9a423bb3ac6718`
+- Checkpoint: `Mia-AiLab/DeepSeek-V4.1-Flash-1017-EXL3-EAQ-v1-2.9-bpw` @ `45ee5d0fd106c94a3d77f721e09cbb2f50e5a16b`
 - Engram source: `deepseek-ai/DeepSeek-V4.1-Flash-1017` @ `1bae0e1088993b9b82de08f59de5be5a34e42170`; only shards 47 and 48 are needed
 - Published engine image: `ghcr.io/miaai-lab/deepseek-v4.1-flash-1017-2x-dgx-sparks-tensorfold@sha256:4ed15dceaf0a210052d5db89c74145794d8ee45f63a3436878ac3ec01cea38b5`
 - API model: `DeepSeek-V4.1-Flash-1017`, port `8888`
