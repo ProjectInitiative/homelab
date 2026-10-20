@@ -3,7 +3,6 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - config-env.yaml
-  - forgejo-secrets.yaml
   - deployment.yaml
   - pvc.yaml
   - tailscale-lb.yaml
