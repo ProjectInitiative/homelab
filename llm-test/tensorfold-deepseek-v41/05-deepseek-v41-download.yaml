@@ -1,0 +1,71 @@
+# Suspended deliberately: this downloads ~400 GB to the shared model-cache PVC.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: deepseek-v41-cache-pull-v1
+  namespace: llm-test
+  labels:
+    app: deepseek-v41-cache-pull
+    lane: deepseek-v41
+    purpose: model-cache-preload
+spec:
+  ttlSecondsAfterFinished: 259200
+  suspend: true
+  backoffLimit: 2147483647
+  template:
+    metadata:
+      labels: {app: deepseek-v41-cache-pull, lane: deepseek-v41}
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector: {kubernetes.io/hostname: chronometer}
+      containers:
+        - name: puller
+          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:v6@sha256:7c832f622f68fd03cf4eb6a5705451a223be90e45d1b8a5396f77a43c2672062
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: HF_HOME, value: /models/.cache/huggingface}
+            - {name: RATE, value: "62500000"}
+            - {name: MAX_FILE_WORKERS, value: "4"}
+            - {name: MAX_REPO_WORKERS, value: "2"}
+            - {name: PROGRESS_INTERVAL, value: "30"}
+            - {name: HF_HUB_DISABLE_XET, value: "1"}
+            - name: PULL_MODELS
+              value: >-
+                Mia-AiLab/DeepSeek-V4.1-Flash-1017-EXL3-EAQ-v1-2.9-bpw@6d54be4fca338d79b17c3b03cc9a423bb3ac6718,
+                deepseek-ai/DeepSeek-V4.1-Flash-1017@1bae0e1088993b9b82de08f59de5be5a34e42170#config.json|model.safetensors.index.json|model-00047-of-00048.safetensors|model-00048-of-00048.safetensors
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef: {name: huggingface, key: HF_TOKEN, optional: true}
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              marker=/models/.deepseek-v41-raw-download-complete
+              rm -f "$marker"
+              python3 /opt/puller/puller.py
+              python3 - "$marker" <<'PY'
+              import hashlib, json, pathlib
+              root = pathlib.Path('/models/.cache/huggingface/hub')
+              model = root / 'models--Mia-AiLab--DeepSeek-V4.1-Flash-1017-EXL3-EAQ-v1-2.9-bpw/snapshots/6d54be4fca338d79b17c3b03cc9a423bb3ac6718'
+              engram = root / 'models--deepseek-ai--DeepSeek-V4.1-Flash-1017/snapshots/1bae0e1088993b9b82de08f59de5be5a34e42170'
+              for p in (model / 'config.json', model / 'model.safetensors.index.json', engram / 'config.json', engram / 'model.safetensors.index.json'):
+                  if not p.is_file(): raise SystemExit(f'missing {p}')
+              want = {'model-00047-of-00048.safetensors': 101535150936, 'model-00048-of-00048.safetensors': 101537926640}
+              for name, size in want.items():
+                  p = engram / name
+                  if p.stat().st_size != size: raise SystemExit(f'{p} size {p.stat().st_size} != {size}')
+              indexed = set(json.loads((model / 'model.safetensors.index.json').read_text())['weight_map'].values())
+              shards = sorted(indexed)
+              if len(shards) != 39: raise SystemExit(f'checkpoint index has {len(shards)} shards, expected 39')
+              total = sum((model / n).stat().st_size for n in shards)
+              receipt = {'checkpoint_revision': '6d54be4fca338d79b17c3b03cc9a423bb3ac6718', 'checkpoint_shards': len(shards), 'checkpoint_weight_bytes': total, 'engram_revision': '1bae0e1088993b9b82de08f59de5be5a34e42170', 'engram_bytes': sum(want.values())}
+              pathlib.Path(__import__('sys').argv[1]).write_text(json.dumps(receipt, sort_keys=True) + '\n')
+              print(json.dumps(receipt, sort_keys=True))
+              PY
+              echo 'DeepSeek v4.1 raw checkpoint and Engram preload verified'
+          resources:
+            requests: {cpu: "500m", memory: 1Gi}
+          volumeMounts: [{name: models, mountPath: /models}]
+      volumes:
+        - name: models
+          persistentVolumeClaim: {claimName: model-cache}

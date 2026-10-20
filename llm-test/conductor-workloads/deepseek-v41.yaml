@@ -1,0 +1,35 @@
+apiVersion: conductor.projectinitiative.io/v1alpha1
+kind: ManagedWorkload
+metadata:
+  name: deepseek-v41
+  namespace: llm-test
+spec:
+  poolRef: dgx-spark
+  desiredState: Standby
+  priority: 90
+  driver:
+    type: DeploymentSet
+    deploymentSet:
+      recoveryPolicy: RecreateTogether
+      members:
+        - name: deepseek-v41-worker
+          role: worker
+          startOrder: 10
+          stopOrder: 20
+          replicas: 1
+          readyGate: ContainersRunning
+        - name: deepseek-v41-head
+          role: head
+          startOrder: 20
+          stopOrder: 10
+          replicas: 1
+          readyGate: DeploymentAvailable
+  qualification:
+    serviceName: deepseek-v41-head
+    path: /health
+    port: 8888
+    timeout: 45m
+  routing:
+    serviceName: deepseek-v41-head
+    selector:
+      serving.homelab.io/alias: deepseek-v41

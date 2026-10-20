@@ -1,0 +1,139 @@
+# Standby-only TP2 deployment skeleton. Raw cache download is not sufficient:
+# the upstream kit and rank-cache preparation must create .deepseek-v41-prepared.
+apiVersion: v1
+kind: Service
+metadata:
+  name: deepseek-v41-head
+  namespace: llm-test
+  labels: {lane: deepseek-v41}
+spec:
+  selector: {app: deepseek-v41-head}
+  ports: [{name: http, port: 8888, targetPort: 8888}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: deepseek-v41-rendezvous
+  namespace: llm-test
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector: {lane: deepseek-v41}
+  ports: [{name: master, port: 29620, targetPort: 29620}]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deepseek-v41-launch
+  namespace: llm-test
+data:
+  launch-worker.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+    test -f /models/.deepseek-v41-prepared || { echo 'raw cache exists but rank-cache/kit preparation is incomplete'; exit 1; }
+    DATA=/models/tensorfold-dsv41/6d54be4f
+    KIT=/models/tensorfold-dsv41/kit-abe07c7d/kit
+    ENGRAM=/models/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-V4.1-Flash-1017/snapshots/1bae0e1088993b9b82de08f59de5be5a34e42170
+    exec tf-dsv41-lanes "$DATA/model" "$DATA/rank-cache" 1 2 deepseek-v41-rendezvous.llm-test.svc.cluster.local 29620 "$KIT" --engram "$ENGRAM" --token-map "$DATA/dsv41_token_map.json" --pool 1048576 --streams 4 --drafts 1 --graphs 1 --side 1 --prefetch 1 --aio 1 --rdma "${TF_RDMA_DEVICES:?TF_RDMA_DEVICES must be set by the node fabric setup}"
+  launch-head.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+    test -f /models/.deepseek-v41-prepared || { echo 'raw cache exists but rank-cache/kit preparation is incomplete'; exit 1; }
+    DATA=/models/tensorfold-dsv41/6d54be4f
+    KIT=/models/tensorfold-dsv41/kit-abe07c7d/kit
+    ENGRAM=/models/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-V4.1-Flash-1017/snapshots/1bae0e1088993b9b82de08f59de5be5a34e42170
+    . /launch/fabric-env.sh
+    export TF_TP_WORLD=2 TF_TP_MASTER="$HOST_IP" TF_TP_PORT=29620 TF_DS_RANK_CACHE="$DATA/rank-cache" TF_DS_KIT="$KIT" TENSORFOLD_CUDA_KERNELS="$KIT/aot" TF_DS_ENGRAM="$ENGRAM" TF_DS_TOKEN_MAP="$DATA/dsv41_token_map.json" TF_DS_GRAPHS=1 TF_DS_HC_SIDE=1 TF_DS_L2_PREFETCH=1 TF_DS_ENGRAM_AIO=1 TF_DS_REPLAY_FLOOR=1 TF_DS_STREAMS=4
+    exec tensorfold-native serve "$DATA/model" --backend cuda --host 0.0.0.0 --port 8888 --name DeepSeek-V4.1-Flash-1017 --context 1048576 --parallel 4 --max-tokens 32768 --temperature 1.0 --top-p 0.95 --top-k 20 --thinking --master "$HOST_IP" --master-port 29620
+  fabric-env.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+    hcas=$(find /sys/class/infiniband -mindepth 1 -maxdepth 1 -type l -printf '%f\n' | paste -sd, -)
+    test -n "$hcas" || { echo 'no RDMA device found'; exit 1; }
+    export TF_RDMA_DEVICES="$hcas"
+    echo "using RDMA devices: $TF_RDMA_DEVICES"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deepseek-v41-worker
+  namespace: llm-test
+  labels: {app: deepseek-v41-worker, lane: deepseek-v41}
+spec:
+  replicas: 0
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: deepseek-v41-worker}}
+  template:
+    metadata: {labels: {app: deepseek-v41-worker, lane: deepseek-v41}}
+    spec:
+      priorityClassName: llm-serving-critical
+      runtimeClassName: nvidia-rdma
+      hostNetwork: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      terminationGracePeriodSeconds: 120
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector: {matchLabels: {lane: deepseek-v41}}
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: tensorfold
+          image: ghcr.io/miaai-lab/deepseek-v4.1-flash-1017-2x-dgx-sparks-tensorfold@sha256:4ed15dceaf0a210052d5db89c74145794d8ee45f63a3436878ac3ec01cea38b5
+          command: ["bash", "-lc"]
+          args: [". /launch/fabric-env.sh && exec /launch/launch-worker.sh"]
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: compute,utility}
+            - {name: TF_RDMA_DEVICES, value: ""}
+            - {name: TF_TP_WORLD, value: "2"}
+          resources: {requests: {cpu: "16", memory: 16Gi}, limits: {cpu: "32", memory: 120Gi}}
+          securityContext: {capabilities: {add: [IPC_LOCK]}}
+          volumeMounts:
+            - {name: models, mountPath: /models, readOnly: true}
+            - {name: launch, mountPath: /launch, readOnly: true}
+      volumes:
+        - {name: models, persistentVolumeClaim: {claimName: model-cache}}
+        - {name: launch, configMap: {name: deepseek-v41-launch, defaultMode: 493}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deepseek-v41-head
+  namespace: llm-test
+  labels: {app: deepseek-v41-head, lane: deepseek-v41}
+spec:
+  replicas: 0
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: deepseek-v41-head}}
+  template:
+    metadata: {labels: {app: deepseek-v41-head, lane: deepseek-v41}}
+    spec:
+      priorityClassName: llm-serving-critical
+      runtimeClassName: nvidia-rdma
+      hostNetwork: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      terminationGracePeriodSeconds: 120
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector: {matchLabels: {lane: deepseek-v41}}
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: tensorfold
+          image: ghcr.io/miaai-lab/deepseek-v4.1-flash-1017-2x-dgx-sparks-tensorfold@sha256:4ed15dceaf0a210052d5db89c74145794d8ee45f63a3436878ac3ec01cea38b5
+          command: ["bash", "/launch/launch-head.sh"]
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: compute,utility}
+            - {name: HOST_IP, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
+            - {name: TF_TP_WORLD, value: "2"}
+            - {name: TF_TP_PORT, value: "29620"}
+          ports: [{name: http, containerPort: 8888}]
+          resources: {requests: {cpu: "16", memory: 16Gi}, limits: {cpu: "32", memory: 120Gi}}
+          securityContext: {capabilities: {add: [IPC_LOCK]}}
+          volumeMounts:
+            - {name: models, mountPath: /models, readOnly: true}
+            - {name: launch, mountPath: /launch, readOnly: true}
+      volumes:
+        - {name: models, persistentVolumeClaim: {claimName: model-cache}}
+        - {name: launch, configMap: {name: deepseek-v41-launch, defaultMode: 493}}
