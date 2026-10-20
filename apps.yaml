@@ -704,6 +704,19 @@ catalog:
       # SSA conflicts would be an unnecessary risk during ownership handoff.
       syncOptions: []
 
+  # Standby-only DeepSeek-V4.1 TensorFold TP2 lane. The cache preload Job is
+  # suspended in Git; Conductor registration lives in conductor-workloads.
+  tensorfold-deepseek-v41:
+    path: llm-test/tensorfold-deepseek-v41
+    annotations:
+      argocd.argoproj.io/sync-wave: "123"
+    syncPolicy:
+      automated:
+        prune: false
+        selfHeal: true
+      syncOptions:
+        - ServerSideApply=true
+
   # External controller-runtime operator. The immutable source revision itself
   # pins an immutable multi-arch image and starts the pool in Observe mode.
   conductor:
