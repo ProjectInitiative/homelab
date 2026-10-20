@@ -205,7 +205,7 @@ data:
       store_prompts_in_spend_logs: false
     # Sensitivity gate LIVE with per-model selection: plain aliases exempt
     # (AI_GATE_LOCAL_MODELS), -gated twins scanned. Canaried on ai-proxy-test
-    # / ai-gated (DEC-0037 soak) before this flip.
+    # / ai-test (DEC-0037 soak) before this flip.
     litellm_settings:
       callbacks:
         - custom_guardrail.ai_gate.proxy_handler_instance
@@ -1323,10 +1323,12 @@ spec:
       targetPort: 8000
 ---
 # ============================================================================
-# PARALLEL GATED ENDPOINT (DEC-0020/0021, staged-rollout revision)
+# PARALLEL TEST ENDPOINT (DEC-0020/0021, staged-rollout revision)
 # ai-proxy-test mirrors ai-proxy with the ai-gate guardrail enabled. Testing
-# happens on ai-gated.taildeab2.ts.net; ai/ai-direct stay unrestricted until
-# the canary soak passes. Same model_list, same classifier (cygnet-gate).
+# happens on ai-test.taildeab2.ts.net (renamed from ai-gated 2026-10-20:
+# "-gated" is the prod alias suffix; this is the unauthenticated canary);
+# ai/ai-direct require keys post master-key switch. Same model_list, same
+# classifier (cygnet-gate).
 # ============================================================================
 apiVersion: v1
 kind: ConfigMap
@@ -1528,16 +1530,16 @@ spec:
     matchLabels:
       app: ai-proxy-test
 ---
-# Gated test entry: ai-gated.taildeab2.ts.net -> ai-proxy-test. Direct machine
-# identity (no proxy-group) like ai-direct; swap clients here during gate
-# testing without touching ai/ai-direct.
+# Unauthenticated test entry: ai-test.taildeab2.ts.net -> ai-proxy-test.
+# Direct machine identity (no proxy-group) like ai-direct; swap clients here
+# during gate testing without touching ai/ai-direct.
 apiVersion: v1
 kind: Service
 metadata:
-  name: ai-gated
+  name: ai-test
   namespace: llm-test
   annotations:
-    tailscale.com/hostname: "ai-gated"
+    tailscale.com/hostname: "ai-test"
 spec:
   type: LoadBalancer
   loadBalancerClass: tailscale
@@ -1697,7 +1699,7 @@ data:
      const f = document.getElementById('feed');
      const scrollY = window.scrollY;
      const liveKeys = new Set();
-     f.innerHTML = d.length ? '' : '<div class="k">no decisions yet — run pi traffic through ai-gated, or use the playground</div>';
+     f.innerHTML = d.length ? '' : '<div class="k">no decisions yet — run pi traffic through ai-test, or use the playground</div>';
      d.forEach((rec,i)=>{ const key = rec.ts+'|'+rec.kind; liveKeys.add(key); const c=document.createElement('div'); c.className='card';
       const share = rec.total_chars ? Math.round(100*rec.redacted_chars/rec.total_chars) : 0;
       c.innerHTML = `<div class="row"><span class="pill ${rec.kind}">${rec.kind}</span>

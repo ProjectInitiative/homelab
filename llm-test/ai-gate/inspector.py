@@ -135,7 +135,7 @@ async function loadFeed(){ const r = await fetch('/api/decisions'); const d = aw
  const f = document.getElementById('feed');
  const scrollY = window.scrollY;
  const liveKeys = new Set();
- f.innerHTML = d.length ? '' : '<div class="k">no decisions yet — run pi traffic through ai-gated, or use the playground</div>';
+ f.innerHTML = d.length ? '' : '<div class="k">no decisions yet — run pi traffic through ai-test, or use the playground</div>';
  d.forEach((rec,i)=>{ const key = rec.ts+'|'+rec.kind; liveKeys.add(key); const c=document.createElement('div'); c.className='card';
   const share = rec.total_chars ? Math.round(100*rec.redacted_chars/rec.total_chars) : 0;
   c.innerHTML = `<div class="row"><span class="pill ${rec.kind}">${rec.kind}</span>
