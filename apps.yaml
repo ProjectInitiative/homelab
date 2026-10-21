@@ -704,6 +704,20 @@ catalog:
       # SSA conflicts would be an unnecessary risk during ownership handoff.
       syncOptions: []
 
+  # Cache-only preload for the NVIDIA Flare GLM-5.3 Flash NVFP4/MXFP8
+  # checkpoint. The serving package and Conductor workload are staged later;
+  # this app owns only the resumable raw checkpoint download.
+  flare-glm53:
+    path: llm-test/flare-glm53
+    annotations:
+      argocd.argoproj.io/sync-wave: "123"
+    syncPolicy:
+      automated:
+        prune: false
+        selfHeal: true
+      syncOptions:
+        - ServerSideApply=true
+
   # Standby-only DeepSeek-V4.1 TensorFold TP2 lane. The cache preload Job is
   # suspended in Git; Conductor registration lives in conductor-workloads.
   tensorfold-deepseek-v41:
