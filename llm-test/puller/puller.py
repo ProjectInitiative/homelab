@@ -37,6 +37,8 @@ Parameters (env):
   HF_ENDPOINT        optional   override the Hugging Face endpoint
 """
 import fnmatch
+import http.server
+import json
 import os
 import sys
 import time
@@ -45,6 +47,54 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 DEFAULT_RATE = 104857600  # 100 MiB/s
+
+_METRICS = {
+    "files_completed": 0,
+    "files_total": 0,
+    "bytes_persisted": 0,
+    "instantaneous_bytes_per_second": 0,
+    "average_bytes_per_second": 0,
+    "rate_limit_bytes_per_second": 0,
+}
+_METRICS_LOCK = threading.Lock()
+
+
+def set_metric(name, value):
+    with _METRICS_LOCK:
+        _METRICS[name] = int(value)
+
+
+def metrics_snapshot():
+    with _METRICS_LOCK:
+        return dict(_METRICS)
+
+
+class MetricsHandler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path != "/metrics":
+            self.send_error(404)
+            return
+        metrics = metrics_snapshot()
+        body = "".join(
+            f"model_downloader_{name} {value}\\n" for name, value in metrics.items()
+        ).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain; version=0.0.4")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *_args):
+        return
+
+
+def start_metrics_server(port):
+    if port <= 0:
+        return None
+    server = http.server.ThreadingHTTPServer(("0.0.0.0", port), MetricsHandler)
+    thread = threading.Thread(target=server.serve_forever, name="model-downloader-metrics", daemon=True)
+    thread.start()
+    return server
 
 
 def log(*a):
@@ -140,6 +190,11 @@ class ProgressReporter:
         session_bytes = max(current - self.initial_bytes, 0)
         expected = sum(size for _, _, size in self.files if size is not None)
         pct = (100 * current / expected) if expected else 0
+        set_metric("files_completed", completed)
+        set_metric("files_total", len(self.files))
+        set_metric("bytes_persisted", current)
+        set_metric("instantaneous_bytes_per_second", interval_bytes / elapsed)
+        set_metric("average_bytes_per_second", session_bytes / total_elapsed)
         label = "final" if final else "progress"
         log(
             f"{label} files={completed}/{len(self.files)} partial={partial} "
@@ -373,6 +428,9 @@ def main():
     repo_workers = env_int("MAX_REPO_WORKERS", 2)
     del_workers = env_int("MAX_DELETE_WORKERS", 4)
     progress_interval = env_int("PROGRESS_INTERVAL", 30)
+    metrics_port = env_int("METRICS_PORT", 9105)
+    set_metric("rate_limit_bytes_per_second", rate)
+    metrics_server = start_metrics_server(metrics_port)
 
     pull = [s.strip() for s in os.environ.get("PULL_MODELS", "").split(",") if s.strip()]
     delete = [s.strip() for s in os.environ.get("DELETE_MODELS", "").split(",") if s.strip()]
@@ -392,9 +450,20 @@ def main():
         )
     if not pull and not delete:
         log("nothing to do (set PULL_MODELS and/or DELETE_MODELS)")
+        if metrics_server:
+            metrics_server.shutdown()
         sys.exit(2)
 
+    receipt_path = os.environ.get("RECEIPT_PATH", "")
+    if receipt_path:
+        receipt = {"operation": "Ensure" if pull else "Delete", "models": pull or delete, "metrics": metrics_snapshot()}
+        os.makedirs(os.path.dirname(receipt_path) or ".", exist_ok=True)
+        with open(receipt_path, "w") as fh:
+            json.dump(receipt, fh, sort_keys=True)
+            fh.write("\\n")
     log("done")
+    if metrics_server:
+        metrics_server.shutdown()
 
 
 if __name__ == "__main__":

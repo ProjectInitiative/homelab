@@ -6,8 +6,8 @@
 # the RATE parameter at job time.
 #
 # Build (on an aarch64 node, native):
-#   podman build -t registry.taildeab2.ts.net/homelab/glm53-cache-puller:v6 .
-#   podman push registry.taildeab2.ts.net/homelab/glm53-cache-puller:v6
+#   podman build -t registry.taildeab2.ts.net/homelab/model-cache-downloader:v1 .
+#   podman push registry.taildeab2.ts.net/homelab/model-cache-downloader:v1
 # Reference the image by an immutable digest in Jobs and bump the versioned tag
 # on change.
 #
