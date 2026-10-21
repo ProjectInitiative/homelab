@@ -1957,6 +1957,15 @@ spec:
           port: 8009
         - protocol: TCP
           port: 8770
+    # Temporary, narrow exception for the host-networked TensorFold backend.
+    # Keep this subnet-scoped until the serving lane is redesigned for pod
+    # networking/RDMA; do not widen this to all RFC1918 egress.
+    - to:
+        - ipBlock:
+            cidr: 172.16.4.0/24
+      ports:
+        - protocol: TCP
+          port: 8000
     - to:
         - namespaceSelector:
             matchLabels:
