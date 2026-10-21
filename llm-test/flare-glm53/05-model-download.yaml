@@ -1,5 +1,8 @@
 # Flare-compatible GLM-5.3 Flash NVFP4/MXFP8 checkpoint preload.
 # This is cache-only: no GPU serving workload is created by this Job.
+# The container uses the existing shared llm-test/puller/puller.py contract
+# packaged as glm53-cache-puller:v6; this Job only supplies model parameters
+# and performs the lane-specific receipt check.
 apiVersion: batch/v1
 kind: Job
 metadata:
