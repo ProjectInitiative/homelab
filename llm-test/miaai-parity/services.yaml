@@ -1115,6 +1115,9 @@ spec:
       labels:
         app: ai-proxy
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       # Let in-flight streams finish on the retiring pod after endpoints update.
       terminationGracePeriodSeconds: 120
       affinity:
@@ -1133,6 +1136,16 @@ spec:
           # deliberately when upgrading.
           image: ghcr.io/berriai/litellm@sha256:87f34979b9f8cb274fac90ca8a4fdda07d8480de22755562a26adeb95ce20d02
           imagePullPolicy: IfNotPresent
+          # Hardening (RISK-0034, 2026-10-21): gateway pods hold provider keys
+          # + DB creds — no privilege escalation, no capabilities, no seccomp
+          # escapes (pod-level below). Image runs as root uid; runAsNonRoot
+          # deliberately NOT set (would break the image) — revisit on the
+          # litellm-non_root variant at the next deliberate upgrade.
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            capabilities:
+              drop: ["ALL"]
           args: ["--config", "/app/config.yaml", "--port", "8000"]
           lifecycle:
             preStop:
@@ -1417,6 +1430,9 @@ spec:
         app: ai-proxy-test
         role: gated-test-endpoint
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: litellm
           # Digest-pinned like ai-proxy: a scale-up/rollout must never silently
@@ -1425,6 +1441,12 @@ spec:
           # upgrading).
           image: ghcr.io/berriai/litellm@sha256:87f34979b9f8cb274fac90ca8a4fdda07d8480de22755562a26adeb95ce20d02
           imagePullPolicy: IfNotPresent
+          # Hardening (RISK-0034, 2026-10-21): same as ai-proxy.
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            capabilities:
+              drop: ["ALL"]
           args: ["--config", "/app/config.yaml", "--port", "8000"]
           ports:
             - name: http
@@ -1784,10 +1806,23 @@ spec:
         app: gate-inspector
         role: ai-platform-tooling
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: inspector
-          image: ghcr.io/berriai/litellm:main-stable
+          # Digest-pinned (RISK-0034, 2026-10-21): this was previously the
+          # mutable :main-stable tag — one of the tags poisoned in the
+          # LiteLLM v1.107.0 supply-chain attack. Pinned to the exact
+          # pre-compromise build that was verified running here on
+          # 2026-10-21 (imageID match). Never let this float again.
+          image: ghcr.io/berriai/litellm@sha256:60947db020b57e204823d3fbc8bb295c85be890d7c9adcc77fb4f5fc2fe410b2
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            capabilities:
+              drop: ["ALL"]
           # absolute venv python: a bare "python3" would miss httpx/litellm if
           # /app is ever shadowed by a mount
           command: ["/app/.venv/bin/python3", "/opt/inspector/inspector.py"]
@@ -1869,3 +1904,80 @@ spec:
       protocol: TCP
       port: 80
       targetPort: 8770
+---
+# RISK-0034 hardening (2026-10-21): the LLM gateway pods are the estate's
+# highest-value target — they hold provider keys, DB creds, and the master
+# key. Egress is default-deny for these three apps (and their sidecars) so a
+# poisoned-supply-chain container cannot move laterally in the cluster or
+# reach private infra. Allowlist covers exactly what they need:
+#   - DNS (kube-system CoreDNS)
+#   - in-namespace backends on the ports llm-test services actually use
+#     (models/heads 8000, gate 8009, inspector 8770, litellm-default 4000)
+#   - postgres-db:5432 (CNPG usage DB)
+#   - TCP/443 to public internet ONLY — RFC1918, cluster (10.42/10.43), and
+#     tailnet (100.64/10) are carved out so in-cluster/private traffic cannot
+#     ride the world rule (node mgmt, k8s API on 172.16.4.x:6443 => blocked)
+#   - tailnet 100.64.0.0/10:9090 (alloy sidecar remote_write -> dinghy)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: llm-gateway-egress-isolation
+  namespace: llm-test
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values: ["ai-proxy", "ai-proxy-test", "gate-inspector"]
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 4000
+        - protocol: TCP
+          port: 8000
+        - protocol: TCP
+          port: 8009
+        - protocol: TCP
+          port: 8770
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: postgres-db
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 100.64.0.0/10
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: 100.64.0.0/10
+      ports:
+        - protocol: TCP
+          port: 9090
