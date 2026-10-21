@@ -336,6 +336,8 @@ apps:
   # Observe-only and does not own the shared llm-test Namespace.
   - name: ai-proxy
     namespace: llm-test
+  - name: flare-glm53
+    namespace: llm-test
   - name: tensorfold-deepseek-v41
     namespace: llm-test
   - name: conductor

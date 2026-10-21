@@ -1,0 +1,89 @@
+# Flare-compatible GLM-5.3 Flash NVFP4/MXFP8 checkpoint preload.
+# This is cache-only: no GPU serving workload is created by this Job.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: flare-glm53-nvfp4-cache-pull-v1
+  namespace: llm-test
+  labels:
+    app: flare-glm53-nvfp4-cache-pull
+    lane: flare-glm53
+    purpose: model-cache-preload
+spec:
+  ttlSecondsAfterFinished: 259200
+  suspend: false
+  backoffLimit: 2147483647
+  template:
+    metadata:
+      labels:
+        app: flare-glm53-nvfp4-cache-pull
+        lane: flare-glm53
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      containers:
+        - name: puller
+          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:v6@sha256:7c832f622f68fd03cf4eb6a5705451a223be90e45d1b8a5396f77a43c2672062
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: HF_HOME, value: /models/.cache/huggingface}
+            - {name: RATE, value: "62500000"}
+            - {name: MAX_FILE_WORKERS, value: "4"}
+            - {name: MAX_REPO_WORKERS, value: "1"}
+            - {name: PROGRESS_INTERVAL, value: "30"}
+            - {name: HF_HUB_DISABLE_XET, value: "1"}
+            - name: PULL_MODELS
+              value: local-inference-lab/GLM-5.3-Flash-NVFP4-MXFP8-CSF-QAD@dec48abd33efa73c3bb7c95b74eee10cad34f9be
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface
+                  key: HF_TOKEN
+                  optional: true
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              marker=/models/.flare-glm53-nvfp4-download-complete
+              snap=/models/.cache/huggingface/hub/models--local-inference-lab--GLM-5.3-Flash-NVFP4-MXFP8-CSF-QAD/snapshots/dec48abd33efa73c3bb7c95b74eee10cad34f9be
+              rm -f "$marker"
+              python3 /opt/puller/puller.py
+              python3 - "$snap" "$marker" <<'PY'
+              import hashlib, json, pathlib, sys
+              root, marker = map(pathlib.Path, sys.argv[1:])
+              index = root / "model.safetensors.index.json"
+              if not index.is_file():
+                  raise SystemExit(f"missing {index}")
+              indexed = set(json.loads(index.read_text())["weight_map"].values())
+              expected = {f"tensors/model-{i:05d}-of-00036.safetensors" for i in range(1, 37)}
+              if indexed != expected:
+                  raise SystemExit(f"checkpoint index mismatch: {len(indexed)} indexed files, expected 36")
+              total = 0
+              for name in sorted(expected):
+                  path = root / name
+                  if not path.is_file():
+                      raise SystemExit(f"missing shard {path}")
+                  total += path.stat().st_size
+              required = ["config.json", "generation_config.json", "tokenizer.json", "tokenizer_config.json", "chat_template.jinja", "processor_config.json"]
+              missing = [name for name in required if not (root / name).is_file()]
+              if missing:
+                  raise SystemExit(f"missing metadata: {missing}")
+              receipt = {
+                  "checkpoint_revision": "dec48abd33efa73c3bb7c95b74eee10cad34f9be",
+                  "checkpoint_shards": 36,
+                  "checkpoint_weight_bytes": total,
+                  "index_sha256": hashlib.sha256(index.read_bytes()).hexdigest(),
+              }
+              marker.write_text(json.dumps(receipt, sort_keys=True) + "\n")
+              print(json.dumps(receipt, sort_keys=True), flush=True)
+              PY
+              echo "Flare GLM-5.3 Flash checkpoint preload verified"
+          resources:
+            requests: {cpu: "500m", memory: 1Gi}
+          volumeMounts:
+            - {name: models, mountPath: /models}
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
