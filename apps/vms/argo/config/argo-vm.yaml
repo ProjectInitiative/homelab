@@ -58,7 +58,9 @@ spec:
           sockets: 1
           threads: 1
         memory:
-          guest: 8Gi
+          # 32Gi: nix flake evaluation OOMs at 8Gi; capacity is ample
+          # (capstan3 allocatable ~76Gi, big nodes 128Gi+)
+          guest: 32Gi
         devices:
           disks:
             - name: root
