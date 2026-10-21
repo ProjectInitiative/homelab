@@ -735,7 +735,7 @@ catalog:
   # pins an immutable multi-arch image and starts the pool in Observe mode.
   conductor:
     repoURL: https://github.com/ProjectInitiative/conductor.git
-    targetRevision: 8194084ac2bb84bffc6edc4240a66fe357664221
+    targetRevision: 857baf4ff94f8909703631f8a29856d03e61c89b
     path: generator
     plugin:
       name: cdk8s-v1.0
