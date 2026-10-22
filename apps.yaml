@@ -949,6 +949,26 @@ catalog:
         - CreateNamespace=true
         - ServerSideApply=true
 
+  kubevirt-manager-auth:
+    path: bootstrap/base/kubevirt-manager-auth/config
+    annotations:
+      argocd.argoproj.io/sync-wave: "31"
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      namespace: production
+      audiences:
+        - vault
+      secrets:
+        - name: kubevirt-manager-auth
+          mount: k8s
+          path: "kubevirt-manager/auth"
+          destination: "auth-secret"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
   privateer:
     path: apps/base/privateer/config
 
