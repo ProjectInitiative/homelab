@@ -12,7 +12,7 @@ ARG RUST_VERSION=1.94.1
 ENV DEBIAN_FRONTEND=noninteractive \
     UV_NO_CACHE=1 \
     UV_PROJECT_ENVIRONMENT=/opt/flare/.venv \
-    PATH=/opt/flare/.venv/bin:/opt/flare/flare/target/release:/root/.cargo/bin:$PATH \
+    PATH=/opt/flare/.venv/bin:/opt/flare/flare/target/release:/root/.cargo/bin:/root/.local/bin:$PATH \
     CUDA_HOME=/usr/local/cuda
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
