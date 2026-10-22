@@ -51,6 +51,8 @@ apps:
     namespace: kube-system
   - name: kubevirt
     namespace: kubevirt
+  - name: kubevirt-manager-auth
+    namespace: kubevirt-manager
   - name: tailscale-operator
     namespace: tailscale
     # OPERATOR_HOSTNAME moved to helm values (apps.yaml): a kustomize patch on

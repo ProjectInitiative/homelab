@@ -1,0 +1,18 @@
+---
+# kubevirt-manager HTTP basic auth — nginx directives only (not sensitive).
+# The .htpasswd itself is synced from OpenBao by VSO: the
+# kubevirt-manager-auth app (apps.yaml) creates a VaultStaticSecret named
+# auth-secret in the kubevirt-manager namespace, sourced from
+# k8s/kubevirt-manager/auth (key: .htpasswd).
+# Regenerate the hash with: openssl passwd -apr1 '<password>'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-config
+  namespace: kubevirt-manager
+  labels:
+    app: kubevirt-manager
+data:
+  basicauth.conf: |
+    auth_basic "Restricted Content";
+    auth_basic_user_file /etc/nginx/secret.d/.htpasswd;
