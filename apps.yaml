@@ -275,15 +275,6 @@ catalog:
         - CreateNamespace=true
         - ServerSideApply=true
 
-  juicefs-cache-ring-build:
-    path: llm-test/juicefs-cache-ring
-    annotations:
-      argocd.argoproj.io/sync-wave: "29"
-    syncPolicy:
-      syncOptions:
-        - CreateNamespace=true
-        - ServerSideApply=true
-
   juicefs-csi-driver:
     annotations:
       argocd.argoproj.io/sync-wave: "30"
