@@ -10,6 +10,16 @@ spec:
     developerConfiguration:
       featureGates: []
     imagePullPolicy: IfNotPresent
+  # Keep KubeVirt control-plane and virt-handler components off the arm64
+  # DGX Spark pool. KubeVirt remains available on amd64 nodes.
+  infra:
+    nodePlacement:
+      nodeSelector:
+        kubernetes.io/arch: amd64
   customizeComponents: {}
   imagePullPolicy: IfNotPresent
   workloadUpdateStrategy: {}
+  workloads:
+    nodePlacement:
+      nodeSelector:
+        kubernetes.io/arch: amd64

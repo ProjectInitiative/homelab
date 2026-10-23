@@ -142,14 +142,16 @@ node once its operator comes up.
 
 ## Gateway Node Labels (HA)
 
-The submariner-gateway DaemonSet schedules only on nodes labeled
-`submariner.io/gateway=true`. All nodes on both clusters are labeled for
-active/passive HA: every node runs a gateway pod, exactly one is ACTIVE,
-the rest passive; leader election fails over automatically.
+The submariner-gateway, globalnet, and metrics-proxy DaemonSets schedule only
+on nodes labeled `submariner.io/gateway=true`. Keep this label on the dedicated
+control-plane gateway pool, not on GPU/LLM nodes. The route-agent remains on all
+nodes because it installs routes from each node to the active gateway.
 
 To keep this declarative, the label must be set at node provisioning time:
 - mc (NixOS): add to `dotfiles` k3s `--node-label submariner.io/gateway=true`
-- cc (VPS): add to the k3s install args
+  only for the gateway pool
+- cc (VPS): add to the k3s install args for its gateway pool
 
-If a node is added without the label, the gateway DS won't schedule there
-(degraded HA, not broken mesh).
+Removing the label from a node does not immediately evict existing DaemonSet
+pods; roll or delete the affected gateway/globalnet/metrics pods after the node
+labels converge.
