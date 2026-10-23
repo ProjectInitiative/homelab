@@ -78,6 +78,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: model-cache
   namespace: llm-test
+  labels:
+    juicefs-cache-group: dgx-model-cache
 spec:
   accessModes: [ReadWriteMany]
   storageClassName: juicefs-sc
