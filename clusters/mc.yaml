@@ -97,6 +97,8 @@ apps:
     namespace: cnpg-system
   - name: barman-cloud-plugin
     namespace: cnpg-system
+  - name: juicefs-cache-ring-build
+    namespace: llm-test
   - name: juicefs-csi-driver
     namespace: kube-system
     helm_values: |

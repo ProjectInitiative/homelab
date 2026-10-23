@@ -1,0 +1,132 @@
+# Suspended, receipt-producing native-arm64 build for the JuiceFS cache-ring fork.
+# Unsuspend only after reviewing the pinned source and confirming the internal
+# registry is the intended distribution path. This does not alter live mounts.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: juicefs-cache-ring-image-build-1a429a0
+  namespace: llm-test
+  labels:
+    app.kubernetes.io/name: juicefs-cache-ring-image-build
+    purpose: image-build
+  annotations:
+    homelab.projectinitiative.io/source-revision: 1a429a0527aeb3fffded8f74f19861863e6ed066
+immutable: true
+data:
+  buildkitd.toml: |
+    [registry."local-registry.registry.svc.cluster.local:5000"]
+      http = true
+  fetch-source.sh: |
+    #!/bin/sh
+    set -eu
+    src=/workspace/src
+    git init "$src"
+    git -C "$src" remote add origin https://github.com/ProjectInitiative/juicefs.git
+    git -C "$src" fetch --depth 1 --no-tags origin "$SOURCE_REV"
+    git -C "$src" checkout --detach FETCH_HEAD
+    actual=$(git -C "$src" rev-parse HEAD)
+    [ "$actual" = "$SOURCE_REV" ] || { echo "revision mismatch: $actual != $SOURCE_REV" >&2; exit 1; }
+    test -f "$src/deploy/csi/Dockerfile"
+    echo "fetched JuiceFS source $actual"
+  build-image.sh: |
+    #!/bin/sh
+    set -eu
+    src=/workspace/src
+    image="local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:${IMAGE_TAG}"
+    echo "building $image from $SOURCE_REV"
+    buildctl-daemonless.sh build \
+      --frontend dockerfile.v0 \
+      --local "context=$src" \
+      --local "dockerfile=$src/deploy/csi" \
+      --opt "filename=Dockerfile" \
+      --output "type=image,name=$image,push=true,oci-mediatypes=false" \
+      --progress=plain
+    echo "image build complete: $image"
+    echo "Record the registry digest before enabling the CSI image."
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: juicefs-cache-ring-image-build-1a429a0
+  namespace: llm-test
+  labels:
+    app.kubernetes.io/name: juicefs-cache-ring-image-build
+    purpose: image-build
+spec:
+  suspend: true
+  backoffLimit: 0
+  activeDeadlineSeconds: 7200
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: juicefs-cache-ring-image-build
+        purpose: image-build
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values: [arm64]
+      initContainers:
+        - name: fetch-source
+          image: alpine/git:v2.52.0
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args: ["/build/fetch-source.sh"]
+          env:
+            - name: SOURCE_REV
+              value: "1a429a0527aeb3fffded8f74f19861863e6ed066"
+          resources:
+            requests: {cpu: 250m, memory: 256Mi}
+            limits: {cpu: "1", memory: 1Gi}
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: workspace, mountPath: /workspace}
+            - {name: build-config, mountPath: /build, readOnly: true}
+      containers:
+        - name: buildkit
+          image: moby/buildkit:v0.26.2-rootless
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args: ["/build/build-image.sh"]
+          env:
+            - name: SOURCE_REV
+              value: "1a429a0527aeb3fffded8f74f19861863e6ed066"
+            - name: IMAGE_TAG
+              value: "1a429a0-arm64"
+            - name: BUILDKITD_FLAGS
+              value: "--oci-worker-no-process-sandbox --config=/build/buildkitd.toml"
+          resources:
+            requests: {cpu: "4", memory: 8Gi, ephemeral-storage: 16Gi}
+            limits: {cpu: "8", memory: 16Gi, ephemeral-storage: 24Gi}
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            seccompProfile: {type: Unconfined}
+            appArmorProfile: {type: Unconfined}
+          volumeMounts:
+            - {name: workspace, mountPath: /workspace, readOnly: true}
+            - {name: buildkit-state, mountPath: /home/user/.local/share/buildkit}
+            - {name: build-config, mountPath: /build, readOnly: true}
+      volumes:
+        - name: workspace
+          emptyDir:
+            sizeLimit: 2Gi
+        - name: buildkit-state
+          emptyDir:
+            sizeLimit: 24Gi
+        - name: build-config
+          configMap:
+            name: juicefs-cache-ring-image-build-1a429a0
+            defaultMode: 0555
