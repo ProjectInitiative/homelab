@@ -288,43 +288,6 @@ catalog:
               enabled: true
               manageByHelm: true
               enableNodeSelector: true
-              mountPodPatch:
-                - nodeSelector:
-                    kubernetes.io/hostname: astrolabe
-                  pvcSelector:
-                    matchStorageClassName: juicefs-sc
-                  mountOptions:
-                    - cache-dir=/mnt/pool/juicefs
-                    - cache-size=1500000
-                    - prefetch=8
-                    - max-readahead=256M
-                    - buffer-size=1G
-                    - max-downloads=200
-                    - cache-eviction=lru
-                - nodeSelector:
-                    kubernetes.io/hostname: chronometer
-                  pvcSelector:
-                    matchStorageClassName: juicefs-sc
-                  mountOptions:
-                    - cache-dir=/mnt/pool/juicefs
-                    - cache-size=550000
-                    - prefetch=8
-                    - max-readahead=256M
-                    - buffer-size=1G
-                    - max-downloads=200
-                    - cache-eviction=lru
-                - nodeSelector:
-                    kubernetes.io/hostname: sextant
-                  pvcSelector:
-                    matchStorageClassName: juicefs-sc
-                  mountOptions:
-                    - cache-dir=/mnt/pool/juicefs
-                    - cache-size=550000
-                    - prefetch=8
-                    - max-readahead=256M
-                    - buffer-size=1G
-                    - max-downloads=200
-                    - cache-eviction=lru
     syncPolicy:
       syncOptions:
         - CreateNamespace=true
