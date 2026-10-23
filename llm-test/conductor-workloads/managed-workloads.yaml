@@ -6,7 +6,9 @@ metadata:
 spec:
   poolRef: dgx-spark
   desiredState: Resident
-  priority: 100
+  # Conductor priority: lower is more urgent; 0 is the LLM recovery lane.
+  # The scheduler may reclaim lower-priority residency when capacity is lost.
+  priority: 0
   driver:
     type: DeploymentSet
     deploymentSet:

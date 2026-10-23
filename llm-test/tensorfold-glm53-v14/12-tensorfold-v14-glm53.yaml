@@ -330,6 +330,11 @@ spec:
       hostNetwork: true
       hostIPC: true
       dnsPolicy: ClusterFirstWithHostNet
+      # Select the DGX Spark capability pool, not specific hostnames. Conductor
+      # owns residency and recovery when a Spark fails or must be reclaimed.
+      nodeSelector:
+        gpu: dgx-spark
+        gpu-vendor: nvidia
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -577,6 +582,11 @@ spec:
       hostNetwork: true
       hostIPC: true
       dnsPolicy: ClusterFirstWithHostNet
+      # Select the DGX Spark capability pool, not specific hostnames. Conductor
+      # owns residency and recovery when a Spark fails or must be reclaimed.
+      nodeSelector:
+        gpu: dgx-spark
+        gpu-vendor: nvidia
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
