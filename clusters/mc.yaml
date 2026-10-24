@@ -146,7 +146,7 @@ apps:
           - pvcSelector:
               matchLabels:
                 juicefs-cache-group: dgx-model-cache
-            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:8d8935ec-auto-c7-arm64@sha256:9296bb2ab09b938862ab7bb0fe3ce86400707d7fd4e0838565751713ef30a39e
+            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:8d8935ec-fast-failover-arm64@sha256:f0e43f93d9aaced55c3cb97eb8bfa375d56467bccd444c2d4affc8e2b7e74ec8
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
             mountOptions:
