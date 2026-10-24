@@ -143,54 +143,18 @@ apps:
               - buffer-size=1G
               - max-downloads=200
               - cache-eviction=lru
-          - nodeSelector:
-              kubernetes.io/hostname: chronometer
-            pvcSelector:
+          - pvcSelector:
               matchLabels:
                 juicefs-cache-group: dgx-model-cache
-            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:8d8935ec-arm64@sha256:4f116c908daa45927eab6eaff2c8750f12288a99b09ef5dd86c756b0dd113c0f
+            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:8d8935ec-auto-c7@sha256:5ae197395849eb4c1b8ec72275affd309235da744b3178e66eda180e2aad589c
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
             mountOptions:
               - cache-dir=/mnt/pool/juicefs-ring
               - cache-size=550000
               - cache-group=dgx-model-cache
-              - group-listen=:3910
-              - group-advertise=172.16.5.55:3910;172.16.6.55:3910;172.16.7.55:3910;172.16.8.55:3910
-              - group-weight=1
-              - prefetch=8
-              - max-readahead=256M
-              - buffer-size=1G
-              - max-downloads=200
-              - cache-eviction=lru
-          - nodeSelector:
-              kubernetes.io/hostname: sextant
-            pvcSelector:
-              matchLabels:
-                juicefs-cache-group: dgx-model-cache
-            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:8d8935ec-arm64@sha256:4f116c908daa45927eab6eaff2c8750f12288a99b09ef5dd86c756b0dd113c0f
-            mountOptions:
-              - cache-dir=/mnt/pool/juicefs-ring
-              - cache-size=550000
-              - cache-group=dgx-model-cache
-              - group-listen=:3910
-              - group-advertise=172.16.5.56:3910;172.16.6.56:3910;172.16.9.56:3910;172.16.10.56:3910
-              - group-weight=1
-              - prefetch=8
-              - max-readahead=256M
-              - buffer-size=1G
-              - max-downloads=200
-              - cache-eviction=lru
-          - nodeSelector:
-              kubernetes.io/hostname: octant
-            pvcSelector:
-              matchLabels:
-                juicefs-cache-group: dgx-model-cache
-            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:8d8935ec-arm64@sha256:4f116c908daa45927eab6eaff2c8750f12288a99b09ef5dd86c756b0dd113c0f
-            mountOptions:
-              - cache-dir=/mnt/pool/juicefs-ring
-              - cache-size=550000
-              - cache-group=dgx-model-cache
-              - group-listen=:3910
-              - group-advertise=172.16.7.57:3910;172.16.8.57:3910;172.16.9.57:3910;172.16.10.57:3910
+              - group-listen=:13910
+              - group-advertise=auto-c7
               - group-weight=1
               - prefetch=8
               - max-readahead=256M
