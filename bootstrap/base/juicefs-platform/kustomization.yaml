@@ -3,4 +3,5 @@ kind: Kustomization
 resources:
   - storage-class.yaml
   - job-format.yaml
+  - csidriver.yaml
 namespace: juicefs-platform
