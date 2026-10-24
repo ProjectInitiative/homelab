@@ -148,7 +148,7 @@ apps:
             pvcSelector:
               matchLabels:
                 juicefs-cache-group: dgx-model-cache
-            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:1a429a0-arm64@sha256:5d1538c57d2d883a0e1aad8a4ef18da6d38ddd5b895a5dbfafec98e6113b6cdd
+            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:8d8935ec-arm64@sha256:4f116c908daa45927eab6eaff2c8750f12288a99b09ef5dd86c756b0dd113c0f
             mountOptions:
               - cache-dir=/mnt/pool/juicefs-ring
               - cache-size=550000
@@ -166,7 +166,7 @@ apps:
             pvcSelector:
               matchLabels:
                 juicefs-cache-group: dgx-model-cache
-            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:1a429a0-arm64@sha256:5d1538c57d2d883a0e1aad8a4ef18da6d38ddd5b895a5dbfafec98e6113b6cdd
+            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:8d8935ec-arm64@sha256:4f116c908daa45927eab6eaff2c8750f12288a99b09ef5dd86c756b0dd113c0f
             mountOptions:
               - cache-dir=/mnt/pool/juicefs-ring
               - cache-size=550000
@@ -184,7 +184,7 @@ apps:
             pvcSelector:
               matchLabels:
                 juicefs-cache-group: dgx-model-cache
-            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:1a429a0-arm64@sha256:5d1538c57d2d883a0e1aad8a4ef18da6d38ddd5b895a5dbfafec98e6113b6cdd
+            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:8d8935ec-arm64@sha256:4f116c908daa45927eab6eaff2c8750f12288a99b09ef5dd86c756b0dd113c0f
             mountOptions:
               - cache-dir=/mnt/pool/juicefs-ring
               - cache-size=550000
