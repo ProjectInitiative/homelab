@@ -152,10 +152,6 @@ apps:
             mountOptions:
               - cache-dir=/mnt/pool/juicefs-ring
               - cache-size=550000
-              - cache-group=dgx-model-cache
-              - group-listen=:13910
-              - group-advertise=auto-c7
-              - group-weight=1
               - prefetch=8
               - max-readahead=256M
               - buffer-size=1G
