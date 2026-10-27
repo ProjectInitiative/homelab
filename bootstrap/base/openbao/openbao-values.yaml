@@ -28,6 +28,12 @@ server:
   # ordinals is harmful when a node is unreachable.
   podManagementPolicy: "Parallel"
 
+  # RBAC for service_registration "kubernetes": the active pod patches its own
+  # openbao-active label so the openbao-active Service gets endpoints.
+  serviceAccount:
+    serviceDiscovery:
+      enabled: true
+
   # HA is required for this setup.
   standalone:
     enabled: false
@@ -69,6 +75,11 @@ server:
           # current_key = "env://BAO_SEAL_KEY?encoding=base64"
         }
 
+        # Registers the active pod's openbao-active=true label so the
+        # openbao-active Service (used by the snapshot agent) has endpoints.
+        # Uses BAO_K8S_POD_NAME/BAO_K8S_NAMESPACE env already set by the chart.
+        service_registration "kubernetes" {}
+  
   # A persistent volume is required to store the TPM-encrypted seal key.
   dataStorage:
     enabled: true
