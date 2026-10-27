@@ -410,6 +410,10 @@ catalog:
           mount: k8s
           path: "garage/rpc"
           destination: "garage-rpc-secret"
+          # VSS only reconciles on spec change or refreshAfter tick —
+          # without this, one failed pass (e.g. openbao bounce) leaves
+          # SYNCED=False until the operator restarts
+          refreshAfter: 5m
         # Admin API token for garage v2 (GARAGE_ADMIN_TOKEN env on the pods).
         # Token value lives in OpenBao at k8s/garage/admin-token under key
         # "token" — used by dinghy's prometheus for the admin API (per-bucket
@@ -418,6 +422,10 @@ catalog:
           mount: k8s
           path: "garage/admin-token"
           destination: "garage-admin-token"
+          # adopt the pre-seeded secret (created manually while VSO was
+          # wedged); without this VSO refuses an un-owned destination
+          overwrite: true
+          refreshAfter: 5m
     ignoreDifferences:
       - group: ""
         jsonPointers:
