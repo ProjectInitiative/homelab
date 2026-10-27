@@ -21,12 +21,10 @@ spec:
     # You can optionally specify a nodePort here (e.g., nodePort: 30900)
     # If you omit it, Kubernetes will assign a random one.
   - name: metrics
-    # Pinned: this was auto-assigned (30826) and the scrape config in dotfiles
-    # targets it via node Tailscale IPs — a recreation would re-randomize it
-    # and break monitoring again.
+    # The port your new service will have inside the cluster
     port: 3903
+    # The port on the Garage pod that traffic should be sent to
     targetPort: 3903
-    nodePort: 30826
   - name: k2v
     port: 3904
     targetPort: 3904
