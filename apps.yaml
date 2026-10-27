@@ -418,6 +418,9 @@ catalog:
           mount: k8s
           path: "garage/admin-token"
           destination: "garage-admin-token"
+          # adopt the pre-seeded secret (created manually while VSO was
+          # wedged); without this VSO refuses an un-owned destination
+          overwrite: true
     ignoreDifferences:
       - group: ""
         jsonPointers:
