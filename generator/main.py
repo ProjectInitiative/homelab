@@ -284,11 +284,14 @@ class ClusterAppsChart(Chart):
                         "mount": secret_item.get("mount", "secret"),
                         "type": secret_item.get("type", "kv-v2"),
                         "path": secret_item["path"],
+                        # VSS only reconciles on spec change or refreshAfter tick;
+                        # without periodic refresh a single failed pass (e.g. an
+                        # openbao outage) leaves SYNCED=False until the operator
+                        # restarts. Override per-app with "refreshAfter".
+                        "refreshAfter": secret_item.get("refreshAfter", "5m"),
                         "destination": destination,
                     },
                 }
-                if "refreshInterval" in secret_item:
-                    vss_manifest["spec"]["refreshInterval"] = secret_item["refreshInterval"]
                 if "namespace" in vs_config:
                     vss_manifest["spec"]["namespace"] = vs_config["namespace"]
 
