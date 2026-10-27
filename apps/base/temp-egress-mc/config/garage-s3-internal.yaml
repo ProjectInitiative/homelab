@@ -7,7 +7,8 @@
 # backups, large object movement).
 #
 # The tailscale-operator takes the device hostname from the `hostname`
-# annotation: s3-internal.taildeab2.ts.net (port 3900 = S3 API, 3904 = k2v).
+# annotation: s3-internal.taildeab2.ts.net (port 3900 = S3 API, 3904 = k2v,
+# 3903 = Prometheus metrics — scraped by dinghy).
 apiVersion: v1
 kind: Service
 metadata:
@@ -30,3 +31,7 @@ spec:
       protocol: TCP
       port: 3904
       targetPort: 3904
+    - name: metrics
+      protocol: TCP
+      port: 3903
+      targetPort: 3903
