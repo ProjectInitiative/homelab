@@ -171,8 +171,10 @@ data:
     [ -n "$ENCODED" ] || { echo "ERROR: no encoded root token after 3 shares"; exit 1; }
 
     echo "==> decoding root token"
-    ROOT=$(bao operator generate-root -decode="$ENCODED" -otp="$OTTP" | grep -i '^root token' | awk '{print $NF}')
-    [ -n "$ROOT" ] || { echo "ERROR: could not parse decoded root token"; exit 1; }
+    DOUT=$(bao operator generate-root -decode="$ENCODED" -otp="$OTTP" 2>&1) \
+      || { echo "$DOUT"; echo "ERROR: decode call failed"; exit 1; }
+    ROOT=$(printf '%s\n' "$DOUT" | grep -i 'root token' | grep -vi encoded | awk '{print $NF}' | tail -1)
+    [ -n "$ROOT" ] || { echo "RAW DECODE OUTPUT:"; echo "$DOUT"; echo "ERROR: could not parse decoded root token"; exit 1; }
 
     echo ""
     echo "================================================================"
