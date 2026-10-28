@@ -70,7 +70,7 @@ data:
     log "server API is up"
 
     log "initializing throwaway state (recovery shares are DRILL-ONLY, do not save)"
-    if ! bao operator init -key-shares=5 -key-threshold=3 > "$DRILL/init.txt" 2>&1; then
+    if ! bao operator init -recovery-shares=5 -recovery-threshold=3 > "$DRILL/init.txt" 2>&1; then
       log "INIT FAILED:"; cat "$DRILL/init.txt"; exit 1
     fi
     until bao status 2>&1 | grep -q "Sealed                   false"; do sleep 2; done
