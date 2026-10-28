@@ -174,6 +174,8 @@ data:
     DOUT=$(bao operator generate-root -decode="$ENCODED" -otp="$OTTP" 2>&1) \
       || { echo "$DOUT"; echo "ERROR: decode call failed"; exit 1; }
     ROOT=$(printf '%s\n' "$DOUT" | grep -i 'root token' | grep -vi encoded | awk '{print $NF}' | tail -1)
+    # openbao decode prints the bare token when no label is present
+    [ -n "$ROOT" ] || ROOT=$(printf '%s\n' "$DOUT" | awk 'NF==1 && $1 !~ /^$/ {print $1}' | tail -1)
     [ -n "$ROOT" ] || { echo "RAW DECODE OUTPUT:"; echo "$DOUT"; echo "ERROR: could not parse decoded root token"; exit 1; }
 
     echo ""
