@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   # - pkcs11-store-pvc.yaml
   - fapi-configmap.yaml
+  - openbao-tokenreview-rolebinding.yaml
