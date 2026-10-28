@@ -76,6 +76,11 @@ data:
     until bao status 2>&1 | grep -q "Sealed                   false"; do sleep 2; done
     log "drill server initialized and unsealed"
 
+    log "authenticating restore with the throwaway initial root token"
+    BAO_TOKEN=$(sed -n 's/^Initial Root Token: //p' "$DRILL/init.txt")
+    [ -n "$BAO_TOKEN" ] || { log "ERROR: could not parse Initial Root Token from init.txt"; exit 1; }
+    export BAO_TOKEN
+
     log "STAGE B: fetching latest snapshot from s3://$S3_BUCKET/"
     LATEST=$(s3cmd $S3ARGS ls "s3://$S3_BUCKET/" | awk '{print $4}' | sort | tail -1)
     [ -n "$LATEST" ] || { log "ERROR: bucket empty"; exit 1; }
