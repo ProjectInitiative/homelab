@@ -48,7 +48,7 @@ data:
       node_id = "drill-1"
     }
     seal "static" {
-      current_key_id = "drill-seal-key-1"
+      current_key_id = "tpm-seal-key-1"
       current_key    = "file://$SEAL_KEY_FILE"
     }
     EOF
