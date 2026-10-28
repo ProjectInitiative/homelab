@@ -121,7 +121,7 @@ data:
   stage-c.sh: |
     #!/bin/sh
     # Stage C helper — one-shot recovery-share verification.
-    # Prompts for 3 recovery shares from Bitwarden, mints a root token on the
+    # Prompts for 3 recovery shares, mints a root token on the
     # RESTORED drill cluster, proves content, revokes the token.
     # Cancels any stale root-generation attempt before starting.
     set -eu
@@ -137,7 +137,7 @@ data:
     bao operator generate-root -cancel >/dev/null 2>&1 || true
 
     get_share() {
-      printf 'Paste recovery share %s (from Bitwarden): ' "$1" >&2
+      printf 'Paste recovery share %s: ' "$1" >&2
       IFS= read -r S
       [ -n "$S" ] || { echo "ERROR: empty share" >&2; exit 1; }
       printf '%s' "$S"
