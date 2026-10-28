@@ -36,11 +36,11 @@ data:
 
     cat > "$DRILL/config.hcl" <<EOF
     ui = false
-    disable_mlock = true
     listener "tcp" {
       address         = "127.0.0.1:8200"
       cluster_address = "127.0.0.1:8201"
     }
+    cluster_addr = "http://127.0.0.1:8201"
     storage "raft" {
       path    = "$DRILL/raft"
       node_id = "drill-1"
