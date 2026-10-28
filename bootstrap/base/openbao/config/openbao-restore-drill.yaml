@@ -161,7 +161,7 @@ data:
     i=1
     for SHARE in "$S1" "$S2" "$S3"; do
       echo "==> submitting share $i/3"
-      OUT=$(bao operator generate-root -nonce="$NONCE" -share="$SHARE" 2>&1) \
+      OUT=$(printf '%s' "$SHARE" | bao operator generate-root -otp="$OTTP" -nonce="$NONCE" - 2>&1) \
         || { echo "$OUT"; echo "ERROR: share $i rejected"; exit 1; }
       echo "$OUT"
       E=$(printf '%s\n' "$OUT" | grep -i 'encoded' | awk '{print $NF}')
