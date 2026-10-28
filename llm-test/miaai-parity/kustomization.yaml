@@ -5,3 +5,4 @@ resources:
   # lanes remain outside this Application and retain their off-the-cuff flow.
   - services.yaml
   - litellm-secrets.yaml
+  - chatgpt-auth-maintenance.yaml
