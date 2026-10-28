@@ -110,15 +110,87 @@ data:
     log "================================================================"
     log "STAGE C (MANUAL): verify content + recovery shares."
     log "  kubectl --context mc -n openbao exec -it $HOSTNAME -- sh"
-    log "  export BAO_ADDR=http://127.0.0.1:8200"
-    log "  1. mint a root token with 3 RECOVERY SHARES from Bitwarden:"
-    log "     bao operator generate-root -generate-otp; -init; submit 3 shares; -decode"
-    log "  2. prove content: bao kv get -mount=k8s garage/rpc  (or any known path)"
-    log "  3. revoke the drill root token, then: kubectl -n openbao delete job openbao-restore-drill-manual"
+    log "  then run the one-shot helper (prompts for 3 recovery shares):"
+    log "     sh /drill-script/stage-c.sh"
+    log "  it mints a root token from the shares, proves content with"
+    log "  'bao kv get -mount=k8s garage/rpc', and revokes the token."
     log "Full runbook: docs/openbao-restore-drill.md"
     log "Parking until the job deadline (48h) — the pod is safe to delete anytime."
     log "================================================================"
     sleep 2147483647
+  stage-c.sh: |
+    #!/bin/sh
+    # Stage C helper — one-shot recovery-share verification.
+    # Prompts for 3 recovery shares from Bitwarden, mints a root token on the
+    # RESTORED drill cluster, proves content, revokes the token.
+    # Cancels any stale root-generation attempt before starting.
+    set -eu
+    export BAO_ADDR=http://127.0.0.1:8200
+    unset BAO_TOKEN || true
+
+    # preflight: restored drill server must be reachable and unsealed
+    bao status 2>&1 | grep -q "Sealed                   false" \
+      || { echo "ERROR: drill server not reachable/unsealed at $BAO_ADDR"; exit 1; }
+
+    # cancel any previous generate-root attempt (idempotent, harmless if none)
+    echo "==> cancelling any stale root-generation attempt"
+    bao operator generate-root -cancel >/dev/null 2>&1 || true
+
+    get_share() {
+      printf 'Paste recovery share %s (from Bitwarden): ' "$1" >&2
+      IFS= read -r S
+      [ -n "$S" ] || { echo "ERROR: empty share" >&2; exit 1; }
+      printf '%s' "$S"
+    }
+
+    S1=$(get_share 1)
+    S2=$(get_share 2)
+    S3=$(get_share 3)
+
+    echo "==> generating OTP"
+    OTTP=$(bao operator generate-root -generate-otp | awk '{print $NF}')
+    [ -n "$OTTP" ] || { echo "ERROR: could not parse OTP"; exit 1; }
+
+    echo "==> initializing root generation"
+    INIT=$(bao operator generate-root -init -otp="$OTTP")
+    echo "$INIT"
+    NONCE=$(printf '%s\n' "$INIT" | grep -i '^nonce' | awk '{print $NF}')
+    [ -n "$NONCE" ] || { echo "ERROR: could not parse nonce — run: bao operator generate-root -cancel, then retry"; exit 1; }
+
+    ENCODED=""
+    i=1
+    for SHARE in "$S1" "$S2" "$S3"; do
+      echo "==> submitting share $i/3"
+      OUT=$(bao operator generate-root -nonce="$NONCE" -share="$SHARE" 2>&1) \
+        || { echo "$OUT"; echo "ERROR: share $i rejected"; exit 1; }
+      echo "$OUT"
+      E=$(printf '%s\n' "$OUT" | grep -i 'encoded' | awk '{print $NF}')
+      [ -n "$E" ] && ENCODED=$E
+      i=$((i+1))
+    done
+    [ -n "$ENCODED" ] || { echo "ERROR: no encoded root token after 3 shares"; exit 1; }
+
+    echo "==> decoding root token"
+    ROOT=$(bao operator generate-root -decode="$ENCODED" -otp="$OTTP" | grep -i '^root token' | awk '{print $NF}')
+    [ -n "$ROOT" ] || { echo "ERROR: could not parse decoded root token"; exit 1; }
+
+    echo ""
+    echo "================================================================"
+    echo "PROOF: reading garage/rpc from the RESTORED cluster"
+    echo "================================================================"
+    if BAO_TOKEN="$ROOT" bao kv get -mount=k8s garage/rpc; then
+      RESULT="PASS"
+    else
+      echo "!! kv get failed — the token works but that path may not exist; try others manually:"
+      echo "   export BAO_TOKEN=$ROOT"
+      RESULT="CHECK"
+    fi
+
+    echo "==> revoking the drill root token"
+    BAO_TOKEN="$ROOT" bao token revoke -self || true
+    echo ""
+    echo "Stage C complete: $RESULT"
+    echo "Cleanup: kubectl --context mc -n openbao delete job openbao-restore-drill-manual"
 ---
 apiVersion: batch/v1
 kind: CronJob
