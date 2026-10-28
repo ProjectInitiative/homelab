@@ -65,7 +65,7 @@ bao operator generate-root -decode=<ENCODED> -otp=<OTP>
 ```
 
 ```bash
-BAO_TOKEN=<decoded-root> bao kv get -mount=k8s garage/rpc
+BAO_TOKEN=<decoded-root> bao kv get -namespace=production -mount=k8s garage/rpc
 BAO_TOKEN=<decoded-root> bao token revoke <decoded-root>
 ```
 
