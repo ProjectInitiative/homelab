@@ -1,0 +1,16 @@
+# Authorizes the openbao server SA to perform TokenReviews — required by the
+# kubernetes_cluster_mc auth mount (root namespace) used by the snapshot
+# agent. system:auth-delegator grants create on tokenreviews/authentication.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: openbao-tokenreview
+  namespace: openbao
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: openbao
+    namespace: openbao
