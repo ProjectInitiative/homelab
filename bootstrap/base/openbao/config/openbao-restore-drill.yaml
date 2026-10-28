@@ -1,0 +1,163 @@
+---
+# OpenBao restore drill — proves the S3 snapshots are actually restorable.
+# Monthly CronJob: spins up a throwaway single-node instance, downloads the
+# latest snapshot from the openbao-snapshots bucket, restores it, and waits
+# for TWO manual verification steps (seal key placement + recovery-share
+# generate-root). See docs/openbao-restore-drill.md for the runbook.
+#
+# The drill uses NO TPM and NO production seal secret — it tests that the
+# key material in Bitwarden is sufficient for full recovery on commodity
+# hardware, which is the actual disaster scenario.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openbao-restore-drill-script
+  namespace: openbao
+data:
+  drill.sh: |
+    #!/bin/sh
+    # OpenBao restore drill controller.
+    # Stage A (manual): place the production seal key from Bitwarden.
+    # Stage B (auto):   init throwaway -> download latest snapshot -> restore -> restart -> unseal.
+    # Stage C (manual): mint root with recovery shares, read a secret, clean up.
+    set -eu
+
+    DRILL=/drill
+    SEAL_KEY_FILE=/tmp/bao_seal_key   # same path the production seal-config uses
+    BAO_ADDR=http://127.0.0.1:8200
+    export BAO_ADDR
+    S3_HOST="garage.garage.svc.cluster.local.:3900"   # trailing dot is load-bearing
+    S3_BUCKET="openbao-snapshots"
+    S3ARGS="--host=$S3_HOST --no-ssl --config=/dev/null --access_key=$AWS_ACCESS_KEY_ID --secret_key=$AWS_SECRET_ACCESS_KEY"
+
+    log() { echo "[drill $(date -u '+%Y-%m-%dT%H:%M:%SZ')] $*"; }
+
+    mkdir -p "$DRILL/raft"
+
+    cat > "$DRILL/config.hcl" <<EOF
+    ui = false
+    disable_mlock = true
+    listener "tcp" {
+      address         = "127.0.0.1:8200"
+      cluster_address = "127.0.0.1:8201"
+    }
+    storage "raft" {
+      path    = "$DRILL/raft"
+      node_id = "drill-1"
+    }
+    seal "static" {
+      current_key_id = "drill-seal-key-1"
+      current_key    = "file://$SEAL_KEY_FILE"
+    }
+    EOF
+
+    log "================================================================"
+    log "STAGE A (MANUAL): place the production SEAL KEY from Bitwarden."
+    log "  kubectl --context mc -n openbao exec -it $HOSTNAME -- sh"
+    log "  then: printf '%s' '<seal-key-value>' > /tmp/bao_seal_key"
+    log "Waiting for the key file (job deadline: 48h)..."
+    log "================================================================"
+    while [ ! -s "$SEAL_KEY_FILE" ]; do sleep 10; done
+    log "seal key present ($(wc -c < "$SEAL_KEY_FILE") bytes)"
+
+    log "starting drill server (single-node raft, static seal)..."
+    bao server -config="$DRILL/config.hcl" >> "$DRILL/server.log" 2>&1 &
+    BAO_PID=$!
+
+    until bao status 2>&1 | grep -q "Seal Type"; do sleep 2; done
+    log "server API is up"
+
+    log "initializing throwaway state (recovery shares are DRILL-ONLY, do not save)"
+    if ! bao operator init -key-shares=5 -key-threshold=3 > "$DRILL/init.txt" 2>&1; then
+      log "INIT FAILED:"; cat "$DRILL/init.txt"; exit 1
+    fi
+    until bao status 2>&1 | grep -q "Sealed                   false"; do sleep 2; done
+    log "drill server initialized and unsealed"
+
+    log "STAGE B: fetching latest snapshot from s3://$S3_BUCKET/"
+    LATEST=$(s3cmd $S3ARGS ls "s3://$S3_BUCKET/" | awk '{print $4}' | sort | tail -1)
+    [ -n "$LATEST" ] || { log "ERROR: bucket empty"; exit 1; }
+    log "latest: $LATEST"
+    s3cmd $S3ARGS get "$LATEST" "$DRILL/snapshot.bin" --force
+
+    log "restoring snapshot into the drill server..."
+    bao operator raft snapshot restore "$DRILL/snapshot.bin"
+
+    log "restarting drill server to adopt the restored state..."
+    kill "$BAO_PID" 2>/dev/null || true
+    wait "$BAO_PID" 2>/dev/null || true
+    bao server -config="$DRILL/config.hcl" >> "$DRILL/server.log" 2>&1 &
+    BAO_PID=$!
+
+    for i in $(seq 1 60); do
+      if bao status 2>&1 | grep -q "Sealed                   false"; then
+        log "================================================================"
+        log "RESTORED CLUSTER IS UNSEALED — snapshot is valid and restorable."
+        log "================================================================"
+        break
+      fi
+      sleep 5
+      [ "$i" = "60" ] && { log "ERROR: server did not come up unsealed after restore — check $DRILL/server.log"; exit 1; }
+    done
+
+    log "================================================================"
+    log "STAGE C (MANUAL): verify content + recovery shares."
+    log "  kubectl --context mc -n openbao exec -it $HOSTNAME -- sh"
+    log "  export BAO_ADDR=http://127.0.0.1:8200"
+    log "  1. mint a root token with 3 RECOVERY SHARES from Bitwarden:"
+    log "     bao operator generate-root -generate-otp; -init; submit 3 shares; -decode"
+    log "  2. prove content: bao kv get -mount=k8s garage/rpc  (or any known path)"
+    log "  3. revoke the drill root token, then: kubectl -n openbao delete job openbao-restore-drill-manual"
+    log "Full runbook: docs/openbao-restore-drill.md"
+    log "Parking until the job deadline (48h) — the pod is safe to delete anytime."
+    log "================================================================"
+    sleep 2147483647
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: openbao-restore-drill
+  namespace: openbao
+spec:
+  # Monthly, 06:00 UTC on the 1st — after that morning's 00:00 snapshot run,
+  # so the drill always grabs a fresh snapshot.
+  schedule: "0 6 1 * *"
+  concurrencyPolicy: Forbid
+  # 48h to complete both manual stages; then the pod is killed and the next
+  # monthly run starts clean.
+  activeDeadlineSeconds: 172800
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        metadata:
+          labels:
+            app: openbao-restore-drill
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: drill
+              image: ghcr.io/openbao/openbao-snapshot-agent:0.3.0
+              command: ["sh", "/drill-script/drill.sh"]
+              envFrom:
+                - secretRef:
+                    name: openbao-snapshot-s3
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: "1"
+                  memory: 1Gi
+              volumeMounts:
+                - name: script
+                  mountPath: /drill-script
+                - name: workdir
+                  mountPath: /drill
+          volumes:
+            - name: script
+              configMap:
+                name: openbao-restore-drill-script
+            - name: workdir
+              emptyDir:
+                sizeLimit: 2Gi

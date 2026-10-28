@@ -188,7 +188,11 @@ snapshotAgent:
     tag: 0.3.0
   s3CredentialsSecret: "openbao-snapshot-s3"
   config:
-    s3Host: "garage.garage.svc.cluster.local:3900"
+    # TRAILING DOT is load-bearing: the pod's ndots:5 search list includes
+    # taildeab2.ts.net, whose forward (100.100.100.100) hangs from non-tailscale
+    # nodes (AI nodes) — musl aborts the whole lookup when a search-domain
+    # query times out. The absolute FQDN skips the search walk entirely.
+    s3Host: "garage.garage.svc.cluster.local.:3900"
     s3Bucket: "openbao-snapshots"
     s3Uri: "s3://openbao-snapshots"
     s3ExpireDays: "30"
