@@ -41,6 +41,7 @@ data:
       cluster_address = "127.0.0.1:8201"
     }
     cluster_addr = "http://127.0.0.1:8201"
+    api_addr      = "http://127.0.0.1:8200"
     storage "raft" {
       path    = "$DRILL/raft"
       node_id = "drill-1"
