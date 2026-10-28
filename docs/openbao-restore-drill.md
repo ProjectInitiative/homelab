@@ -88,6 +88,32 @@ kubectl --context mc -n openbao delete job openbao-restore-drill-manual
 - **Stage C: login + kv get works** → full pass. Everything in the DR chain
   (S3 snapshot, seal key, recovery shares, content) is proven.
 
+## Optional stage D — prove the seal key is the irreplaceable artifact
+
+While still on the drill instance (content verified in stage C):
+
+```bash
+rm /tmp/bao_seal_key
+```
+
+Restart the drill server (kill the bao process, start it again with the same
+config). The server will come up **sealed** and stay sealed — then confirm:
+
+```bash
+printf '%s' '<recovery-share-1>' | bao operator unseal -
+```
+
+Expected: **rejected**. Recovery shares are "purely an authorization
+mechanism" (OpenBao docs) — they cannot decrypt the root key. Only the seal
+key can. This is the documented failure mode:
+
+> "If the seal mechanism or its keys are permanently deleted, then the
+> OpenBao cluster cannot be recovered, even from backups."
+
+If a recovery share *does* unseal it, that's a finding worth an incident —
+it would mean the drill instance's seal config isn't what we think it is.
+
+
 ## Restore requirements (for a real disaster)
 
 All three artifacts, any two are useless without the third:
@@ -104,6 +130,30 @@ Restore command on a fresh instance (same static seal + key file):
 ```bash
 bao operator raft snapshot restore <snapshot-file>
 ```
+
+## Real-DR notes (from the openbao-tpm-init architecture)
+
+The production cluster auto-unseals via the `openbao-tpm-init` sidecar
+(bootstrap-init seals the seal key into each node's TPM; the unsealer sidecar
+delivers it to the static seal). For a genuine from-scratch recovery:
+
+1. **Recreate the `openbao-bootstrap-seal-key` secret first** — bootstrap-init
+   reads it to seal the key into each node's TPM:
+
+   ```bash
+   kubectl --context mc -n openbao create secret generic openbao-bootstrap-seal-key --from-literal=seal-key='<value-from-bitwarden>'
+   ```
+
+   (Note: the sidecar's `cleanup_bootstrap_secret` is *designed* to delete this
+   secret once the cluster is healthy, but the RBAC for that never existed —
+   which is the only reason the 2026-10-23 TPM-reset recovery worked. The
+   secret must be recreated from Bitwarden in any from-scratch recovery.)
+2. Deploy the openbao sts — bootstrap-init seals the key into each node's TPM,
+   the sidecar delivers it, the static seal auto-unseals.
+3. Then restore the snapshot (`raft snapshot restore`) as above.
+
+The restore drill deliberately skips this machinery: it tests that the
+Bitwarden copy of the seal key alone is sufficient on commodity hardware.
 
 ## Known caveats
 
