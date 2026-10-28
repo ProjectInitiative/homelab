@@ -28,7 +28,7 @@ data:
     export BAO_ADDR
     S3_HOST="garage.garage.svc.cluster.local.:3900"   # trailing dot is load-bearing
     S3_BUCKET="openbao-snapshots"
-    S3ARGS="--host=$S3_HOST --no-ssl --config=/dev/null --access_key=$AWS_ACCESS_KEY_ID --secret_key=$AWS_SECRET_ACCESS_KEY"
+    S3ARGS="--host=$S3_HOST --host-bucket= --no-ssl --config=/dev/null --access_key=$AWS_ACCESS_KEY_ID --secret_key=$AWS_SECRET_ACCESS_KEY"
 
     log() { echo "[drill $(date -u '+%Y-%m-%dT%H:%M:%SZ')] $*"; }
 
