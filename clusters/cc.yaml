@@ -19,9 +19,7 @@ apps:
     # source adds Kustomize to a Helm source and breaks Argo manifest generation.
     helm_values: |
       operatorConfig:
-        extraEnv:
-          - name: OPERATOR_HOSTNAME
-            value: cc-tailscale-operator
+        hostname: cc-tailscale-operator
   - name: cert-manager
     namespace: cert-manager
   - name: openbao-auth-config
