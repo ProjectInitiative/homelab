@@ -28,7 +28,7 @@ data:
     export BAO_ADDR
     S3_HOST="garage.garage.svc.cluster.local.:3900"   # trailing dot is load-bearing
     S3_BUCKET="openbao-snapshots"
-    S3ARGS="--host=$S3_HOST --no-ssl --config=/dev/null --access_key=$AWS_ACCESS_KEY_ID --secret_key=$AWS_SECRET_ACCESS_KEY"
+    S3ARGS="--host=$S3_HOST --host-bucket= --no-ssl --config=/dev/null --access_key=$AWS_ACCESS_KEY_ID --secret_key=$AWS_SECRET_ACCESS_KEY"
 
     log() { echo "[drill $(date -u '+%Y-%m-%dT%H:%M:%SZ')] $*"; }
 
@@ -39,6 +39,7 @@ data:
     listener "tcp" {
       address         = "127.0.0.1:8200"
       cluster_address = "127.0.0.1:8201"
+      tls_disable     = true
     }
     cluster_addr = "http://127.0.0.1:8201"
     api_addr      = "http://127.0.0.1:8200"
@@ -47,7 +48,7 @@ data:
       node_id = "drill-1"
     }
     seal "static" {
-      current_key_id = "drill-seal-key-1"
+      current_key_id = "tpm-seal-key-1"
       current_key    = "file://$SEAL_KEY_FILE"
     }
     EOF
@@ -69,11 +70,16 @@ data:
     log "server API is up"
 
     log "initializing throwaway state (recovery shares are DRILL-ONLY, do not save)"
-    if ! bao operator init -key-shares=5 -key-threshold=3 > "$DRILL/init.txt" 2>&1; then
+    if ! bao operator init -recovery-shares=5 -recovery-threshold=3 > "$DRILL/init.txt" 2>&1; then
       log "INIT FAILED:"; cat "$DRILL/init.txt"; exit 1
     fi
     until bao status 2>&1 | grep -q "Sealed                   false"; do sleep 2; done
     log "drill server initialized and unsealed"
+
+    log "authenticating restore with the throwaway initial root token"
+    BAO_TOKEN=$(sed -n 's/^Initial Root Token: //p' "$DRILL/init.txt")
+    [ -n "$BAO_TOKEN" ] || { log "ERROR: could not parse Initial Root Token from init.txt"; exit 1; }
+    export BAO_TOKEN
 
     log "STAGE B: fetching latest snapshot from s3://$S3_BUCKET/"
     LATEST=$(s3cmd $S3ARGS ls "s3://$S3_BUCKET/" | awk '{print $4}' | sort | tail -1)
@@ -104,15 +110,92 @@ data:
     log "================================================================"
     log "STAGE C (MANUAL): verify content + recovery shares."
     log "  kubectl --context mc -n openbao exec -it $HOSTNAME -- sh"
-    log "  export BAO_ADDR=http://127.0.0.1:8200"
-    log "  1. mint a root token with 3 RECOVERY SHARES from Bitwarden:"
-    log "     bao operator generate-root -generate-otp; -init; submit 3 shares; -decode"
-    log "  2. prove content: bao kv get -mount=k8s garage/rpc  (or any known path)"
-    log "  3. revoke the drill root token, then: kubectl -n openbao delete job openbao-restore-drill-manual"
+    log "  then run the one-shot helper (prompts for 3 recovery shares):"
+    log "     sh /drill-script/stage-c.sh"
+    log "  it mints a root token from the shares, proves content with"
+    log "  'bao kv get -mount=k8s garage/rpc', and revokes the token."
     log "Full runbook: docs/openbao-restore-drill.md"
     log "Parking until the job deadline (48h) — the pod is safe to delete anytime."
     log "================================================================"
     sleep 2147483647
+  stage-c.sh: |
+    #!/bin/sh
+    # Stage C helper — one-shot recovery-share verification.
+    # Prompts for 3 recovery shares, mints a root token on the
+    # RESTORED drill cluster, proves content, revokes the token.
+    # Cancels any stale root-generation attempt before starting.
+    set -eu
+    export BAO_ADDR=http://127.0.0.1:8200
+    unset BAO_TOKEN || true
+
+    # preflight: restored drill server must be reachable and unsealed
+    bao status 2>&1 | grep -q "Sealed                   false" \
+      || { echo "ERROR: drill server not reachable/unsealed at $BAO_ADDR"; exit 1; }
+
+    # cancel any previous generate-root attempt (idempotent, harmless if none)
+    echo "==> cancelling any stale root-generation attempt"
+    bao operator generate-root -cancel >/dev/null 2>&1 || true
+
+    get_share() {
+      printf 'Paste recovery share %s: ' "$1" >&2
+      IFS= read -r S
+      [ -n "$S" ] || { echo "ERROR: empty share" >&2; exit 1; }
+      printf '%s' "$S"
+    }
+
+    S1=$(get_share 1)
+    S2=$(get_share 2)
+    S3=$(get_share 3)
+
+    echo "==> generating OTP"
+    OTTP=$(bao operator generate-root -generate-otp | awk '{print $NF}')
+    [ -n "$OTTP" ] || { echo "ERROR: could not parse OTP"; exit 1; }
+
+    echo "==> initializing root generation"
+    INIT=$(bao operator generate-root -init -otp="$OTTP")
+    echo "$INIT"
+    NONCE=$(printf '%s\n' "$INIT" | grep -i '^nonce' | awk '{print $NF}')
+    [ -n "$NONCE" ] || { echo "ERROR: could not parse nonce — run: bao operator generate-root -cancel, then retry"; exit 1; }
+
+    ENCODED=""
+    i=1
+    for SHARE in "$S1" "$S2" "$S3"; do
+      echo "==> submitting share $i/3"
+      OUT=$(printf '%s' "$SHARE" | bao operator generate-root -otp="$OTTP" -nonce="$NONCE" - 2>&1) \
+        || { echo "$OUT"; echo "ERROR: share $i rejected"; exit 1; }
+      echo "$OUT"
+      E=$(printf '%s\n' "$OUT" | grep -i 'encoded' | awk '{print $NF}')
+      [ -n "$E" ] && ENCODED=$E
+      i=$((i+1))
+    done
+    [ -n "$ENCODED" ] || { echo "ERROR: no encoded root token after 3 shares"; exit 1; }
+
+    echo "==> decoding root token"
+    DOUT=$(bao operator generate-root -decode="$ENCODED" -otp="$OTTP" 2>&1) \
+      || { echo "$DOUT"; echo "ERROR: decode call failed"; exit 1; }
+    ROOT=$(printf '%s\n' "$DOUT" | grep -i 'root token' | grep -vi encoded | awk '{print $NF}' | tail -1)
+    # openbao decode prints the bare token when no label is present
+    [ -n "$ROOT" ] || ROOT=$(printf '%s\n' "$DOUT" | awk 'NF==1 && $1 !~ /^$/ {print $1}' | tail -1)
+    [ -n "$ROOT" ] || { echo "RAW DECODE OUTPUT:"; echo "$DOUT"; echo "ERROR: could not parse decoded root token"; exit 1; }
+
+    echo ""
+    echo "================================================================"
+    echo "PROOF: reading garage/rpc from the RESTORED cluster (production ns)"
+    echo "================================================================"
+    if BAO_TOKEN="$ROOT" bao kv get -namespace=production -mount=k8s garage/rpc; then
+      RESULT="PASS"
+    else
+      echo "!! kv get failed — browse manually:"
+      echo "   export BAO_TOKEN=$ROOT"
+      echo "   bao kv list -namespace=production -mount=k8s"
+      RESULT="CHECK"
+    fi
+
+    echo "==> revoking the drill root token"
+    BAO_TOKEN="$ROOT" bao token revoke -self || true
+    echo ""
+    echo "Stage C complete: $RESULT"
+    echo "Cleanup: kubectl --context mc -n openbao delete job openbao-restore-drill-manual"
 ---
 apiVersion: batch/v1
 kind: CronJob
