@@ -15,24 +15,13 @@ apps:
     namespace: kube-system
   - name: tailscale-operator
     namespace: tailscale
-    patchTarget: {}
-    patches:
-      - patch: |-
-          apiVersion: apps/v1
-          kind: Deployment
-          metadata:
-            name: operator
-          spec:
-            template:
-              spec:
-                containers:
-                  - name: operator
-                    env:
-                      - name: OPERATOR_HOSTNAME
-                        value: cc-tailscale-operator
-        target:
-          kind: Deployment
-          name: operator
+    # Keep cluster-specific operator settings in Helm values; patching the chart
+    # source adds Kustomize to a Helm source and breaks Argo manifest generation.
+    helm_values: |
+      operatorConfig:
+        extraEnv:
+          - name: OPERATOR_HOSTNAME
+            value: cc-tailscale-operator
   - name: cert-manager
     namespace: cert-manager
   - name: openbao-auth-config
