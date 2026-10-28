@@ -5,3 +5,4 @@ resources:
   - fapi-configmap.yaml
   - openbao-tokenreview-rolebinding.yaml
   - openbao-restore-drill.yaml
+  - openbao-backup-check.yaml

@@ -195,6 +195,13 @@ data:
     BAO_TOKEN="$ROOT" bao token revoke -self || true
     echo ""
     echo "Stage C complete: $RESULT"
+    # OneUptime check-in (future, cc cluster): page a non-critical reminder
+    # monitor if this heartbeat stops arriving monthly.
+    if [ "$RESULT" = "PASS" ] && [ -n "${ONEUPTIME_DRILL_HEARTBEAT:-}" ]; then
+      echo "==> sending OneUptime drill heartbeat"
+      python3 -c 'import os,urllib.request; urllib.request.urlopen(os.environ["ONEUPTIME_DRILL_HEARTBEAT"], timeout=10)' \
+        && echo "heartbeat sent" || echo "WARN: heartbeat failed"
+    fi
     echo "Cleanup: kubectl --context mc -n openbao delete job openbao-restore-drill-manual"
 ---
 apiVersion: batch/v1
@@ -226,6 +233,8 @@ spec:
               envFrom:
                 - secretRef:
                     name: openbao-snapshot-s3
+                - secretRef:
+                    name: openbao-monitoring
               resources:
                 requests:
                   cpu: 100m

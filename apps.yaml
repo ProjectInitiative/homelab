@@ -176,6 +176,10 @@ catalog:
           mount: k8s
           path: "openbao-snapshot/s3"
           destination: "openbao-snapshot-s3"
+        - name: openbao-monitoring
+          mount: k8s
+          path: "openbao/monitoring"
+          destination: "openbao-monitoring"
     ignoreDifferences:
       - group: admissionregistration.k8s.io
         jsonPointers:
