@@ -180,13 +180,14 @@ data:
 
     echo ""
     echo "================================================================"
-    echo "PROOF: reading garage/rpc from the RESTORED cluster"
+    echo "PROOF: reading garage/rpc from the RESTORED cluster (production ns)"
     echo "================================================================"
-    if BAO_TOKEN="$ROOT" bao kv get -mount=k8s garage/rpc; then
+    if BAO_TOKEN="$ROOT" bao kv get -namespace=production -mount=k8s garage/rpc; then
       RESULT="PASS"
     else
-      echo "!! kv get failed — the token works but that path may not exist; try others manually:"
+      echo "!! kv get failed — browse manually:"
       echo "   export BAO_TOKEN=$ROOT"
+      echo "   bao kv list -namespace=production -mount=k8s"
       RESULT="CHECK"
     fi
 
