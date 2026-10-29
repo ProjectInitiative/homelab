@@ -1,23 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mcp-vip-watchdog
+  name: ts-vip-watchdog
   namespace: tailscale
   labels:
-    app: mcp-vip-watchdog
+    app: ts-vip-watchdog
 spec:
   replicas: 1
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      app: mcp-vip-watchdog
+      app: ts-vip-watchdog
   template:
     metadata:
       labels:
-        app: mcp-vip-watchdog
+        app: ts-vip-watchdog
     spec:
-      serviceAccountName: mcp-vip-watchdog
+      serviceAccountName: ts-vip-watchdog
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       automountServiceAccountToken: true
@@ -65,5 +65,5 @@ spec:
       volumes:
         - name: watchdog
           configMap:
-            name: mcp-vip-watchdog
+            name: ts-vip-watchdog
             defaultMode: 0555

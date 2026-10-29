@@ -40,7 +40,7 @@ def ha_proxy_groups():
     _, data = kube(f"/apis/tailscale.com/v1alpha1/namespaces/{PROXY_NS}/proxygroups")
     return {
         item["metadata"]["name"]
-        for item in data.get("items", [])
+        for item in (data.get("items") or [])
         if item.get("spec", {}).get("type") == "ingress"
         and int(item.get("spec", {}).get("replicas", 1)) > 1
     }
@@ -49,7 +49,7 @@ def ha_proxy_groups():
 def services(proxy_groups):
     _, data = kube("/api/v1/services")
     result = []
-    for service in data.get("items", []):
+    for service in (data.get("items") or []):
         annotations = service.get("metadata", {}).get("annotations", {})
         proxy_group = annotations.get("tailscale.com/proxy-group")
         if proxy_group in proxy_groups and service.get("spec", {}).get("loadBalancerClass") == "tailscale":
@@ -60,7 +60,7 @@ def services(proxy_groups):
 def endpoints_by_service():
     _, data = kube("/apis/discovery.k8s.io/v1/endpointslices")
     result = {}
-    for sl in data.get("items", []):
+    for sl in (data.get("items") or []):
         labels = sl.get("metadata", {}).get("labels", {})
         name = labels.get("kubernetes.io/service-name")
         namespace = sl.get("metadata", {}).get("namespace")
@@ -96,7 +96,7 @@ def service_healthy(service, endpoint_counts):
 def restart_proxy(proxy_group):
     path = f"/apis/apps/v1/namespaces/{PROXY_NS}/statefulsets/{urllib.parse.quote(proxy_group, safe='')}"
     stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    kube(path, "PATCH", {"spec": {"template": {"metadata": {"annotations": {"mcp-vip-watchdog/restarted-at": stamp}}}}})
+    kube(path, "PATCH", {"spec": {"template": {"metadata": {"annotations": {"ts-vip-watchdog/restarted-at": stamp}}}}})
     print(f"restarted ProxyGroup StatefulSet {PROXY_NS}/{proxy_group}", flush=True)
 
 
@@ -110,7 +110,7 @@ def delete_vip_for_ip(ip):
         access = json.load(resp)["access_token"]
     req = urllib.request.Request("https://api.tailscale.com/api/v2/tailnet/-/vip-services", headers={"Authorization": f"Bearer {access}"})
     with urllib.request.urlopen(req, timeout=15) as resp:
-        vip_services = json.load(resp).get("vipServices", [])
+        vip_services = (json.load(resp).get("vipServices") or [])
     match = next((svc for svc in vip_services if ip in svc.get("addrs", [])), None)
     if not match:
         raise RuntimeError(f"no Tailscale VIP service found for {ip}")
