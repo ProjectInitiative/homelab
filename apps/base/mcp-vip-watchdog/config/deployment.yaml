@@ -23,6 +23,7 @@ spec:
       automountServiceAccountToken: true
       containers:
         - name: watchdog
+          # Pin this image by digest before promoting beyond the dev branch.
           image: python:3.12-alpine
           command: ["python3", "/opt/watchdog/watchdog.py"]
           env:
@@ -38,8 +39,6 @@ spec:
                   key: client_secret
             - name: TAILNET
               value: "-"
-            - name: VIP_IP
-              value: "100.64.72.152"
             - name: FAILURES_BEFORE_REPAIR
               value: "3"
             - name: RESTART_GRACE

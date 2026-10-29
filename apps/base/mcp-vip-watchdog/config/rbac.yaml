@@ -5,45 +5,45 @@ metadata:
   namespace: tailscale
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
+kind: ClusterRole
 metadata:
-  name: mcp-vip-watchdog-proxy
-  namespace: tailscale
+  name: mcp-vip-watchdog-read
 rules:
-  - apiGroups: ["apps"]
-    resources: ["statefulsets"]
-    resourceNames: ["mc-ingress-proxy"]
-    verbs: ["get", "patch"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: mcp-vip-watchdog-proxy
-  namespace: tailscale
-subjects:
-  - kind: ServiceAccount
-    name: mcp-vip-watchdog
-    namespace: tailscale
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: mcp-vip-watchdog-proxy
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: mcp-vip-watchdog-backends
-  namespace: mcp-system
-rules:
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list"]
   - apiGroups: ["discovery.k8s.io"]
     resources: ["endpointslices"]
     verbs: ["get", "list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: mcp-vip-watchdog-read
+subjects:
+  - kind: ServiceAccount
+    name: mcp-vip-watchdog
+    namespace: tailscale
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: mcp-vip-watchdog-read
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: mcp-vip-watchdog-restart
+  namespace: tailscale
+rules:
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: mcp-vip-watchdog-backends
-  namespace: mcp-system
+  name: mcp-vip-watchdog-restart
+  namespace: tailscale
 subjects:
   - kind: ServiceAccount
     name: mcp-vip-watchdog
@@ -51,4 +51,4 @@ subjects:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: mcp-vip-watchdog-backends
+  name: mcp-vip-watchdog-restart
