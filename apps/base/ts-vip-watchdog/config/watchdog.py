@@ -96,7 +96,7 @@ def service_healthy(service, endpoint_counts):
 def restart_proxy(proxy_group):
     path = f"/apis/apps/v1/namespaces/{PROXY_NS}/statefulsets/{urllib.parse.quote(proxy_group, safe='')}"
     stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    kube(path, "PATCH", {"spec": {"template": {"metadata": {"annotations": {"mcp-vip-watchdog/restarted-at": stamp}}}}})
+    kube(path, "PATCH", {"spec": {"template": {"metadata": {"annotations": {"ts-vip-watchdog/restarted-at": stamp}}}}})
     print(f"restarted ProxyGroup StatefulSet {PROXY_NS}/{proxy_group}", flush=True)
 
 

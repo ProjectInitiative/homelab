@@ -4,7 +4,7 @@ resources:
   - rbac.yaml
   - deployment.yaml
 configMapGenerator:
-  - name: mcp-vip-watchdog
+  - name: ts-vip-watchdog
     files:
       - watchdog.py
 generatorOptions:

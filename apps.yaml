@@ -468,8 +468,8 @@ catalog:
           destination: "operator-oauth"
           overwrite: true
 
-  mcp-vip-watchdog:
-    path: apps/base/mcp-vip-watchdog/config
+  ts-vip-watchdog:
+    path: apps/base/ts-vip-watchdog/config
     syncPolicy:
       automated:
         prune: true

@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: mcp-vip-watchdog
+  name: ts-vip-watchdog
   namespace: tailscale
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: mcp-vip-watchdog-read
+  name: ts-vip-watchdog-read
 rules:
   - apiGroups: [""]
     resources: ["services"]
@@ -19,20 +19,20 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: mcp-vip-watchdog-read
+  name: ts-vip-watchdog-read
 subjects:
   - kind: ServiceAccount
-    name: mcp-vip-watchdog
+    name: ts-vip-watchdog
     namespace: tailscale
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: mcp-vip-watchdog-read
+  name: ts-vip-watchdog-read
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: mcp-vip-watchdog-restart
+  name: ts-vip-watchdog-restart
   namespace: tailscale
 rules:
   - apiGroups: ["apps"]
@@ -45,13 +45,13 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: mcp-vip-watchdog-restart
+  name: ts-vip-watchdog-restart
   namespace: tailscale
 subjects:
   - kind: ServiceAccount
-    name: mcp-vip-watchdog
+    name: ts-vip-watchdog
     namespace: tailscale
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: mcp-vip-watchdog-restart
+  name: ts-vip-watchdog-restart
