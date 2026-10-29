@@ -365,6 +365,15 @@ apps:
         target:
           kind: Service
           annotationSelector: tailscale.com/proxy-group=ingress-proxy
+      # TEMPORARY: keep MC MCP reachable from the astrolabe dev node while
+      # MCP access is migrated to the Argo VM. Restore policy selection after migration.
+      - patch: |-
+          - op: add
+            path: /spec/podSelector/matchLabels/mcp-policy-test
+            value: no-pods-match
+        target:
+          kind: NetworkPolicy
+          name: mcp-allow-tailscale-only
   - name: ts-vip-watchdog
     namespace: tailscale
   - name: agent-access
