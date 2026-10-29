@@ -958,6 +958,14 @@ catalog:
       syncOptions:
         - CreateNamespace=true
         - ServerSideApply=true
+        # Allow virtctl stop/start drift: without this, any sync re-applies
+        # spec.runStrategy=Always and boots a VM the operator stopped.
+        - RespectIgnoreDifferences=true
+    ignoreDifferences:
+      - group: kubevirt.io
+        kind: VirtualMachine
+        jsonPointers:
+          - /spec/runStrategy
 
   kubevirt-manager-auth:
     path: bootstrap/base/kubevirt-manager-auth/config
