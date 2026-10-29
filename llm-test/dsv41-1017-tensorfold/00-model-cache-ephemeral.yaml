@@ -1,0 +1,32 @@
+# Ephemeral (non-backed-up) model cache PVC for the DeepSeek-V4.1-Flash-1017
+# TensorFold lane. Backed by the `juicefs-cache-sc` StorageClass, whose object
+# storage is the Garage bucket `juicefs-mc-cache` with metadata in the dedicated
+# `juicefs_cache` postgres DB — fully independent of the backed-up `juicefs-mc`
+# bucket used by the legacy `model-cache` PVC (juicefs-sc).
+#
+# Deliberate cutover (no migration): the 1017 lane downloads its own copy here;
+# the legacy `model-cache` PVC stays untouched until this lane is validated,
+# then it is drained and deleted (see README.md "Legacy model-cache retirement").
+# `llm-test/model-cache-migrate-ephemeral.yaml` (copy job) exists but is NOT
+# part of this plan — models are re-downloaded, not copied.
+#
+# The `juicefs-cache-group: dgx-model-cache` label inherits the cluster's
+# gcache-ring mountPodPatch (clusters/mc.yaml): ring cache on
+# /mnt/pool/juicefs-ring, the strict-sharding gcache CSI image, host networking.
+# This is also the exact configuration the gcache-ring Engram bench exercises
+# (04-gcache-ring-bench.yaml), so bench results transfer to serving.
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-cache-ephemeral
+  namespace: llm-test
+  labels:
+    juicefs-cache-group: dgx-model-cache
+    purpose: ephemeral-model-cache
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: juicefs-cache-sc
+  resources:
+    requests:
+      storage: 3Ti

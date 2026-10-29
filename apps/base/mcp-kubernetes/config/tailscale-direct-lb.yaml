@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-lb-mc-direct
+  labels:
+    app: mcp-kubernetes
+  # Standalone (non-ProxyGroup) Tailscale LB: a single dedicated tailscale
+  # node advertises this service. Fallback access path while the
+  # mc-ingress-proxy VIP path is being debugged (Tailscale #19782).
+  # Hostname: mcp-mc-direct.taildeab2.ts.net
+  annotations:
+    tailscale.com/hostname: mcp-mc-direct
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  ports:
+    - name: http-sse
+      protocol: TCP
+      port: 80
+      targetPort: 8080
+  # The MCP SSE transport keeps sessions in process memory. Keep the SSE
+  # connection and subsequent /message requests on the same backend pod.
+  sessionAffinity: ClientIP
+  selector:
+    app: mcp-kubernetes

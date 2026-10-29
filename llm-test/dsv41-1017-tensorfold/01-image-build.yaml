@@ -1,0 +1,156 @@
+# In-cluster native arm64 build of the pinned 1017 TensorFold recipe image.
+#
+# No GHCR image is published for these pins yet (recipe README: "None is
+# published yet"), so we build zig/Dockerfile exactly as scripts/prepare.sh
+# would: BertholomusAI's TensorFold fork @ 629c524a (branch deepseek-v41-zig)
+# plus the inputs' tools @ 59402086 (branch deepseek-v41-zig-tp4), the recipe's
+# 33 engine patches and 2 inputs patches, Zig 0.17.0, on nvcr.io PyTorch 26.07.
+#
+# config.sh image_hash() over the pins is 2b94be4562b1 — the local tag carries
+# it so a drifted build is visible at a glance. ~24.9 GB image; ~6 min of Zig
+# compile on a Spark (two builds). Same proven BuildKit rootless Job shape as
+# glm53-parity/14-glm53-image-build.yaml. Bump the Job name and RECIPE_REV
+# together when the recipe pin moves (tag must stay exl3-tp2-<image_hash>).
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dsv41-1017-image-build-v1
+  namespace: llm-test
+  labels:
+    app: dsv41-1017-image-build
+    lane: dsv41-1017
+    purpose: image-build
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 7200
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      labels:
+        app: dsv41-1017-image-build
+        lane: dsv41-1017
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      dnsConfig:
+        nameservers:
+          - 172.16.1.1
+          - 1.1.1.1
+      securityContext:
+        fsGroup: 1000
+      # Native arm64 only: an amd64 builder produces a broken "arm-looking"
+      # tag (documented in docs/juicefs-dgx-cache-ring-retrospective.md).
+      # Prefer an idle Spark so the active serving lane is not disturbed.
+      nodeSelector:
+        kubernetes.io/arch: arm64
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - {key: kubernetes.io/hostname, operator: In, values: [octant]}
+      containers:
+        - name: buildkit
+          image: moby/buildkit:v0.26.2-rootless
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-ec"]
+          args:
+            - |
+              src=/workspace/src
+              test -d "$src/zig/patches" || { echo "source not staged" >&2; exit 1; }
+
+              # Self-verifying tag: reproduce config.sh image_hash() exactly.
+              ctx_hash=$( (cat "$src"/zig/patches/*.patch; cat "$src"/zig/patches-inputs/*.patch; cat "$src"/zig/Dockerfile; \
+                echo "https://github.com/bertholomus/TensorFold.git 629c524a0ea57512a5342abb498d1b7c25353343 59402086381a42c74d53053443224eec2790b4c5 zig-0.17.0 9e8d11661d4ae3bd57702a3832781e23ad151dde5798e16a5ccd503f65234ff8 nvcr.io/nvidia/pytorch:26.07-py3") | sha256sum | cut -c1-12)
+              echo "context hash: $ctx_hash (expected 2b94be4562b1)"
+
+              image="local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-dsv41-1017:exl3-tp2-${ctx_hash}"
+              echo "building $image"
+              exec buildctl-daemonless.sh build \
+                --frontend dockerfile.v0 \
+                --local "context=$src" \
+                --opt "filename=zig/Dockerfile" \
+                --opt "build-arg:BASE_IMAGE=nvcr.io/nvidia/pytorch:26.07-py3" \
+                --opt "build-arg:TF_REPO=https://github.com/bertholomus/TensorFold.git" \
+                --opt "build-arg:TF_REF=629c524a0ea57512a5342abb498d1b7c25353343" \
+                --opt "build-arg:INPUTS_REF=59402086381a42c74d53053443224eec2790b4c5" \
+                --opt "build-arg:ZIG_VERSION=0.17.0" \
+                --opt "build-arg:ZIG_SHA256=9e8d11661d4ae3bd57702a3832781e23ad151dde5798e16a5ccd503f65234ff8" \
+                --opt "build-arg:ZIG_MIRRORS=https://zig.linus.dev/zig" \
+                --opt "build-arg:PATCHES_HASH=$ctx_hash" \
+                --output "type=image,name=$image,push=true,oci-mediatypes=false" \
+                --progress=plain
+          env:
+            - name: BUILDKITD_FLAGS
+              value: "--oci-worker-no-process-sandbox --config=/build/buildkitd.toml"
+          resources:
+            requests: {cpu: "8", memory: 32Gi, ephemeral-storage: 40Gi}
+            limits: {cpu: "16", memory: 48Gi, ephemeral-storage: 55Gi}
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            # Rootless BuildKit needs setuid newuidmap for its user namespace;
+            # keep the official rootless profile (not privileged mode).
+            seccompProfile:
+              type: Unconfined
+            appArmorProfile:
+              type: Unconfined
+          volumeMounts:
+            - {name: workspace, mountPath: /workspace, readOnly: true}
+            - {name: buildkit-state, mountPath: /home/user/.local/share/buildkit}
+            - {name: build-config, mountPath: /build, readOnly: true}
+      initContainers:
+        - name: fetch-and-prepare
+          image: alpine/git:v2.52.0
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              set -eu
+              src=/workspace/src
+              mkdir -p "$src"
+              git init "$src"
+              git -C "$src" remote add origin https://github.com/MiaAI-Lab/DeepSeek-v4.1-Flash-1017-2x-DGX-Sparks.git
+              git -C "$src" fetch --depth 1 --no-tags origin d8e5b28da6ebcf539035be564a4a94d087b2f480
+              git -C "$src" checkout --detach FETCH_HEAD
+              actual=$(git -C "$src" rev-parse HEAD)
+              [ "$actual" = "d8e5b28da6ebcf539035be564a4a94d087b2f480" ] || { echo "revision mismatch: $actual" >&2; exit 1; }
+              echo "staged recipe d8e5b28d (patches: $(ls "$src"/zig/patches/*.patch | wc -l) engine, $(ls "$src"/zig/patches-inputs/*.patch | wc -l) inputs)"
+          resources:
+            requests: {cpu: 250m, memory: 256Mi}
+            limits: {cpu: "1", memory: 1Gi}
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - {name: workspace, mountPath: /workspace}
+      volumes:
+        - name: workspace
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: buildkit-state
+          emptyDir:
+            sizeLimit: 55Gi
+        - name: build-config
+          configMap:
+            name: dsv41-1017-image-build-config
+            defaultMode: 0555
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dsv41-1017-image-build-config
+  namespace: llm-test
+  labels:
+    app: dsv41-1017-image-build
+    lane: dsv41-1017
+immutable: true
+data:
+  buildkitd.toml: |
+    [registry."local-registry.registry.svc.cluster.local:5000"]
+      http = true

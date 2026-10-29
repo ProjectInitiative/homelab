@@ -365,14 +365,15 @@ apps:
         target:
           kind: Service
           annotationSelector: tailscale.com/proxy-group=ingress-proxy
-    patches:
+      # Temporary, MC-only diagnostic: make the MCP NetworkPolicy select no pods.
+      # Remove after one VIP test; this is not a persistent policy change.
       - patch: |-
-          - op: replace
-            path: /metadata/annotations/tailscale.com~1proxy-group
-            value: mc-ingress-proxy
+          - op: add
+            path: /spec/podSelector/matchLabels/mcp-policy-test
+            value: no-pods-match
         target:
-          kind: Service
-          annotationSelector: tailscale.com/proxy-group=ingress-proxy
+          kind: NetworkPolicy
+          name: mcp-allow-tailscale-only
   - name: ts-vip-watchdog
     namespace: tailscale
   - name: agent-access

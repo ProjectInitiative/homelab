@@ -1,0 +1,491 @@
+# DeepSeek-V4.1-Flash-1017 TensorFold lane (2x DGX Spark, TP=2) — STAGED.
+#
+# Kubernetes port of MiaAI-Lab/DeepSeek-v4.1-Flash-1017-2x-DGX-Sparks
+# (TensorFold native Zig engine, BertholomusAI dsv41 family @ TP=2, one rank
+# per Spark) at recipe rev d8e5b28d. Adapted from the proven TensorFold v1.4
+# GLM lane structure (rendezvous over the 172.16.4.x control plane via headless
+# Service DNS; RoCE rails selected per rank from the node-local fabric
+# inventory; capability scheduling, not hostnames).
+#
+# STATUS: PREPARED, NOT ACTIVE. Replicas ship at 0; Conductor owns residency
+# (conductor-workloads/deepseek-v41-1017.yaml starts in Standby). Activation
+# order: worker (rank 1) first, then head (rank 0). TP2 is not elastic — loss
+# of either rank requires coordinated pair recreation.
+#
+# Pins:
+#   Engine image  local-registry.../homelab/tensorfold-dsv41-1017:exl3-tp2-2b94be4562b1
+#                 (built by 01-image-build.yaml; pin the digest after build)
+#   Checkpoint    Mia-AiLab/DeepSeek-V4.1-Flash-1017-EXL3-EAQ-v1-2.9-bpw @ 45ee5d0f
+#   Engram        deepseek-ai/DeepSeek-V4.1-Flash-1017 @ 1bae0e10 (shards 47+48)
+#   Kernel kit    bertholomus/deepseek-v4.1-tensorfold-tp2-2xgb10 @ abe07c7d
+#   Served id     DeepSeek-V4.1-Flash-1017, port 8888 (recipe default)
+#   Rendezvous    TF_TP_PORT 29620 (dsv41-lane-unique; GLM 29551, old DS 25000)
+#
+# Model tree (all on model-cache-ephemeral unless noted):
+#   /models/.cache/huggingface/hub/...   HF snapshots (checkpoint + engram)
+#   /models/dsv41-1017/model             served tree (links + chat template)
+#   /models/dsv41-1017/data              token map + rank-cache/ (both ranks)
+#   /models/dsv41-1017/kit/kit           kernel kit + generated rope/bias
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dsv41-1017-rdma-fabric
+  namespace: llm-test
+  labels:
+    lane: dsv41-1017
+data:
+  # Same discovery contract as tensorfold-v14-rdma-fabric, adapted for the
+  # dsv41 fork: instead of NCCL env it exports TF_RDMA_DEVICES /
+  # TF_RDMA_GID_INDEX (the RoCE proxy's variables) plus TF_TP local/peer
+  # fabric addresses. Inventory: /var/lib/dgx-spark/rdma-fabric.json (node
+  # local, maintained outside this lane).
+  configure-rdma-fabric.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    : "${PEER_SERVICE:?PEER_SERVICE is required}"
+    : "${HOST_IP:?HOST_IP is required}"
+    : "${NODE_NAME:?NODE_NAME is required}"
+    inventory=/etc/dgx-spark/rdma-fabric.json
+    test -s "$inventory"
+
+    echo "waiting for peer endpoint $PEER_SERVICE"
+    while true; do
+      PEER_CONTROL_IP="$(getent ahostsv4 "$PEER_SERVICE" 2>/dev/null | awk -v self="$HOST_IP" '$1 != self { print $1; exit }' || true)"
+      [ -n "$PEER_CONTROL_IP" ] && break
+      sleep 2
+    done
+    export PEER_CONTROL_IP
+
+    eval "$(python3 - "$inventory" "$PEER_CONTROL_IP" "$NODE_NAME" "$HOST_IP" <<'PY'
+    import ipaddress, json, pathlib, shlex, sys
+
+    inventory_path, peer_control_ip, node_name, host_ip = sys.argv[1:]
+    fabric = json.loads(pathlib.Path(inventory_path).read_text())
+    if fabric["nodeName"] != node_name:
+        raise SystemExit(f"fabric inventory node {fabric['nodeName']} != scheduled node {node_name}")
+    if fabric["controlPlane"]["address"] != host_ip:
+        raise SystemExit(f"fabric control address {fabric['controlPlane']['address']} != host IP {host_ip}")
+    links = [l for l in fabric["links"] if l["peerControlAddress"] == peer_control_ip]
+    if not links:
+        raise SystemExit(f"no fabric rails to peer {peer_control_ip}")
+
+    hcas, netdevs, local_ips, gid_indexes = [], [], [], set()
+    for link in links:
+        netdev = link["interface"]
+        netdevs.append(netdev)
+        hca_dir = pathlib.Path("/sys/class/net") / netdev / "device/infiniband"
+        hca_names = sorted(p.name for p in hca_dir.iterdir())
+        if len(hca_names) != 1:
+            raise SystemExit(f"expected one HCA for {netdev}, found {hca_names}")
+        hca = hca_names[0]
+        hcas.append(f"{hca}:1")
+        local_ip = ipaddress.ip_interface(link["address"]).ip
+        local_ips.append(str(local_ip))
+        gid_root = pathlib.Path("/sys/class/infiniband") / hca / "ports/1"
+        matches = []
+        for gid_path in sorted((gid_root / "gids").iterdir(), key=lambda p: int(p.name)):
+            index = gid_path.name
+            try:
+                gid_type = (gid_root / "gid_attrs/types" / index).read_text().strip()
+                gid_netdev = (gid_root / "gid_attrs/ndevs" / index).read_text().strip()
+                gid = ipaddress.ip_address(gid_path.read_text().strip())
+            except (OSError, ValueError):
+                continue
+            if gid_type == "RoCE v2" and gid_netdev == netdev and gid.ipv4_mapped == local_ip:
+                matches.append(index)
+        if len(matches) != 1:
+            raise SystemExit(f"expected one RoCE v2 GID for {netdev}/{local_ip}, found {matches}")
+        gid_indexes.add(matches[0])
+    if len(gid_indexes) != 1:
+        raise SystemExit(f"selected rails use different GID indexes: {gid_indexes}")
+
+    values = {
+        "TF_RDMA_DEVICES": ",".join(hcas),
+        "TF_RDMA_GID_INDEX": next(iter(gid_indexes)),
+        "TF_LOCAL_FABRIC_IP": local_ips[0],
+        "TF_PEER_FABRIC_IP": "",
+        "RDMA_PEER_NODE": links[0]["peerNode"],
+        "RDMA_PEER_NETDEVS": ",".join(netdevs),
+    }
+    for key, value in values.items():
+        print(f"export {key}={shlex.quote(str(value))}")
+    PY
+    )"
+    echo "fabric peer=$RDMA_PEER_NODE control=$PEER_CONTROL_IP rails=$RDMA_PEER_NETDEVS devices=$TF_RDMA_DEVICES gid=$TF_RDMA_GID_INDEX"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dsv41-1017-launch
+  namespace: llm-test
+  labels:
+    lane: dsv41-1017
+data:
+  verify-checkpoint.py: |-
+    import json, pathlib, sys
+    role = sys.argv[1]
+    hub = pathlib.Path("/models/.cache/huggingface/hub")
+    served = pathlib.Path("/models/dsv41-1017/model")
+    kit = pathlib.Path("/models/dsv41-1017/kit/kit")
+    receipt_path = pathlib.Path("/models/.dsv41-1017-download-complete")
+    prep_path = pathlib.Path("/models/.dsv41-1017-prep-complete")
+    expected_receipt = {
+        "files": 67,
+        "checkpoint_revision": "45ee5d0fd106c94a3d77f721e09cbb2f50e5a16b",
+        "engram_revision": "1bae0e1088993b9b82de08f59de5be5a34e42170",
+        "shards": 39,
+        "weight_bytes": 210601036966,
+    }
+    try:
+        if json.loads(receipt_path.read_text()) != expected_receipt:
+            sys.exit("download receipt mismatch")
+    except (FileNotFoundError, json.JSONDecodeError) as exc:
+        sys.exit(f"download receipt missing/invalid: {exc}")
+    try:
+        json.loads(prep_path.read_text())
+    except (FileNotFoundError, json.JSONDecodeError) as exc:
+        sys.exit(f"prep receipt missing/invalid (run 05-prepare-model-tree.yaml): {exc}")
+    for name in ("config.json", "chat_template.jinja", "tokenizer.json", "model.safetensors.index.json"):
+        if not (served / name).is_file():
+            sys.exit(f"served tree missing: {name}")
+    if not (pathlib.Path("/models/dsv41-1017/data") / "dsv41_token_map.json").is_file():
+        sys.exit("token map missing")
+    for name in ("rope-plain-cos.f32", "rope-compressed-sin.f32"):
+        if not (kit / name).is_file():
+            sys.exit(f"kit missing: {name}")
+    rank = "0" if role == "head" else "1"
+    files = list(pathlib.Path("/models/dsv41-1017/data/rank-cache").glob(f"rank{rank}of2-*.bin"))
+    if len(files) != 1 or files[0].stat().st_size < 90 * 1024**3:
+        sys.exit(f"rank {rank} weight file missing or undersized: {files}")
+    engram = hub / "models--deepseek-ai--DeepSeek-V4.1-Flash-1017/snapshots/1bae0e1088993b9b82de08f59de5be5a34e42170"
+    for name in ("model-00047-of-00048.safetensors", "model-00048-of-00048.safetensors"):
+        if not (engram / name).is_file():
+            sys.exit(f"engram shard missing: {name}")
+    print(f"verify ok ({role}): served tree, kit, token map, rank-cache rank{rank}, engram")
+  launch-head.sh: |-
+    #!/bin/bash
+    set -euo pipefail
+    say() { echo "[dsv41-1017-head] $*"; }
+    DATA=/models/dsv41-1017/data
+    KIT=/models/dsv41-1017/kit/kit
+    SERVED=/models/dsv41-1017/model
+    ENGRAM=/models/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-V4.1-Flash-1017/snapshots/1bae0e1088993b9b82de08f59de5be5a34e42170
+    [ -f "$SERVED/config.json" ] || { say "FATAL: served tree missing"; exit 1; }
+    say "engine: $(tensorfold-native --version 2>/dev/null || echo unknown)"
+    say "selecting RoCE rails from node-local inventory"
+    . /opt/tensorfold/configure-rdma-fabric.sh
+    # Rank 0's engine env (start.sh ENV0): rendezvous rides the control plane,
+    # RDMA data rides the discovered RoCE rails.
+    export TF_TP_WORLD=2 TF_TP_MASTER="$HOST_IP" TF_TP_PORT=29620
+    export TF_DS_RANK_CACHE=/models/dsv41-1017/data/rank-cache
+    export TF_DS_KIT="$KIT" TENSORFOLD_CUDA_KERNELS="$KIT/aot"
+    export TF_DS_ENGRAM="$ENGRAM" TF_DS_TOKEN_MAP="$DATA/dsv41_token_map.json"
+    export TF_DS_GRAPHS=1 TF_DS_GRAPH_CAP=128 TF_DS_HC_SIDE=1 TF_DS_L2_PREFETCH=1 TF_DS_ENGRAM_AIO=1
+    export TF_RDMA_DEVICES TF_RDMA_GID_INDEX
+    export TF_DS_REPLAY_FLOOR=1 TF_DS_STREAMS=4 TF_RDMA_IDLE_S=2 TF_RDMA_NAP_US=500
+    export HF_HUB_OFFLINE=1 TENSORFOLD_NO_UPDATE_CHECK=1
+    say "rank 0 launching: serve $SERVED (API 0.0.0.0:8888, master $HOST_IP:29620)"
+    exec tensorfold-native serve "$SERVED" \
+      --backend cuda --host 0.0.0.0 --port 8888 \
+      --name DeepSeek-V4.1-Flash-1017 \
+      --context 1048576 --parallel 4 --max-tokens 32768 \
+      --temperature 1.0 --top-p 0.95 --top-k 20
+  launch-worker.sh: |-
+    #!/bin/bash
+    set -euo pipefail
+    say() { echo "[dsv41-1017-worker] $*"; }
+    DATA=/models/dsv41-1017/data
+    KIT=/models/dsv41-1017/kit/kit
+    SERVED=/models/dsv41-1017/model
+    ENGRAM=/models/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-V4.1-Flash-1017/snapshots/1bae0e1088993b9b82de08f59de5be5a34e42170
+    [ -f "$SERVED/config.json" ] || { say "FATAL: served tree missing"; exit 1; }
+    ls /rank-cache/rank1of2-*.bin >/dev/null 2>&1 || { say "FATAL: rank 1 weight file missing"; exit 1; }
+    say "engine: $(tf-dsv41-lanes --help 2>&1 | head -1 || echo unknown)"
+    say "selecting RoCE rails from node-local inventory"
+    . /opt/tensorfold/configure-rdma-fabric.sh
+    export TF_DS_REPLAY_FLOOR=1 TF_DS_STREAMS=4 TF_RDMA_IDLE_S=2 TF_RDMA_NAP_US=500
+    export HF_HUB_OFFLINE=1 TENSORFOLD_NO_UPDATE_CHECK=1
+    # Rank 1 (tf-dsv41-lanes) takes round settings as flags only — without them
+    # it runs ungraphed and rank 0 waits on it every round (start.sh FOLLOW).
+    say "rank 1 launching: master $PEER_CONTROL_IP:29620, rdma $TF_RDMA_DEVICES gid $TF_RDMA_GID_INDEX"
+    exec tf-dsv41-lanes "$SERVED" /rank-cache 1 2 "$PEER_CONTROL_IP" 29620 "$KIT" \
+      --engram "$ENGRAM" \
+      --token-map "$DATA/dsv41_token_map.json" \
+      --pool 1048576 --streams 4 --drafts 1 --graphs 1 --side 1 --prefetch 1 --aio 1 \
+      --graph-cap 128 \
+      --rdma "$TF_RDMA_DEVICES"
+---
+# Headless rendezvous endpoints: publishNotReadyAddresses so the fabric
+# discovery resolves before either rank is Ready (worker starts first).
+apiVersion: v1
+kind: Service
+metadata:
+  name: dsv41-1017-head-rendezvous
+  namespace: llm-test
+  labels: {lane: dsv41-1017}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector: {app: dsv41-1017-head}
+  ports:
+    - {name: master, port: 29620, targetPort: 29620, protocol: TCP}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dsv41-1017-worker-rendezvous
+  namespace: llm-test
+  labels: {lane: dsv41-1017}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector: {app: dsv41-1017-worker}
+  ports:
+    - {name: master, port: 29620, targetPort: 29620, protocol: TCP}
+---
+# Worker: rank 1 (tf-dsv41-lanes). No probes (lane convention; conductor's
+# readyGate is ContainersRunning). Scale/activate BEFORE the head.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dsv41-1017-worker
+  namespace: llm-test
+  labels:
+    app: dsv41-1017-worker
+    lane: dsv41-1017
+spec:
+  replicas: 0
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: dsv41-1017-worker}
+  template:
+    metadata:
+      labels:
+        app: dsv41-1017-worker
+        lane: dsv41-1017
+    spec:
+      priorityClassName: llm-serving-critical
+      automountServiceAccountToken: false
+      runtimeClassName: nvidia-rdma
+      terminationGracePeriodSeconds: 120
+      hostNetwork: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      # Capability pool, not hostnames: Conductor owns placement/recovery
+      # (docs/dgx-spark-workload-policy.md).
+      nodeSelector:
+        gpu: dgx-spark
+        gpu-vendor: nvidia
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - {key: lane, operator: In, values: [dsv41-1017]}
+              topologyKey: kubernetes.io/hostname
+      initContainers:
+        - name: verify-checkpoint
+          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-dsv41-1017:exl3-tp2-2b94be4562b1
+          imagePullPolicy: IfNotPresent
+          env: [{name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}]
+          command: ["python3", "/launch/verify-checkpoint.py", "worker"]
+          volumeMounts:
+            - {name: models, mountPath: /models, readOnly: true}
+            - {name: launch, mountPath: /launch, readOnly: true}
+        # GB10 UMA: the engine sizes its budget from MemAvailable; the weights
+        # (98.9 GiB) plus the 12.2 GiB reserve need 112 GiB (recipe MIN_AVAIL_GIB).
+        - name: reclaim-vm-cache
+          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-dsv41-1017:exl3-tp2-2b94be4562b1
+          imagePullPolicy: IfNotPresent
+          env: [{name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}]
+          securityContext: {privileged: true}
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              threshold_kib=117440512 # 112 GiB
+              for attempt in $(seq 1 12); do
+                before=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+                echo "cache reclaim attempt ${attempt}/12: MemAvailable=${before} KiB"
+                sync; echo 3 > /proc/sys/vm/drop_caches
+                after=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+                if (( after >= threshold_kib )); then
+                  echo "cache reclaim passed: ${after} KiB"; exit 0
+                fi
+                sleep 5
+              done
+              echo "FATAL: MemAvailable stayed below ${threshold_kib} KiB" >&2; exit 1
+      containers:
+        - name: tensorfold
+          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-dsv41-1017:exl3-tp2-2b94be4562b1
+          imagePullPolicy: IfNotPresent
+          command: ["bash", "/launch/launch-worker.sh"]
+          securityContext:
+            capabilities: {add: [IPC_LOCK]}
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
+            - {name: PEER_SERVICE, value: dsv41-1017-head-rendezvous.llm-test.svc.cluster.local}
+            - {name: NODE_NAME, valueFrom: {fieldRef: {fieldPath: spec.nodeName}}}
+            - {name: HOST_IP, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
+          resources:
+            requests:
+              cpu: "16"
+              memory: 96Gi
+              nvidia.com/gpu: "1"
+              rdma/hca_shared_devices: "1"
+            limits:
+              cpu: "32"
+              memory: 128Gi
+              nvidia.com/gpu: "1"
+              rdma/hca_shared_devices: "1"
+          volumeMounts:
+            - {name: models, mountPath: /models, readOnly: true}
+            - {name: rank-cache, mountPath: /rank-cache, subPath: dsv41-1017/data/rank-cache, readOnly: true}
+            - {name: launch, mountPath: /launch, readOnly: true}
+            - {name: fabric-config, mountPath: /opt/tensorfold/configure-rdma-fabric.sh, subPath: configure-rdma-fabric.sh, readOnly: true}
+            - {name: fabric-inventory, mountPath: /etc/dgx-spark/rdma-fabric.json, readOnly: true}
+            - {name: kernel-cache, mountPath: /cache}
+      volumes:
+        - name: models
+          persistentVolumeClaim: {claimName: model-cache-ephemeral}
+        - name: rank-cache
+          persistentVolumeClaim:
+            claimName: model-cache-ephemeral
+            # subPath comes from the volumeMount (dsv41-1017/data/rank-cache) on
+            # the same ephemeral PVC; swap to a node-affine
+            # local-path-nvme-sticky PVC at the Engram gate (README).
+        - name: launch
+          configMap: {name: dsv41-1017-launch, defaultMode: 0555}
+        - name: fabric-config
+          configMap: {name: dsv41-1017-rdma-fabric, defaultMode: 0555}
+        - name: fabric-inventory
+          hostPath: {path: /var/lib/dgx-spark/rdma-fabric.json, type: File}
+        - name: kernel-cache
+          hostPath: {path: /var/lib/llm-test/dsv41-1017-kernel-cache, type: DirectoryOrCreate}
+---
+# Head: rank 0 + OpenAI-compatible API on 8888. Conductor readyGate
+# DeploymentAvailable; the startupProbe allows a cold JuiceFS load.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dsv41-1017-head
+  namespace: llm-test
+  labels:
+    app: dsv41-1017-head
+    lane: dsv41-1017
+spec:
+  replicas: 0
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: dsv41-1017-head}
+  template:
+    metadata:
+      labels:
+        app: dsv41-1017-head
+        lane: dsv41-1017
+    spec:
+      priorityClassName: llm-serving-critical
+      automountServiceAccountToken: false
+      runtimeClassName: nvidia-rdma
+      terminationGracePeriodSeconds: 120
+      hostNetwork: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        gpu: dgx-spark
+        gpu-vendor: nvidia
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - {key: lane, operator: In, values: [dsv41-1017]}
+              topologyKey: kubernetes.io/hostname
+      initContainers:
+        - name: verify-checkpoint
+          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-dsv41-1017:exl3-tp2-2b94be4562b1
+          imagePullPolicy: IfNotPresent
+          env: [{name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}]
+          command: ["python3", "/launch/verify-checkpoint.py", "head"]
+          volumeMounts:
+            - {name: models, mountPath: /models, readOnly: true}
+            - {name: launch, mountPath: /launch, readOnly: true}
+        - name: reclaim-vm-cache
+          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-dsv41-1017:exl3-tp2-2b94be4562b1
+          imagePullPolicy: IfNotPresent
+          env: [{name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}]
+          securityContext: {privileged: true}
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              threshold_kib=117440512 # 112 GiB
+              for attempt in $(seq 1 12); do
+                before=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+                echo "cache reclaim attempt ${attempt}/12: MemAvailable=${before} KiB"
+                sync; echo 3 > /proc/sys/vm/drop_caches
+                after=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+                if (( after >= threshold_kib )); then
+                  echo "cache reclaim passed: ${after} KiB"; exit 0
+                fi
+                sleep 5
+              done
+              echo "FATAL: MemAvailable stayed below ${threshold_kib} KiB" >&2; exit 1
+      containers:
+        - name: tensorfold
+          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-dsv41-1017:exl3-tp2-2b94be4562b1
+          imagePullPolicy: IfNotPresent
+          command: ["bash", "/launch/launch-head.sh"]
+          securityContext:
+            capabilities: {add: [IPC_LOCK]}
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
+            - {name: PEER_SERVICE, value: dsv41-1017-worker-rendezvous.llm-test.svc.cluster.local}
+            - {name: NODE_NAME, valueFrom: {fieldRef: {fieldPath: spec.nodeName}}}
+            - {name: HOST_IP, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
+          resources:
+            requests:
+              cpu: "16"
+              memory: 96Gi
+              nvidia.com/gpu: "1"
+              rdma/hca_shared_devices: "1"
+            limits:
+              cpu: "32"
+              memory: 128Gi
+              nvidia.com/gpu: "1"
+              rdma/hca_shared_devices: "1"
+          ports:
+            - {name: http, containerPort: 8888}
+          startupProbe:
+            httpGet: {path: /health, port: 8888}
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 360  # 60 min: cold JuiceFS load of ~99 GiB/rank
+          readinessProbe:
+            httpGet: {path: /health, port: 8888}
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: {path: /health, port: 8888}
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - {name: models, mountPath: /models, readOnly: true}
+            - {name: launch, mountPath: /launch, readOnly: true}
+            - {name: fabric-config, mountPath: /opt/tensorfold/configure-rdma-fabric.sh, subPath: configure-rdma-fabric.sh, readOnly: true}
+            - {name: fabric-inventory, mountPath: /etc/dgx-spark/rdma-fabric.json, readOnly: true}
+            - {name: kernel-cache, mountPath: /cache}
+      volumes:
+        - name: models
+          persistentVolumeClaim: {claimName: model-cache-ephemeral}
+        - name: launch
+          configMap: {name: dsv41-1017-launch, defaultMode: 0555}
+        - name: fabric-config
+          configMap: {name: dsv41-1017-rdma-fabric, defaultMode: 0555}
+        - name: fabric-inventory
+          hostPath: {path: /var/lib/dgx-spark/rdma-fabric.json, type: File}
+        - name: kernel-cache
+          hostPath: {path: /var/lib/llm-test/dsv41-1017-kernel-cache, type: DirectoryOrCreate}

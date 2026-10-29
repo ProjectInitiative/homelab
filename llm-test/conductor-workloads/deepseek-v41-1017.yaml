@@ -1,0 +1,49 @@
+# Conductor registration for the DeepSeek-V4.1-Flash-1017 TensorFold lane.
+#
+# Ships as Standby: Conductor registers the workload (the "CRD on" step) but
+# does not place it until desiredState flips to Resident. Flip to Resident
+# ONLY after 03-download + 05-prepare completed and the Engram placement gate
+# decided (README.md). Activation order is encoded here: worker (startOrder
+# 10) before head (20); teardown is head first.
+#
+# Priority 0: on capacity loss Conductor reclaims lower-priority residency and
+# restores this LLM first (docs/dgx-spark-workload-policy.md).
+---
+apiVersion: conductor.projectinitiative.io/v1alpha1
+kind: ManagedWorkload
+metadata:
+  name: deepseek-v41-1017
+  namespace: llm-test
+  labels:
+    lane: dsv41-1017
+spec:
+  poolRef: dgx-spark
+  desiredState: Standby
+  priority: 0
+  driver:
+    type: DeploymentSet
+    deploymentSet:
+      recoveryPolicy: RecreateTogether
+      startupGracePeriod: 90m  # cold JuiceFS load of ~99 GiB/rank + JIT
+      members:
+        - name: dsv41-1017-worker
+          role: worker
+          startOrder: 10
+          stopOrder: 20
+          replicas: 1
+          readyGate: ContainersRunning
+        - name: dsv41-1017-head
+          role: head
+          startOrder: 20
+          stopOrder: 10
+          replicas: 1
+          readyGate: DeploymentAvailable
+  qualification:
+    serviceName: dsv41-1017-head
+    path: /health
+    port: 8888
+    timeout: 60m
+  routing:
+    serviceName: dsv41-1017-head
+    selector:
+      serving.homelab.io/alias: deepseek-v41-1017
