@@ -1,0 +1,107 @@
+# Agent compute-access RBAC.
+#
+# Two tiers, both bound to mcp-system:mcp-agent-sa (the read-only MCP agent's
+# identity) via namespaced RoleBindings — never ClusterRoleBindings:
+#
+# 1. mcp-jobsmith (llm-test): jobs + configmaps CRUD, read-only pods. Enough to
+#    submit one-off compute Jobs (image builds, cache pulls, migrations) and
+#    clean them up. No pod create/delete — job pods are owned by Jobs, so
+#    serving pods (ai-proxy, tensorfold) can never be touched directly.
+#
+# 2. agent-sandbox-full (agent-sandbox): broad namespaced access for throwaway
+#    experiments. The hard boundary is NOT RBAC but the namespace's PSA
+#    `restricted` label (set via the agent-access catalog entry): the API
+#    server rejects privileged, hostNetwork/hostPID/hostPath, extra
+#    capabilities, and run-as-root at admission — an agent cannot reach the
+#    host no matter what it submits. Escalation vectors are still withheld
+#    here: no secrets, serviceaccounts, roles/rolebindings, or
+#    resourcequotas/limitranges, so an agent can never grant itself more or
+#    lift its own quota.
+#
+# The readwrite MCP endpoint additionally enforces --allow-namespaces at the
+# tool layer, so a mistake in RBAC cannot widen the blast radius silently.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mcp-jobsmith
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs", "jobs/status", "cronjobs", "cronjobs/status"]
+    verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "pods/status"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mcp-jobsmith
+  namespace: llm-test
+subjects:
+  - kind: ServiceAccount
+    name: mcp-agent-sa
+    namespace: mcp-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: mcp-jobsmith
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: agent-sandbox-full
+  namespace: agent-sandbox
+rules:
+  # Deliberate omissions: secrets, serviceaccounts, roles, rolebindings,
+  # resourcequotas, limitranges. Everything else namespaced is fair game.
+  - apiGroups: [""]
+    resources:
+      - pods
+      - pods/log
+      - pods/status
+      - pods/exec
+      - pods/attach
+      - pods/portforward
+      - services
+      - endpoints
+      - configmaps
+      - events
+      - persistentvolumeclaims
+      - replicationcontrollers
+    verbs: ["create", "get", "list", "watch", "update", "patch", "delete", "deletecollection"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "daemonsets", "statefulsets", "replicasets", "controllerrevisions"]
+    verbs: ["create", "get", "list", "watch", "update", "patch", "delete", "deletecollection"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "jobs/status", "cronjobs", "cronjobs/status"]
+    verbs: ["create", "get", "list", "watch", "update", "patch", "delete", "deletecollection"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses", "networkpolicies"]
+    verbs: ["create", "get", "list", "watch", "update", "patch", "delete", "deletecollection"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["create", "get", "list", "watch", "update", "patch", "delete", "deletecollection"]
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["create", "get", "list", "watch", "update", "patch", "delete", "deletecollection"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: agent-sandbox-full
+  namespace: agent-sandbox
+subjects:
+  - kind: ServiceAccount
+    name: mcp-agent-sa
+    namespace: mcp-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: agent-sandbox-full

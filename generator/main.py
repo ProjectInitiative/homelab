@@ -368,7 +368,9 @@ class ClusterAppsChart(Chart):
         # profile without blocking anything. Infra namespaces that
         # legitimately need privileged pods are allow-listed (audit
         # 2026-10-15): CSI drivers, kubevirt, piraeus, mesh dataplane,
-        # tailscale proxies. Per-app override: podSecurity: privileged.
+        # tailscale proxies. Per-app override: podSecurity: privileged, or
+        # podSecurity: restricted for agent playboxes (blocks privileged AND
+        # host-escape vectors AND run-as-root at admission time).
         _PRIVILEGED_NAMESPACES = {
             "kube-system",
             "kubevirt",
@@ -377,13 +379,14 @@ class ClusterAppsChart(Chart):
             "submariner-k8s-broker",
             "tailscale",
         }
-        _psa_privileged = (
-            app_def.get("podSecurity") == "privileged"
-            or target_ns in _PRIVILEGED_NAMESPACES
+        _psa_mode = app_def.get("podSecurity") or (
+            "privileged" if target_ns in _PRIVILEGED_NAMESPACES else "baseline"
         )
+        _psa_privileged = _psa_mode == "privileged"
+        _psa_restricted = _psa_mode == "restricted"
         _psa_labels = {
             "pod-security.kubernetes.io/enforce": (
-                "privileged" if _psa_privileged else "baseline"
+                "privileged" if _psa_privileged else ("restricted" if _psa_restricted else "baseline")
             ),
             "pod-security.kubernetes.io/enforce-version": "latest",
         }
@@ -392,10 +395,15 @@ class ClusterAppsChart(Chart):
                 {
                     "pod-security.kubernetes.io/audit": "restricted",
                     "pod-security.kubernetes.io/audit-version": "latest",
-                    "pod-security.kubernetes.io/warn": "restricted",
-                    "pod-security.kubernetes.io/warn-version": "latest",
                 }
             )
+            if not _psa_restricted:
+                _psa_labels.update(
+                    {
+                        "pod-security.kubernetes.io/warn": "restricted",
+                        "pod-security.kubernetes.io/warn-version": "latest",
+                    }
+                )
         if "managedNamespaceMetadata" not in sync_policy:
             sync_policy["managedNamespaceMetadata"] = {"labels": {}}
         sync_policy["managedNamespaceMetadata"]["labels"].update(_psa_labels)

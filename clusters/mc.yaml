@@ -346,8 +346,18 @@ apps:
         target:
           kind: Service
           annotationSelector: tailscale.com/proxy-group=ingress-proxy
+    patches:
+      - patch: |-
+          - op: replace
+            path: /metadata/annotations/tailscale.com~1proxy-group
+            value: mc-ingress-proxy
+        target:
+          kind: Service
+          annotationSelector: tailscale.com/proxy-group=ingress-proxy
   - name: mcp-vip-watchdog
     namespace: tailscale
+  - name: agent-access
+    namespace: agent-sandbox
 
   # AI control plane adoption. Both Applications initially require an explicit
   # Argo sync; ai-proxy adopts live objects with prune off, while Conductor is

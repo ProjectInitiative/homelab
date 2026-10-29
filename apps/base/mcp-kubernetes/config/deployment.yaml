@@ -26,8 +26,14 @@ spec:
             - "0.0.0.0"
             - "--port"
             - "8080"
+            # Read + write tools. Deliberately NO --allow-namespaces: reads
+            # stay cluster-wide like the original readonly surface, and RBAC
+            # (apps/base/agent-access) is the single write boundary — jobsmith
+            # in llm-test, full namespaced access in agent-sandbox, Forbidden
+            # everywhere else. The agent's kubeconfig is unavailable by design,
+            # so this identity's RBAC is the entire blast radius.
             - "--access-level"
-            - "readonly"
+            - "readwrite"
           ports:
             - containerPort: 8080
               name: http-sse
