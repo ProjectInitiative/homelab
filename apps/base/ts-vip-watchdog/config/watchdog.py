@@ -16,6 +16,8 @@ FAILURES_BEFORE_REPAIR = int(os.environ.get("FAILURES_BEFORE_REPAIR", "3"))
 RESTART_GRACE = int(os.environ.get("RESTART_GRACE", "180"))
 COOLDOWN = int(os.environ.get("COOLDOWN", "1800"))
 REPAIR_RETRY = int(os.environ.get("REPAIR_RETRY", "60"))
+VIP_RECREATE_WAIT = int(os.environ.get("VIP_RECREATE_WAIT", "120"))
+VIP_RECREATE_SETTLE = int(os.environ.get("VIP_RECREATE_SETTLE", "15"))
 INTERVAL = int(os.environ.get("INTERVAL", "30"))
 TOKEN = open("/var/run/secrets/kubernetes.io/serviceaccount/token").read().strip()
 CA = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
@@ -79,9 +81,8 @@ def endpoints_by_service():
         counts[key] = counts.get(key, 0) + sum(1 for ep in endpoints if ep.get("conditions", {}).get("ready") is True)
         fingerprints.setdefault(key, []).append({
             "name": metadata.get("name"),
-            "resourceVersion": metadata.get("resourceVersion"),
-            "endpoints": endpoints,
-            "ports": sl.get("ports") or [],
+            "endpoints": sorted(endpoints, key=lambda item: json.dumps(item, sort_keys=True, separators=(",", ":"))),
+            "ports": sorted(sl.get("ports") or [], key=lambda item: json.dumps(item, sort_keys=True, separators=(",", ":"))),
         })
     for key, slices in fingerprints.items():
         encoded = json.dumps(sorted(slices, key=lambda item: item.get("name") or ""), sort_keys=True, separators=(",", ":")).encode()
@@ -114,36 +115,140 @@ def service_healthy(service, endpoint_counts):
     return any(probe(ip, port) for ip in ips for port in ports), endpoint_counts[key]
 
 
+def proxy_rollout_status(proxy_group):
+    path = f"/apis/apps/v1/namespaces/{PROXY_NS}/statefulsets/{urllib.parse.quote(proxy_group, safe='')}"
+    _, sts = kube(path)
+    spec = sts.get("spec") or {}
+    status = sts.get("status") or {}
+    replicas = int(spec.get("replicas", 0))
+    generation = sts.get("metadata", {}).get("generation", 0)
+    rollout = rollouts.get(proxy_group)
+    target_generation = rollout["generation"] if rollout else generation
+    if rollout and rollout.get("revision") is None and status.get("observedGeneration", 0) >= target_generation:
+        rollout["revision"] = status.get("updateRevision")
+    target_revision = rollout.get("revision") if rollout else status.get("updateRevision")
+
+    selector = spec.get("selector", {}).get("matchLabels") or {}
+    selector_text = ",".join(f"{key}={value}" for key, value in sorted(selector.items()))
+    pod_path = f"/api/v1/namespaces/{PROXY_NS}/pods?labelSelector={urllib.parse.quote(selector_text, safe='=,')}"
+    _, pod_data = kube(pod_path)
+    pods = [pod for pod in (pod_data.get("items") or []) if not pod.get("metadata", {}).get("deletionTimestamp")]
+    pods_on_revision = sum(1 for pod in pods if pod.get("metadata", {}).get("labels", {}).get("controller-revision-hash") == target_revision)
+    pods_ready_on_revision = sum(
+        1
+        for pod in pods
+        if pod.get("metadata", {}).get("labels", {}).get("controller-revision-hash") == target_revision
+        and any(
+            condition.get("type") == "Ready" and condition.get("status") == "True"
+            for condition in pod.get("status", {}).get("conditions", [])
+        )
+    )
+    details = {
+        "generation": generation,
+        "targetGeneration": target_generation,
+        "observedGeneration": status.get("observedGeneration", 0),
+        "replicas": replicas,
+        "updatedReplicas": status.get("updatedReplicas", 0),
+        "readyReplicas": status.get("readyReplicas", 0),
+        "availableReplicas": status.get("availableReplicas", 0),
+        "podsOnRevision": pods_on_revision,
+        "podsReadyOnRevision": pods_ready_on_revision,
+        "currentRevision": status.get("currentRevision"),
+        "targetRevision": target_revision,
+        "updateRevision": status.get("updateRevision"),
+    }
+    ready = (
+        details["observedGeneration"] >= target_generation
+        and details["currentRevision"] == target_revision
+        and details["updateRevision"] == target_revision
+        and details["updatedReplicas"] == replicas
+        and details["readyReplicas"] == replicas
+        and details["availableReplicas"] == replicas
+        and details["podsOnRevision"] == replicas
+        and details["podsReadyOnRevision"] == replicas
+    )
+    if ready and rollout:
+        rollouts.pop(proxy_group, None)
+    return ready, details
+
+
+def proxy_rollout_ready(proxy_group):
+    ready, _ = proxy_rollout_status(proxy_group)
+    return ready
+
+
 def restart_proxy(proxy_group):
+    ready, details = proxy_rollout_status(proxy_group)
+    if not ready:
+        print(
+            f"skipping ProxyGroup restart {PROXY_NS}/{proxy_group}: rollout still in progress "
+            f"updated={details['updatedReplicas']}/{details['replicas']} "
+            f"ready={details['readyReplicas']}/{details['replicas']} "
+            f"available={details['availableReplicas']}/{details['replicas']} "
+            f"observedGeneration={details['observedGeneration']}/{details['generation']}",
+            flush=True,
+        )
+        return False
     path = f"/apis/apps/v1/namespaces/{PROXY_NS}/statefulsets/{urllib.parse.quote(proxy_group, safe='')}"
     stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    kube(path, "PATCH", {"spec": {"template": {"metadata": {"annotations": {"ts-vip-watchdog/restarted-at": stamp}}}}})
-    print(f"restarted ProxyGroup StatefulSet {PROXY_NS}/{proxy_group}", flush=True)
+    _, updated = kube(path, "PATCH", {"spec": {"template": {"metadata": {"annotations": {"ts-vip-watchdog/restarted-at": stamp}}}}})
+    generation = updated.get("metadata", {}).get("generation") or details["generation"] + 1
+    rollouts[proxy_group] = {"generation": generation, "revision": None}
+    print(f"restarted ProxyGroup StatefulSet {PROXY_NS}/{proxy_group}; waiting for generation {generation}", flush=True)
+    return True
 
 
-def delete_vip_for_ip(ip):
+def tailscale_access_token():
     client_id = os.environ["TAILSCALE_CLIENT_ID"]
     client_secret = os.environ["TAILSCALE_CLIENT_SECRET"]
     basic = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
     body = urllib.parse.urlencode({"grant_type": "client_credentials"}).encode()
     req = urllib.request.Request("https://api.tailscale.com/api/v2/oauth/token", data=body, headers={"Authorization": f"Basic {basic}", "Content-Type": "application/x-www-form-urlencoded"})
     with urllib.request.urlopen(req, timeout=15) as resp:
-        access = json.load(resp)["access_token"]
+        return json.load(resp)["access_token"]
+
+
+def tailscale_vip_services(access):
     req = urllib.request.Request("https://api.tailscale.com/api/v2/tailnet/-/vip-services", headers={"Authorization": f"Bearer {access}"})
     with urllib.request.urlopen(req, timeout=15) as resp:
-        vip_services = (json.load(resp).get("vipServices") or [])
+        return json.load(resp).get("vipServices") or []
+
+
+def delete_vip_for_ip(ip):
+    access = tailscale_access_token()
+    vip_services = tailscale_vip_services(access)
     match = next((svc for svc in vip_services if ip in svc.get("addrs", [])), None)
     if not match:
         raise RuntimeError(f"no Tailscale VIP service found for {ip}")
-    name = urllib.parse.quote(match["name"], safe="")
+    service_name = match["name"]
+    name = urllib.parse.quote(service_name, safe="")
     req = urllib.request.Request(f"https://api.tailscale.com/api/v2/tailnet/-/vip-services/{name}", headers={"Authorization": f"Bearer {access}"}, method="DELETE")
     with urllib.request.urlopen(req, timeout=15) as resp:
-        print(f"deleted stale Tailscale VIP {match['name']} for {ip}: HTTP {resp.status}", flush=True)
+        print(f"deleted stale Tailscale VIP {service_name} for {ip}: HTTP {resp.status}", flush=True)
+    return service_name
+
+
+def wait_for_vip_recreation(service_name):
+    deadline = time.time() + VIP_RECREATE_WAIT
+    gone = False
+    while time.time() < deadline:
+        access = tailscale_access_token()
+        names = {svc.get("name") for svc in tailscale_vip_services(access)}
+        if service_name not in names:
+            gone = True
+        elif gone:
+            print(f"Tailscale VIP {service_name} recreated; waiting {VIP_RECREATE_SETTLE}s for operator reconciliation", flush=True)
+            time.sleep(VIP_RECREATE_SETTLE)
+            return
+        time.sleep(5)
+    raise RuntimeError(f"Tailscale VIP {service_name} was not observed to be recreated")
 
 
 # key -> {failures, stage, repair_at, cooldown_until, endpoint_fingerprint};
 # stage 0 normal, 1 restarted, 2 VIP reset.
 state = {}
+# proxy group -> {generation, revision}; populated when this watchdog requests a rollout.
+rollouts = {}
 # Tailscale ProxyGroup pods do not reliably reload AdvertiseServices after
 # operator config or backend changes. Force one clean reconciliation at startup,
 # then roll only the affected ProxyGroup when Services or EndpointSlices change.
@@ -155,10 +260,13 @@ while True:
         endpoint_counts, endpoint_fingerprints = endpoints_by_service()
         proxy_groups = ha_proxy_groups()
         if not startup_reconciled:
+            startup_complete = True
             for proxy_group in sorted(proxy_groups):
-                restart_proxy(proxy_group)
-            startup_reconciled = True
-            print("startup ProxyGroup reconciliation complete", flush=True)
+                if not restart_proxy(proxy_group):
+                    startup_complete = False
+            if startup_complete:
+                startup_reconciled = True
+                print("startup ProxyGroup reconciliation complete", flush=True)
         endpoint_changed_groups = set()
         service_list = services(proxy_groups)
         current_service_sets = {proxy_group: set() for proxy_group in proxy_groups}
@@ -196,21 +304,36 @@ while True:
             if now < item["cooldown_until"]:
                 continue
             if item["failures"] >= FAILURES_BEFORE_REPAIR and item["stage"] == 0:
-                restart_proxy(proxy_group)
-                item.update(stage=1, repair_at=now + RESTART_GRACE)
+                if restart_proxy(proxy_group):
+                    item.update(stage=1, repair_at=now + RESTART_GRACE)
             elif item["stage"] == 1 and now >= item["repair_at"]:
+                if not proxy_rollout_ready(proxy_group):
+                    print(f"deferring VIP repair for {key}: ProxyGroup rollout still in progress", flush=True)
+                    item["repair_at"] = now + REPAIR_RETRY
+                    continue
                 deleted_all = True
+                recreated_names = set()
                 for ip in ips:
                     try:
-                        delete_vip_for_ip(ip)
+                        recreated_names.add(delete_vip_for_ip(ip))
                     except Exception as exc:
                         deleted_all = False
                         print(f"VIP deletion failed for {key} ({ip}): {type(exc).__name__}: {exc}", flush=True)
                 if not deleted_all:
                     item["repair_at"] = now + REPAIR_RETRY
                     continue
-                restart_proxy(proxy_group)
-                item.update(stage=2, cooldown_until=now + COOLDOWN)
+                try:
+                    for service_name in recreated_names:
+                        wait_for_vip_recreation(service_name)
+                except Exception as exc:
+                    print(f"VIP recreation wait failed for {key}: {type(exc).__name__}: {exc}", flush=True)
+                    item["repair_at"] = now + REPAIR_RETRY
+                    continue
+                if restart_proxy(proxy_group):
+                    item.update(stage=2, cooldown_until=now + COOLDOWN)
+                else:
+                    print(f"deferring post-repair ProxyGroup restart for {key}: rollout still in progress", flush=True)
+                    item["repair_at"] = time.time() + REPAIR_RETRY
         for proxy_group in sorted(endpoint_changed_groups):
             restart_proxy(proxy_group)
     except Exception as exc:
