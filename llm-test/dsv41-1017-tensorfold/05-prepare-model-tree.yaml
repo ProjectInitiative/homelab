@@ -1,0 +1,144 @@
+# DeepSeek-V4.1-Flash-1017 model-tree preparation — the K8s equivalent of
+# recipe scripts/prepare.sh steps 4-5 (kit, RoPE tables, image routing bias,
+# token map, both ranks' rank-cache weight files, served folder). Steps 1-3
+# (image, downloads) and 6-7 (NFS transport) are structurally replaced by the
+# in-cluster image build, 03-download-model.yaml, and the shared RWX ephemeral
+# PVC. Run only after the download receipt exists. Idempotent; every step
+# skips work that is already done.
+#
+# Storage note: rank-cache weight files (~99 GiB each) and the Engram tables
+# land on the shared ephemeral JuiceFS PVC. Whether that is fast enough for
+# Engram's random 4 KiB decode reads is decided by 04-gcache-ring-bench.yaml —
+# if the ring cache misses the gate, switch serving to the node-local NVMe
+# pack (README.md "Engram placement gate").
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dsv41-1017-model-tree-prep-v1
+  namespace: llm-test
+  labels:
+    app: dsv41-1017-prep
+    lane: dsv41-1017
+    purpose: model-tree-prep
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 259200
+  template:
+    metadata:
+      labels:
+        app: dsv41-1017-prep
+        lane: dsv41-1017
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: octant
+      containers:
+        - name: prepare
+          # Tag of the local build (01-image-build.yaml). Pin the digest once
+          # the build completes and note it in README.md.
+          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-dsv41-1017:exl3-tp2-2b94be4562b1
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              MODEL_SNAP=/models/.cache/huggingface/hub/models--Mia-AiLab--DeepSeek-V4.1-Flash-1017-EXL3-EAQ-v1-2.9-bpw/snapshots/45ee5d0fd106c94a3d77f721e09cbb2f50e5a16b
+              DATA=/models/dsv41-1017
+              KIT_DIR=/models/dsv41-1017/kit
+              KIT=$KIT_DIR/kit
+              TOOLS=/opt/tensorfold/tools/inputs
+              KIT_REF=abe07c7d509a0199cc7fec15263be2aa52ac652f
+              RECIPE_REV=d8e5b28da6ebcf539035be564a4a94d087b2f480
+              marker=/models/.dsv41-1017-prep-complete
+
+              test -f "$MODEL_SNAP/model.safetensors.index.json" || { echo "FATAL: checkpoint missing (run 03-download-model.yaml first)"; exit 1; }
+              test -f /models/.dsv41-1017-download-complete || { echo "FATAL: download receipt missing"; exit 1; }
+              test -x /usr/bin/tf-dsv41-rank-cache || command -v tf-dsv41-rank-cache || { echo "FATAL: tf-dsv41-rank-cache not in image"; exit 1; }
+
+              # ---- 1. the kernel kit (git, pinned) ----
+              if [ ! -d "$KIT_DIR/.git" ]; then
+                rm -rf "$KIT_DIR"; git init -q "$KIT_DIR"
+                git -C "$KIT_DIR" remote add origin https://github.com/bertholomus/deepseek-v4.1-tensorfold-tp2-2xgb10.git
+                git -C "$KIT_DIR" fetch -q --depth 1 origin "$KIT_REF"
+                git -C "$KIT_DIR" checkout -q --detach FETCH_HEAD
+              fi
+              [ "$(git -C "$KIT_DIR" rev-parse HEAD)" = "$KIT_REF" ] || { echo "FATAL: kit not at $KIT_REF"; exit 1; }
+
+              # ---- 2. RoPE tables from the checkpoint's config ----
+              if [ ! -s "$KIT/rope-plain-cos.f32" ] || [ ! -s "$KIT/rope-compressed-sin.f32" ]; then
+                python3 "$TOOLS/make_rope.py" "$MODEL_SNAP/config.json" "$KIT"
+              fi
+
+              # ---- 3. the image routing bias ----
+              if [ ! -s "$KIT/vision/gate_bias_vl.safetensors" ]; then
+                python3 "$TOOLS/make_bias_vl.py" "$MODEL_SNAP" "$KIT/vision/gate_bias_vl.safetensors"
+              fi
+
+              # ---- 4. MANIFEST verification (the image bias may be 1017's own) ----
+              bad=0
+              while read -r sum path; do
+                [ -f "$KIT/$path" ] || { echo "kit missing: $path"; bad=1; continue; }
+                [ "$(sha256sum "$KIT/$path" | cut -d' ' -f1)" = "$sum" ] || \
+                  { [ "$path" = "vision/gate_bias_vl.safetensors" ] || { echo "kit differs: $path"; bad=1; }; }
+              done < "$KIT/MANIFEST"
+              [ "$bad" = 0 ] || { echo "FATAL: kit does not check out"; exit 1; }
+
+              # ---- 5. Engram's token map ----
+              mkdir -p "$DATA/rank-cache"
+              if [ ! -s "$DATA/dsv41_token_map.json" ]; then
+                python3 "$TOOLS/make_token_map.py" "$MODEL_SNAP" "$DATA/dsv41_token_map.json"
+              fi
+
+              # ---- 6. both ranks' weight files (CPU-only, ~99 GiB each) ----
+              want=$(tf-dsv41-rank-cache "$MODEL_SNAP" /tmp/x 0 2 --index-only | sha256sum | cut -c1-20)
+              if [ ! -f "$DATA/rank-cache/rank0of2-$want.bin" ]; then
+                rm -f "$DATA/rank-cache/rank0of2-"*.bin "$DATA/rank-cache/.rank0of2.partial"
+                echo "building rank 0 weight file (~99 GiB)"
+                tf-dsv41-rank-cache "$MODEL_SNAP" "$DATA/rank-cache" 0 2
+              fi
+              if ! ls "$DATA/rank-cache/rank1of2-"*.bin >/dev/null 2>&1; then
+                rm -f "$DATA/rank-cache/rank1of2-"*.bin "$DATA/rank-cache/.rank1of2.partial"
+                echo "building rank 1 weight file (~99 GiB)"
+                tf-dsv41-rank-cache "$MODEL_SNAP" "$DATA/rank-cache" 1 2
+              fi
+
+              # ---- 7. the served folder: relative links + the recipe's chat template ----
+              if [ ! -s "$DATA/model/config.json" ]; then
+                rm -rf "$DATA/model.new" && mkdir -p "$DATA/model.new"
+                for f in "$MODEL_SNAP"/*; do
+                  ln -s "$(realpath -s --relative-to="$DATA/model.new" "$f")" "$DATA/model.new/"
+                done
+                # The recipe's own template (repo model/chat_template.jinja) wins;
+                # fall back to the checkpoint's if the fetch fails.
+                python3 - "$RECIPE_REV" "$DATA/model.new" <<'PY'
+                import pathlib, sys, urllib.request
+                rev, view = sys.argv[1], pathlib.Path(sys.argv[2])
+                url = f"https://raw.githubusercontent.com/MiaAI-Lab/DeepSeek-v4.1-Flash-1017-2x-DGX-Sparks/{rev}/model/chat_template.jinja"
+                try:
+                    tpl = urllib.request.urlopen(url, timeout=60).read()
+                except Exception as exc:  # offline fallback: checkpoint's own template
+                    print(f"WARN: recipe template fetch failed ({exc}); using the checkpoint's own")
+                    sys.exit(0)
+                (view / "chat_template.jinja").write_bytes(tpl)
+                PY
+                [ -s "$DATA/model.new/chat_template.jinja" ] || cp -L "$MODEL_SNAP/chat_template.jinja" "$DATA/model.new/chat_template.jinja"
+                [ -s "$DATA/model/config.json" ] || { rm -rf "$DATA/model" && mv "$DATA/model.new" "$DATA/model"; }
+              fi
+              test -s "$DATA/model/config.json" || { echo "FATAL: served folder does not reach the checkpoint"; exit 1; }
+              test -s "$DATA/model/chat_template.jinja" || { echo "FATAL: served folder has no chat template"; exit 1; }
+
+              n=$(ls "$DATA/rank-cache"/*.bin 2>/dev/null | wc -l)
+              echo "rank-cache files: $n"
+              [ "$n" -ge 2 ] || { echo "FATAL: rank-cache incomplete"; exit 1; }
+              printf '{"kit": "%s", "rank_files": %s}\n' "$KIT_REF" "$n" > "$marker.tmp" && mv "$marker.tmp" "$marker"
+              echo "PREP OK"
+          resources:
+            requests: {cpu: "8", memory: 8Gi}
+            limits: {cpu: "16", memory: 16Gi}
+          volumeMounts:
+            - {name: models, mountPath: /models}
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache-ephemeral
