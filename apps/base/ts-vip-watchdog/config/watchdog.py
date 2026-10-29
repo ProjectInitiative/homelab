@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """End-to-end watchdog for Tailscale Kubernetes VIP Services."""
 import base64
+import hashlib
 import json
 import os
 import socket
@@ -61,17 +62,28 @@ def services(proxy_groups):
 
 def endpoints_by_service():
     _, data = kube("/apis/discovery.k8s.io/v1/endpointslices")
-    result = {}
+    counts = {}
+    fingerprints = {}
     for sl in (data.get("items") or []):
-        labels = sl.get("metadata", {}).get("labels", {})
+        metadata = sl.get("metadata") or {}
+        labels = metadata.get("labels") or {}
         name = labels.get("kubernetes.io/service-name")
-        namespace = sl.get("metadata", {}).get("namespace")
+        namespace = metadata.get("namespace")
         if not name:
             continue
         key = (namespace, name)
         endpoints = sl.get("endpoints") or []
-        result[key] = result.get(key, 0) + sum(1 for ep in endpoints if ep.get("conditions", {}).get("ready") is True)
-    return result
+        counts[key] = counts.get(key, 0) + sum(1 for ep in endpoints if ep.get("conditions", {}).get("ready") is True)
+        fingerprints.setdefault(key, []).append({
+            "name": metadata.get("name"),
+            "resourceVersion": metadata.get("resourceVersion"),
+            "endpoints": endpoints,
+            "ports": sl.get("ports") or [],
+        })
+    for key, slices in fingerprints.items():
+        encoded = json.dumps(sorted(slices, key=lambda item: item.get("name") or ""), sort_keys=True, separators=(",", ":")).encode()
+        fingerprints[key] = hashlib.sha256(encoded).hexdigest()
+    return counts, fingerprints
 
 
 def vip_ips(service):
@@ -126,21 +138,51 @@ def delete_vip_for_ip(ip):
         print(f"deleted stale Tailscale VIP {match['name']} for {ip}: HTTP {resp.status}", flush=True)
 
 
-# key -> {failures, stage, repair_at, cooldown_until}; stage 0 normal, 1 restarted, 2 VIP reset.
+# key -> {failures, stage, repair_at, cooldown_until, endpoint_fingerprint};
+# stage 0 normal, 1 restarted, 2 VIP reset.
 state = {}
+# Tailscale ProxyGroup pods do not reliably reload AdvertiseServices after
+# operator config or backend changes. Force one clean reconciliation at startup,
+# then roll only the affected ProxyGroup when Services or EndpointSlices change.
+startup_reconciled = False
+last_service_sets = None
 print("watching all Tailscale LoadBalancer Services", flush=True)
 while True:
     try:
-        endpoint_counts = endpoints_by_service()
+        endpoint_counts, endpoint_fingerprints = endpoints_by_service()
         proxy_groups = ha_proxy_groups()
-        for service in services(proxy_groups):
+        if not startup_reconciled:
+            for proxy_group in sorted(proxy_groups):
+                restart_proxy(proxy_group)
+            startup_reconciled = True
+            print("startup ProxyGroup reconciliation complete", flush=True)
+        endpoint_changed_groups = set()
+        service_list = services(proxy_groups)
+        current_service_sets = {proxy_group: set() for proxy_group in proxy_groups}
+        for service in service_list:
+            meta = service["metadata"]
+            key = f"{meta.get('namespace')}/{meta.get('name')}"
+            proxy_group = meta.get("annotations", {}).get("tailscale.com/proxy-group")
+            current_service_sets.setdefault(proxy_group, set()).add(key)
+        if last_service_sets is not None:
+            for proxy_group in proxy_groups:
+                if last_service_sets.get(proxy_group, set()) != current_service_sets.get(proxy_group, set()):
+                    endpoint_changed_groups.add(proxy_group)
+                    print(f"{proxy_group} Tailscale Service set changed; scheduling ProxyGroup restart", flush=True)
+        last_service_sets = current_service_sets
+        for service in service_list:
             meta = service["metadata"]
             key = f"{meta.get('namespace')}/{meta.get('name')}"
             proxy_group = meta.get("annotations", {}).get("tailscale.com/proxy-group")
             ips = vip_ips(service)
             if not proxy_group or not ips:
                 continue
-            item = state.setdefault(key, {"failures": 0, "stage": 0, "repair_at": 0, "cooldown_until": 0})
+            item = state.setdefault(key, {"failures": 0, "stage": 0, "repair_at": 0, "cooldown_until": 0, "endpoint_fingerprint": None})
+            endpoint_fingerprint = endpoint_fingerprints.get((meta.get("namespace"), meta.get("name")), "")
+            if item["endpoint_fingerprint"] is not None and item["endpoint_fingerprint"] != endpoint_fingerprint:
+                endpoint_changed_groups.add(proxy_group)
+                print(f"{key} EndpointSlices changed; scheduling ProxyGroup restart", flush=True)
+            item["endpoint_fingerprint"] = endpoint_fingerprint
             ok, ready = service_healthy(service, endpoint_counts)
             print(f"{key} vip={','.join(ips)} proxy={proxy_group} health={'ok' if ok else 'FAIL'} ready={ready} stage={item['stage']}", flush=True)
             now = time.time()
@@ -158,6 +200,8 @@ while True:
                     delete_vip_for_ip(ip)
                 restart_proxy(proxy_group)
                 item.update(stage=2, cooldown_until=now + COOLDOWN)
+        for proxy_group in sorted(endpoint_changed_groups):
+            restart_proxy(proxy_group)
     except Exception as exc:
         print(f"watchdog error: {type(exc).__name__}: {exc}", flush=True)
         traceback.print_exc()

@@ -17,7 +17,7 @@ spec:
       labels:
         app: ts-vip-watchdog
       annotations:
-        watchdog-config-sha256: c1178b83fc0a444d605b5bdf64ae4fdcdc3e826a760659528200206597283b0f
+        watchdog-config-sha256: b1f04bdeea98bec770de4d8ca66bc20be47d2de8099c92715fb18ae3cc2c6730
     spec:
       serviceAccountName: ts-vip-watchdog
       hostNetwork: true
