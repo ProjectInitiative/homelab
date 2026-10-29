@@ -38,7 +38,8 @@ def kube(path, method="GET", body=None):
 
 
 def ha_proxy_groups():
-    _, data = kube(f"/apis/tailscale.com/v1alpha1/namespaces/{PROXY_NS}/proxygroups")
+    # ProxyGroup is cluster-scoped; only the owning StatefulSet is namespaced.
+    _, data = kube("/apis/tailscale.com/v1alpha1/proxygroups")
     return {
         item["metadata"]["name"]
         for item in (data.get("items") or [])
