@@ -6,6 +6,7 @@ import os
 import socket
 import ssl
 import time
+import traceback
 import urllib.parse
 import urllib.request
 
@@ -67,7 +68,8 @@ def endpoints_by_service():
         if not name:
             continue
         key = (namespace, name)
-        result[key] = result.get(key, 0) + sum(1 for ep in sl.get("endpoints", []) if ep.get("conditions", {}).get("ready") is True)
+        endpoints = sl.get("endpoints") or []
+        result[key] = result.get(key, 0) + sum(1 for ep in endpoints if ep.get("conditions", {}).get("ready") is True)
     return result
 
 
@@ -157,4 +159,5 @@ while True:
                 item.update(stage=2, cooldown_until=now + COOLDOWN)
     except Exception as exc:
         print(f"watchdog error: {type(exc).__name__}: {exc}", flush=True)
+        traceback.print_exc()
     time.sleep(INTERVAL)
