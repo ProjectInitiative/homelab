@@ -178,7 +178,7 @@ apps:
         target:
           kind: Service
           annotationSelector: tailscale.com/proxy-group=ingress-proxy
-  - name: mcp-vip-watchdog
+  - name: ts-vip-watchdog
     namespace: tailscale
   - name: agent-access
     namespace: agent-sandbox
