@@ -115,37 +115,55 @@ def service_healthy(service, endpoint_counts):
     return any(probe(ip, port) for ip in ips for port in ports), endpoint_counts[key]
 
 
+def proxy_pods(sts):
+    selector = sts.get("spec", {}).get("selector", {}).get("matchLabels") or {}
+    selector_text = ",".join(f"{key}={value}" for key, value in sorted(selector.items()))
+    pod_path = f"/api/v1/namespaces/{PROXY_NS}/pods?labelSelector={urllib.parse.quote(selector_text, safe='=,')}"
+    _, pod_data = kube(pod_path)
+    return [pod for pod in (pod_data.get("items") or []) if not pod.get("metadata", {}).get("deletionTimestamp")]
+
+
+def proxy_group_ready(proxy_group):
+    path = f"/apis/tailscale.com/v1alpha1/proxygroups/{urllib.parse.quote(proxy_group, safe='')}"
+    _, data = kube(path)
+    conditions = data.get("status", {}).get("conditions") or []
+    return all(
+        any(condition.get("type") == condition_type and condition.get("status") == "True" for condition in conditions)
+        for condition_type in ("ProxyGroupAvailable", "ProxyGroupReady")
+    )
+
+
+def pod_ready(pod):
+    return any(
+        condition.get("type") == "Ready" and condition.get("status") == "True"
+        for condition in pod.get("status", {}).get("conditions", [])
+    )
+
+
+def pod_ordinal(pod):
+    try:
+        return int(pod.get("metadata", {}).get("name", "").rsplit("-", 1)[1])
+    except (IndexError, ValueError):
+        return -1
+
+
 def proxy_rollout_status(proxy_group):
     path = f"/apis/apps/v1/namespaces/{PROXY_NS}/statefulsets/{urllib.parse.quote(proxy_group, safe='')}"
     _, sts = kube(path)
     spec = sts.get("spec") or {}
     status = sts.get("status") or {}
     replicas = int(spec.get("replicas", 0))
-    generation = sts.get("metadata", {}).get("generation", 0)
-    rollout = rollouts.get(proxy_group)
-    target_generation = rollout["generation"] if rollout else generation
-    if rollout and rollout.get("revision") is None and status.get("observedGeneration", 0) >= target_generation:
-        rollout["revision"] = status.get("updateRevision")
-    target_revision = rollout.get("revision") if rollout else status.get("updateRevision")
-
-    selector = spec.get("selector", {}).get("matchLabels") or {}
-    selector_text = ",".join(f"{key}={value}" for key, value in sorted(selector.items()))
-    pod_path = f"/api/v1/namespaces/{PROXY_NS}/pods?labelSelector={urllib.parse.quote(selector_text, safe='=,')}"
-    _, pod_data = kube(pod_path)
-    pods = [pod for pod in (pod_data.get("items") or []) if not pod.get("metadata", {}).get("deletionTimestamp")]
+    pods = proxy_pods(sts)
+    target_revision = status.get("updateRevision")
     pods_on_revision = sum(1 for pod in pods if pod.get("metadata", {}).get("labels", {}).get("controller-revision-hash") == target_revision)
     pods_ready_on_revision = sum(
         1
         for pod in pods
-        if pod.get("metadata", {}).get("labels", {}).get("controller-revision-hash") == target_revision
-        and any(
-            condition.get("type") == "Ready" and condition.get("status") == "True"
-            for condition in pod.get("status", {}).get("conditions", [])
-        )
+        if pod.get("metadata", {}).get("labels", {}).get("controller-revision-hash") == target_revision and pod_ready(pod)
     )
+    rollout = rollouts.get(proxy_group)
     details = {
-        "generation": generation,
-        "targetGeneration": target_generation,
+        "generation": sts.get("metadata", {}).get("generation", 0),
         "observedGeneration": status.get("observedGeneration", 0),
         "replicas": replicas,
         "updatedReplicas": status.get("updatedReplicas", 0),
@@ -156,45 +174,101 @@ def proxy_rollout_status(proxy_group):
         "currentRevision": status.get("currentRevision"),
         "targetRevision": target_revision,
         "updateRevision": status.get("updateRevision"),
+        "proxyGroupReady": proxy_group_ready(proxy_group),
+        "rolloutPending": bool(rollout),
     }
     ready = (
-        details["observedGeneration"] >= target_generation
+        not rollout
+        and details["proxyGroupReady"]
+        and details["observedGeneration"] >= details["generation"]
         and details["currentRevision"] == target_revision
-        and details["updateRevision"] == target_revision
         and details["updatedReplicas"] == replicas
         and details["readyReplicas"] == replicas
         and details["availableReplicas"] == replicas
         and details["podsOnRevision"] == replicas
         and details["podsReadyOnRevision"] == replicas
     )
-    if ready and rollout:
+    return ready, details, pods
+
+
+def delete_proxy_pod(pod):
+    name = pod["metadata"]["name"]
+    path = f"/api/v1/namespaces/{PROXY_NS}/pods/{urllib.parse.quote(name, safe='')}"
+    kube(path, "DELETE")
+    print(f"deleted ProxyGroup pod {PROXY_NS}/{name}; waiting for replacement", flush=True)
+
+
+def progress_proxy_rollout(proxy_group):
+    rollout = rollouts.get(proxy_group)
+    if not rollout:
+        return True
+    path = f"/apis/apps/v1/namespaces/{PROXY_NS}/statefulsets/{urllib.parse.quote(proxy_group, safe='')}"
+    _, sts = kube(path)
+    status = sts.get("status") or {}
+    if status.get("updateRevision") != rollout["target_revision"]:
+        print(f"aborting {proxy_group} pod rollout: StatefulSet revision changed from {rollout['target_revision']} to {status.get('updateRevision')}", flush=True)
         rollouts.pop(proxy_group, None)
-    return ready, details
+        return False
+    pods = proxy_pods(sts)
+    by_name = {pod.get("metadata", {}).get("name"): pod for pod in pods}
+    waiting_name = rollout.get("waiting_name")
+    if waiting_name:
+        replacement = by_name.get(waiting_name)
+        if not replacement or replacement.get("metadata", {}).get("uid") == rollout["old_uid"] or not pod_ready(replacement):
+            return False
+        if replacement.get("metadata", {}).get("labels", {}).get("controller-revision-hash") != rollout["target_revision"] or not proxy_group_ready(proxy_group):
+            return False
+        rollout["waiting_name"] = None
+        rollout["old_uid"] = None
+        print(f"ProxyGroup pod {PROXY_NS}/{waiting_name} replacement is Ready", flush=True)
+    if rollout["remaining"]:
+        if any(not pod_ready(pod) for pod in pods):
+            return False
+        next_name = rollout["remaining"].pop(0)
+        next_pod = by_name.get(next_name)
+        if not next_pod:
+            return False
+        rollout["waiting_name"] = next_name
+        rollout["old_uid"] = next_pod.get("metadata", {}).get("uid")
+        delete_proxy_pod(next_pod)
+        return False
+    print(f"ProxyGroup pod rollout complete for {PROXY_NS}/{proxy_group}", flush=True)
+    rollouts.pop(proxy_group, None)
+    return True
 
 
 def proxy_rollout_ready(proxy_group):
-    ready, _ = proxy_rollout_status(proxy_group)
+    ready, _, _ = proxy_rollout_status(proxy_group)
     return ready
 
 
 def restart_proxy(proxy_group):
-    ready, details = proxy_rollout_status(proxy_group)
+    if proxy_group in rollouts:
+        progress_proxy_rollout(proxy_group)
+        return False
+    ready, details, pods = proxy_rollout_status(proxy_group)
     if not ready:
         print(
             f"skipping ProxyGroup restart {PROXY_NS}/{proxy_group}: rollout still in progress "
+            f"pods={details['podsReadyOnRevision']}/{details['replicas']} "
             f"updated={details['updatedReplicas']}/{details['replicas']} "
             f"ready={details['readyReplicas']}/{details['replicas']} "
-            f"available={details['availableReplicas']}/{details['replicas']} "
-            f"observedGeneration={details['observedGeneration']}/{details['generation']}",
+            f"available={details['availableReplicas']}/{details['replicas']}",
             flush=True,
         )
         return False
-    path = f"/apis/apps/v1/namespaces/{PROXY_NS}/statefulsets/{urllib.parse.quote(proxy_group, safe='')}"
-    stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    _, updated = kube(path, "PATCH", {"spec": {"template": {"metadata": {"annotations": {"ts-vip-watchdog/restarted-at": stamp}}}}})
-    generation = updated.get("metadata", {}).get("generation") or details["generation"] + 1
-    rollouts[proxy_group] = {"generation": generation, "revision": None}
-    print(f"restarted ProxyGroup StatefulSet {PROXY_NS}/{proxy_group}; waiting for generation {generation}", flush=True)
+    ordered = sorted(pods, key=pod_ordinal, reverse=True)
+    if len(ordered) != details["replicas"]:
+        print(f"skipping ProxyGroup restart {PROXY_NS}/{proxy_group}: found {len(ordered)}/{details['replicas']} pods", flush=True)
+        return False
+    first = ordered.pop(0)
+    rollouts[proxy_group] = {
+        "target_revision": details["targetRevision"],
+        "remaining": [pod["metadata"]["name"] for pod in ordered],
+        "waiting_name": first["metadata"]["name"],
+        "old_uid": first["metadata"].get("uid"),
+    }
+    delete_proxy_pod(first)
     return True
 
 
@@ -247,7 +321,7 @@ def wait_for_vip_recreation(service_name):
 # key -> {failures, stage, repair_at, cooldown_until, endpoint_fingerprint};
 # stage 0 normal, 1 restarted, 2 VIP reset.
 state = {}
-# proxy group -> {generation, revision}; populated when this watchdog requests a rollout.
+# proxy group -> pod-by-pod rollout state.
 rollouts = {}
 # Tailscale ProxyGroup pods do not reliably reload AdvertiseServices after
 # operator config or backend changes. Force one clean reconciliation at startup,
@@ -259,6 +333,8 @@ while True:
     try:
         endpoint_counts, endpoint_fingerprints = endpoints_by_service()
         proxy_groups = ha_proxy_groups()
+        for proxy_group in sorted(set(rollouts).intersection(proxy_groups)):
+            progress_proxy_rollout(proxy_group)
         if not startup_reconciled:
             startup_complete = True
             for proxy_group in sorted(proxy_groups):
