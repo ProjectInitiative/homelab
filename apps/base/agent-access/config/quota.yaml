@@ -1,8 +1,11 @@
 # Compute guardrails for the agent playbox. PSA restricted (set by the
 # generator from the agent-access catalog entry) handles privilege escape;
-# this quota handles runaway compute: no GPU at all (experiments needing GPU
-# belong in llm-test under the jobsmith role), bounded CPU/memory, and hard
-# object counts so a retry loop cannot flood the scheduler.
+# this quota handles runaway compute: GPU is capped at 1 (a sandbox job may
+# wait pending if no DGX GPU is free, but can never grab a second one),
+# bounded CPU/memory, and hard object counts so a retry loop cannot flood
+# the scheduler. Note: PSA restricted blocks hostPath, so ROCm-style
+# /dev/dri access (astrolabe) is impossible here — NVIDIA device-plugin
+# resources only.
 ---
 apiVersion: v1
 kind: ResourceQuota
@@ -15,7 +18,7 @@ spec:
     requests.memory: 64Gi
     limits.cpu: "32"
     limits.memory: 128Gi
-    nvidia.com/gpu: "0"
+    nvidia.com/gpu: "1"
     requests.ephemeral-storage: 200Gi
     persistentvolumeclaims: "4"
     count/jobs.batch: "10"
