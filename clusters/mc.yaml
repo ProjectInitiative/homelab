@@ -157,6 +157,25 @@ apps:
               - buffer-size=1G
               - max-downloads=200
               - cache-eviction=lru
+          # argo VM disks: no local JuiceFS cache. Guest I/O would otherwise
+          # be cached on the node-local JuiceFS cache AND garage/bcachefs on
+          # the same physical storage (write amplification). Last patch wins
+          # (later entries override earlier ones for the same PVC), so these
+          # argo entries override the node defaults above. Applied when the
+          # Mount Pod is (re)created — bounce the argo VM after syncing
+          # (virtctl stop argo && virtctl start argo).
+          - pvcSelector:
+              matchName: argo-root
+              matchStorageClassName: juicefs-sc
+            mountOptions:
+              - cache-size=0
+              - prefetch=0
+          - pvcSelector:
+              matchName: argo-data
+              matchStorageClassName: juicefs-sc
+            mountOptions:
+              - cache-size=0
+              - prefetch=0
   - name: csi-snapshotter
     namespace: kube-system
   - name: juicefs-platform
