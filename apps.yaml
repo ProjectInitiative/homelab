@@ -478,6 +478,20 @@ catalog:
         - CreateNamespace=true
         - ServerSideApply=true
 
+  # Agent compute access: jobsmith RBAC (llm-test) + agent-sandbox playbox
+  # (broad namespaced RBAC behind PSA restricted + ResourceQuota). Bound to the
+  # mcp-agent-sa identity; pairs with the mcp-kubernetes readwrite container.
+  agent-access:
+    path: apps/base/agent-access/config
+    podSecurity: restricted
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
   garage-operator:
     path: bootstrap/base/garage-operator
     syncPolicy:

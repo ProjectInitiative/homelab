@@ -170,8 +170,25 @@ apps:
         target:
           kind: Service
           annotationSelector: tailscale.com/proxy-group=ingress-proxy
+      - patch: |-
+          - op: replace
+            path: /metadata/name
+            value: mcp-lb-cc-jobs
+        target:
+          kind: Service
+          name: mcp-ts-jobs-placeholder
+    patches:
+      - patch: |-
+          - op: replace
+            path: /metadata/annotations/tailscale.com~1proxy-group
+            value: cc-ingress-proxy
+        target:
+          kind: Service
+          annotationSelector: tailscale.com/proxy-group=ingress-proxy
   - name: mcp-vip-watchdog
     namespace: tailscale
+  - name: agent-access
+    namespace: agent-sandbox
 
   - name: temp-egress-cc
     patches:

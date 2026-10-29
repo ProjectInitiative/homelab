@@ -53,6 +53,48 @@ spec:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
             runAsUser: 10001
+        # Write-capable lane for agent job submission. Two independent fences:
+        # --allow-namespaces hard-limits the tool layer, and the agent-access
+        # RoleBindings hard-limit the API layer. Same SA as the reader so RBAC
+        # is the single place permissions are granted.
+        - name: mcp-server-jobs
+          image: ghcr.io/azure/mcp-kubernetes:v0.0.14
+          args:
+            - "--transport"
+            - "sse"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "8081"
+            - "--access-level"
+            - "readwrite"
+            - "--allow-namespaces"
+            - "llm-test,agent-sandbox"
+          ports:
+            - containerPort: 8081
+              name: http-sse-jobs
+          livenessProbe:
+            tcpSocket:
+              port: http-sse-jobs
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            tcpSocket:
+              port: http-sse-jobs
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
       securityContext:
         seccompProfile:
           type: RuntimeDefault

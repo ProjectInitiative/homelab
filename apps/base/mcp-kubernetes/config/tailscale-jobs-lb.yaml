@@ -1,0 +1,24 @@
+---
+# Write-capable agent endpoint. Renamed per cluster (mcp-lb-mc-jobs /
+# mcp-lb-cc-jobs) and its proxy-group annotation is set via cluster patches,
+# same pattern as mcp-ts-placeholder. Points at the readwrite container on
+# port 8081, not the read-only server on 8080.
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-ts-jobs-placeholder
+  labels:
+    app: mcp-kubernetes
+  annotations:
+    tailscale.com/proxy-group: ingress-proxy
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  ports:
+    - name: http-sse-jobs
+      protocol: TCP
+      port: 80
+      targetPort: 8081
+  sessionAffinity: ClientIP
+  selector:
+    app: mcp-kubernetes
