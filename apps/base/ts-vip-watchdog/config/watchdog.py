@@ -12,6 +12,7 @@ import urllib.parse
 import urllib.request
 
 PROXY_NS = os.environ.get("PROXY_NS", "tailscale")
+OPERATOR_NAME = os.environ.get("OPERATOR_NAME", "operator")
 FAILURES_BEFORE_REPAIR = int(os.environ.get("FAILURES_BEFORE_REPAIR", "3"))
 RESTART_GRACE = int(os.environ.get("RESTART_GRACE", "180"))
 REPAIR_RETRY = int(os.environ.get("REPAIR_RETRY", "60"))
@@ -196,6 +197,13 @@ def delete_proxy_pod(pod):
     path = f"/api/v1/namespaces/{PROXY_NS}/pods/{urllib.parse.quote(name, safe='')}"
     kube(path, "DELETE")
     print(f"deleted ProxyGroup pod {PROXY_NS}/{name}; waiting for replacement", flush=True)
+
+
+def restart_operator():
+    path = f"/apis/apps/v1/namespaces/{PROXY_NS}/deployments/{urllib.parse.quote(OPERATOR_NAME, safe='')}"
+    stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    kube(path, "PATCH", {"spec": {"template": {"metadata": {"annotations": {"ts-vip-watchdog/restarted-at": stamp}}}}})
+    print(f"restarted Tailscale operator {PROXY_NS}/{OPERATOR_NAME} for VIP reconciliation", flush=True)
 
 
 def progress_proxy_rollout(proxy_group):
@@ -407,6 +415,7 @@ while True:
                     item["repair_at"] = now + REPAIR_RETRY
                     continue
                 try:
+                    restart_operator()
                     for service_name in recreated_names:
                         wait_for_vip_recreation(service_name)
                 except Exception as exc:
