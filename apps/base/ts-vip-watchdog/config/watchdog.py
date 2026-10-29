@@ -27,6 +27,8 @@ SSL = ssl.create_default_context(cafile=CA)
 def request(url, method="GET", body=None, headers=None, context=None):
     hdrs = {"Authorization": f"Bearer {TOKEN}"} if url.startswith(KUBE_BASE) else {}
     hdrs.update(headers or {})
+    if body is not None and "Content-Type" not in hdrs:
+        hdrs["Content-Type"] = "application/strategic-merge-patch+json" if method == "PATCH" else "application/json"
     data = None if body is None else json.dumps(body).encode()
     req = urllib.request.Request(url, data=data, headers=hdrs, method=method)
     with urllib.request.urlopen(req, timeout=15, context=context or (SSL if url.startswith(KUBE_BASE) else None)) as resp:
