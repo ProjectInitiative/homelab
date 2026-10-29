@@ -72,7 +72,10 @@ def endpoints_by_service():
 
 
 def vip_ips(service):
-    return [x.get("ip") for x in service.get("status", {}).get("loadBalancer", {}).get("ingress", []) if x.get("ip")]
+    status = service.get("status") or {}
+    load_balancer = status.get("loadBalancer") or {}
+    ingress = load_balancer.get("ingress") or []
+    return [x.get("ip") for x in ingress if x.get("ip")]
 
 
 def probe(ip, port):
