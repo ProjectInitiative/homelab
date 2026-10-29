@@ -15,6 +15,7 @@ PROXY_NS = os.environ.get("PROXY_NS", "tailscale")
 FAILURES_BEFORE_REPAIR = int(os.environ.get("FAILURES_BEFORE_REPAIR", "3"))
 RESTART_GRACE = int(os.environ.get("RESTART_GRACE", "180"))
 COOLDOWN = int(os.environ.get("COOLDOWN", "1800"))
+REPAIR_RETRY = int(os.environ.get("REPAIR_RETRY", "60"))
 INTERVAL = int(os.environ.get("INTERVAL", "30"))
 TOKEN = open("/var/run/secrets/kubernetes.io/serviceaccount/token").read().strip()
 CA = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
@@ -198,8 +199,16 @@ while True:
                 restart_proxy(proxy_group)
                 item.update(stage=1, repair_at=now + RESTART_GRACE)
             elif item["stage"] == 1 and now >= item["repair_at"]:
+                deleted_all = True
                 for ip in ips:
-                    delete_vip_for_ip(ip)
+                    try:
+                        delete_vip_for_ip(ip)
+                    except Exception as exc:
+                        deleted_all = False
+                        print(f"VIP deletion failed for {key} ({ip}): {type(exc).__name__}: {exc}", flush=True)
+                if not deleted_all:
+                    item["repair_at"] = now + REPAIR_RETRY
+                    continue
                 restart_proxy(proxy_group)
                 item.update(stage=2, cooldown_until=now + COOLDOWN)
         for proxy_group in sorted(endpoint_changed_groups):

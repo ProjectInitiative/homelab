@@ -17,11 +17,13 @@ spec:
       labels:
         app: ts-vip-watchdog
       annotations:
-        watchdog-config-sha256: 7a2e4cbdb4dc5be1ad54fc7035809989bfc58783a7869db8a41dd2ba931cb1fc
+        watchdog-config-sha256: d9780b0556160fcf2c4d408a73378a434de590c7dac31154a7bb35649dd02f0c
     spec:
       serviceAccountName: ts-vip-watchdog
       hostNetwork: true
-      dnsPolicy: ClusterFirstWithHostNet
+      # The watchdog calls the external Tailscale API. Use the node resolver
+      # instead of routing that lookup through cluster DNS.
+      dnsPolicy: Default
       automountServiceAccountToken: true
       containers:
         - name: watchdog
@@ -47,6 +49,8 @@ spec:
               value: "180"
             - name: COOLDOWN
               value: "1800"
+            - name: REPAIR_RETRY
+              value: "60"
             - name: INTERVAL
               value: "30"
           volumeMounts:
