@@ -6,7 +6,9 @@ metadata:
   labels:
     app: ts-vip-watchdog
 spec:
-  replicas: 1
+  # Temporarily disabled while Tailscale main is evaluated; keep the
+  # Deployment, ConfigMap, and RBAC resources present for quick re-enable.
+  replicas: 0
   strategy:
     type: Recreate
   selector:
