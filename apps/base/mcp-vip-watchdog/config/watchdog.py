@@ -52,8 +52,17 @@ def ready_backends():
 
 def probe():
     try:
-        status, body = request(VIP_URL, headers={"Accept": "text/event-stream"})
-        return status == 200 and "event: endpoint" in (body or "")
+        req = urllib.request.Request(VIP_URL, headers={"Accept": "text/event-stream"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            if resp.status != 200:
+                return False
+            for _ in range(8):
+                line = resp.readline().decode(errors="replace")
+                if "event: endpoint" in line:
+                    return True
+                if not line:
+                    break
+        return False
     except Exception as exc:
         print(f"probe failed: {type(exc).__name__}: {exc}", flush=True)
         return False
