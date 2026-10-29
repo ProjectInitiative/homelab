@@ -26,8 +26,14 @@ spec:
             - "0.0.0.0"
             - "--port"
             - "8080"
+            # Read + write tools. Deliberately NO --allow-namespaces: reads
+            # stay cluster-wide like the original readonly surface, and RBAC
+            # (apps/base/agent-access) is the single write boundary — jobsmith
+            # in llm-test, full namespaced access in agent-sandbox, Forbidden
+            # everywhere else. The agent's kubeconfig is unavailable by design,
+            # so this identity's RBAC is the entire blast radius.
             - "--access-level"
-            - "readonly"
+            - "readwrite"
           ports:
             - containerPort: 8080
               name: http-sse
@@ -39,48 +45,6 @@ spec:
           readinessProbe:
             tcpSocket:
               port: http-sse
-            initialDelaySeconds: 3
-            periodSeconds: 5
-          resources:
-            limits:
-              cpu: "500m"
-              memory: "256Mi"
-            requests:
-              cpu: "100m"
-              memory: "128Mi"
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            runAsNonRoot: true
-            runAsUser: 10001
-        # Write-capable lane for agent job submission. Two independent fences:
-        # --allow-namespaces hard-limits the tool layer, and the agent-access
-        # RoleBindings hard-limit the API layer. Same SA as the reader so RBAC
-        # is the single place permissions are granted.
-        - name: mcp-server-jobs
-          image: ghcr.io/azure/mcp-kubernetes:v0.0.14
-          args:
-            - "--transport"
-            - "sse"
-            - "--host"
-            - "0.0.0.0"
-            - "--port"
-            - "8081"
-            - "--access-level"
-            - "readwrite"
-            - "--allow-namespaces"
-            - "llm-test,agent-sandbox"
-          ports:
-            - containerPort: 8081
-              name: http-sse-jobs
-          livenessProbe:
-            tcpSocket:
-              port: http-sse-jobs
-            initialDelaySeconds: 10
-            periodSeconds: 15
-          readinessProbe:
-            tcpSocket:
-              port: http-sse-jobs
             initialDelaySeconds: 3
             periodSeconds: 5
           resources:

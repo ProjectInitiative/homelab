@@ -170,13 +170,6 @@ apps:
         target:
           kind: Service
           annotationSelector: tailscale.com/proxy-group=ingress-proxy
-      - patch: |-
-          - op: replace
-            path: /metadata/name
-            value: mcp-lb-cc-jobs
-        target:
-          kind: Service
-          name: mcp-ts-jobs-placeholder
     patches:
       - patch: |-
           - op: replace

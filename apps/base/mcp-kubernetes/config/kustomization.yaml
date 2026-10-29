@@ -6,5 +6,4 @@ resources:
   - deployment.yaml
   - service.yaml
   - tailscale-lb.yaml
-  - tailscale-jobs-lb.yaml
   - network-policy.yaml
