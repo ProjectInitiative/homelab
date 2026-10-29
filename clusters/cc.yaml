@@ -155,8 +155,6 @@ apps:
 
   - name: mcp-kubernetes
     namespace: mcp-system
-  - name: mcp-vip-watchdog
-    namespace: tailscale
     patch: |-
       - op: replace
         path: /metadata/name
@@ -172,6 +170,8 @@ apps:
         target:
           kind: Service
           annotationSelector: tailscale.com/proxy-group=ingress-proxy
+  - name: mcp-vip-watchdog
+    namespace: tailscale
 
   - name: temp-egress-cc
     patches:

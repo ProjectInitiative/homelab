@@ -331,8 +331,6 @@ apps:
     namespace: argo
   - name: mcp-kubernetes
     namespace: mcp-system
-  - name: mcp-vip-watchdog
-    namespace: tailscale
     patch: |-
       - op: replace
         path: /metadata/name
@@ -348,6 +346,8 @@ apps:
         target:
           kind: Service
           annotationSelector: tailscale.com/proxy-group=ingress-proxy
+  - name: mcp-vip-watchdog
+    namespace: tailscale
 
   # AI control plane adoption. Both Applications initially require an explicit
   # Argo sync; ai-proxy adopts live objects with prune off, while Conductor is
