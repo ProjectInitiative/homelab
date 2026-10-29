@@ -445,9 +445,11 @@ catalog:
 
   tailscale-operator:
     sources:
-      - repoURL: https://pkgs.tailscale.com/helmcharts
-        chart: tailscale-operator
-        targetRevision: 1.102.3
+      # Temporary pin to Tailscale main while the ProxyGroup config-refresh fix
+      # lands in a release. Main commit: d064d751fb91fa4ffe39dad42c92862320985a0f.
+      - repoURL: https://github.com/tailscale/tailscale.git
+        path: cmd/k8s-operator/deploy/chart
+        targetRevision: d064d751fb91fa4ffe39dad42c92862320985a0f
         helm:
           values: |
             apiServerProxyConfig:
@@ -455,6 +457,13 @@ catalog:
               allowImpersonation: "true"
             operatorConfig:
               hostname: mc-tailscale-operator
+              image:
+                repository: tailscale/k8s-operator
+                digest: sha256:5c1043baaba7228edb6c69ee9f9c70b3e1b27e511527364534cf3244cca71d1e
+            proxyConfig:
+              image:
+                repository: tailscale/tailscale
+                digest: sha256:08a3e029dc36c797633092deaa5e243ae4687980adfa2299c53c49a7252a4914
     vaultSecrets:
       createAuth: true
       role: openbao-secrets-operator
