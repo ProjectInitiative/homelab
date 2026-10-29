@@ -38,6 +38,9 @@ rules:
   - apiGroups: ["apps"]
     resources: ["statefulsets"]
     verbs: ["get", "patch"]
+  - apiGroups: ["tailscale.com"]
+    resources: ["proxygroups"]
+    verbs: ["get", "list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

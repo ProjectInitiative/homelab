@@ -36,9 +36,25 @@ def kube(path, method="GET", body=None):
     return request(KUBE_BASE + path, method, body)
 
 
-def services():
+def ha_proxy_groups():
+    _, data = kube(f"/apis/tailscale.com/v1alpha1/namespaces/{PROXY_NS}/proxygroups")
+    return {
+        item["metadata"]["name"]
+        for item in data.get("items", [])
+        if item.get("spec", {}).get("type") == "ingress"
+        and int(item.get("spec", {}).get("replicas", 1)) > 1
+    }
+
+
+def services(proxy_groups):
     _, data = kube("/api/v1/services")
-    return [s for s in data.get("items", []) if s.get("spec", {}).get("loadBalancerClass") == "tailscale" or s.get("metadata", {}).get("annotations", {}).get("tailscale.com/proxy-group")]
+    result = []
+    for service in data.get("items", []):
+        annotations = service.get("metadata", {}).get("annotations", {})
+        proxy_group = annotations.get("tailscale.com/proxy-group")
+        if proxy_group in proxy_groups and service.get("spec", {}).get("loadBalancerClass") == "tailscale":
+            result.append(service)
+    return result
 
 
 def endpoints_by_service():
@@ -110,7 +126,8 @@ print("watching all Tailscale LoadBalancer Services", flush=True)
 while True:
     try:
         endpoint_counts = endpoints_by_service()
-        for service in services():
+        proxy_groups = ha_proxy_groups()
+        for service in services(proxy_groups):
             meta = service["metadata"]
             key = f"{meta.get('namespace')}/{meta.get('name')}"
             proxy_group = meta.get("annotations", {}).get("tailscale.com/proxy-group")
