@@ -12,10 +12,11 @@ import urllib.parse
 import urllib.request
 
 PROXY_NS = os.environ.get("PROXY_NS", "tailscale")
+OPERATOR_NAME = os.environ.get("OPERATOR_NAME", "operator")
 FAILURES_BEFORE_REPAIR = int(os.environ.get("FAILURES_BEFORE_REPAIR", "3"))
 RESTART_GRACE = int(os.environ.get("RESTART_GRACE", "180"))
-COOLDOWN = int(os.environ.get("COOLDOWN", "1800"))
 REPAIR_RETRY = int(os.environ.get("REPAIR_RETRY", "60"))
+POST_REPAIR_GRACE = int(os.environ.get("POST_REPAIR_GRACE", "60"))
 VIP_RECREATE_WAIT = int(os.environ.get("VIP_RECREATE_WAIT", "120"))
 VIP_RECREATE_SETTLE = int(os.environ.get("VIP_RECREATE_SETTLE", "15"))
 INTERVAL = int(os.environ.get("INTERVAL", "30"))
@@ -198,6 +199,13 @@ def delete_proxy_pod(pod):
     print(f"deleted ProxyGroup pod {PROXY_NS}/{name}; waiting for replacement", flush=True)
 
 
+def restart_operator():
+    path = f"/apis/apps/v1/namespaces/{PROXY_NS}/deployments/{urllib.parse.quote(OPERATOR_NAME, safe='')}"
+    stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    kube(path, "PATCH", {"spec": {"template": {"metadata": {"annotations": {"ts-vip-watchdog/restarted-at": stamp}}}}})
+    print(f"restarted Tailscale operator {PROXY_NS}/{OPERATOR_NAME} for VIP reconciliation", flush=True)
+
+
 def progress_proxy_rollout(proxy_group):
     rollout = rollouts.get(proxy_group)
     if not rollout:
@@ -377,6 +385,14 @@ while True:
                 item.update(failures=0, stage=0, repair_at=0)
                 continue
             item["failures"] += 1
+            if item["stage"] == 2:
+                if proxy_group in rollouts:
+                    continue
+                if now < item["cooldown_until"]:
+                    continue
+                print(f"post-repair health still failing for {key}; returning to staged recovery", flush=True)
+                item.update(failures=0, stage=0, cooldown_until=0, repair_at=0)
+                continue
             if now < item["cooldown_until"]:
                 continue
             if item["failures"] >= FAILURES_BEFORE_REPAIR and item["stage"] == 0:
@@ -399,6 +415,7 @@ while True:
                     item["repair_at"] = now + REPAIR_RETRY
                     continue
                 try:
+                    restart_operator()
                     for service_name in recreated_names:
                         wait_for_vip_recreation(service_name)
                 except Exception as exc:
@@ -406,7 +423,7 @@ while True:
                     item["repair_at"] = now + REPAIR_RETRY
                     continue
                 if restart_proxy(proxy_group):
-                    item.update(stage=2, cooldown_until=now + COOLDOWN)
+                    item.update(stage=2, cooldown_until=time.time() + POST_REPAIR_GRACE)
                 else:
                     print(f"deferring post-repair ProxyGroup restart for {key}: rollout still in progress", flush=True)
                     item["repair_at"] = time.time() + REPAIR_RETRY
