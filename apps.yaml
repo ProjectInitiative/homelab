@@ -468,6 +468,16 @@ catalog:
           destination: "operator-oauth"
           overwrite: true
 
+  mcp-vip-watchdog:
+    path: apps/base/mcp-vip-watchdog/config
+    syncPolicy:
+      automated:
+        prune: false
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
   garage-operator:
     path: bootstrap/base/garage-operator
     syncPolicy:

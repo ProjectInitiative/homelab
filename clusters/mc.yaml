@@ -146,7 +146,7 @@ apps:
           - pvcSelector:
               matchLabels:
                 juicefs-cache-group: dgx-model-cache
-            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:8d8935ec-fast-failover-arm64@sha256:f0e43f93d9aaced55c3cb97eb8bfa375d56467bccd444c2d4affc8e2b7e74ec8
+            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:gcache-strict-sharding-arm64@sha256:be6ece264ef6c40e7a8e69e6323df95bc5ba92ac0b9e0522679e858b8cff3440
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
             mountOptions:
@@ -331,6 +331,8 @@ apps:
     namespace: argo
   - name: mcp-kubernetes
     namespace: mcp-system
+  - name: mcp-vip-watchdog
+    namespace: tailscale
     patch: |-
       - op: replace
         path: /metadata/name
