@@ -352,6 +352,21 @@ class ClusterAppsChart(Chart):
         sync_policy = {}
         if final_automated:
             sync_policy["automated"] = final_automated
+        # Retry backoff (RISK-0037 / RISK-0039): syncPolicy.automated has NO
+        # default retry, so a sync that dies mid-flight (capstan sleep window,
+        # API reset) wedges the app with "Skipping auto-sync: failed previous
+        # sync attempt" until a human intervenes. Default backoff for every
+        # automated app; per-app override via syncPolicy.retry, explicit
+        # `retry: null` in apps.yaml/clusters/*.yaml opts out entirely.
+        final_retry = app_sync_policy.get(
+            "retry",
+            {
+                "limit": 8,
+                "backoff": {"duration": "30s", "factor": 2, "maxDuration": "10m"},
+            },
+        )
+        if final_automated and final_retry:
+            sync_policy["retry"] = final_retry
         if final_sync_options is not None and final_sync_options:
             sync_policy["syncOptions"] = final_sync_options
 
