@@ -46,29 +46,6 @@ spec:
           storageClassName: juicefs-sc
         source:
           blank: {}
-    - metadata:
-        name: argo-nix
-      spec:
-        pvc:
-          accessModes:
-            - ReadWriteMany
-          volumeMode: Filesystem
-          resources:
-            requests:
-              # Dedicated nix-store disk (guest /nix, serial argonix). The
-              # initrd mounts it BEFORE stage-2, so sops-install-secrets in
-              # the initrd sees the same store rebuilds write into — the
-              # old /data/nix bind-flip only existed post-stage-2 and left
-              # the initrd on the frozen image store (rebuild+reboot bricked
-              # sops -> home-manager, 2026-10-30). Capacity is soft/elastic
-              # on juicefs-sc like the other disks; 64Gi is a label, not a
-              # prepayment. A BLANK disk here bricks the dedicated-disk
-              # closure at init: seed the store (rsync from the running
-              # /nix) BEFORE the first reboot into it.
-              storage: 64Gi
-          storageClassName: juicefs-sc
-        source:
-          blank: {}
   template:
     metadata:
       labels:
@@ -98,13 +75,6 @@ spec:
               disk:
                 bus: virtio
               dedicatedIOThread: true
-            - name: nixstore
-              # stable /dev/disk/by-id/virtio-argonix: guest /nix, mounted
-              # by the initrd (neededForBoot) like astrolabe's real store
-              serial: argonix
-              disk:
-                bus: virtio
-              dedicatedIOThread: true
           interfaces:
             - name: default
               masquerade: {}
@@ -120,9 +90,6 @@ spec:
         - name: data
           dataVolume:
             name: argo-data
-        - name: nixstore
-          dataVolume:
-            name: argo-nix
       # No cloud-init disk: the estate image configures users (kylepzak),
       # ssh keys, hostname, qemu-guest-agent and all storage natively via
       # the dotfiles hosts/argo module. cloud-init stays enabled in the
