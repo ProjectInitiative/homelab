@@ -5,4 +5,5 @@ resources:
   - storage-class-cache.yaml
   - job-format.yaml
   - csidriver.yaml
+  - csidriver-keepalive.yaml
 namespace: juicefs-platform
