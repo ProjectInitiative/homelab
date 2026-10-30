@@ -4,5 +4,10 @@ resources:
   - storage-class.yaml
   - storage-class-cache.yaml
   - job-format.yaml
-  - csidriver.yaml
+  # csidriver.yaml removed (RISK-0039): the CSIDriver is owned by the
+  # juicefs-csi-driver chart app (with csidriver.disableHooks: true so it
+  # is a plain release resource, not a delete/recreate hook). Two apps
+  # declaring the same cluster-scoped object is what let it get deleted
+  # mid-sync and stay deleted. If you ever re-add it here, remove the
+  # chart's copy instead — exactly one owner.
 namespace: juicefs-platform

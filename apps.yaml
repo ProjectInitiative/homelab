@@ -292,6 +292,19 @@ catalog:
               enabled: true
               manageByHelm: true
               enableNodeSelector: true
+            # RISK-0039: the chart ships the CSIDriver as a helm
+            # pre-install/pre-upgrade hook with hook-delete-policy:
+            # before-hook-creation — i.e. every sync DELETES and recreates
+            # the object. ArgoCD syncs dying mid-flight (capstan sleep
+            # window) then leave the driver deleted at rest, and any new
+            # JuiceFS mount hangs in ContainerCreating. Upstream added
+            # disableHooks for exactly this (their words: "useful for
+            # ArgoCD and GitOps workflows where hook behavior can cause
+            # the CSIDriver resource to randomly go missing during sync
+            # operations"). With this, the CSIDriver is a plain release
+            # resource: SSA'd, self-healed, never churned.
+            csidriver:
+              disableHooks: true
     syncPolicy:
       syncOptions:
         - CreateNamespace=true

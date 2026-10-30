@@ -365,8 +365,8 @@ apps:
         target:
           kind: Service
           annotationSelector: tailscale.com/proxy-group=ingress-proxy
-      # Temporary, MC-only diagnostic: make the MCP NetworkPolicy select no pods.
-      # Remove after one VIP test; this is not a persistent policy change.
+      # TEMPORARY: keep MC MCP reachable from the astrolabe dev node while
+      # MCP access is migrated to the Argo VM. Restore policy selection after migration.
       - patch: |-
           - op: add
             path: /spec/podSelector/matchLabels/mcp-policy-test
