@@ -438,6 +438,8 @@ apps:
     namespace: llm-test
   - name: tensorfold-deepseek-v41
     namespace: llm-test
+  - name: memguard-dgx
+    namespace: llm-test
   - name: conductor
     namespace: llm-test
   - name: conductor-workloads

@@ -753,6 +753,21 @@ catalog:
       syncOptions:
         - ServerSideApply=true
 
+  # Memory watchdog + forensics for the DGX Spark nodes (RISK-0040):
+  # privileged hostPID DaemonSet watching host MemAvailable, snapshots
+  # attribution, SIGKILLs lane ranks on breach; Conductor RecreateTogether
+  # handles recovery. See llm-test/memguard/README.md.
+  memguard-dgx:
+    path: llm-test/memguard
+    annotations:
+      argocd.argoproj.io/sync-wave: "124"
+    syncPolicy:
+      automated:
+        prune: false
+        selfHeal: true
+      syncOptions:
+        - ServerSideApply=true
+
   # External controller-runtime operator. The immutable source revision itself
   # pins an immutable multi-arch image and starts the pool in Observe mode.
   conductor:
