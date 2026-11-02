@@ -157,9 +157,55 @@ apps:
               - buffer-size=1G
               - max-downloads=200
               - cache-eviction=lru
-          # argo VM disks: no local JuiceFS cache. Guest I/O would otherwise
-          # be cached on the node-local JuiceFS cache AND garage/bcachefs on
-          # the same physical storage (write amplification). Last patch wins
+          # capstan nodes: node-local JuiceFS cache on the dedicated ext4
+          # partition (nvme1n1 p3, /mnt/jfs-cache — see
+          # docs/bcachefs-nvme-repartition-runbook.md). Deploy only AFTER the
+          # runbook has formatted that partition on the node; the mount pod
+          # creates the path if missing, which would otherwise land on the
+          # root LV. Read-path cache only: no --writeback (uploads go
+          # RAM -> garage -> bcachefs write pool; full blocks never touch
+          # the cache dir).
+          - nodeSelector:
+              kubernetes.io/hostname: capstan1
+            pvcSelector:
+              matchStorageClassName: juicefs-sc
+            mountOptions:
+              - cache-dir=/mnt/jfs-cache
+              - cache-size=102400
+              - prefetch=8
+              - max-readahead=256M
+              - buffer-size=1G
+              - max-downloads=200
+              - cache-eviction=lru
+          - nodeSelector:
+              kubernetes.io/hostname: capstan2
+            pvcSelector:
+              matchStorageClassName: juicefs-sc
+            mountOptions:
+              - cache-dir=/mnt/jfs-cache
+              - cache-size=102400
+              - prefetch=8
+              - max-readahead=256M
+              - buffer-size=1G
+              - max-downloads=200
+              - cache-eviction=lru
+          - nodeSelector:
+              kubernetes.io/hostname: capstan3
+            pvcSelector:
+              matchStorageClassName: juicefs-sc
+            mountOptions:
+              - cache-dir=/mnt/jfs-cache
+              - cache-size=102400
+              - prefetch=8
+              - max-readahead=256M
+              - buffer-size=1G
+              - max-downloads=200
+              - cache-eviction=lru
+          # argo VM disks: bounded read cache in its own subdir (kept off the
+          # shared capstan cache to avoid eviction competition). Replaces the
+          # old cache-size=0 config now that capstan1 has a dedicated 480G
+          # jfs-cache partition; argo's writes still go RAM -> garage ->
+          # bcachefs write pool (no write amplification). Last patch wins
           # (later entries override earlier ones for the same PVC), so these
           # argo entries override the node defaults above. Applied when the
           # Mount Pod is (re)created — bounce the argo VM after syncing
@@ -168,14 +214,18 @@ apps:
               matchName: argo-root
               matchStorageClassName: juicefs-sc
             mountOptions:
-              - cache-size=0
-              - prefetch=0
+              - cache-dir=/mnt/jfs-cache/argo
+              - cache-size=102400
+              - prefetch=8
+              - buffer-size=1G
           - pvcSelector:
               matchName: argo-data
               matchStorageClassName: juicefs-sc
             mountOptions:
-              - cache-size=0
-              - prefetch=0
+              - cache-dir=/mnt/jfs-cache/argo
+              - cache-size=102400
+              - prefetch=8
+              - buffer-size=1G
   - name: csi-snapshotter
     namespace: kube-system
   - name: juicefs-platform
@@ -387,6 +437,8 @@ apps:
   - name: flare-glm53
     namespace: llm-test
   - name: tensorfold-deepseek-v41
+    namespace: llm-test
+  - name: memguard-dgx
     namespace: llm-test
   - name: conductor
     namespace: llm-test
