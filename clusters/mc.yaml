@@ -102,6 +102,10 @@ apps:
     helm_values: |
       snapshot:
         enabled: true
+      # Keep this chart setting here too: cluster helm_values replace the
+      # catalog values, and the CSIDriver must not be emitted as a Helm hook.
+      csidriver:
+        disableHooks: true
       globalConfig:
         enabled: true
         manageByHelm: true
