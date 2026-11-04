@@ -741,7 +741,7 @@ catalog:
         - ServerSideApply=true
 
   # Staged GLM recipe 1104 lane. Conductor owns Deployment replica counts;
-  # keep it Standby until the runtime dependency check passes.
+  # keep it Standby until a controlled startup retry is approved.
   glm53-flash-spark-1104:
     path: llm-test/glm53-flash-spark-1104
     annotations:

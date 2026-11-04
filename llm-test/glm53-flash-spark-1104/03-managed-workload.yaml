@@ -7,7 +7,7 @@ metadata:
 spec:
   poolRef: dgx-spark
   desiredState: Standby
-  # Keep below the v14 rollback lane until a Python-enabled serving image is pinned.
+  # Keep this inactive until a controlled startup retry; v14 is the active rollback lane.
   priority: 90
   driver:
     type: DeploymentSet
