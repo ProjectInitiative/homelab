@@ -2,7 +2,7 @@
 
 This is a Kubernetes/Conductor port of [MiaAI-Lab/GLM-5.3-Flash-DGX-Sparks-1104](https://github.com/MiaAI-Lab/GLM-5.3-Flash-DGX-Sparks-1104), pinned at recipe commit `3066a3fe49e7fcdf969de9a51094dd8985cec1a0`. It builds the recipe's TensorFold native Zig/CUDA engine (`f350cd3ea253a042e205746928271f9d8f71a82d`) plus its 105 patches for GB10 `sm_121`. The vision template is vendored from that same pinned recipe.
 
-**Registered for staging, not activated.** Argo syncs this Kustomization as an MC Application, separate from `llm-test/conductor-workloads/kustomization.yaml`. Image-build v3 completed and published the pinned image below; the model-pull Job remains suspended until a read-only capacity/CSI check. Both rank Deployments stay at zero and the Conductor object stays `Standby`, so no inference pod starts.
+**Registered for staging, not activated.** Argo syncs this Kustomization as an MC Application, separate from `llm-test/conductor-workloads/kustomization.yaml`. Image-build v3 completed and published the pinned image below. A read-only check from the active v14 head reported `1813G` available on `/models`; the model-pull Job is enabled as pre-cutover work. Both rank Deployments stay at zero and the Conductor object stays `Standby`, so no inference pod starts.
 
 Image-build v1 failed before BuildKit because the rootless image has no `/bin/bash`; v2 failed loading `docker/Dockerfile` because its local source was not declared. Neither attempt mounted `model-cache` or published an image. v3 succeeded; the failed Job records are retained for logs and expire by TTL.
 
@@ -25,15 +25,15 @@ The serving manifest reuses the existing `tensorfold-v14-rdma-fabric` ConfigMap 
 
 ## Review / activation sequence
 
-1. Keep the model-pull Job suspended and the workload in `Standby` while CSI mount/metadata recovery and the existing TensorFold recovery are unsettled.
+1. Run the model-pull Job while the new workload stays in `Standby`; keep the active v14 pair serving throughout the download.
 2. Review the host-network/ConnectX-7 adaptation and ensure the shared RDMA ConfigMap remains available.
 3. Confirm Argo has created the staged objects; the model-pull Job remains suspended and Deployments remain at zero.
 4. The image-build Job has succeeded; the serving Deployments are pinned to the pushed digest above.
-5. From the active v14 pod, check `/models` free space read-only. Only then unsuspend the model-pull Job; confirm its receipt before activation.
+5. The active v14 pod reported `1813G` available on `/models` before the pull was enabled. Confirm the downloader's receipt and verified shard inventory before activation.
 6. Keep the workload in `Standby` until the recipe image, checkpoint, and fabric have been reviewed. To activate, coordinate the exclusive GPU pair with v14: put the old workload in `Standby` before making this one `Resident`. Do not run both TP2 workloads at once.
 7. Validate `/health`, `/v1/models`, an image request, memory reserve, and both rank logs before changing any serving alias.
 
-Argo registration stages resource objects. The image build does not mount or write `model-cache`; the model-pull Job stays suspended pending the read-only capacity check. Rank replicas remain zero and the API Service has no endpoints until a later activation change.
+Argo registration stages resource objects. The image build did not mount or write `model-cache`; the model-pull Job is enabled to add only the pinned snapshots. Rank replicas remain zero and the API Service has no endpoints until a later activation change.
 
 ## Source and licensing
 
