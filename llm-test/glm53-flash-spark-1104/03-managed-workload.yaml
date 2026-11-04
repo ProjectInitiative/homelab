@@ -1,4 +1,4 @@
-# Activated by coordinated cutover; v14 is moved to Standby in conductor-workloads.
+# Standby after startup validation found a missing Python runtime dependency; v14 is restored.
 apiVersion: conductor.projectinitiative.io/v1alpha1
 kind: ManagedWorkload
 metadata:
@@ -6,8 +6,8 @@ metadata:
   namespace: llm-test
 spec:
   poolRef: dgx-spark
-  desiredState: Resident
-  # Lower priority than v14 so it cannot steal capacity before v14 is Standby.
+  desiredState: Standby
+  # Keep below the v14 rollback lane until a Python-enabled serving image is pinned.
   priority: 90
   driver:
     type: DeploymentSet

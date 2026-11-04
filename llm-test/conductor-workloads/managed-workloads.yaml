@@ -5,8 +5,8 @@ metadata:
   namespace: llm-test
 spec:
   poolRef: dgx-spark
-  desiredState: Standby
-  # Immediate rollback lane; restore only after GLM recipe 1104 is stopped.
+  desiredState: Resident
+  # Restore the proven serving lane; keep recipe 1104 Standby until its runtime image is fixed.
   # The scheduler may reclaim lower-priority residency when capacity is lost.
   priority: 0
   driver:

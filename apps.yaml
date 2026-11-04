@@ -740,8 +740,8 @@ catalog:
       syncOptions:
         - ServerSideApply=true
 
-  # GLM recipe 1104 cutover lane. Conductor owns Deployment replica counts;
-  # the stable dgx-spark alias follows the qualified head.
+  # Staged GLM recipe 1104 lane. Conductor owns Deployment replica counts;
+  # keep it Standby until the runtime dependency check passes.
   glm53-flash-spark-1104:
     path: llm-test/glm53-flash-spark-1104
     annotations:
