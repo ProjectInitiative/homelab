@@ -1,9 +1,9 @@
-# Staged native arm64 BuildKit build for the pinned recipe. Suspended by default.
+# Native arm64 BuildKit retry for the pinned recipe. Does not mount model-cache.
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: glm53-flash-1104-image-build-v1
+  name: glm53-flash-1104-image-build-v2
   namespace: llm-test
   labels:
     app: glm53-flash-1104-image-build
@@ -39,7 +39,7 @@ spec:
         - name: buildkit
           image: moby/buildkit:v0.26.2-rootless
           imagePullPolicy: IfNotPresent
-          command: ["/bin/bash", "-ec"]
+          command: ["/bin/sh", "-ec"]
           args:
             - |
               set -eu
