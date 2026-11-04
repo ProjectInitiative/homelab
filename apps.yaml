@@ -740,6 +740,20 @@ catalog:
       syncOptions:
         - ServerSideApply=true
 
+  # Staged GLM-5.3-Flash recipe 1104: the Jobs are suspended, rank Deployments
+  # are zero replicas, and its Conductor workload is Standby until cutover.
+  glm53-flash-spark-1104:
+    path: llm-test/glm53-flash-spark-1104
+    annotations:
+      argocd.argoproj.io/sync-wave: "123"
+    syncPolicy:
+      automated:
+        prune: false
+        selfHeal: true
+      syncOptions:
+        - ServerSideApply=true
+        - SkipDryRunOnMissingResource=true
+
   # Memory watchdog + forensics for the DGX Spark nodes (RISK-0040):
   # privileged hostPID DaemonSet watching host MemAvailable, snapshots
   # attribution, SIGKILLs lane ranks on breach; Conductor RecreateTogether

@@ -2,7 +2,7 @@
 
 This is a Kubernetes/Conductor port of [MiaAI-Lab/GLM-5.3-Flash-DGX-Sparks-1104](https://github.com/MiaAI-Lab/GLM-5.3-Flash-DGX-Sparks-1104), pinned at recipe commit `3066a3fe49e7fcdf969de9a51094dd8985cec1a0`. It builds the recipe's TensorFold native Zig/CUDA engine (`f350cd3ea253a042e205746928271f9d8f71a82d`) plus its 105 patches for GB10 `sm_121`. The vision template is vendored from that same pinned recipe.
 
-**Not activated.** This directory is intentionally not in `apps.yaml`, the root Argo tree, or `llm-test/conductor-workloads/kustomization.yaml`. Both Jobs below are `suspend: true`; both Deployments have zero replicas; the separate Conductor object is `Standby`. No build, download, or serving workload runs from this commit.
+**Registered for staging, not activated.** The companion catalog/MC entries in this branch register this Kustomization as an Argo Application; it is still separate from `llm-test/conductor-workloads/kustomization.yaml`. Argo can create its ConfigMaps, Services, suspended Jobs, zero-replica Deployments, and `Standby` Conductor object. No build, download, or serving process starts while the Jobs remain suspended and replicas stay at zero.
 
 ## Recipe pins and staged capacity
 
@@ -23,15 +23,15 @@ The serving manifest reuses the existing `tensorfold-v14-rdma-fabric` ConfigMap 
 
 ## Review / activation sequence
 
-1. Keep this directory unregistered while the current CSI mount/metadata recovery and the existing TensorFold recovery are unsettled.
+1. Let the registered Argo Application sync only the staged resources. Keep both Jobs suspended and the workload in `Standby` while CSI mount/metadata recovery and the existing TensorFold recovery are unsettled.
 2. Review the host-network/ConnectX-7 adaptation and ensure the shared RDMA ConfigMap remains available.
-3. Register this directory as an Argo Application. Jobs remain suspended and Deployments remain at zero.
+3. Confirm Argo has created the staged objects; the Jobs remain suspended and Deployments remain at zero.
 4. Intentionally unsuspend the image-build Job, wait for success, and record the pushed image digest; update the serving image from the tag to that immutable digest.
 5. Intentionally unsuspend the model-pull Job. It writes only to `model-cache`; confirm the receipt and available space before doing so.
 6. Keep the workload in `Standby` until the recipe image, checkpoint, and fabric have been reviewed. To activate, coordinate the exclusive GPU pair with v14: put the old workload in `Standby` before making this one `Resident`. Do not run both TP2 workloads at once.
 7. Validate `/health`, `/v1/models`, an image request, memory reserve, and both rank logs before changing any serving alias.
 
-No live cache or serving resource was changed while staging this proposal.
+Argo registration stages resource objects only: no Job runs, no model-cache data is written, rank replicas remain zero, and the API Service has no endpoints until a later activation change.
 
 ## Source and licensing
 
