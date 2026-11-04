@@ -1,0 +1,38 @@
+# Standby only. Keep this out of conductor-workloads/kustomization.yaml until reviewed.
+apiVersion: conductor.projectinitiative.io/v1alpha1
+kind: ManagedWorkload
+metadata:
+  name: glm53-flash-1104
+  namespace: llm-test
+spec:
+  poolRef: dgx-spark
+  desiredState: Standby
+  # Keep below the current v14 lane unless activation is explicitly coordinated.
+  priority: 90
+  driver:
+    type: DeploymentSet
+    deploymentSet:
+      recoveryPolicy: RecreateTogether
+      startupGracePeriod: 60m
+      members:
+        - name: glm53-flash-1104-worker
+          role: worker
+          startOrder: 10
+          stopOrder: 20
+          replicas: 1
+          readyGate: ContainersRunning
+        - name: glm53-flash-1104-head
+          role: head
+          startOrder: 20
+          stopOrder: 10
+          replicas: 1
+          readyGate: DeploymentAvailable
+  qualification:
+    serviceName: glm53-flash-1104-api
+    path: /health
+    port: 8020
+    timeout: 60m
+  routing:
+    serviceName: glm53-flash-1104-api
+    selector:
+      serving.homelab.io/alias: glm53-flash-1104
