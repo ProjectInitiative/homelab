@@ -4,6 +4,6 @@ FROM local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-fla
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
- && apt-get install -y --no-install-recommends python3-minimal \
+ && apt-get install -y --no-install-recommends python3 \
  && rm -rf /var/lib/apt/lists/* \
  && python3 -c 'import ipaddress, json, pathlib, shlex; print("python3 runtime ready")'
