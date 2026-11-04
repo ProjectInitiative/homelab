@@ -740,8 +740,8 @@ catalog:
       syncOptions:
         - ServerSideApply=true
 
-  # Staged GLM-5.3-Flash recipe 1104: model-pull may run pre-cutover;
-  # rank Deployments stay zero and the Conductor workload remains Standby.
+  # GLM recipe 1104 cutover lane. Conductor owns Deployment replica counts;
+  # the stable dgx-spark alias follows the qualified head.
   glm53-flash-spark-1104:
     path: llm-test/glm53-flash-spark-1104
     annotations:
@@ -753,6 +753,12 @@ catalog:
       syncOptions:
         - ServerSideApply=true
         - SkipDryRunOnMissingResource=true
+        - RespectIgnoreDifferences=true
+    ignoreDifferences:
+      - group: apps
+        kind: Deployment
+        jsonPointers:
+          - /spec/replicas
 
   # Memory watchdog + forensics for the DGX Spark nodes (RISK-0040):
   # privileged hostPID DaemonSet watching host MemAvailable, snapshots

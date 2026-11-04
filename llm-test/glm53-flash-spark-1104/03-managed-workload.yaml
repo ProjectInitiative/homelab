@@ -1,4 +1,4 @@
-# Standby only. Keep this out of conductor-workloads/kustomization.yaml until reviewed.
+# Activated by coordinated cutover; v14 is moved to Standby in conductor-workloads.
 apiVersion: conductor.projectinitiative.io/v1alpha1
 kind: ManagedWorkload
 metadata:
@@ -6,8 +6,8 @@ metadata:
   namespace: llm-test
 spec:
   poolRef: dgx-spark
-  desiredState: Standby
-  # Keep below the current v14 lane unless activation is explicitly coordinated.
+  desiredState: Resident
+  # Lower priority than v14 so it cannot steal capacity before v14 is Standby.
   priority: 90
   driver:
     type: DeploymentSet
@@ -28,11 +28,11 @@ spec:
           replicas: 1
           readyGate: DeploymentAvailable
   qualification:
-    serviceName: glm53-flash-1104-api
+    serviceName: dgx-spark-backend
     path: /health
-    port: 8020
+    port: 8000
     timeout: 60m
   routing:
-    serviceName: glm53-flash-1104-api
+    serviceName: dgx-spark-backend
     selector:
-      serving.homelab.io/alias: glm53-flash-1104
+      serving.homelab.io/alias: dgx-spark

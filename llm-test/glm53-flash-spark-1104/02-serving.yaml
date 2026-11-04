@@ -1,4 +1,4 @@
-# Staged TP=2 Kubernetes port. Deployments remain at zero replicas.
+# Cutover-ready TP=2 Kubernetes lane. Conductor owns Deployment replicas.
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -44,16 +44,17 @@ data:
     export TF_GLM_DENSE_BITS=8 TF_GLM_HEAD_BITS=8 TF_GLM_CLEAR_THINKING=1
     export TF_GLM_RANK="$rank" TF_GLM_WORLD=2 TF_KV_PAGES=on
     export TF_GLM_ABSORB_MMA=1 TF_GLM_HOST_CACHE_GIB=0 TENSORFOLD_PREFILL_SHARE=0.68
-    export TF_ROCE=1 TF_ROCE_MAX_KB=4096 TF_ROCE_HCA="$RDMA_PEER_NETDEVS"
+    # Use NCCL-only for initial cutover; custom RoCE remains unqualified (OQ-0050).
+    export TF_ROCE=0 TF_ROCE_MAX_KB=4096 TF_ROCE_HCA="$RDMA_PEER_NETDEVS"
     export TF_ROCE_GID_INDEX="$NCCL_IB_GID_INDEX"
     export NCCL_COMM_ID="$master_ip:29583" NCCL_MIN_NCHANNELS=4 NCCL_MAX_NCHANNELS=4
     export NCCL_DEBUG=WARN
 
     model=/models/.cache/huggingface/hub/models--Mia-AiLab--GLM-5.3-Flash-EXL3-4bpw-TensorFold/snapshots/76c0b5173166d2795dd48860f45d8224817f894c
     draft=/models/.cache/huggingface/hub/models--incoai--GLM-5.3-Flash-DFlash2/snapshots/bf582e4eacc1810f76656d1811693ff6c6737d2a
-    echo "launching rank $rank/2 on ${NODE_NAME:-unknown}; NCCL rendezvous $NCCL_COMM_ID; RoCE rails $TF_ROCE_HCA"
+    echo "launching rank $rank/2 on ${NODE_NAME:-unknown}; NCCL rendezvous $NCCL_COMM_ID; TF_ROCE=$TF_ROCE"
     exec /usr/local/bin/tensorfold-native serve "$model" \
-      --name GLM-5.3-Flash --host 0.0.0.0 --port 8020 \
+      --name GLM-5.3-Flash-EXL3 --host 0.0.0.0 --port 8000 \
       --context 1048576 --parallel 8 --max-tokens 32768 \
       --kv-cache fp8 --no-update-check --no-thinking \
       --vision --vision-max-images 50 --chat-template /templates/chat_template.jinja \
@@ -97,7 +98,7 @@ metadata:
 spec:
   selector: {app: glm53-flash-1104-head}
   ports:
-    - {name: http, port: 8020, targetPort: 8020, protocol: TCP}
+    - {name: http, port: 8000, targetPort: 8000, protocol: TCP}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -180,7 +181,7 @@ spec:
     matchLabels: {app: glm53-flash-1104-head}
   template:
     metadata:
-      labels: {app: glm53-flash-1104-head, lane: glm53-flash-1104}
+      labels: {app: glm53-flash-1104-head, lane: glm53-flash-1104, serving.homelab.io/alias: dgx-spark}
     spec:
       priorityClassName: llm-serving-critical
       automountServiceAccountToken: false
@@ -212,16 +213,16 @@ spec:
             requests: {cpu: "16", memory: 96Gi, nvidia.com/gpu: "1", rdma/hca_shared_devices: "1"}
             limits: {cpu: "32", memory: 128Gi, nvidia.com/gpu: "1", rdma/hca_shared_devices: "1"}
           ports:
-            - {name: http, containerPort: 8020, protocol: TCP}
+            - {name: http, containerPort: 8000, protocol: TCP}
             - {name: nccl-bootstrap, containerPort: 29583, protocol: TCP}
             - {name: nccl-watch, containerPort: 29584, protocol: TCP}
           startupProbe:
-            httpGet: {path: /health, port: 8020}
+            httpGet: {path: /health, port: 8000}
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 360
           readinessProbe:
-            httpGet: {path: /health, port: 8020}
+            httpGet: {path: /health, port: 8000}
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 3
