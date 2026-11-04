@@ -6,6 +6,8 @@ This is a Kubernetes/Conductor port of [MiaAI-Lab/GLM-5.3-Flash-DGX-Sparks-1104]
 
 Image-build v1 failed before BuildKit because the rootless image has no `/bin/bash`; v2 failed loading `docker/Dockerfile` because its local source was not declared. Neither attempt mounted `model-cache` or published an image. v3 succeeded; the failed Job records are retained for logs and expire by TTL.
 
+The first model-pull pass transferred the checkpoint, but the pinned puller did not emit the requested `RECEIPT_PATH`; its retry found zero files queued and failed at the receipt check. The Job now force-replaces that failed object, resumes from the same cache, and uses its own index/shard inventory receipt if the pinned puller image does not provide one. No cutover occurs until this verification Job succeeds.
+
 ## Recipe pins and staged capacity
 
 - Image: `local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:74e19a63a9a5@sha256:7aae3870ac2d31ff88f5c7a9bc2be3c8d975097f785a6ee141c8c0e75f406fc5`. BuildKit v3 succeeded and pushed this immutable manifest digest. The tag is the output of upstream `scripts/prepare.sh --label` at the pinned recipe commit.
@@ -17,7 +19,7 @@ Image-build v1 failed before BuildKit because the rootless image has no `/bin/ba
 ## Why this maps to existing workflows
 
 - `00-image-build.yaml` uses the existing rootless BuildKit Job pattern and fetches the upstream recipe at a full immutable commit; the native arm64 build ran on `octant`. v3 uses `/bin/sh` and explicitly declares the `dockerfile` local source.
-- `01-download-model.yaml` uses the existing `glm53-cache-puller:v6` downloader, rate-limited to 62.5 MB/s, and verifies the pinned snapshot's index/shards before writing a receipt. It preserves resumable `.part` files and never deletes other model data.
+- `01-download-model.yaml` uses the existing `glm53-cache-puller:v6` downloader, rate-limited to 62.5 MB/s, and verifies the pinned snapshot's index/shards before writing a lane receipt (the pinned image did not emit `RECEIPT_PATH`). It preserves resumable `.part` files and never deletes other model data.
 - `02-serving.yaml` mirrors the current TensorFold v14 two-rank Kubernetes shape: host networking/IPC, `nvidia-rdma`, node capability scheduling and anti-affinity. Worker rank 1 starts first; Conductor gates it on containers running, not readiness, then starts head rank 0. Head health is the serving qualification.
 - `03-managed-workload.yaml` uses `RecreateTogether` so a rank failure recreates the pair. It stays `Standby` and does not claim the active `dgx-spark` route.
 
