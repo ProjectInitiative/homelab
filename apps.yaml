@@ -759,7 +759,7 @@ catalog:
   # the startup-gate fix and its published multi-arch controller image.
   conductor:
     repoURL: https://github.com/ProjectInitiative/conductor.git
-    targetRevision: c546d751d5f59be0a055a731407ae2d912c4cb85
+    targetRevision: 4f8652e525a360f6afb5d1c5e55e49f6ffbc46ee
     path: generator
     plugin:
       name: cdk8s-v1.0
