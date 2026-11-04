@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - 00-image-build.yaml
   - 01-download-model.yaml
+  - 05-runtime-image-python3-build.yaml
   - 02-serving.yaml
   - 03-managed-workload.yaml
 
@@ -11,6 +12,9 @@ configMapGenerator:
   - name: glm53-flash-1104-chat-template
     files:
       - chat_template.jinja=templates/glm-5.3-flash-vision.jinja
+  - name: glm53-flash-1104-runtime-dockerfile
+    files:
+      - docker/Dockerfile.runtime
 
 generatorOptions:
   disableNameSuffixHash: true
