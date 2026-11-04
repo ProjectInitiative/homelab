@@ -1,4 +1,4 @@
-# Cutover-ready TP=2 Kubernetes lane. Conductor owns Deployment replicas.
+# Staged TP=2 Kubernetes lane. Conductor owns Deployment replicas.
 ---
 apiVersion: v1
 kind: ConfigMap

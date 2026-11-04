@@ -2,11 +2,11 @@
 
 This is a Kubernetes/Conductor port of [MiaAI-Lab/GLM-5.3-Flash-DGX-Sparks-1104](https://github.com/MiaAI-Lab/GLM-5.3-Flash-DGX-Sparks-1104), pinned at recipe commit `3066a3fe49e7fcdf969de9a51094dd8985cec1a0`. It builds the recipe's TensorFold native Zig/CUDA engine (`f350cd3ea253a042e205746928271f9d8f71a82d`) plus its 105 patches for GB10 `sm_121`. The vision template is vendored from that same pinned recipe.
 
-**Coordinated cutover.** This MC Application owns the serving resources; `conductor-workloads` owns the existing v14 workload state. The cutover moves v14 to `Standby` and this workload to `Resident`; Conductor owns Deployment replicas. The 1104 lane uses NCCL-only (`TF_ROCE=0`) until the recipe's custom RoCE path is qualified (OQ-0050). The stable `dgx-spark` alias follows the new head only after its health probe passes.
+**Staged; cutover rolled back after startup validation.** The first activation stopped v14, but both new ranks failed before engine launch: the pinned runtime image lacks `python3`, required by the shared RDMA-inventory script. GitOps restores v14 to `Resident` and keeps this workload `Standby` until a Python-enabled immutable runtime image is built and pinned. The intended initial transport remains NCCL-only (`TF_ROCE=0`); custom RoCE is unqualified (OQ-0050).
 
 Image-build v1 failed before BuildKit because the rootless image has no `/bin/bash`; v2 failed loading `docker/Dockerfile` because its local source was not declared. Neither attempt mounted `model-cache` or published an image. v3 succeeded; the failed Job records are retained for logs and expire by TTL.
 
-The model pull completed and its receipt audit verified 83 checkpoint shards (175,642,267,944 bytes) plus one DFlash2 weight file. The pinned puller did not emit `RECEIPT_PATH`, so the Job used its own verified snapshot inventory receipt. The read-only preflight from the active v14 head reported `1813G` available on `/models` before the pull.
+The model pull completed and its receipt audit verified 83 checkpoint shards (175,642,267,944 bytes) plus one DFlash2 weight file. The pinned puller did not emit `RECEIPT_PATH`, so the Job used its own verified snapshot inventory receipt. The read-only preflight from the active v14 head reported `1813G` available on `/models` before the pull. The attempted cutover did not alter the model cache.
 
 ## Recipe pins and staged capacity
 
@@ -21,17 +21,17 @@ The model pull completed and its receipt audit verified 83 checkpoint shards (17
 - `00-image-build.yaml` uses the existing rootless BuildKit Job pattern and fetches the upstream recipe at a full immutable commit; the native arm64 build ran on `octant`. v3 uses `/bin/sh` and explicitly declares the `dockerfile` local source.
 - `01-download-model.yaml` uses the existing `glm53-cache-puller:v6` downloader, rate-limited to 62.5 MB/s, and verifies the pinned snapshot's index/shards before writing a lane receipt (the pinned image did not emit `RECEIPT_PATH`). It preserves resumable `.part` files and never deletes other model data.
 - `02-serving.yaml` mirrors the current TensorFold v14 two-rank Kubernetes shape: host networking/IPC, `nvidia-rdma`, node capability scheduling and anti-affinity. Worker rank 1 starts first; Conductor gates it on containers running, not readiness, then starts head rank 0. The initial cutover uses NCCL-only; head health gates the stable route.
-- `03-managed-workload.yaml` uses `RecreateTogether` so a rank failure recreates the pair. It is the `Resident` workload for the coordinated swap; its head carries the stable `dgx-spark` alias.
+- `03-managed-workload.yaml` uses `RecreateTogether` so a rank failure recreates the pair. It remains `Standby` until the runtime image includes the Python dependency; its head carries the stable `dgx-spark` alias for the later cutover.
 
 The serving manifest reuses the existing `tensorfold-v14-rdma-fabric` ConfigMap and `/var/lib/dgx-spark/rdma-fabric.json` host inventory. NCCL bootstrap is placed on the shared control-plane address; NCCL/engine data traffic is selected from the node-local RoCE inventory. This is the Kubernetes adaptation to validate; upstream's launcher discovers its direct-link address through SSH.
 
-## Cutover / rollback
+## Activation gates / rollback
 
-1. The GitOps cutover sets v14 to `Standby` and this workload to `Resident`; pool capacity is one, so both TP2 pairs must not run together.
+1. Keep recipe 1104 `Standby` until the runtime image includes Python 3 and the shared inventory script passes on the serving image.
 2. Argo ignores only these Deployment `spec.replicas` fields; Conductor owns the scale. The head pod's stable alias is selected by the existing `dgx-spark-backend` Service on port 8000.
 3. Initial transport is NCCL-only (`TF_ROCE=0`). Do not enable custom RoCE until OQ-0050's rank/GID and cross-rank qualification passes.
-4. Verify both ranks, `/health`, `/v1/models`, one completion, memory reserve, and the stable Service endpoint after the cold load.
-5. Roll back by setting this workload to `Standby` and v14 to `Resident`; Conductor restores the prior pair and route. Do not run both TP2 workloads simultaneously.
+4. For a later cutover, set v14 to `Standby` and this workload to `Resident`; pool capacity is one, so never run both TP2 pairs together.
+5. Verify both ranks, `/health`, `/v1/models`, one completion, memory reserve, and the stable Service endpoint after the cold load. Roll back by setting this workload `Standby` and v14 `Resident`.
 
 The image build did not mount or write `model-cache`. The downloader added only the pinned snapshots; serving mounts the PVC read-only. Git manifests keep rank replicas at zero while Conductor owns runtime scale. The stable API Service remains on port 8000 and follows the head's `serving.homelab.io/alias=dgx-spark` label.
 
