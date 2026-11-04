@@ -2,13 +2,13 @@
 
 This is a Kubernetes/Conductor port of [MiaAI-Lab/GLM-5.3-Flash-DGX-Sparks-1104](https://github.com/MiaAI-Lab/GLM-5.3-Flash-DGX-Sparks-1104), pinned at recipe commit `3066a3fe49e7fcdf969de9a51094dd8985cec1a0`. It builds the recipe's TensorFold native Zig/CUDA engine (`f350cd3ea253a042e205746928271f9d8f71a82d`) plus its 105 patches for GB10 `sm_121`. The vision template is vendored from that same pinned recipe.
 
-**Registered for staging, not activated.** Argo syncs this Kustomization as an MC Application, separate from `llm-test/conductor-workloads/kustomization.yaml`. Image-build v3 is enabled as pre-cutover work; the model-pull Job remains suspended until a read-only capacity/CSI check. Both rank Deployments stay at zero and the Conductor object stays `Standby`, so no inference pod starts.
+**Registered for staging, not activated.** Argo syncs this Kustomization as an MC Application, separate from `llm-test/conductor-workloads/kustomization.yaml`. Image-build v3 completed and published the pinned image below; the model-pull Job remains suspended until a read-only capacity/CSI check. Both rank Deployments stay at zero and the Conductor object stays `Standby`, so no inference pod starts.
 
-Image-build v1 failed before starting BuildKit because the rootless image has no `/bin/bash`. v2 started BuildKit but omitted its explicit Dockerfile local source, so it failed while loading `docker/Dockerfile`. Neither attempt mounted `model-cache` or published an image. v3 uses `/bin/sh` and declares both local sources; the failed Jobs are retained for logs and expire by TTL.
+Image-build v1 failed before BuildKit because the rootless image has no `/bin/bash`; v2 failed loading `docker/Dockerfile` because its local source was not declared. Neither attempt mounted `model-cache` or published an image. v3 succeeded; the failed Job records are retained for logs and expire by TTL.
 
 ## Recipe pins and staged capacity
 
-- Image: `local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:74e19a63a9a5`. The tag is the output of the upstream `scripts/prepare.sh --label` at the pinned recipe commit; it includes the engine patch set and Dockerfile inputs. It is not a published digest yet.
+- Image: `local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:74e19a63a9a5@sha256:7aae3870ac2d31ff88f5c7a9bc2be3c8d975097f785a6ee141c8c0e75f406fc5`. BuildKit v3 succeeded and pushed this immutable manifest digest. The tag is the output of upstream `scripts/prepare.sh --label` at the pinned recipe commit.
 - Checkpoint: `Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold@76c0b5173166d2795dd48860f45d8224817f894c` (~164 GiB).
 - Drafter: `incoai/GLM-5.3-Flash-DFlash2@bf582e4eacc1810f76656d1811693ff6c6737d2a`. Its upstream license is CC BY-NC-ND 4.0; do not use for commercial workloads.
 - Default served profile from the recipe: TP=2, one Spark per rank, `PARALLEL=8`, `CONTEXT=1048576`, FP8 KV pages, q8 dense/head, vision, DFlash2, `MEMORY_RESERVE_GIB=9.5`, port 8020.
@@ -16,7 +16,7 @@ Image-build v1 failed before starting BuildKit because the rootless image has no
 
 ## Why this maps to existing workflows
 
-- `00-image-build.yaml` uses the existing rootless BuildKit Job pattern and fetches the upstream recipe at a full immutable commit; the build is native arm64 and prefers idle `octant`. v3 uses `/bin/sh` because the rootless BuildKit image does not include Bash, and explicitly declares the `dockerfile` local source.
+- `00-image-build.yaml` uses the existing rootless BuildKit Job pattern and fetches the upstream recipe at a full immutable commit; the native arm64 build ran on `octant`. v3 uses `/bin/sh` and explicitly declares the `dockerfile` local source.
 - `01-download-model.yaml` uses the existing `glm53-cache-puller:v6` downloader, rate-limited to 62.5 MB/s, and verifies the pinned snapshot's index/shards before writing a receipt. It preserves resumable `.part` files and never deletes other model data.
 - `02-serving.yaml` mirrors the current TensorFold v14 two-rank Kubernetes shape: host networking/IPC, `nvidia-rdma`, node capability scheduling and anti-affinity. Worker rank 1 starts first; Conductor gates it on containers running, not readiness, then starts head rank 0. Head health is the serving qualification.
 - `03-managed-workload.yaml` uses `RecreateTogether` so a rank failure recreates the pair. It stays `Standby` and does not claim the active `dgx-spark` route.
@@ -28,7 +28,7 @@ The serving manifest reuses the existing `tensorfold-v14-rdma-fabric` ConfigMap 
 1. Keep the model-pull Job suspended and the workload in `Standby` while CSI mount/metadata recovery and the existing TensorFold recovery are unsettled.
 2. Review the host-network/ConnectX-7 adaptation and ensure the shared RDMA ConfigMap remains available.
 3. Confirm Argo has created the staged objects; the model-pull Job remains suspended and Deployments remain at zero.
-4. Run the image-build Job first; record the pushed digest and update the serving image from the tag to that immutable digest.
+4. The image-build Job has succeeded; the serving Deployments are pinned to the pushed digest above.
 5. From the active v14 pod, check `/models` free space read-only. Only then unsuspend the model-pull Job; confirm its receipt before activation.
 6. Keep the workload in `Standby` until the recipe image, checkpoint, and fabric have been reviewed. To activate, coordinate the exclusive GPU pair with v14: put the old workload in `Standby` before making this one `Resident`. Do not run both TP2 workloads at once.
 7. Validate `/health`, `/v1/models`, an image request, memory reserve, and both rank logs before changing any serving alias.
