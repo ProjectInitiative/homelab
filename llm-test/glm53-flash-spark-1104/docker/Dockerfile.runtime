@@ -1,0 +1,9 @@
+# Minimal Python runtime layer for the pinned TensorFold 1104 image.
+# configure-rdma-fabric.sh uses Python's stdlib to validate node inventory and select NCCL HCA/GID values.
+FROM local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:74e19a63a9a5@sha256:7aae3870ac2d31ff88f5c7a9bc2be3c8d975097f785a6ee141c8c0e75f406fc5
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3-minimal \
+ && rm -rf /var/lib/apt/lists/* \
+ && python3 -c 'import ipaddress, json, pathlib, shlex; print("python3 runtime ready")'
