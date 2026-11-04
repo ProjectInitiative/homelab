@@ -740,8 +740,8 @@ catalog:
       syncOptions:
         - ServerSideApply=true
 
-  # Staged GLM-5.3-Flash recipe 1104: image build may run before cutover;
-  # model-pull remains suspended, rank Deployments stay zero and workload Standby.
+  # Staged GLM-5.3-Flash recipe 1104: model-pull may run pre-cutover;
+  # rank Deployments stay zero and the Conductor workload remains Standby.
   glm53-flash-spark-1104:
     path: llm-test/glm53-flash-spark-1104
     annotations:

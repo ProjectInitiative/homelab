@@ -10,7 +10,7 @@ metadata:
     lane: glm53-flash-1104
     purpose: model-cache-preload
 spec:
-  suspend: true
+  suspend: false
   ttlSecondsAfterFinished: 604800
   backoffLimit: 2147483647
   activeDeadlineSeconds: 86400
