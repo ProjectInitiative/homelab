@@ -10,7 +10,7 @@ metadata:
     lane: glm53-flash-1104
     purpose: image-build
 spec:
-  suspend: true
+  suspend: false
   backoffLimit: 0
   activeDeadlineSeconds: 7200
   ttlSecondsAfterFinished: 604800
