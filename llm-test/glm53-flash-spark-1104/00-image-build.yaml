@@ -1,0 +1,127 @@
+# Staged native arm64 BuildKit build for the pinned recipe. Suspended by default.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: glm53-flash-1104-image-build-v1
+  namespace: llm-test
+  labels:
+    app: glm53-flash-1104-image-build
+    lane: glm53-flash-1104
+    purpose: image-build
+spec:
+  suspend: true
+  backoffLimit: 0
+  activeDeadlineSeconds: 7200
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      labels:
+        app: glm53-flash-1104-image-build
+        lane: glm53-flash-1104
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      dnsConfig:
+        nameservers: [172.16.1.1, 1.1.1.1]
+      securityContext:
+        fsGroup: 1000
+      nodeSelector:
+        kubernetes.io/arch: arm64
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - {key: kubernetes.io/hostname, operator: In, values: [octant]}
+      containers:
+        - name: buildkit
+          image: moby/buildkit:v0.26.2-rootless
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-ec"]
+          args:
+            - |
+              set -eu
+              src=/workspace/src
+              test -s "$src/docker/Dockerfile" || { echo "recipe source missing" >&2; exit 1; }
+              test "$(git -C "$src" rev-parse HEAD)" = "3066a3fe49e7fcdf969de9a51094dd8985cec1a0"
+              image=local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:74e19a63a9a5
+              echo "building $image from recipe 3066a3fe"
+              exec buildctl-daemonless.sh build \
+                --frontend dockerfile.v0 \
+                --local "context=$src" \
+                --opt filename=docker/Dockerfile \
+                --opt build-arg:TF_REPO=https://github.com/ashhart/TensorFold.git \
+                --opt build-arg:TF_REF=f350cd3ea253a042e205746928271f9d8f71a82d \
+                --opt build-arg:ZIG_VERSION=0.17.0 \
+                --opt build-arg:ZIG_SHA256=9e8d11661d4ae3bd57702a3832781e23ad151dde5798e16a5ccd503f65234ff8 \
+                --opt build-arg:SM=121 \
+                --opt build-arg:ZIG_CPU=native \
+                --opt build-arg:TOOLS=1 \
+                --opt build-arg:PATCHES_HASH=74e19a63a9a5 \
+                --output "type=image,name=$image,push=true,oci-mediatypes=false" \
+                --progress=plain
+          env:
+            - name: BUILDKITD_FLAGS
+              value: "--oci-worker-no-process-sandbox --config=/build/buildkitd.toml"
+          resources:
+            requests: {cpu: "8", memory: 32Gi, ephemeral-storage: 40Gi}
+            limits: {cpu: "16", memory: 48Gi, ephemeral-storage: 55Gi}
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            seccompProfile: {type: Unconfined}
+            appArmorProfile: {type: Unconfined}
+          volumeMounts:
+            - {name: workspace, mountPath: /workspace, readOnly: true}
+            - {name: buildkit-state, mountPath: /home/user/.local/share/buildkit}
+            - {name: build-config, mountPath: /build, readOnly: true}
+      initContainers:
+        - name: fetch-pinned-recipe
+          image: alpine/git:v2.52.0
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              set -eu
+              src=/workspace/src
+              mkdir -p "$src"
+              git init "$src"
+              git -C "$src" remote add origin https://github.com/MiaAI-Lab/GLM-5.3-Flash-DGX-Sparks-1104.git
+              git -C "$src" fetch --depth 1 --no-tags origin 3066a3fe49e7fcdf969de9a51094dd8985cec1a0
+              git -C "$src" checkout --detach FETCH_HEAD
+              actual=$(git -C "$src" rev-parse HEAD)
+              test "$actual" = "3066a3fe49e7fcdf969de9a51094dd8985cec1a0"
+              echo "staged upstream recipe $actual"
+          resources:
+            requests: {cpu: 250m, memory: 256Mi}
+            limits: {cpu: "1", memory: 1Gi}
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: workspace, mountPath: /workspace}
+      volumes:
+        - name: workspace
+          emptyDir: {sizeLimit: 2Gi}
+        - name: buildkit-state
+          emptyDir: {sizeLimit: 55Gi}
+        - name: build-config
+          configMap: {name: glm53-flash-1104-buildkit-config, defaultMode: 0555}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: glm53-flash-1104-buildkit-config
+  namespace: llm-test
+  labels:
+    app: glm53-flash-1104-image-build
+    lane: glm53-flash-1104
+immutable: true
+data:
+  buildkitd.toml: |
+    [registry."local-registry.registry.svc.cluster.local:5000"]
+      http = true

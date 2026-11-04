@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - 00-image-build.yaml
+  - 01-download-model.yaml
+  - 02-serving.yaml
+  - 03-managed-workload.yaml
+
+configMapGenerator:
+  - name: glm53-flash-1104-chat-template
+    files:
+      - chat_template.jinja=templates/glm-5.3-flash-vision.jinja
+
+generatorOptions:
+  disableNameSuffixHash: true
