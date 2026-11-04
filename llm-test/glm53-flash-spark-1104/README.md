@@ -2,9 +2,9 @@
 
 This is a Kubernetes/Conductor port of [MiaAI-Lab/GLM-5.3-Flash-DGX-Sparks-1104](https://github.com/MiaAI-Lab/GLM-5.3-Flash-DGX-Sparks-1104), pinned at recipe commit `3066a3fe49e7fcdf969de9a51094dd8985cec1a0`. It builds the recipe's TensorFold native Zig/CUDA engine (`f350cd3ea253a042e205746928271f9d8f71a82d`) plus its 105 patches for GB10 `sm_121`. The vision template is vendored from that same pinned recipe.
 
-**Registered for staging, not activated.** Argo syncs this Kustomization as an MC Application, separate from `llm-test/conductor-workloads/kustomization.yaml`. Image-build v2 is enabled as pre-cutover work; the model-pull Job remains suspended until a read-only capacity/CSI check. Both rank Deployments stay at zero and the Conductor object stays `Standby`, so no inference pod starts.
+**Registered for staging, not activated.** Argo syncs this Kustomization as an MC Application, separate from `llm-test/conductor-workloads/kustomization.yaml`. Image-build v3 is enabled as pre-cutover work; the model-pull Job remains suspended until a read-only capacity/CSI check. Both rank Deployments stay at zero and the Conductor object stays `Standby`, so no inference pod starts.
 
-The first image-build Job (v1) failed before starting BuildKit because the rootless image has no `/bin/bash`; it did not mount `model-cache` or publish an image. The retry uses `/bin/sh`; v1 is retained for its logs and expires by TTL.
+Image-build v1 failed before starting BuildKit because the rootless image has no `/bin/bash`. v2 started BuildKit but omitted its explicit Dockerfile local source, so it failed while loading `docker/Dockerfile`. Neither attempt mounted `model-cache` or published an image. v3 uses `/bin/sh` and declares both local sources; the failed Jobs are retained for logs and expire by TTL.
 
 ## Recipe pins and staged capacity
 
@@ -16,7 +16,7 @@ The first image-build Job (v1) failed before starting BuildKit because the rootl
 
 ## Why this maps to existing workflows
 
-- `00-image-build.yaml` uses the existing rootless BuildKit Job pattern and fetches the upstream recipe at a full immutable commit; the build is native arm64 and prefers idle `octant`. v2 uses `/bin/sh` because the rootless BuildKit image does not include Bash.
+- `00-image-build.yaml` uses the existing rootless BuildKit Job pattern and fetches the upstream recipe at a full immutable commit; the build is native arm64 and prefers idle `octant`. v3 uses `/bin/sh` because the rootless BuildKit image does not include Bash, and explicitly declares the `dockerfile` local source.
 - `01-download-model.yaml` uses the existing `glm53-cache-puller:v6` downloader, rate-limited to 62.5 MB/s, and verifies the pinned snapshot's index/shards before writing a receipt. It preserves resumable `.part` files and never deletes other model data.
 - `02-serving.yaml` mirrors the current TensorFold v14 two-rank Kubernetes shape: host networking/IPC, `nvidia-rdma`, node capability scheduling and anti-affinity. Worker rank 1 starts first; Conductor gates it on containers running, not readiness, then starts head rank 0. Head health is the serving qualification.
 - `03-managed-workload.yaml` uses `RecreateTogether` so a rank failure recreates the pair. It stays `Standby` and does not claim the active `dgx-spark` route.
