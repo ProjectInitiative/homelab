@@ -5,6 +5,8 @@ kind: Job
 metadata:
   name: glm53-flash-1104-model-pull-v1
   namespace: llm-test
+  annotations:
+    argocd.argoproj.io/sync-options: Force=true,Replace=true
   labels:
     app: glm53-flash-1104-download
     lane: glm53-flash-1104
@@ -71,15 +73,20 @@ spec:
               draft_weights = [p for p in draft.rglob("*") if p.is_file() and p.suffix in (".safetensors", ".bin", ".pt")]
               if not (draft / "config.json").is_file() or not draft_weights:
                   raise SystemExit(f"DFlash2 checkpoint incomplete: {draft}")
+              empty = sorted(name for name in shards if (model / name).stat().st_size <= 0)
+              if empty:
+                  raise SystemExit(f"checkpoint has empty shards: {empty[:10]}")
               receipt_path = pathlib.Path("/models/.glm53-flash-1104-pull-receipt.json")
-              if not receipt_path.is_file():
-                  raise SystemExit(f"puller receipt missing: {receipt_path}")
+              puller_receipt_present = receipt_path.is_file()
+              if not puller_receipt_present:
+                  print(f"puller image did not emit {receipt_path}; using verified snapshot inventory")
               receipt = {
                   "model_revision": model.name,
                   "weight_shards": len(shards),
                   "weight_bytes": weight_bytes,
                   "drafter_revision": draft.name,
                   "drafter_weight_files": len(draft_weights),
+                  "puller_receipt_present": puller_receipt_present,
               }
               tmp = marker.with_suffix(".tmp")
               tmp.write_text(json.dumps(receipt, sort_keys=True) + "\n")
