@@ -5,6 +5,7 @@ resources:
   - 00-image-build.yaml
   - 01-download-model.yaml
   - 05-runtime-image-python3-build.yaml
+  - 06-runtime-image-python3-build-v2.yaml
   - 02-serving.yaml
   - 03-managed-workload.yaml
 
