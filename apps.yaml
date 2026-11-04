@@ -755,12 +755,11 @@ catalog:
       syncOptions:
         - ServerSideApply=true
 
-  # External controller-runtime operator. The immutable source revision itself
-  # pins an immutable multi-arch image and starts the pool in Observe mode.
+  # External controller-runtime operator. This immutable source revision pins
+  # the startup-gate fix and its published multi-arch controller image.
   conductor:
     repoURL: https://github.com/ProjectInitiative/conductor.git
-    # Immutable Conductor deployment commit: priority arbitration + fencing image pin.
-    targetRevision: 3650cbb56a16dfe71083148f5806ca3c5af807f2
+    targetRevision: c546d751d5f59be0a055a731407ae2d912c4cb85
     path: generator
     plugin:
       name: cdk8s-v1.0
