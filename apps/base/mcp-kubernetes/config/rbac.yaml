@@ -71,6 +71,14 @@ rules:
     resources:
       - customresourcedefinitions
     verbs: ["get", "list", "watch"]
+  # Argo CD Applications are read-only deployment/status metadata. This lets
+  # diagnostics verify sync, health, revisions, and ignoreDifferences without
+  # granting Argo mutation or repository access.
+  - apiGroups: ["argoproj.io"]
+    resources:
+      - applications
+      - applications/status
+    verbs: ["get", "list", "watch"]
   - apiGroups: ["coordination.k8s.io"]
     resources:
       - leases
