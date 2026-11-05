@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # GLM 1104 cutover: stand v14 down, bring the 1104 pair up, verify the API.
-# Run as yourself (needs ManagedWorkload patch rights). Reverts via revert.sh on
-# any failure or timeout. See README.md "Activation gates / rollback".
+# Run as yourself (needs ManagedWorkload patch rights). This script never rolls
+# back automatically; run revert.sh explicitly if needed.
 #   ./cutover.sh
 set -euo pipefail
 NS=llm-test
@@ -9,7 +9,7 @@ CUTOVER_TIMEOUT=${CUTOVER_TIMEOUT:-2700}   # 45m: digest + cold load ~600s + mar
 POLL=15
 
 log() { echo "$(date -u +%FT%TZ) $*"; }
-die() { log "FAIL: $*"; "${BASH_SOURCE[0]%/*}/revert.sh" || true; exit 1; }
+die() { log "FAIL: $*"; log "No automatic rollback was performed; run revert.sh explicitly if needed."; exit 1; }
 
 # wait_deployment NAME EXPECTED_REPLICAS TIMEOUT_S
 wait_deployment() {
