@@ -25,6 +25,16 @@ data:
     echo "verified pinned GLM checkpoint and DFlash2 snapshot"
   launch-rank.sh: |
     #!/bin/bash
+    # Port of the recipe's start.sh rank launch: same env, same serve flags, plus
+    # the three things the shell recipe does that a bare exec could not:
+    #   1. a MemAvailable gate (upstream MIN_AVAIL_GIB=100) so a rank never starts
+    #      into a node whose previous tenant has not released its memory yet;
+    #   2. rank logs appended to the node-local state dir, so a terminated
+    #      container's startup output survives pod recreation (the second cutover
+    #      was undiagnosable because the rank logs were lost with the pods);
+    #   3. the CONTEXT=auto fit: on a memory refusal the engine names the window
+    #      that fits ("fits: ... --context T"); both ranks converge on a shared
+    #      fit file (min wins) and restart smaller, like start.sh's retry.
     set -euo pipefail
     role=${1:?role required: head or worker}
     /launch/verify-model.sh
@@ -36,15 +46,26 @@ data:
       *) echo "unknown role: $role" >&2; exit 2 ;;
     esac
     export HOME=/state/home
-    mkdir -p "$HOME"
+    mkdir -p "$HOME" /state/logs
+    log=/state/logs/rank$rank.log
+    if [ -f "$log" ] && [ "$(stat -c%s "$log" 2>/dev/null || echo 0)" -gt 10485760 ]; then : > "$log"; fi
+
+    avail_kib=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+    need_kib=$(( ${GLM_MIN_AVAIL_GIB:-100} * 1048576 ))
+    if [ "${avail_kib:-0}" -lt "$need_kib" ]; then
+      echo "$(date -u +%FT%TZ) rank $rank: MemAvailable ${avail_kib:-0} KiB is under the ${GLM_MIN_AVAIL_GIB:-100} GiB gate; waiting for the node to free memory" | tee -a "$log"
+      exit 1
+    fi
+
     export HF_HOME=/models/.cache/huggingface HF_HUB_OFFLINE=1
     export CUDA_DEVICE_ORDER=PCI_BUS_ID TF_CUDA_DEVICE=0
     export TENSORFOLD_NO_UPDATE_CHECK=1 TENSORFOLD_NO_LIVE=1
     export TENSORFOLD_MEMORY_RESERVE_GIB=9.5
     export TF_GLM_DENSE_BITS=8 TF_GLM_HEAD_BITS=8 TF_GLM_CLEAR_THINKING=1
     export TF_GLM_RANK="$rank" TF_GLM_WORLD=2 TF_KV_PAGES=on
-    export TF_GLM_ABSORB_MMA=1 TF_GLM_HOST_CACHE_GIB=0 TENSORFOLD_PREFILL_SHARE=0.68
-    # Use NCCL-only for initial cutover; custom RoCE remains unqualified (OQ-0050).
+    export TF_GLM_ABSORB_MMA=1 TF_GLM_W8A8=0 TF_GLM_CE_EXCHANGE=0 TF_GLM_HOST_CACHE_GIB=0
+    export TENSORFOLD_PREFILL_SHARE=0.68
+    # NCCL-only for the first serving window; custom RoCE stays unqualified (OQ-0050).
     export TF_ROCE=0 TF_ROCE_MAX_KB=4096 TF_ROCE_HCA="$RDMA_PEER_NETDEVS"
     export TF_ROCE_GID_INDEX="$NCCL_IB_GID_INDEX"
     export NCCL_COMM_ID="$master_ip:29583" NCCL_MIN_NCHANNELS=4 NCCL_MAX_NCHANNELS=4
@@ -52,13 +73,47 @@ data:
 
     model=/models/.cache/huggingface/hub/models--Mia-AiLab--GLM-5.3-Flash-EXL3-4bpw-TensorFold/snapshots/76c0b5173166d2795dd48860f45d8224817f894c
     draft=/models/.cache/huggingface/hub/models--incoai--GLM-5.3-Flash-DFlash2/snapshots/bf582e4eacc1810f76656d1811693ff6c6737d2a
-    echo "launching rank $rank/2 on ${NODE_NAME:-unknown}; NCCL rendezvous $NCCL_COMM_ID; TF_ROCE=$TF_ROCE"
-    exec /usr/local/bin/tensorfold-native serve "$model" \
-      --name GLM-5.3-Flash-EXL3 --host 0.0.0.0 --port 8000 \
-      --context 1048576 --parallel 8 --max-tokens 32768 \
-      --kv-cache fp8 --no-update-check --no-thinking \
-      --vision --vision-max-images 50 --chat-template /templates/chat_template.jinja \
-      --drafter "$draft" --drafter-bits 4
+    # Shared fitted window (min wins); both ranks read it before starting so their
+    # fingerprints agree. Lives on the model-cache PVC, like the pull receipt.
+    fit=/lane-state/glm53-1104-context.tsv
+    ctx=${GLM_CONTEXT:-1048576}
+    if [ -s "$fit" ]; then
+      shared=$(cat "$fit" 2>/dev/null || true)
+      case "$shared" in ''|*[!0-9]*) shared='' ;; esac
+      if [ -n "$shared" ] && [ "$shared" -ge 8192 ] && [ "$shared" -lt "$ctx" ]; then
+        ctx=$shared
+        echo "$(date -u +%FT%TZ) rank $rank: using shared fitted context $ctx" | tee -a "$log"
+      fi
+    fi
+
+    rc=0
+    for attempt in 1 2 3; do
+      echo "$(date -u +%FT%TZ) rank $rank attempt $attempt: context $ctx on ${NODE_NAME:-unknown}; NCCL rendezvous $NCCL_COMM_ID; TF_ROCE=$TF_ROCE" | tee -a "$log"
+      set +e
+      /usr/local/bin/tensorfold-native serve "$model" \
+        --name GLM-5.3-Flash-EXL3 --host 0.0.0.0 --port 8000 \
+        --context "$ctx" --parallel 8 --max-tokens 32768 \
+        --kv-cache fp8 --no-update-check --no-thinking --reasoning-effort xhigh \
+        --vision --vision-max-images 50 --chat-template /templates/chat_template.jinja \
+        --drafter "$draft" --drafter-bits 4 2>&1 | tee -a "$log"
+      rc=${PIPESTATUS[0]}
+      set -e
+      [ "$rc" -eq 0 ] && exit 0
+      # A shared-pages memory refusal names the window that fits; remember it for
+      # both ranks and retry smaller in this pod (Conductor also recreates the pair).
+      fits=$(grep -ho 'fits: .*' "$log" 2>/dev/null | tail -1 || true)
+      t=$(printf '%s' "$fits" | grep -o -- '--context [0-9]*' | grep -o '[0-9]*$' || true)
+      case "$t" in ''|*[!0-9]*) break ;; esac
+      if [ "$t" -ge 8192 ] && [ "$t" -lt "$ctx" ]; then
+        new=$(( t * 99 / 100 / 1024 * 1024 ))
+        echo "$new" > "$fit"
+        echo "$(date -u +%FT%TZ) rank $rank: refused at $ctx; engine fits --context $t; next start $new" | tee -a "$log"
+        ctx=$new
+      else
+        break
+      fi
+    done
+    exit "$rc"
 ---
 # Publish endpoints before readiness; rank 1 needs to discover the head before it can become ready.
 apiVersion: v1
@@ -154,6 +209,7 @@ spec:
             - {name: fabric-config, mountPath: /opt/rdma/configure-rdma-fabric.sh, subPath: configure-rdma-fabric.sh, readOnly: true}
             - {name: fabric-inventory, mountPath: /etc/dgx-spark/rdma-fabric.json, readOnly: true}
             - {name: rank-state, mountPath: /state}
+            - {name: lane-state, mountPath: /lane-state}
       volumes:
         - name: models
           persistentVolumeClaim: {claimName: model-cache}
@@ -167,6 +223,8 @@ spec:
           hostPath: {path: /var/lib/dgx-spark/rdma-fabric.json, type: File}
         - name: rank-state
           hostPath: {path: /var/lib/llm-test/glm53-flash-1104-state, type: DirectoryOrCreate}
+        - name: lane-state
+          persistentVolumeClaim: {claimName: model-cache}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -233,6 +291,7 @@ spec:
             - {name: fabric-config, mountPath: /opt/rdma/configure-rdma-fabric.sh, subPath: configure-rdma-fabric.sh, readOnly: true}
             - {name: fabric-inventory, mountPath: /etc/dgx-spark/rdma-fabric.json, readOnly: true}
             - {name: rank-state, mountPath: /state}
+            - {name: lane-state, mountPath: /lane-state}
       volumes:
         - name: models
           persistentVolumeClaim: {claimName: model-cache}
@@ -246,3 +305,5 @@ spec:
           hostPath: {path: /var/lib/dgx-spark/rdma-fabric.json, type: File}
         - name: rank-state
           hostPath: {path: /var/lib/llm-test/glm53-flash-1104-state, type: DirectoryOrCreate}
+        - name: lane-state
+          persistentVolumeClaim: {claimName: model-cache}

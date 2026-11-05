@@ -45,7 +45,7 @@ spec:
               set -eu
               src=/workspace/src
               test -s "$src/docker/Dockerfile" || { echo "recipe source missing" >&2; exit 1; }
-              test "$(git -C "$src" rev-parse HEAD)" = "3066a3fe49e7fcdf969de9a51094dd8985cec1a0"
+              test "$(git -C "$src" rev-parse HEAD)" = "94b72f557268f2ea46852ac03c81119d21f3611e"
               image=local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:74e19a63a9a5
               echo "building $image from recipe 3066a3fe"
               exec buildctl-daemonless.sh build \
@@ -90,10 +90,10 @@ spec:
               mkdir -p "$src"
               git init "$src"
               git -C "$src" remote add origin https://github.com/MiaAI-Lab/GLM-5.3-Flash-DGX-Sparks-1104.git
-              git -C "$src" fetch --depth 1 --no-tags origin 3066a3fe49e7fcdf969de9a51094dd8985cec1a0
+              git -C "$src" fetch --depth 1 --no-tags origin 94b72f557268f2ea46852ac03c81119d21f3611e
               git -C "$src" checkout --detach FETCH_HEAD
               actual=$(git -C "$src" rev-parse HEAD)
-              test "$actual" = "3066a3fe49e7fcdf969de9a51094dd8985cec1a0"
+              test "$actual" = "94b72f557268f2ea46852ac03c81119d21f3611e"
               echo "staged upstream recipe $actual"
           resources:
             requests: {cpu: 250m, memory: 256Mi}
