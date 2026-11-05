@@ -1,4 +1,6 @@
-# Standby after the retry failed before exposing a healthy head; investigate before retrying.
+# Standby. The 2026-11-05 relaunch hardens the rank launcher to match the recipe's
+# start.sh (memory gate, preserved rank logs, context auto-fit); activate only in
+# an exclusive window with v14 ready to restore.
 apiVersion: conductor.projectinitiative.io/v1alpha1
 kind: ManagedWorkload
 metadata:
