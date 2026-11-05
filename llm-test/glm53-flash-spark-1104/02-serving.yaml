@@ -248,7 +248,7 @@ spec:
         - name: chat-template
           configMap: {name: glm53-flash-1104-chat-template, defaultMode: 0444}
         - name: fabric-config
-          configMap: {name: tensorfold-v14-rdma-fabric, defaultMode: 0555}
+          configMap: {name: glm53-flash-1104-rdma-fabric, defaultMode: 0555}
         - name: fabric-inventory
           hostPath: {path: /var/lib/dgx-spark/rdma-fabric.json, type: File}
         - name: rank-state
@@ -357,7 +357,7 @@ spec:
         - name: chat-template
           configMap: {name: glm53-flash-1104-chat-template, defaultMode: 0444}
         - name: fabric-config
-          configMap: {name: tensorfold-v14-rdma-fabric, defaultMode: 0555}
+          configMap: {name: glm53-flash-1104-rdma-fabric, defaultMode: 0555}
         - name: fabric-inventory
           hostPath: {path: /var/lib/dgx-spark/rdma-fabric.json, type: File}
         - name: rank-state

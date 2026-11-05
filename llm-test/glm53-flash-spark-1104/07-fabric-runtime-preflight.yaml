@@ -39,7 +39,7 @@ spec:
               source /opt/rdma/configure-rdma-fabric.sh
               echo "GLM 1104 runtime fabric preflight passed: peer=$RDMA_PEER_NODE rails=$RDMA_PEER_NETDEVS hcas=$NCCL_IB_HCA gid=$NCCL_IB_GID_INDEX"
           env:
-            - {name: PEER_SERVICE, value: tensorfold-v14-worker-rendezvous.llm-test.svc.cluster.local}
+            - {name: PEER_SERVICE, value: glm53-flash-1104-head-rendezvous.llm-test.svc.cluster.local}
             - {name: HOST_IP, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
             - {name: NODE_NAME, valueFrom: {fieldRef: {fieldPath: spec.nodeName}}}
           resources:
@@ -53,6 +53,6 @@ spec:
             - {name: fabric-inventory, mountPath: /etc/dgx-spark/rdma-fabric.json, readOnly: true}
       volumes:
         - name: fabric-config
-          configMap: {name: tensorfold-v14-rdma-fabric, defaultMode: 0555}
+          configMap: {name: glm53-flash-1104-rdma-fabric, defaultMode: 0555}
         - name: fabric-inventory
           hostPath: {path: /var/lib/dgx-spark/rdma-fabric.json, type: File}
