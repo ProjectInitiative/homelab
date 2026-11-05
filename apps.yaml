@@ -806,6 +806,14 @@ catalog:
       syncOptions:
         - ServerSideApply=true
         - SkipDryRunOnMissingResource=true
+        - RespectIgnoreDifferences=true
+    # desiredState is Conductor's runtime residency switch; allow manual cutovers
+    # without Argo restoring the Git-declared value for any ManagedWorkload.
+    ignoreDifferences:
+      - group: conductor.projectinitiative.io
+        kind: ManagedWorkload
+        jsonPointers:
+          - /spec/desiredState
 
   # Apps
   tailscale-proxy-groups:
