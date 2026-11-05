@@ -5,14 +5,12 @@ kind: Job
 metadata:
   name: glm53-flash-1104-model-pull-v1
   namespace: llm-test
-  annotations:
-    argocd.argoproj.io/sync-options: Force=true,Replace=true
   labels:
     app: glm53-flash-1104-download
     lane: glm53-flash-1104
     purpose: model-cache-preload
 spec:
-  suspend: false
+  suspend: true
   ttlSecondsAfterFinished: 604800
   backoffLimit: 2147483647
   activeDeadlineSeconds: 86400
