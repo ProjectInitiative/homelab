@@ -22,7 +22,11 @@ spec:
           startOrder: 10
           stopOrder: 20
           replicas: 1
-          readyGate: ContainersRunning
+          # The worker launcher blocks on the head rendezvous, but its container is
+          # intentionally considered available so Conductor can advance to the head.
+          # DeploymentAvailable matches the pod's actual Running/Ready condition and
+          # avoids the ContainersRunning transition stalling before head creation.
+          readyGate: DeploymentAvailable
         - name: glm53-flash-1104-head
           role: head
           startOrder: 20
