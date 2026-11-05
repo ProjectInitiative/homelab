@@ -27,6 +27,19 @@ wait_deployment() {
 }
 
 endpoint_ip() { kubectl get endpoints "$1" -n "$NS" -o jsonpath='{.subsets[0].addresses[0].ip}' 2>/dev/null || true; }
+wait_intent() {
+  local name=$1 want=$2 deadline=$(( $(date +%s) + 120 )) desired effective
+  while [ "$(date +%s)" -lt "$deadline" ]; do
+    desired=$(kubectl get managedworkload "$name" -n "$NS" -o jsonpath='{.spec.desiredState}' 2>/dev/null || true)
+    effective=$(kubectl get managedworkload "$name" -n "$NS" -o jsonpath='{.status.effectiveIntent}' 2>/dev/null || true)
+    if [ "$desired" = "$want" ] && [ "$effective" = "$want" ]; then
+      log "$name intent is $want (source=$(kubectl get managedworkload "$name" -n "$NS" -o jsonpath='{.status.intentSource}' 2>/dev/null || true))"; return 0
+    fi
+    sleep 3
+  done
+  log "TIMEOUT waiting for $name intent=$want (desired=$desired effective=$effective)"
+  return 1
+}
 wait_endpoint() {
   local svc=$1 ip deadline=$(( $(date +%s) + CUTOVER_TIMEOUT ))
   while [ "$(date +%s)" -lt "$deadline" ]; do
@@ -39,11 +52,13 @@ wait_endpoint() {
 
 log "== 1/5 v14 -> Standby (Conductor recreates the pair down) =="
 kubectl patch managedworkload tensorfold-v14 -n "$NS" --type=merge -p '{"spec":{"desiredState":"Standby"}}'
+wait_intent tensorfold-v14 Standby || die "v14 did not accept Standby; no GLM activation attempted"
 wait_deployment tensorfold-v14-head 0 600 || die "v14 head did not scale down"
 wait_deployment tensorfold-v14-worker 0 600 || die "v14 worker did not scale down"
 
 log "== 2/5 GLM 1104 -> Resident (launcher self-gates on MemAvailable) =="
 kubectl patch managedworkload glm53-flash-1104 -n "$NS" --type=merge -p '{"spec":{"desiredState":"Resident"}}'
+wait_intent glm53-flash-1104 Resident || die "GLM 1104 did not accept Resident; v14 remains Standby"
 
 log "== 3/5 waiting up to ${CUTOVER_TIMEOUT}s for both 1104 ranks (check /state/logs/rank*.log on the rank nodes) =="
 # The worker is the flaky one historically; surface its restarts while waiting.

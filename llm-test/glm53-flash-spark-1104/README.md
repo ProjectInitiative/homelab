@@ -38,8 +38,8 @@ The serving manifest reuses the existing `tensorfold-v14-rdma-fabric` ConfigMap 
 
 Run these as yourself (they need ManagedWorkload patch rights; the agent identity cannot patch them):
 
-- `./cutover.sh` — v14 `Standby` → GLM 1104 `Resident` → waits for both ranks (watch loop every 60s) → checks the `glm53-flash-1104-api` endpoint, `/health`, `/v1/models`, and a greedy completion. It does **not** revert automatically on failure or timeout; run `./revert.sh` explicitly. `CUTOVER_TIMEOUT` (default 2700s) bounds the wait.
-- `./revert.sh` — 1104 `Standby` → v14 `Resident` → waits for both ranks → verifies `dgx-spark-backend` has an endpoint and answers `/health`. `REVERT_TIMEOUT` (default 2700s).
+- `./cutover.sh` — v14 `Standby` → verifies both `spec.desiredState` and Conductor `status.effectiveIntent` are `Standby` → GLM 1104 `Resident` → verifies both intent fields are `Resident` → waits for both ranks (watch loop every 60s) → checks the `glm53-flash-1104-api` endpoint, `/health`, `/v1/models`, and a greedy completion. It does **not** revert automatically on failure or timeout; run `./revert.sh` explicitly. `CUTOVER_TIMEOUT` (default 2700s) bounds the wait.
+- `./revert.sh` — 1104 `Standby` → verifies the effective intent → v14 `Resident` → verifies the effective intent → waits for both ranks → verifies `dgx-spark-backend` has an endpoint and answers `/health`. `REVERT_TIMEOUT` (default 2700s).
 
 Both are idempotent. If the worker refuses during a cutover, the cutover script leaves the current state unchanged for inspection; run `./revert.sh` when you decide to restore v14. Read `/var/lib/llm-test/glm53-flash-1104-state/logs/rank1.log` on the worker node — the launcher preserves the refusal text there.
 
