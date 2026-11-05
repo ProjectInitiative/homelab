@@ -184,6 +184,34 @@ spec:
             - labelSelector:
                 matchLabels: {lane: glm53-flash-1104}
               topologyKey: kubernetes.io/hostname
+      # Match v14's bounded page-cache reclamation before the rank's unified-memory gate.
+      # Without this, a just-stopped resident can leave MemAvailable around 22 GiB and
+      # the launcher exits before TensorFold ever starts.
+      initContainers:
+        - name: reclaim-vm-cache
+          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:74e19a63a9a5-py3-v2@sha256:437559d301f371227a06d32be6fa9800e9d092543d774f694b7e532ac44110a1
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              threshold_kib=$(( ${GLM_MIN_AVAIL_GIB:-100} * 1048576 ))
+              for attempt in $(seq 1 60); do
+                before=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+                echo "cache reclaim attempt ${attempt}/60: MemAvailable=${before} KiB"
+                sync
+                echo 3 > /proc/sys/vm/drop_caches
+                after=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+                if (( after >= threshold_kib )); then
+                  echo "cache reclaim passed: MemAvailable=${after} KiB"
+                  exit 0
+                fi
+                sleep 5
+              done
+              echo "FATAL: MemAvailable remained below ${threshold_kib} KiB" >&2
+              exit 1
+          env:
+            - {name: GLM_MIN_AVAIL_GIB, value: "100"}
+          securityContext: {privileged: true}
       containers:
         - name: tensorfold
           image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:74e19a63a9a5-py3-v2@sha256:437559d301f371227a06d32be6fa9800e9d092543d774f694b7e532ac44110a1
@@ -193,6 +221,7 @@ spec:
             capabilities: {add: [IPC_LOCK]}
           env:
             - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
+            - {name: GLM_MIN_AVAIL_GIB, value: "100"}
             - {name: PEER_SERVICE, value: glm53-flash-1104-head-rendezvous.llm-test.svc.cluster.local}
             - {name: NODE_NAME, valueFrom: {fieldRef: {fieldPath: spec.nodeName}}}
             - {name: HOST_IP, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
@@ -255,6 +284,32 @@ spec:
             - labelSelector:
                 matchLabels: {lane: glm53-flash-1104}
               topologyKey: kubernetes.io/hostname
+      # Match v14's bounded page-cache reclamation before the rank's unified-memory gate.
+      initContainers:
+        - name: reclaim-vm-cache
+          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:74e19a63a9a5-py3-v2@sha256:437559d301f371227a06d32be6fa9800e9d092543d774f694b7e532ac44110a1
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              threshold_kib=$(( ${GLM_MIN_AVAIL_GIB:-100} * 1048576 ))
+              for attempt in $(seq 1 60); do
+                before=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+                echo "cache reclaim attempt ${attempt}/60: MemAvailable=${before} KiB"
+                sync
+                echo 3 > /proc/sys/vm/drop_caches
+                after=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+                if (( after >= threshold_kib )); then
+                  echo "cache reclaim passed: MemAvailable=${after} KiB"
+                  exit 0
+                fi
+                sleep 5
+              done
+              echo "FATAL: MemAvailable remained below ${threshold_kib} KiB" >&2
+              exit 1
+          env:
+            - {name: GLM_MIN_AVAIL_GIB, value: "100"}
+          securityContext: {privileged: true}
       containers:
         - name: tensorfold
           image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:74e19a63a9a5-py3-v2@sha256:437559d301f371227a06d32be6fa9800e9d092543d774f694b7e532ac44110a1
@@ -264,6 +319,7 @@ spec:
             capabilities: {add: [IPC_LOCK]}
           env:
             - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
+            - {name: GLM_MIN_AVAIL_GIB, value: "100"}
             - {name: PEER_SERVICE, value: glm53-flash-1104-worker-rendezvous.llm-test.svc.cluster.local}
             - {name: NODE_NAME, valueFrom: {fieldRef: {fieldPath: spec.nodeName}}}
             - {name: HOST_IP, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
