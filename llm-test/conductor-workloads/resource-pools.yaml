@@ -4,7 +4,9 @@ metadata:
   name: dgx-spark
   namespace: llm-test
 spec:
-  managementMode: Manage
+  # Break-glass manual residency window: Conductor observes this pool but does
+  # not scale or recover its workloads. Restore Manage after validation.
+  managementMode: Observe
   capacity:
     slots: 1
   nodeSelector:
