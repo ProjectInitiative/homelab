@@ -2,7 +2,7 @@
 
 This is a Kubernetes/Conductor port of [MiaAI-Lab/GLM-5.3-Flash-DGX-Sparks-1104](https://github.com/MiaAI-Lab/GLM-5.3-Flash-DGX-Sparks-1104), pinned at recipe commit `3066a3fe49e7fcdf969de9a51094dd8985cec1a0`. It builds the recipe's TensorFold native Zig/CUDA engine (`f350cd3ea253a042e205746928271f9d8f71a82d`) plus its 105 patches for GB10 `sm_121`. The vision template is vendored from that same pinned recipe.
 
-**Second controlled cutover.** The first activation stopped v14, but both new ranks failed before engine launch because the original runtime lacked `python3`; GitOps restored v14, and both ranks are now Ready with the stable endpoint back. A derived Python-enabled image is pinned below, and `07-fabric-runtime-preflight.yaml` passed on octant against the live v14 peer (two rails, HCA selection, GID 3). This GitOps change moves v14 to `Standby` and recipe 1104 to `Resident`; `08-live-smoke.yaml` waits for the new API, then checks health, model listing, and a short completion. The retry uses NCCL-only (`TF_ROCE=0`); custom RoCE remains unqualified (OQ-0050). Roll back through GitOps if the smoke fails.
+**Staged; second cutover rolled back through GitOps.** The Python-enabled image's read-only preflight passed on octant, but the serving worker on sextant exited before a healthy head or stable endpoint appeared. The live smoke Job also failed while the API had no endpoints. v14 is being restored to `Resident`; GLM returns to `Standby`. Do not retry until the actual rank startup failure is root-caused. The model-pull Job re-ran inventory verification only (0 files queued); it did not redownload weights. Initial transport remains NCCL-only (`TF_ROCE=0`); custom RoCE remains unqualified (OQ-0050).
 
 Image-build v1 failed before BuildKit because the rootless image has no `/bin/bash`; v2 failed loading `docker/Dockerfile` because its local source was not declared. Neither attempt mounted `model-cache` or published an image. v3 succeeded; the failed Job records are retained for logs and expire by TTL.
 
@@ -22,7 +22,7 @@ The model pull completed and its receipt audit verified 83 checkpoint shards (17
 - `01-download-model.yaml` uses the existing `glm53-cache-puller:v6` downloader, rate-limited to 62.5 MB/s, and verifies the pinned snapshot's index/shards before writing a lane receipt (the pinned image did not emit `RECEIPT_PATH`). It preserves resumable `.part` files and never deletes other model data.
 - The runtime-image v1 attempt installed only `python3-minimal` and failed because it omitted the standard-library `json` module. `06-runtime-image-python3-build-v2.yaml` installs full `python3`; its successful build verified `ipaddress`, `json`, `pathlib`, and `shlex`. The image build has no GPU or `model-cache` mount.
 - `07-fabric-runtime-preflight.yaml` ran successfully on octant against the live v14 peer, verifying node inventory, two rails, and HCA/GID selection. It requests no GPU and mounts no `model-cache`.
-- `08-live-smoke.yaml` waits on the recipe-specific API Service, then calls `/health`, `/v1/models`, and one short chat completion without mounting the cache or requesting a GPU.
+- The live smoke Job was removed from the active Kustomization after the retry failed; it is not a serving or cache resource.
 - `02-serving.yaml` mirrors the current TensorFold v14 two-rank Kubernetes shape: host networking/IPC, `nvidia-rdma`, node capability scheduling and anti-affinity. Worker rank 1 starts first; Conductor gates it on containers running, not readiness, then starts head rank 0. The initial cutover uses NCCL-only; head health gates the stable route.
 - `03-managed-workload.yaml` uses `RecreateTogether` so a rank failure recreates the pair. It is `Resident` for this coordinated retry; its head carries the stable `dgx-spark` alias.
 
@@ -30,11 +30,11 @@ The serving manifest reuses the existing `tensorfold-v14-rdma-fabric` ConfigMap 
 
 ## Activation gates / rollback
 
-1. The Python-enabled runtime preflight passed on octant against the live v14 peer. It validates inventory/HCA/GID parsing, not the custom RoCE collective.
-2. This GitOps cutover sets v14 `Standby` and recipe 1104 `Resident`; pool capacity is one, so never run both TP2 pairs together. Argo ignores only these Deployment `spec.replicas` fields and Conductor owns the scale.
-3. Initial transport is NCCL-only (`TF_ROCE=0`). Do not enable custom RoCE until OQ-0050's rank/GID and cross-rank qualification passes.
-4. `08-live-smoke.yaml` waits for the new API, then checks `/health`, `/v1/models`, and a short completion. Also verify both ranks, memory reserve, and the stable Service endpoint after cold load.
-5. Roll back through GitOps by setting recipe 1104 `Standby` and v14 `Resident`; do not run both TP2 workloads simultaneously.
+1. The Python-enabled runtime preflight passed on octant against the live v14 peer, but did not validate startup on the actual rank nodes.
+2. Keep recipe 1104 `Standby` until the sextant worker exit is root-caused and the launch script passes on the serving ranks; v14 must be fully Ready with its stable endpoint before any retry.
+3. A retry must remain NCCL-only (`TF_ROCE=0`); do not enable custom RoCE until OQ-0050's rank/GID and cross-rank qualification passes.
+4. A future smoke must wait for the recipe API endpoint and then verify `/health`, `/v1/models`, a short completion, both ranks, memory reserve, and the stable Service endpoint after cold load.
+5. Roll back through GitOps by setting recipe 1104 `Standby` and v14 `Resident`; never run both TP2 workloads simultaneously.
 
 The image build did not mount or write `model-cache`. The downloader added only the pinned snapshots; serving mounts the PVC read-only. Git manifests keep rank replicas at zero while Conductor owns runtime scale. The stable API Service remains on port 8000 and follows the head's `serving.homelab.io/alias=dgx-spark` label.
 
