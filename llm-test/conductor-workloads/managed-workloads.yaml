@@ -5,8 +5,8 @@ metadata:
   namespace: llm-test
 spec:
   poolRef: dgx-spark
-  desiredState: Standby
-  # Exclusive cutover to recipe 1104; restore this lane via GitOps if its smoke fails.
+  desiredState: Resident
+  # Proven rollback lane while recipe 1104 startup failure is investigated.
   # The scheduler may reclaim lower-priority residency when capacity is lost.
   priority: 0
   driver:

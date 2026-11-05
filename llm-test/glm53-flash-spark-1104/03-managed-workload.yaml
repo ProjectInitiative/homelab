@@ -1,4 +1,4 @@
-# Controlled retry after the Python-enabled runtime fabric preflight passed on octant.
+# Standby after the retry failed before exposing a healthy head; investigate before retrying.
 apiVersion: conductor.projectinitiative.io/v1alpha1
 kind: ManagedWorkload
 metadata:
@@ -6,8 +6,8 @@ metadata:
   namespace: llm-test
 spec:
   poolRef: dgx-spark
-  desiredState: Resident
-  # Lower priority than v14; v14 is moved to Standby in conductor-workloads for this swap.
+  desiredState: Standby
+  # Keep inactive until the rank startup failure is root-caused and a safe retry is reviewed.
   priority: 90
   driver:
     type: DeploymentSet
