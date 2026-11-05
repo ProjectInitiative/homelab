@@ -41,8 +41,9 @@ data:
     source /opt/rdma/configure-rdma-fabric.sh
 
     case "$role" in
-      head) rank=0; master_ip=$HOST_IP ;;
-      worker) rank=1; master_ip=$PEER_CONTROL_IP ;;
+      # NCCL bootstrap must stay on the direct ConnectX fabric, not mgmnt.10.
+      head) rank=0; master_ip=${RDMA_LOCAL_ADDRESS:?} ;;
+      worker) rank=1; master_ip=${RDMA_PEER_ADDRESS:?} ;;
       *) echo "unknown role: $role" >&2; exit 2 ;;
     esac
     export HOME=/state/home
