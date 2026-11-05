@@ -740,8 +740,8 @@ catalog:
       syncOptions:
         - ServerSideApply=true
 
-  # Staged GLM recipe 1104 lane. Conductor owns Deployment replica counts;
-  # keep it Standby until a controlled startup retry is approved.
+  # GLM recipe 1104 controlled retry. Conductor owns Deployment replica counts;
+  # the Python-enabled runtime fabric preflight passed before this swap.
   glm53-flash-spark-1104:
     path: llm-test/glm53-flash-spark-1104
     annotations:

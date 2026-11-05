@@ -1,4 +1,4 @@
-# Standby after startup validation found a missing Python runtime dependency; v14 is restored.
+# Controlled retry after the Python-enabled runtime fabric preflight passed on octant.
 apiVersion: conductor.projectinitiative.io/v1alpha1
 kind: ManagedWorkload
 metadata:
@@ -6,8 +6,8 @@ metadata:
   namespace: llm-test
 spec:
   poolRef: dgx-spark
-  desiredState: Standby
-  # Keep this inactive until a controlled startup retry; v14 is the active rollback lane.
+  desiredState: Resident
+  # Lower priority than v14; v14 is moved to Standby in conductor-workloads for this swap.
   priority: 90
   driver:
     type: DeploymentSet

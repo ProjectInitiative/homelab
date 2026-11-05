@@ -5,8 +5,8 @@ metadata:
   namespace: llm-test
 spec:
   poolRef: dgx-spark
-  desiredState: Resident
-  # Restore the proven serving lane; keep recipe 1104 Standby until its runtime image is fixed.
+  desiredState: Standby
+  # Exclusive cutover to recipe 1104; restore this lane via GitOps if its smoke fails.
   # The scheduler may reclaim lower-priority residency when capacity is lost.
   priority: 0
   driver:

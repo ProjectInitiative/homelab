@@ -1,0 +1,91 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: glm53-flash-1104-live-smoke-v1
+  namespace: llm-test
+  labels:
+    app: glm53-flash-1104-smoke
+    lane: glm53-flash-1104
+    purpose: cutover-smoke
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 3600
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      labels:
+        app: glm53-flash-1104-smoke
+        lane: glm53-flash-1104
+        purpose: cutover-smoke
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/arch: arm64
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - {key: kubernetes.io/hostname, operator: In, values: [octant]}
+      containers:
+        - name: smoke
+          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:74e19a63a9a5-py3-v2@sha256:437559d301f371227a06d32be6fa9800e9d092543d774f694b7e532ac44110a1
+          imagePullPolicy: IfNotPresent
+          command: ["python3", "-c"]
+          args:
+            - |
+              import json
+              import time
+              import urllib.error
+              import urllib.request
+
+              base = "http://glm53-flash-1104-api.llm-test.svc.cluster.local:8000"
+              deadline = time.monotonic() + 3300
+              while time.monotonic() < deadline:
+                  try:
+                      with urllib.request.urlopen(base + "/health", timeout=5) as response:
+                          if response.status == 200:
+                              print("health=200")
+                              break
+                  except Exception as exc:
+                      print(f"waiting for GLM head readiness: {type(exc).__name__}")
+                  time.sleep(10)
+              else:
+                  raise SystemExit("timed out waiting for GLM head health")
+
+              with urllib.request.urlopen(base + "/v1/models", timeout=15) as response:
+                  models = json.load(response).get("data", [])
+              model_ids = [item.get("id") for item in models if item.get("id")]
+              if not model_ids:
+                  raise SystemExit("/v1/models returned no model ids")
+              model = "GLM-5.3-Flash-EXL3" if "GLM-5.3-Flash-EXL3" in model_ids else model_ids[0]
+              print("models=" + ",".join(model_ids))
+
+              body = json.dumps({
+                  "model": model,
+                  "messages": [{"role": "user", "content": "Reply with the token GLM1104_OK."}],
+                  "max_tokens": 16,
+                  "stream": False,
+              }).encode()
+              request = urllib.request.Request(
+                  base + "/v1/chat/completions",
+                  data=body,
+                  headers={"Content-Type": "application/json"},
+                  method="POST",
+              )
+              with urllib.request.urlopen(request, timeout=300) as response:
+                  result = json.load(response)
+              choice = result.get("choices", [{}])[0]
+              text = choice.get("message", {}).get("content", "")
+              print(f"completion=200 model={result.get('model', model)} finish={choice.get('finish_reason')} text={text[:160]!r}")
+              if not text:
+                  raise SystemExit("completion returned empty message content")
+              print("GLM 1104 live smoke passed")
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 512Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
