@@ -16,6 +16,9 @@ configMapGenerator:
   - name: glm53-flash-1104-runtime-dockerfile
     files:
       - docker/Dockerfile.runtime
+  - name: glm53-flash-1104-rdma-fabric
+    files:
+      - configure-rdma-fabric.sh
 
 generatorOptions:
   disableNameSuffixHash: true
