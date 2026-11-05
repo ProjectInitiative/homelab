@@ -5,6 +5,10 @@ kind: Job
 metadata:
   name: glm53-flash-1104-image-build-v3
   namespace: llm-test
+  # This completed one-shot build is retained as provenance; do not re-apply
+  # its immutable pod template on every serving-lane sync.
+  annotations:
+    argocd.argoproj.io/hook: Skip
   labels:
     app: glm53-flash-1104-image-build
     lane: glm53-flash-1104
