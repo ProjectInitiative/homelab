@@ -12,9 +12,13 @@ configMapGenerator:
   - name: glm53-flash-1104-chat-template
     files:
       - chat_template.jinja=templates/glm-5.3-flash-vision.jinja
+    options:
+      disableNameSuffixHash: true
   - name: glm53-flash-1104-runtime-dockerfile
     files:
       - docker/Dockerfile.runtime
+    options:
+      disableNameSuffixHash: true
   - name: glm53-flash-1104-rdma-fabric
     files:
       - configure-rdma-fabric.sh
