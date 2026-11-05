@@ -34,6 +34,15 @@ The model pull completed and its receipt audit verified 83 checkpoint shards (17
 
 The serving manifest reuses the existing `tensorfold-v14-rdma-fabric` ConfigMap and `/var/lib/dgx-spark/rdma-fabric.json` host inventory. NCCL bootstrap is placed on the shared control-plane address; NCCL/engine data traffic is selected from the node-local RoCE inventory. This is the Kubernetes adaptation to validate; upstream's launcher discovers its direct-link address through SSH.
 
+## Cutover / revert scripts
+
+Run these as yourself (they need ManagedWorkload patch rights; the agent identity cannot patch them):
+
+- `./cutover.sh` — v14 `Standby` → GLM 1104 `Resident` → waits for both ranks (watch loop every 60s) → checks the `glm53-flash-1104-api` endpoint, `/health`, `/v1/models`, and a greedy completion. On any failure or timeout it runs `revert.sh` automatically. `CUTOVER_TIMEOUT` (default 2700s) bounds the wait.
+- `./revert.sh` — 1104 `Standby` → v14 `Resident` → waits for both ranks → verifies `dgx-spark-backend` has an endpoint and answers `/health`. `REVERT_TIMEOUT` (default 2700s).
+
+Both are idempotent. If the worker refuses during a cutover, read `/var/lib/llm-test/glm53-flash-1104-state/logs/rank1.log` on the worker node — the launcher preserves the refusal text there.
+
 ## Activation gates / rollback
 
 1. Keep recipe 1104 `Standby` until an exclusive window: set v14 `Standby`, let its memory release, then activate 1104 and watch `/state/logs/rank*.log` on each rank node — the memory gate, fit file and preserved logs make the next failure diagnosable. Restore v14 `Resident` if the pair does not come up.
