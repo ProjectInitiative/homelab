@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: glm53-flash-1104-fabric-preflight-v1
+  name: glm53-flash-1104-fabric-preflight-v2
   namespace: llm-test
   labels:
     app: glm53-flash-1104-preflight
