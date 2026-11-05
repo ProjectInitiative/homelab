@@ -754,11 +754,17 @@ catalog:
         - ServerSideApply=true
         - SkipDryRunOnMissingResource=true
         - RespectIgnoreDifferences=true
+    # desiredState is Conductor's runtime residency switch; allow manual cutovers
+    # without Argo restoring the Git-declared Standby value.
     ignoreDifferences:
       - group: apps
         kind: Deployment
         jsonPointers:
           - /spec/replicas
+      - group: conductor.projectinitiative.io
+        kind: ManagedWorkload
+        jsonPointers:
+          - /spec/desiredState
 
   # Memory watchdog + forensics for the DGX Spark nodes (RISK-0040):
   # privileged hostPID DaemonSet watching host MemAvailable, snapshots
