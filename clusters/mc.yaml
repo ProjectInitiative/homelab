@@ -147,32 +147,6 @@ apps:
               - buffer-size=1G
               - max-downloads=200
               - cache-eviction=lru
-          # Only legacy model-cache joins this ring. The ephemeral
-          # model-cache-ephemeral claim uses separate JuiceFS metadata and
-          # Garage backing, so it must remain outside the ring.
-          - pvcSelector:
-              matchName: model-cache
-              matchStorageClassName: juicefs-sc
-            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:gcache-strict-sharding-arm64@sha256:be6ece264ef6c40e7a8e69e6323df95bc5ba92ac0b9e0522679e858b8cff3440
-            hostNetwork: true
-            dnsPolicy: ClusterFirstWithHostNet
-            mountOptions:
-              - cache-dir=/mnt/pool/juicefs-ring
-              - cache-size=550000
-              - prefetch=8
-              - max-readahead=256M
-              - buffer-size=1G
-              - max-downloads=200
-              - cache-eviction=lru
-              - cache-group=dgx-model-cache
-              - group-listen=:13910
-              - group-advertise=auto-c7
-              - peer-range-read
-              - group-heartbeat=5s
-              - remote-timeout=2s
-              - rdma-network=auto
-              - rdma-proto=rsockets
-              - rdma-fallback=tcp
           # Capstan cache directories must exist before mount Pods use them;
           # the runbook documents the host partition and rollout sequence.
           # These node defaults apply to juicefs-sc PVCs; Argo's later PVC-
@@ -232,6 +206,30 @@ apps:
               - cache-size=102400
               - prefetch=8
               - buffer-size=1G
+          # Keep the target PVC last: CSI v0.33.0 merges matching patches in
+          # order and replaces the entire mountOptions list with the last one.
+          # This overrides node-local defaults on any node for model-cache only;
+          # model-cache-ephemeral uses a separate StorageClass and backing store.
+          - pvcSelector:
+              matchName: model-cache
+              matchStorageClassName: juicefs-sc
+            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:gcache-strict-sharding-arm64@sha256:be6ece264ef6c40e7a8e69e6323df95bc5ba92ac0b9e0522679e858b8cff3440
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
+            mountOptions:
+              - cache-dir=/mnt/pool/juicefs-ring
+              - cache-size=550000
+              - prefetch=8
+              - max-readahead=256M
+              - buffer-size=1G
+              - max-downloads=200
+              - cache-eviction=lru
+              - cache-group=dgx-model-cache
+              - group-listen=:13910
+              - group-advertise=auto-c7
+              - peer-range-read
+              - group-heartbeat=5s
+              - remote-timeout=2s
   - name: csi-snapshotter
     namespace: kube-system
   - name: juicefs-platform
