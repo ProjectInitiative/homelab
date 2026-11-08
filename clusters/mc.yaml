@@ -213,7 +213,7 @@ apps:
           - pvcSelector:
               matchName: model-cache
               matchStorageClassName: juicefs-sc
-            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:c86f272-arm64@sha256:839c41f475f4b82392b7b52c920d9546ba3fbc5b0d1d6286008dfffe0d076f5e
+            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:6aaf22da-arm64@sha256:50848ee986438b756a842ce7f2250a42f1954159ff9d153181a646bd283bb5bf
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
             mountOptions:
