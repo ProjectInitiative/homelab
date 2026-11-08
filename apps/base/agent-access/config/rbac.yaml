@@ -3,10 +3,11 @@
 # Two tiers, both bound to mcp-system:mcp-agent-sa (the read-only MCP agent's
 # identity) via namespaced RoleBindings — never ClusterRoleBindings:
 #
-# 1. mcp-jobsmith (llm-test): jobs + configmaps CRUD, read-only pods. Enough to
-#    submit one-off compute Jobs (image builds, cache pulls, migrations) and
-#    clean them up. No pod create/delete — job pods are owned by Jobs, so
-#    serving pods (ai-proxy, tensorfold) can never be touched directly.
+# 1. mcp-jobsmith (llm-test): submit/inspect/delete Jobs, manage ConfigMaps,
+#    read pod status/logs, and create/delete standalone probe Pods. Pod writes
+#    are needed for PVC-mount diagnostics that cannot be represented safely
+#    with kubectl create job. No pod patch/update/exec or workload-controller
+#    writes are granted. Namespace-scoped; no access to secrets or RBAC.
 #
 # 2. agent-sandbox-full (agent-sandbox): broad namespaced access for throwaway
 #    experiments. The hard boundary is NOT RBAC but the namespace's PSA
@@ -32,6 +33,9 @@ rules:
   - apiGroups: [""]
     resources: ["pods", "pods/log", "pods/status"]
     verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["create", "delete"]
   - apiGroups: [""]
     resources: ["configmaps"]
     verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
