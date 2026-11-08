@@ -229,7 +229,13 @@ apps:
               - group-advertise=auto-c7
               - peer-range-read
               - group-heartbeat=5s
-              - remote-timeout=2s
+              # Raise the peer per-op deadline: the fixed 2s per-chunk write
+              # deadline aborted whole-block serves under GPU-load read
+              # storms (TLS GPU firehose), stripping cache-ring block
+              # payloads mid-stream and turning them into client EIO that
+              # crash-looped TensorFold (2026-11-08). 60s keeps parity with
+              # the enterprise default while still bounding stuck peers.
+              - remote-timeout=60s
   - name: csi-snapshotter
     namespace: kube-system
   - name: juicefs-platform
