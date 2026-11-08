@@ -1,0 +1,63 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tensorfold-v14-gcache-mount-probe
+  namespace: llm-test
+  labels:
+    purpose: gcache-mount-probe
+spec:
+  completions: 2
+  parallelism: 2
+  completionMode: Indexed
+  backoffLimit: 0
+  activeDeadlineSeconds: 1200
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        purpose: gcache-mount-probe
+    spec:
+      restartPolicy: Never
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        fabric.homelab.io/rdma: roce-v2
+        fabric.homelab.io/topology: direct-ring
+        gpu: dgx-spark
+        gpu-vendor: nvidia
+        kubernetes.io/arch: arm64
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  purpose: gcache-mount-probe
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: probe
+          image: alpine:3.22@sha256:e233f2058b0628266762f745a2c17e623b418e0090f47d223909d1f9a7d4367e
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              echo "Mounted model-cache on $(hostname), job index ${JOB_COMPLETION_INDEX:-unknown}"
+              grep ' /models ' /proc/mounts || true
+              ls -ld /models
+              sleep 900
+          resources:
+            requests:
+              cpu: "100m"
+              memory: 128Mi
+            limits:
+              cpu: "500m"
+              memory: 512Mi
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
+            readOnly: true
