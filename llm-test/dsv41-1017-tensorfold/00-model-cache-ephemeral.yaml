@@ -10,11 +10,9 @@
 # `llm-test/model-cache-migrate-ephemeral.yaml` (copy job) exists but is NOT
 # part of this plan — models are re-downloaded, not copied.
 #
-# The `juicefs-cache-group: dgx-model-cache` label inherits the cluster's
-# gcache-ring mountPodPatch (clusters/mc.yaml): ring cache on
-# /mnt/pool/juicefs-ring, the strict-sharding gcache CSI image, host networking.
-# This is also the exact configuration the gcache-ring Engram bench exercises
-# (04-gcache-ring-bench.yaml), so bench results transfer to serving.
+# This filesystem is independent of the legacy `model-cache` ring configuration.
+# It must not inherit that CSI mount patch merely because its historical label
+# shares the `dgx-model-cache` value.
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
