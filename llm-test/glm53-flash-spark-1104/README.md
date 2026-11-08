@@ -36,12 +36,26 @@ The serving manifest reuses the existing `tensorfold-v14-rdma-fabric` ConfigMap 
 
 ## Cutover / revert scripts
 
-Run these as yourself (they need ManagedWorkload patch rights; the agent identity cannot patch them):
+**Operator-only recovery; not authorization to activate 1104.** Current expected state is v14 `Standby`, 1104 `Standby`, both lanes at `0/0`, and no `dgx-spark-backend` endpoint. Before any recovery, use an identity authorized to read both ManagedWorkload spec and Conductor status and patch ManagedWorkloads. The agent/MCP identity cannot read Conductor status; `revert.sh` deliberately exits before writes if either intent is unreadable/missing (including RBAC denial). Do not work around that restriction or directly `kubectl scale` either Deployment.
 
-- `./cutover.sh` — v14 `Standby` → verifies both `spec.desiredState` and Conductor `status.effectiveIntent` are `Standby` → GLM 1104 `Resident` → verifies both intent fields are `Resident` → waits for both ranks (watch loop every 60s) → checks the `glm53-flash-1104-api` endpoint, `/health`, `/v1/models`, and a greedy completion. It does **not** revert automatically on failure or timeout; run `./revert.sh` explicitly. `CUTOVER_TIMEOUT` (default 2700s) bounds the wait.
-- `./revert.sh` — 1104 `Standby` → verifies the effective intent → v14 `Resident` → verifies the effective intent → waits for both ranks → verifies `dgx-spark-backend` has an endpoint and answers `/health`. `REVERT_TIMEOUT` (default 2700s).
+One-line read-only preflight (each expected intent field should agree; both Deployments should be 0/0 and stable API should have no endpoints):
 
-Both are idempotent. If the worker refuses during a cutover, the cutover script leaves the current state unchanged for inspection; run `./revert.sh` when you decide to restore v14. Read `/var/lib/llm-test/glm53-flash-1104-state/logs/rank1.log` on the worker node — the launcher preserves the refusal text there.
+```bash
+kubectl get managedworkload glm53-flash-1104 tensorfold-v14 -n llm-test -o custom-columns=NAME:.metadata.name,DESIRED:.spec.desiredState,EFFECTIVE:.status.effectiveIntent; kubectl get deploy glm53-flash-1104-worker glm53-flash-1104-head tensorfold-v14-worker tensorfold-v14-head -n llm-test; kubectl get endpoints dgx-spark-backend -n llm-test
+```
+
+Before running recovery, verify source configuration in `clusters/mc.yaml`: the final `model-cache` PVC-specific CSI patch is last, pins `juicefs-gcache-csi:c86f272-arm64@sha256:839c41f475f4b82392b7b52c920d9546ba3fbc5b0d1d6286008dfffe0d076f5e`, and includes `cache-group=dgx-model-cache`, `group-listen=:13910`, and `group-advertise=auto-c7`. That source check does not prove fresh-node mounts. After v14 boots, confirm its newly created mount pods use the expected image/flags and ring membership before claiming fresh mounts are proven. Do not launch a full model warmup, change storage/cache configuration, delete/recreate mounts, or perform cache mutation; v14's init container intentionally reclaims page cache before its 110-GiB availability gate.
+
+- `./cutover.sh` is a separate explicitly authorized activation flow; it stops v14, brings 1104 up, then checks the API and a completion smoke. It does not revert automatically.
+- `./revert.sh` requests 1104 `Standby`, verifies both desired/effective intent fields, then requires **each** 1104 Deployment's `spec.replicas=0` and no matching Pods (including terminating Pods) before it requests v14 `Resident`. Patch/read errors, missing fields, status access denial, and timeouts fail closed. It waits for the v14 worker then head and requires a stable `dgx-spark-backend` endpoint with two successful health checks. `REVERT_TIMEOUT` (default 2700s); `INTENT_TIMEOUT` (default 120s).
+
+Run only after preflight, with authorized access:
+
+```bash
+./revert.sh
+```
+
+Abort/recovery check (read-only): rerun the preflight line above and inspect rank events/logs. On any failure, do not scale manually, warm caches, or mutate CSI/cache; leave the observed intents as-is and have an authorized operator decide the next action. If failure is after v14 was requested, the script does not automatically switch intents back. After successful recovery, verify v14 worker/head `1/1`, `dgx-spark-backend` endpoint and `/health`, then perform a small authorized API smoke (for example `/v1/models` and one short completion) before declaring service restored. Rank refusal logs are preserved at `/var/lib/llm-test/glm53-flash-1104-state/logs/` on rank nodes.
 
 ## Activation gates / rollback
 
