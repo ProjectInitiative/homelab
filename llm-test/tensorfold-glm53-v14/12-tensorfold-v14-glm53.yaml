@@ -19,7 +19,7 @@
 #
 # Fabric adaptation (same contract as the glm53 EXL3 and prior TensorFold lanes):
 #   - Capability scheduling: `nvidia-rdma` RuntimeClass + required hostname
-#     anti-affinity place the two ranks on any two eligible Sparks.
+#     anti-affinity place the two ranks on the explicitly ring-labeled Sparks.
 #   - Rendezvous/config rides the common 172.16.4.x network via headless
 #     Service DNS (master port 29551; rank 1 first, then rank 0).
 #   - RoCE rails are selected per rank from the node-local inventory
@@ -339,8 +339,9 @@ spec:
       hostNetwork: true
       hostIPC: true
       dnsPolicy: ClusterFirstWithHostNet
-      # Select the DGX Spark capability pool, not specific hostnames. Conductor
-      # owns residency and recovery when a Spark fails or must be reclaimed.
+      # Keep both ranks on the existing eligible Spark pool; the other zero-
+      # replica TensorFold rank plus hostname anti-affinity spreads the pair.
+      # capstan3's independent legacy mount remains for gate-inspector.
       nodeSelector:
         gpu: dgx-spark
         gpu-vendor: nvidia
@@ -591,8 +592,9 @@ spec:
       hostNetwork: true
       hostIPC: true
       dnsPolicy: ClusterFirstWithHostNet
-      # Select the DGX Spark capability pool, not specific hostnames. Conductor
-      # owns residency and recovery when a Spark fails or must be reclaimed.
+      # Keep both ranks on the existing eligible Spark pool; the other zero-
+      # replica TensorFold rank plus hostname anti-affinity spreads the pair.
+      # capstan3's independent legacy mount remains for gate-inspector.
       nodeSelector:
         gpu: dgx-spark
         gpu-vendor: nvidia

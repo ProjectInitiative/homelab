@@ -147,9 +147,12 @@ apps:
               - buffer-size=1G
               - max-downloads=200
               - cache-eviction=lru
+          # Only legacy model-cache joins this ring. The ephemeral
+          # model-cache-ephemeral claim uses separate JuiceFS metadata and
+          # Garage backing, so it must remain outside the ring.
           - pvcSelector:
-              matchLabels:
-                juicefs-cache-group: dgx-model-cache
+              matchName: model-cache
+              matchStorageClassName: juicefs-sc
             ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:gcache-strict-sharding-arm64@sha256:be6ece264ef6c40e7a8e69e6323df95bc5ba92ac0b9e0522679e858b8cff3440
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
@@ -161,14 +164,19 @@ apps:
               - buffer-size=1G
               - max-downloads=200
               - cache-eviction=lru
-          # capstan nodes: node-local JuiceFS cache on the dedicated ext4
-          # partition (nvme1n1 p3, /mnt/jfs-cache — see
-          # docs/bcachefs-nvme-repartition-runbook.md). Deploy only AFTER the
-          # runbook has formatted that partition on the node; the mount pod
-          # creates the path if missing, which would otherwise land on the
-          # root LV. Read-path cache only: no --writeback (uploads go
-          # RAM -> garage -> bcachefs write pool; full blocks never touch
-          # the cache dir).
+              - cache-group=dgx-model-cache
+              - group-listen=:13910
+              - group-advertise=auto-c7
+              - peer-range-read
+              - group-heartbeat=5s
+              - remote-timeout=2s
+              - rdma-network=auto
+              - rdma-proto=rsockets
+              - rdma-fallback=tcp
+          # Capstan cache directories must exist before mount Pods use them;
+          # the runbook documents the host partition and rollout sequence.
+          # These node defaults apply to juicefs-sc PVCs; Argo's later PVC-
+          # scoped patches override their cache path for those two volumes.
           - nodeSelector:
               kubernetes.io/hostname: capstan1
             pvcSelector:
@@ -205,15 +213,9 @@ apps:
               - buffer-size=1G
               - max-downloads=200
               - cache-eviction=lru
-          # argo VM disks: bounded read cache in its own subdir (kept off the
-          # shared capstan cache to avoid eviction competition). Replaces the
-          # old cache-size=0 config now that capstan1 has a dedicated 480G
-          # jfs-cache partition; argo's writes still go RAM -> garage ->
-          # bcachefs write pool (no write amplification). Last patch wins
-          # (later entries override earlier ones for the same PVC), so these
-          # argo entries override the node defaults above. Applied when the
-          # Mount Pod is (re)created — bounce the argo VM after syncing
-          # (virtctl stop argo && virtctl start argo).
+          # Argo VM disks use a bounded cache in a dedicated subdirectory,
+          # overriding the capstan node default for these two PVCs. Mount Pods
+          # must be recreated for option changes to take effect.
           - pvcSelector:
               matchName: argo-root
               matchStorageClassName: juicefs-sc
