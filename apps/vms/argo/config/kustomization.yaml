@@ -6,3 +6,4 @@ resources:
   - argo-root-ring-keepers.yaml
   - argo-data-ring-keepers.yaml
   - argo-root-cache-warm.yaml
+  - argo-root-peer-proof.yaml
