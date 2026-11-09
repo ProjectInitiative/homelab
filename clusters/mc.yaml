@@ -206,8 +206,72 @@ apps:
               - cache-size=102400
               - prefetch=8
               - buffer-size=1G
-          # Keep the target PVC last: CSI v0.33.0 merges matching patches in
-          # order and replaces the entire mountOptions list with the last one.
+          # STAGED ONLY (draft PR; do not merge while the Argo VM is live):
+          # argo-root gets its own ring, separate from dgx-model-cache and
+          # argo-data. The capstans are amd64; use the guarded amd64 image.
+          # Fixed per-node advertisements avoid the fork's unspecified-address
+          # fallback (0.0.0.0). Verify TCP/13911 between capstans, the image,
+          # and three live argo-root mount members before warming disk.img.
+          # Keep /mnt/jfs-cache/argo: existing root/data caches are preserved.
+          - nodeSelector:
+              kubernetes.io/hostname: capstan1
+            pvcSelector:
+              matchName: argo-root
+              matchStorageClassName: juicefs-sc
+            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:6aaf22da-amd64@sha256:97346b44ff1bf905a82fb12cc3cbc5e9ca907b1b2c190c28a79fe0c32e4b557c
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
+            mountOptions:
+              - cache-dir=/mnt/jfs-cache/argo
+              - cache-size=102400
+              - prefetch=8
+              - buffer-size=1G
+              - cache-group=capstan-argo-root
+              - group-listen=:13911
+              - group-advertise=172.16.4.51:13911
+              - group-heartbeat=5s
+              - peer-range-read
+              - remote-timeout=60s
+          - nodeSelector:
+              kubernetes.io/hostname: capstan2
+            pvcSelector:
+              matchName: argo-root
+              matchStorageClassName: juicefs-sc
+            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:6aaf22da-amd64@sha256:97346b44ff1bf905a82fb12cc3cbc5e9ca907b1b2c190c28a79fe0c32e4b557c
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
+            mountOptions:
+              - cache-dir=/mnt/jfs-cache/argo
+              - cache-size=102400
+              - prefetch=8
+              - buffer-size=1G
+              - cache-group=capstan-argo-root
+              - group-listen=:13911
+              - group-advertise=172.16.4.52:13911
+              - group-heartbeat=5s
+              - peer-range-read
+              - remote-timeout=60s
+          - nodeSelector:
+              kubernetes.io/hostname: capstan3
+            pvcSelector:
+              matchName: argo-root
+              matchStorageClassName: juicefs-sc
+            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:6aaf22da-amd64@sha256:97346b44ff1bf905a82fb12cc3cbc5e9ca907b1b2c190c28a79fe0c32e4b557c
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
+            mountOptions:
+              - cache-dir=/mnt/jfs-cache/argo
+              - cache-size=102400
+              - prefetch=8
+              - buffer-size=1G
+              - cache-group=capstan-argo-root
+              - group-listen=:13911
+              - group-advertise=172.16.4.53:13911
+              - group-heartbeat=5s
+              - peer-range-read
+              - remote-timeout=60s
+          # Keep the model-cache target PVC last: CSI v0.33.0 merges matching
+          # patches in order and replaces mountOptions with the last list.
           # This overrides node-local defaults on any node for model-cache only;
           # model-cache-ephemeral uses a separate StorageClass and backing store.
           - pvcSelector:
