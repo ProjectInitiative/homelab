@@ -208,7 +208,7 @@ apps:
               - buffer-size=1G
           # Argo root gets its own ring, separate from dgx-model-cache and
           # argo-data. Capstans are amd64; guarded a9f6b9c2 build with
-          # group-advertise=auto (fork commit a9f6b9c2: per-node fixed
+          # group-advertise=auto (fork commit 9cdc4100: per-node fixed
           # advertisements are NOT selectable via mountPodPatch on CSI
           # v0.33.0 — all matching argo-root patches merged and the last
           # one won, advertising capstan3's IP from every node). auto
@@ -218,7 +218,7 @@ apps:
           - pvcSelector:
               matchName: argo-root
               matchStorageClassName: juicefs-sc
-            ceMountImage: 172.16.1.50:31872/homelab/juicefs-gcache-csi:a9f6b9c2b-amd64@sha256:84ec1284074767492d5c2c54befa3dcadee2852203e6b1631e091370252b981d
+            ceMountImage: 172.16.1.50:31872/homelab/juicefs-gcache-csi:9cdc4100-amd64@sha256:c047623ecbd8972fe9936d98f92677b4875bdd4e1fe537ccfebeda9c4604ff54
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
             mountOptions:
