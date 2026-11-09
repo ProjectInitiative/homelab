@@ -106,7 +106,10 @@ wait_scale_zero() { # NAME TIMEOUT_S
   done
 }
 
-endpoint_ip() { kubectl get endpoints "$1" -n "$NS" -o 'jsonpath={.subsets[*].addresses[*].ip}' 2>/dev/null | tr -s ' ' '\n' | grep -v '^$' | sort -u; }
+# Under `set -o pipefail`, grep exits 1 on zero selected lines — which is the
+# normal green "no endpoints yet" case. Terminate the pipeline so an empty
+# endpoint list reads as success (empty stdout) instead of a silent script exit.
+endpoint_ip() { kubectl get endpoints "$1" -n "$NS" -o 'jsonpath={.subsets[*].addresses[*].ip}' 2>/dev/null | tr -s ' ' '\n' | grep -v '^$' | sort -u || true; }
 
 wait_sole_endpoint_matches() { # SVC PODIP TIMEOUT_S
   local svc="$1" ip="$2" deadline=$(( $(date +%s) + $3 )) cur
