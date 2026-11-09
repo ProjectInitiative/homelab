@@ -1,13 +1,14 @@
-# Staged only: zero replicas until the VM migration window and peer networking
-# have been qualified. Scale each to one to keep all three root-PVC mounts
-# registered; PVC/CSI mounts are per-node, not one global Mount Pod.
+# Keep one read-only argo-root consumer per capstan so all three owner mounts
+# stay registered even while the VM is stopped. TCP/13911 host rules are live;
+# verify membership and a bounded peer read before any full-disk warmup.
+# PVC/CSI mounts are per-node, not one global Mount Pod.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: argo-root-ring-capstan1
   namespace: argo
 spec:
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels:
       app: argo-root-ring-capstan1
@@ -43,7 +44,7 @@ metadata:
   name: argo-root-ring-capstan2
   namespace: argo
 spec:
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels:
       app: argo-root-ring-capstan2
@@ -79,7 +80,7 @@ metadata:
   name: argo-root-ring-capstan3
   namespace: argo
 spec:
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels:
       app: argo-root-ring-capstan3
