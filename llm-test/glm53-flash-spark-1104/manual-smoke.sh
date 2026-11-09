@@ -127,9 +127,10 @@ http_ok() { curl -fsS --max-time 10 "http://$1:$SMOKE_PORT$2" 2>&1; }
 
 cmd_preflight() {
   need_kubectl
-  log "== preflight =="
-  deploy_image "$WORKER" >/dev/null || die "cannot read $WORKER"
-  [ -n "$(pod_ip_running x 2>/dev/null)" ] 2>/dev/null || true
+  ctx=$(kubectl config current-context 2>&1) || ctx="(no context set)"
+  log "kubectl context: $ctx"
+  ns_out=$(kubectl get deployment "$WORKER" -n "$NS" -o name 2>&1) || die "cannot read namespace $NS with kubectl context '$ctx': ${ns_out}. Point kubectl at the mc/capstan cluster (server https://172.16.1.50:6443), e.g. export KUBECONFIG=<mc kubeconfig> or kubectl config use-context <mc-context>, then rerun."
+  log "== preflight ($(kubectl config current-context 2>/dev/null || echo unknown)) =="
   for d in "$WORKER" "$HEAD"; do
     count=$(kubectl get deployment "$d" -n "$NS" -o 'jsonpath={.spec.replicas}')
     [ "$count" = "0" ] || die "$d spec.replicas=$count (want 0) before staging"
@@ -137,7 +138,6 @@ cmd_preflight() {
   done
   ep=$(endpoint_ip "$STABLE_SVC")
   [ -z "$ep" ] || die "stable $STABLE_SVC still has endpoints: $ep"
-  kubectl get endpoints "$API_SVC" "$RENDER_SVC" "$STABLE_SVC" -n "$NS" templ >/dev/null 2>&1 || true
   kubectl get svc "$API_SVC" "$RENDER_SVC" "$STABLE_SVC" -n "$NS" >/dev/null || die "required Services missing"
   log "preflight OK: both Deployments at 0 on $EXPECT_IMAGE; $STABLE_SVC has no endpoints"
 }
