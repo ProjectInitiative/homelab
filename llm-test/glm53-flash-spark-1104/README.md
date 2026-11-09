@@ -12,6 +12,42 @@ Minor parity env (`TF_GLM_W8A8=0`, `TF_GLM_CE_EXCHANGE=0`) and the newer recipe'
 
 Image-build v1 failed before BuildKit because the rootless image has no `/bin/bash`; v2 failed loading `docker/Dockerfile` because its local source was not declared. Neither attempt mounted `model-cache` or published an image. v3 succeeded; the failed Job records are retained for logs and expire by TTL.
 
+**Image-build v4 for the newer recipe pin (image provenance only).** `07-image-build-d4226a1.yaml` builds upstream commit `d4226a1bd62a7d264f116fc4736106a037090365`, the first pin whose build inputs differ from the image behind the v3 tag: six engine patches (0107-0112) and a `video` stage in `docker/Dockerfile`. Upstream's `scripts/prepare.sh` `PATCHES_HASH` therefore moves from `74e19a63a9a5` to `ef2e6847aa4a` (the same procedure over `git archive 94b72f5` reproduces `74e19a63a9a5`, so the method matches the v3 image), and the Job tags `local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:ef2e6847aa4a`. The build container recomputes that hash from the fetched tree using the same pins it passes to BuildKit, asserts it equals `ef2e6847aa4a`, fails closed before pushing on a mismatch, and never hashes a stale literal. The Job is PVC-free like v3, keeps the arm64/rootless-BuildKit security shape, and is deliberately **not** in `kustomization.yaml` because this lane syncs with automated selfHeal; its `argocd.argoproj.io/hook: Skip` annotation keeps Argo from executing it even if it is wired in later. It reuses the lane's immutable `glm53-flash-1104-buildkit-config` ConfigMap. The completed v3 Job and the `74e19a63a9a5` tag are untouched.
+
+Operator trigger and immutable-digest check (one line each; re-running an existing Job is a no-op, so `kubectl -n llm-test delete job glm53-flash-1104-image-build-d4226a1` first if it must run again):
+
+```bash
+kubectl apply -f llm-test/glm53-flash-spark-1104/07-image-build-d4226a1.yaml
+kubectl -n llm-test logs job/glm53-flash-1104-image-build-d4226a1 | sed -nE 's/.*exporting manifest( list)? sha256:([0-9a-f]{64}).*/sha256:\2/p' | tail -n 1
+```
+
+The Job publishes a tag; the new Python3 derivative is staged separately below. Neither build changes `02-serving.yaml`: the lane keeps serving the digest-pinned `74e19a63a9a5-py3-v2` image.
+
+**Python3 derivative for recipe d4226a1 (staged; native digest prerequisite).** `08-runtime-image-python3-build-d4226a1.yaml` builds `ef2e6847aa4a-py3-v1` from the native `ef2e6847aa4a` image. Its Dockerfile is `docker/Dockerfile.runtime-d4226a1` and begins with a digest-pinned `FROM` containing an intentionally invalid placeholder. The Job checks that the ConfigMap-mounted Dockerfile has exactly one `FROM`, names the expected native tag, and carries exactly 64 lowercase hex digest characters before invoking BuildKit; an unfilled or malformed placeholder fails before build/push. The Dockerfile is turned into a per-build immutable ConfigMap by the operator flow below. The Job has `spec.suspend: true`, `argocd.argoproj.io/hook: Skip`, is not in `kustomization.yaml`, and uses only emptyDir/ConfigMap volumes (no GPU or model-cache/PVC access). The existing v2 derivative Job, Dockerfile, served image, and `02-serving.yaml` are untouched.
+
+After the native Job has completed successfully, capture its manifest digest and independently confirm the pushed tag resolves to that same digest. Then fill the placeholder in the new Dockerfile, create the immutable Dockerfile ConfigMap, create the still-suspended derivative Job, and explicitly unsuspend it:
+
+Run each command separately from the homelab repository root on a machine with `crane` and GNU `sed`; replace `<64-hex-native-digest>` only after comparing the native Job's digest with the registry digest. The out-of-cluster `registry.taildeab2.ts.net` alias must resolve to the same registry as the in-cluster build target. Do not proceed if either digest is empty or they differ:
+
+```bash
+kubectl -n llm-test logs job/glm53-flash-1104-image-build-d4226a1 | sed -nE 's/.*exporting manifest( list)? sha256:([0-9a-f]{64}).*/sha256:\2/p' | tail -n 1
+crane digest registry.taildeab2.ts.net/homelab/tensorfold-glm53-flash-1104:ef2e6847aa4a
+sed -i 's/REPLACE_WITH_VERIFIED_NATIVE_MANIFEST_DIGEST/<64-hex-native-digest>/' llm-test/glm53-flash-spark-1104/docker/Dockerfile.runtime-d4226a1
+kubectl create configmap glm53-flash-1104-runtime-dockerfile-d4226a1 -n llm-test --from-file=Dockerfile.runtime-d4226a1=llm-test/glm53-flash-spark-1104/docker/Dockerfile.runtime-d4226a1 --dry-run=client -o yaml | sed '/^data:/i immutable: true' | kubectl apply -f -
+kubectl apply -f llm-test/glm53-flash-spark-1104/08-runtime-image-python3-build-d4226a1.yaml
+kubectl -n llm-test patch job glm53-flash-1104-image-py3-d4226a1 --type=merge -p '{"spec":{"suspend":false}}'
+kubectl -n llm-test wait --for=condition=complete job/glm53-flash-1104-image-py3-d4226a1 --timeout=1800s
+```
+
+Capture the derivative manifest digest, compare it independently with the registry result, and record `ef2e6847aa4a-py3-v1@sha256:<verified-digest>` for a separately reviewed serving update:
+
+```bash
+kubectl -n llm-test logs job/glm53-flash-1104-image-py3-d4226a1 | sed -nE 's/.*exporting manifest( list)? sha256:([0-9a-f]{64}).*/sha256:\2/p' | tail -n 1
+crane digest registry.taildeab2.ts.net/homelab/tensorfold-glm53-flash-1104:ef2e6847aa4a-py3-v1
+```
+
+Do not create the ConfigMap or start the derivative Job until the native `ef2e6847aa4a` image exists and its registry digest has been verified. The ConfigMap is immutable; if a new base digest is needed, first preserve the old build record, then use a new ConfigMap/Job name rather than trying to mutate the existing ConfigMap or completed Job. No build result by itself authorizes switching serving.
+
 The model pull completed and its receipt audit verified 83 checkpoint shards (175,642,267,944 bytes) plus one DFlash2 weight file. The pinned puller did not emit `RECEIPT_PATH`, so the Job used its own verified snapshot inventory receipt. The read-only preflight from the active v14 head reported `1813G` available on `/models` before the pull. The attempted cutover did not alter the model cache.
 
 ## Recipe pins and staged capacity
