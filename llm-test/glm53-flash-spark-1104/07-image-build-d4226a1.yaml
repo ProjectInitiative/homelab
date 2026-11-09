@@ -1,0 +1,171 @@
+# One-shot native arm64 BuildKit build of recipe 1104 at upstream commit
+# d4226a1bd62a7d264f116fc4736106a037090365. That commit is the first pin whose
+# build inputs differ from the v3 image (94b72f5 -> tag 74e19a63a9a5): six new
+# engine patches (0107-0112) and a new `video` stage in docker/Dockerfile, so
+# the v3 image cannot serve this recipe and a new tag is required. Nothing here
+# mounts a PVC: the build context and BuildKit's state are emptyDirs, so no
+# model-cache/JuiceFS volume is read, written, or warmed.
+#
+# PATCHES_HASH is computed inside the build container from the tree being
+# built, using upstream scripts/prepare.sh set_image(): sha256 over its pin
+# lines and, for docker/Dockerfile and each patches/engine/*.patch in C order, a
+# NUL-framed path around the file bytes, first 12 hex digits. The tag is that
+# hash, as prepare.sh tags it, and it is asserted against ef2e6847aa4a. That
+# literal is derived here, not guessed: the same procedure over `git archive`
+# of the previous pin 94b72f5 reproduces v3's 74e19a63a9a5 exactly. The pins
+# below are unchanged from v3 (scripts/config.sh defaults), so ef2e6847aa4a
+# covers 112 engine patches plus the changed Dockerfile. WITH_VIDEO stays at its
+# 0 default: upstream gives that variant its own tag.
+#
+# Deliberately NOT listed in kustomization.yaml. The Application
+# argocd-mc/glm53-flash-spark-1104 syncs with automated selfHeal, and a build
+# must never start from a routine sync; `argocd.argoproj.io/hook: Skip` is kept
+# so that wiring this file in later still would not make Argo execute it.
+# Operator trigger, one line (creates and starts the build; re-running an
+# existing Job is a no-op, so `kubectl -n llm-test delete job
+# glm53-flash-1104-image-build-d4226a1` first if it must run again):
+#   kubectl apply -f llm-test/glm53-flash-spark-1104/07-image-build-d4226a1.yaml
+# Immutable digest to pin (BuildKit prints the pushed manifest for the tag):
+#   kubectl -n llm-test logs job/glm53-flash-1104-image-build-d4226a1 | sed -nE 's/.*exporting manifest( list)? sha256:([0-9a-f]{64}).*/sha256:\2/p' | tail -n 1
+# It reuses the lane's immutable buildkitd ConfigMap from 00-image-build.yaml.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: glm53-flash-1104-image-build-d4226a1
+  namespace: llm-test
+  annotations:
+    argocd.argoproj.io/hook: Skip
+  labels:
+    app: glm53-flash-1104-image-build
+    lane: glm53-flash-1104
+    purpose: image-build
+    recipe-commit: d4226a1bd62a7d264f116fc4736106a037090365
+spec:
+  suspend: false
+  backoffLimit: 0
+  activeDeadlineSeconds: 7200
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      labels:
+        app: glm53-flash-1104-image-build
+        lane: glm53-flash-1104
+        purpose: image-build
+        recipe-commit: d4226a1bd62a7d264f116fc4736106a037090365
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      dnsConfig:
+        nameservers: [172.16.1.1, 1.1.1.1]
+      securityContext:
+        fsGroup: 1000
+      nodeSelector:
+        kubernetes.io/arch: arm64
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - {key: kubernetes.io/hostname, operator: In, values: [octant]}
+      containers:
+        - name: buildkit
+          image: moby/buildkit:v0.26.2-rootless
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              set -eu
+              export LC_ALL=C
+              src=/workspace/src
+              test -s "$src/docker/Dockerfile" || { echo "recipe source missing" >&2; exit 1; }
+              recipe=d4226a1bd62a7d264f116fc4736106a037090365
+              tf_repo=https://github.com/ashhart/TensorFold.git
+              tf_ref=f350cd3ea253a042e205746928271f9d8f71a82d
+              zig_version=0.17.0
+              zig_sha256=9e8d11661d4ae3bd57702a3832781e23ad151dde5798e16a5ccd503f65234ff8
+              sm=121
+              zig_cpu=native
+              nccl_wheel=
+              # prepare.sh set_image(): the pins, then each build input's path
+              # NUL-framed around its bytes, sha256, first 12 hex digits.
+              patches_hash=$( cd "$src" && {
+                printf 'TF_REPO=%s\nTF_REF=%s\nZIG_VERSION=%s\nZIG_SHA256=%s\nSM=%s\nZIG_CPU=%s\nNCCL_WHEEL=%s\n' \
+                  "$tf_repo" "$tf_ref" "$zig_version" "$zig_sha256" "$sm" "$zig_cpu" "$nccl_wheel"
+                for f in docker/Dockerfile patches/engine/*.patch; do
+                  printf '\000%s\000' "$f"
+                  cat "$f"
+                done
+              } | sha256sum | cut -c1-12 )
+              expected=ef2e6847aa4a
+              test "$patches_hash" = "$expected" || {
+                echo "patches hash mismatch: computed=$patches_hash expected=$expected" >&2
+                exit 1
+              }
+              image=local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:${patches_hash}
+              echo "building $image from recipe $recipe"
+              exec buildctl-daemonless.sh build \
+                --frontend dockerfile.v0 \
+                --local "context=$src" \
+                --local "dockerfile=$src" \
+                --opt filename=docker/Dockerfile \
+                --opt build-arg:TF_REPO="$tf_repo" \
+                --opt build-arg:TF_REF="$tf_ref" \
+                --opt build-arg:ZIG_VERSION="$zig_version" \
+                --opt build-arg:ZIG_SHA256="$zig_sha256" \
+                --opt build-arg:SM="$sm" \
+                --opt build-arg:ZIG_CPU="$zig_cpu" \
+                --opt build-arg:TOOLS=1 \
+                --opt build-arg:PATCHES_HASH="$patches_hash" \
+                --output "type=image,name=$image,push=true,oci-mediatypes=false" \
+                --progress=plain
+          env:
+            - name: BUILDKITD_FLAGS
+              value: "--oci-worker-no-process-sandbox --config=/build/buildkitd.toml"
+          resources:
+            requests: {cpu: "8", memory: 32Gi, ephemeral-storage: 40Gi}
+            limits: {cpu: "16", memory: 48Gi, ephemeral-storage: 55Gi}
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            seccompProfile: {type: Unconfined}
+            appArmorProfile: {type: Unconfined}
+          volumeMounts:
+            - {name: workspace, mountPath: /workspace, readOnly: true}
+            - {name: buildkit-state, mountPath: /home/user/.local/share/buildkit}
+            - {name: build-config, mountPath: /build, readOnly: true}
+      initContainers:
+        - name: fetch-pinned-recipe
+          image: alpine/git:v2.52.0
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              set -eu
+              src=/workspace/src
+              mkdir -p "$src"
+              git init "$src"
+              git -C "$src" remote add origin https://github.com/MiaAI-Lab/GLM-5.3-Flash-DGX-Sparks-1104.git
+              git -C "$src" fetch --depth 1 --no-tags origin d4226a1bd62a7d264f116fc4736106a037090365
+              git -C "$src" checkout --detach FETCH_HEAD
+              actual=$(git -C "$src" rev-parse HEAD)
+              test "$actual" = "d4226a1bd62a7d264f116fc4736106a037090365"
+              echo "staged upstream recipe $actual"
+          resources:
+            requests: {cpu: 250m, memory: 256Mi}
+            limits: {cpu: "1", memory: 1Gi}
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: workspace, mountPath: /workspace}
+      volumes:
+        - name: workspace
+          emptyDir: {sizeLimit: 2Gi}
+        - name: buildkit-state
+          emptyDir: {sizeLimit: 55Gi}
+        - name: build-config
+          configMap: {name: glm53-flash-1104-buildkit-config, defaultMode: 0555}
