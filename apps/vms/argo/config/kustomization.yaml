@@ -5,3 +5,4 @@ resources:
   - cdi-s3-region-alias.yaml
   - argo-root-ring-keepers.yaml
   - argo-root-cache-warm.yaml
+  - argo-root-ring-membership-probe.yaml

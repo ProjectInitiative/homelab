@@ -1,0 +1,51 @@
+# One-shot read-only pre-warm gate. Never expose /disk/.config or the metadata URL in logs.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: argo-root-ring-membership-probe-9cdc4100
+  namespace: argo
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 180
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/hostname: capstan2
+      containers:
+        - name: probe
+          image: postgres:17-alpine
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              test -r /disk/.config && test -r /disk/disk.img || { echo "root PVC unreadable"; exit 1; }
+              bytes=$(stat -c %s /disk/disk.img)
+              test "$bytes" -gt 0 && test "$bytes" -le 34359738368 || { echo "disk.img size outside gate"; exit 1; }
+              echo "disk.img size=$bytes"
+              meta=$(sed -n 's/^[[:space:]]*"Meta": "\([^"]*\)".*/\1/p' /disk/.config | head -n 1)
+              test -n "$meta" || { echo "metadata config unavailable"; exit 1; }
+              sql="SELECT uuid, addr, (extract(epoch from now())::bigint-ts) AS age_sec FROM jfs_gcache_members WHERE group_name='capstan-argo-root' AND ts > extract(epoch from now())::bigint-15 ORDER BY uuid"
+              if ! psql "$meta" -X -A -t -F ' ' -c "$sql" >/tmp/members 2>/tmp/query-error; then echo "membership query failed"; exit 1; fi
+              count=$(wc -l </tmp/members)
+              test "$count" -eq 3 || { echo "live member count=$count (expected 3)"; exit 1; }
+              test "$(awk '{print $1}' /tmp/members | sort -u | wc -l)" -eq 3 || { echo "duplicate member UUID"; exit 1; }
+              test "$(awk '{print $2}' /tmp/members | sort -u | wc -l)" -eq 3 || { echo "duplicate member address"; exit 1; }
+              for address in 172.16.4.51:13911 172.16.4.52:13911 172.16.4.53:13911; do grep -Fq " $address " /tmp/members || { echo "missing member address $address"; exit 1; }; done
+              echo "member_uuid address heartbeat_age_seconds"
+              cat /tmp/members
+              sleep 30
+              if ! psql "$meta" -X -A -t -F ' ' -c "$sql" >/tmp/members2 2>/tmp/query-error; then echo "second membership query failed"; exit 1; fi
+              awk '{print $1,$2}' /tmp/members >/tmp/first-ids
+              awk '{print $1,$2}' /tmp/members2 >/tmp/second-ids
+              cmp -s /tmp/first-ids /tmp/second-ids || { echo "member UUID/address changed"; exit 1; }
+              echo "stable three-member registry; read-only, no disk payload read"
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+          volumeMounts:
+            - {name: argo-root, mountPath: /disk, readOnly: true}
+      volumes:
+        - name: argo-root
+          persistentVolumeClaim: {claimName: argo-root, readOnly: true}
