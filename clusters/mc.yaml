@@ -232,6 +232,28 @@ apps:
               - group-heartbeat=5s
               - peer-range-read
               - remote-timeout=60s
+          # Argo data is a separate volume-scoped ring on the same capstans.
+          # Keep its disk cache directory separate from argo-root: concurrent
+          # mounts must not manage the same local cache tree. Stage with zero
+          # data keepers until peer-only TCP/13912 and the directory are live
+          # on all three hosts; do not warm the ~900GB data disk.
+          - pvcSelector:
+              matchName: argo-data
+              matchStorageClassName: juicefs-sc
+            ceMountImage: 172.16.1.50:31872/homelab/juicefs-gcache-csi:9cdc4100-amd64@sha256:c047623ecbd8972fe9936d98f92677b4875bdd4e1fe537ccfebeda9c4604ff54
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
+            mountOptions:
+              - cache-dir=/mnt/jfs-cache/argo-data
+              - cache-size=102400
+              - prefetch=8
+              - buffer-size=1G
+              - cache-group=capstan-argo-data
+              - group-listen=:13912
+              - group-advertise=auto
+              - group-heartbeat=5s
+              - peer-range-read
+              - remote-timeout=60s
           # Keep the model-cache target PVC last: CSI v0.33.0 merges matching
           # patches in order and replaces mountOptions with the last list.
           # This overrides node-local defaults on any node for model-cache only;
