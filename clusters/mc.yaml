@@ -218,7 +218,7 @@ apps:
             pvcSelector:
               matchName: argo-root
               matchStorageClassName: juicefs-sc
-            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:6aaf22da-amd64@sha256:97346b44ff1bf905a82fb12cc3cbc5e9ca907b1b2c190c28a79fe0c32e4b557c
+            ceMountImage: 172.16.1.50:31872/homelab/juicefs-gcache-csi:6aaf22da-amd64@sha256:97346b44ff1bf905a82fb12cc3cbc5e9ca907b1b2c190c28a79fe0c32e4b557c
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
             mountOptions:
@@ -237,7 +237,7 @@ apps:
             pvcSelector:
               matchName: argo-root
               matchStorageClassName: juicefs-sc
-            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:6aaf22da-amd64@sha256:97346b44ff1bf905a82fb12cc3cbc5e9ca907b1b2c190c28a79fe0c32e4b557c
+            ceMountImage: 172.16.1.50:31872/homelab/juicefs-gcache-csi:6aaf22da-amd64@sha256:97346b44ff1bf905a82fb12cc3cbc5e9ca907b1b2c190c28a79fe0c32e4b557c
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
             mountOptions:
@@ -256,7 +256,7 @@ apps:
             pvcSelector:
               matchName: argo-root
               matchStorageClassName: juicefs-sc
-            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:6aaf22da-amd64@sha256:97346b44ff1bf905a82fb12cc3cbc5e9ca907b1b2c190c28a79fe0c32e4b557c
+            ceMountImage: 172.16.1.50:31872/homelab/juicefs-gcache-csi:6aaf22da-amd64@sha256:97346b44ff1bf905a82fb12cc3cbc5e9ca907b1b2c190c28a79fe0c32e4b557c
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
             mountOptions:
