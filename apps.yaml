@@ -1014,6 +1014,27 @@ catalog:
         kind: VirtualMachine
         jsonPointers:
           - /spec/runStrategy
+      # Temporary maintenance control: allow scaling any data keeper down
+      # while Argo is halted so a writable CSI probe can own that node's
+      # cache path. Restore all keepers before removing these rules.
+      - group: apps
+        kind: Deployment
+        name: argo-data-ring-capstan1
+        namespace: argo
+        jsonPointers:
+          - /spec/replicas
+      - group: apps
+        kind: Deployment
+        name: argo-data-ring-capstan2
+        namespace: argo
+        jsonPointers:
+          - /spec/replicas
+      - group: apps
+        kind: Deployment
+        name: argo-data-ring-capstan3
+        namespace: argo
+        jsonPointers:
+          - /spec/replicas
 
   kubevirt-manager-auth:
     path: bootstrap/base/kubevirt-manager-auth/config
