@@ -3,7 +3,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: argo-root-peer-proof-9cdc4100
+  name: argo-root-peer-proof-9cdc4100-v2
   namespace: argo
 spec:
   backoffLimit: 0
@@ -14,8 +14,7 @@ spec:
       automountServiceAccountToken: false
       restartPolicy: Never
       nodeSelector: {kubernetes.io/hostname: capstan2}
-      hostNetwork: true
-      dnsPolicy: ClusterFirstWithHostNet
+      # argo namespace enforces PodSecurity baseline: no host namespaces.
       containers:
         - name: probe
           image: alpine:3.20
@@ -31,7 +30,7 @@ spec:
               port=${addr##*:}
               case "$port" in ''|*[!0-9]*) echo 'metrics port unavailable'; exit 1;; esac
               test "$port" -gt 0 && test "$port" -le 65535 || { echo 'metrics port invalid'; exit 1; }
-              url="http://127.0.0.1:$port/metrics"
+              url="http://172.16.4.52:$port/metrics"
               wget -q -T 5 -O /tmp/before "$url" || { echo 'root metrics endpoint unavailable'; exit 1; }
               grep -Fq 'pvc-f1d339aa-bfed-446e-9723-5abadca8a781' /tmp/before || { echo 'metrics endpoint does not identify root mount'; exit 1; }
               metric() { awk -v m="$1" 'index($1,m)==1 && (length($1)==length(m) || substr($1,length(m)+1,1)=="{") {v += $2} END {printf "%.0f\n",v+0}' "$2"; }
