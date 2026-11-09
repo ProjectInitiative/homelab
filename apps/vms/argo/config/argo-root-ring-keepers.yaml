@@ -8,7 +8,7 @@ metadata:
   name: argo-root-ring-capstan1
   namespace: argo
 spec:
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels:
       app: argo-root-ring-capstan1
@@ -44,7 +44,7 @@ metadata:
   name: argo-root-ring-capstan2
   namespace: argo
 spec:
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels:
       app: argo-root-ring-capstan2
@@ -80,7 +80,7 @@ metadata:
   name: argo-root-ring-capstan3
   namespace: argo
 spec:
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels:
       app: argo-root-ring-capstan3
