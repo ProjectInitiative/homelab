@@ -7,7 +7,7 @@ metadata:
   name: argo-data-ring-capstan1
   namespace: argo
 spec:
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels: {app: argo-data-ring-capstan1}
   template:
@@ -36,7 +36,7 @@ metadata:
   name: argo-data-ring-capstan2
   namespace: argo
 spec:
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels: {app: argo-data-ring-capstan2}
   template:
@@ -65,7 +65,7 @@ metadata:
   name: argo-data-ring-capstan3
   namespace: argo
 spec:
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels: {app: argo-data-ring-capstan3}
   template:
