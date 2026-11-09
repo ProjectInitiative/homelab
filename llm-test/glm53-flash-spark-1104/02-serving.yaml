@@ -190,7 +190,7 @@ spec:
       # the launcher exits before TensorFold ever starts.
       initContainers:
         - name: reclaim-vm-cache
-          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:74e19a63a9a5-py3-v2@sha256:437559d301f371227a06d32be6fa9800e9d092543d774f694b7e532ac44110a1
+          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:ef2e6847aa4a-py3-v1@sha256:cc2af44e04d6a2c73a710f14df9ed58a15a4fe7d67ecbdd575f1018e98ddd04e
           command: ["/bin/bash", "-lc"]
           args:
             - |
@@ -215,7 +215,7 @@ spec:
           securityContext: {privileged: true}
       containers:
         - name: tensorfold
-          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:74e19a63a9a5-py3-v2@sha256:437559d301f371227a06d32be6fa9800e9d092543d774f694b7e532ac44110a1
+          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:ef2e6847aa4a-py3-v1@sha256:cc2af44e04d6a2c73a710f14df9ed58a15a4fe7d67ecbdd575f1018e98ddd04e
           imagePullPolicy: IfNotPresent
           command: ["bash", "/launch/launch-rank.sh", "worker"]
           securityContext:
@@ -288,7 +288,7 @@ spec:
       # Match v14's bounded page-cache reclamation before the rank's unified-memory gate.
       initContainers:
         - name: reclaim-vm-cache
-          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:74e19a63a9a5-py3-v2@sha256:437559d301f371227a06d32be6fa9800e9d092543d774f694b7e532ac44110a1
+          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:ef2e6847aa4a-py3-v1@sha256:cc2af44e04d6a2c73a710f14df9ed58a15a4fe7d67ecbdd575f1018e98ddd04e
           command: ["/bin/bash", "-lc"]
           args:
             - |
@@ -313,7 +313,7 @@ spec:
           securityContext: {privileged: true}
       containers:
         - name: tensorfold
-          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:74e19a63a9a5-py3-v2@sha256:437559d301f371227a06d32be6fa9800e9d092543d774f694b7e532ac44110a1
+          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:ef2e6847aa4a-py3-v1@sha256:cc2af44e04d6a2c73a710f14df9ed58a15a4fe7d67ecbdd575f1018e98ddd04e
           imagePullPolicy: IfNotPresent
           command: ["bash", "/launch/launch-rank.sh", "head"]
           securityContext:
