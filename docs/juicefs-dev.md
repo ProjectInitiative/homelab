@@ -95,6 +95,24 @@ tailnet. The in-cluster service DNS name only works for in-cluster mounts.
 
    Optional mountpoint override: `JFS_DEV_MOUNTPOINT=/path/to/mount juicefs-dev-mount`.
 
+## Maintenance
+
+Helpers (require an active `bao-auth` session; they pull the metaurl from
+`k8s/juicefs-dev/config`):
+
+- `juicefs-dev-gc` — scan + clean leaked objects (safe default; no deletes
+  beyond leaks)
+- `juicefs-dev-trash-purge` — **immediately** purge all trash (ignores the
+  1-day `TrashDays` retention) and leaked objects via `juicefs gc --delete`.
+  Use after big deletions to return bucket/pool space promptly
+  (see RISK-0044: the capstan pool is capacity-pressured).
+- Writeback mode is opt-in via `JFS_WRITEBACK=1 juicefs-dev-mount` — default
+  mounts upload synchronously to garage. If enabled, never copy a tree that
+  contains the mount's own cache dir (`~/.juicefs/cache`, the per-user
+  default when mounted as non-root): staged blocks get copied into the FS,
+  which creates more staged blocks (feedback loop). Always exclude
+  `.juicefs/**` in bulk-copy commands.
+
 The dev FS is intentionally NOT wired into a StorageClass: nothing in the
 cluster mounts it. If a dev workload ever needs it, create a separate
 `juicefs-dev-sc` StorageClass pointing at a `juicefs-dev-creds` secret (same
