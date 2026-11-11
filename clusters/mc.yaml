@@ -223,9 +223,12 @@ apps:
             # 2026-11-11 05:07Z: chronometer's juicefs/mount.juicefs was
             # memcg OOM-killed; mount pods had no headroom during model-cache
             # read storms.
+            # Memory only (operator 2026-11-11): the nodes are not CPU bound
+            # and the FUSE daemon is not a CPU risk — no CPU request/limit.
+            # The 05:07Z kill class was a memcg OOM inside the mount pod.
             resources:
-              requests: {cpu: "1", memory: 2Gi}
-              limits: {cpu: "4", memory: 6Gi}
+              requests: {memory: 2Gi}
+              limits: {memory: 6Gi}
             mountOptions:
               - cache-dir=/mnt/pool/juicefs-ring
               - cache-size=550000
