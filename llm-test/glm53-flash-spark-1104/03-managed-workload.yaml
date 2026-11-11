@@ -8,10 +8,8 @@ metadata:
   namespace: llm-test
 spec:
   poolRef: dgx-spark
-  # Resident since the 2026-11-09 cutover (operator-managed intent; the
-  # conductor-workloads app is the registration source of truth for this
-  # field — kept identical here so stale Argo renders cannot fight it).
-  desiredState: Resident
+  # desiredState is intentionally ABSENT: it is a runtime-only residency
+  # switch owned by the operator/Conductor, never declared in Git.
   # Keep inactive until the rank startup failure is root-caused and a safe retry is reviewed.
   priority: 90
   driver:
