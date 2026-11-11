@@ -458,6 +458,11 @@ catalog:
       syncOptions:
         - CreateNamespace=true
         - ServerSideApply=true
+        # The STS volumeClaimTemplates are immutable; the snapshots template
+        # size bump (300Gi) is realized by expanding the existing PVCs, not
+        # by rewriting the live STS. RespectIgnoreDifferences keeps Argo from
+        # attempting that immutable-field apply.
+        - RespectIgnoreDifferences=true
 
   tailscale-operator:
     sources:
