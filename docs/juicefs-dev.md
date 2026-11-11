@@ -39,13 +39,11 @@ password   = <password>
 passphrase = <passphrase protecting the RSA pem>
 ```
 
-The `passphrase` key is NOT used with prod's unencrypted pem: prod stores
-`k8s/juicefs/pem` as a plain (non-passphrase-protected) RSA key, which is why
-`JFS_RSA_PASSPHRASE` is `optional: true` in the format job. Dev matches — the
-pem is unencrypted, so the record has no `passphrase` key and no client ever
-needs `JFS_RSA_PASSPHRASE`. (The helpers still support it: if a
-`passphrase` key were present they would export `JFS_RSA_PASSPHRASE`, which is
-required for passphrase-protected pems at format and mount time.)
+The `passphrase` key mirrors `juicefs-creds`: the format helper exports it as
+`JFS_RSA_PASSPHRASE` to unwrap the pem, and every client (mounts included)
+needs it to parse the key stored in the metadata engine. It is only needed
+because the pem is passphrase-protected; an unencrypted pem would not require
+it.
 
 The encryption key itself lives in a second record, mirroring `k8s/juicefs/pem`:
 
@@ -53,9 +51,8 @@ The encryption key itself lives in a second record, mirroring `k8s/juicefs/pem`:
 bao kv put -namespace=production -mount=k8s juicefs-dev/pem cert=@juicefs-dev.pem
 ```
 
-Generated with `openssl genrsa -out juicefs-dev.pem 4096` — unencrypted, matching
-the prod `k8s/juicefs/pem` record; the local copy is shredded after the record
-is stored. JuiceFS CE has no symmetric
+Generated with `openssl genrsa -aes256 -out juicefs-dev.pem 4096`; the local
+copy is shredded after the record is stored. JuiceFS CE has no symmetric
 encryption — `juicefs format` only supports `--encrypt-rsa-key` (verified
 against the v1.4.1 source bundled in CSI image v0.33.0; the format job's
 `--encrypt-key` fallback branch is dead code). The dev format helper therefore
@@ -76,9 +73,7 @@ tailnet. The in-cluster service DNS name only works for in-cluster mounts.
 2. **Put the OpenBao record** (requires an active `bao-auth` session; fill in
    the values from step 1 and the chosen postgres password):
 
-   `bao kv put -namespace=production -mount=k8s juicefs-dev/config name=juicefs-dev storage=s3 bucket=http://<garage-s3-endpoint>:3900/juicefs-dev access-key=<key-id> secret-key=<key-secret> metaurl='postgres://juicefs_dev_user:<password>@<reachable-postgres-host>:5432/juicefs-dev' username=juicefs_dev_user password=<password>`
-
-   No `passphrase` key: the pem is unencrypted, matching prod.
+   `bao kv put -namespace=production -mount=k8s juicefs-dev/config name=juicefs-dev storage=s3 bucket=http://<garage-s3-endpoint>:3900/juicefs-dev access-key=<key-id> secret-key=<key-secret> metaurl='postgres://juicefs_dev_user:<password>@<reachable-postgres-host>:5432/juicefs-dev' username=juicefs_dev_user password=<password> passphrase=<rsa-pem-passphrase>`
 
    Do this BEFORE the DatabaseRole syncs: CNPG reads the password from the
    VSO-produced secret.
