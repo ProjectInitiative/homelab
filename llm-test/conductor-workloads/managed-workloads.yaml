@@ -5,9 +5,12 @@ metadata:
   namespace: llm-test
 spec:
   poolRef: dgx-spark
-  desiredState: Resident
-  # Proven rollback lane while recipe 1104 startup failure is investigated.
-  # The scheduler may reclaim lower-priority residency when capacity is lost.
+  # Live serving is recipe 1104 (priority 90). v14 is the qualified rollback
+  # target: keep Standby in Git; flip to Resident only via revert.sh after the
+  # 1104 lane degrades. Its own current manifests still refuse 512k context
+  # (RISK: unqualified until the fit/gate fix lands), so do not let the
+  # scheduler promote it while 1104 is Resident.
+  desiredState: Standby
   priority: 0
   driver:
     type: DeploymentSet
@@ -93,3 +96,44 @@ spec:
     serviceName: cygnet-classifier-nv
     selector:
       app: cygnet-classifier-nv
+---
+# Live GLM-5.3-Flash serving lane (recipe 1104, d4226a1 engine). Proven live
+# 2026-11-09: manual cutover smoke passed (health/models/completion), full 1M
+# window, TF_ROCE=0. Registered Resident so Conductor owns recovery and
+# RecreateTogether once the pool returns to Manage mode.
+apiVersion: conductor.projectinitiative.io/v1alpha1
+kind: ManagedWorkload
+metadata:
+  name: glm53-flash-1104
+  namespace: llm-test
+spec:
+  poolRef: dgx-spark
+  desiredState: Resident
+  priority: 90
+  driver:
+    type: DeploymentSet
+    deploymentSet:
+      recoveryPolicy: RecreateTogether
+      startupGracePeriod: 60m
+      members:
+        - name: glm53-flash-1104-worker
+          role: worker
+          startOrder: 10
+          stopOrder: 20
+          replicas: 1
+          readyGate: DeploymentAvailable
+        - name: glm53-flash-1104-head
+          role: head
+          startOrder: 20
+          stopOrder: 10
+          replicas: 1
+          readyGate: DeploymentAvailable
+  qualification:
+    serviceName: dgx-spark-backend
+    path: /health
+    port: 8000
+    timeout: 60m
+  routing:
+    serviceName: dgx-spark-backend
+    selector:
+      serving.homelab.io/alias: dgx-spark
