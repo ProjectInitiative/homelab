@@ -272,6 +272,8 @@ spec:
       hostNetwork: true
       hostIPC: true
       dnsPolicy: ClusterFirstWithHostNet
+      tolerations:
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       # Capability pool, not hostnames: Conductor owns placement/recovery
       # (docs/dgx-spark-workload-policy.md).
       nodeSelector:
@@ -392,6 +394,8 @@ spec:
       hostNetwork: true
       hostIPC: true
       dnsPolicy: ClusterFirstWithHostNet
+      tolerations:
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       nodeSelector:
         gpu: dgx-spark
         gpu-vendor: nvidia

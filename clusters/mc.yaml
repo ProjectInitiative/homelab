@@ -106,6 +106,10 @@ apps:
       # catalog values, and the CSIDriver must not be emitted as a Helm hook.
       csidriver:
         disableHooks: true
+      node:
+        tolerations:
+          - {key: CriticalAddonsOnly, operator: Exists}
+          - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       globalConfig:
         enabled: true
         manageByHelm: true
@@ -271,6 +275,15 @@ apps:
             ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:6aaf22da-arm64@sha256:50848ee986438b756a842ce7f2250a42f1954159ff9d153181a646bd283bb5bf
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
+            # 2026-11-11 05:07Z: chronometer's juicefs/mount.juicefs was
+            # memcg OOM-killed; mount pods had no headroom during model-cache
+            # read storms.
+            # Memory only (operator 2026-11-11): the nodes are not CPU bound
+            # and the FUSE daemon is not a CPU risk — no CPU request/limit.
+            # The 05:07Z kill class was a memcg OOM inside the mount pod.
+            resources:
+              requests: {memory: 2Gi}
+              limits: {memory: 6Gi}
             mountOptions:
               - cache-dir=/mnt/pool/juicefs-ring
               - cache-size=550000
@@ -330,10 +343,16 @@ apps:
                   name: snapshots
                 spec:
                   accessModes: [ "ReadWriteOnce" ]
+                  # 2026-11-11: size bump only (operator direction — same
+                  # backend): 20Gi -> 300Gi on local-path-hdd-sticky. The
+                  # metadata LMDB (104GB/node) outgrew the PVC and metadata
+                  # auto-snapshots have been silently failing since July
+                  # (RISK-0046); snapshots are a full copy of the LMDB and
+                  # need ~3x the current meta size.
                   storageClassName: "local-path-hdd-sticky"
                   resources:
                     requests:
-                      storage: "20Gi"
+                      storage: "300Gi"
   - name: garage-migrate
     namespace: garage-migrate
     plugin:
@@ -404,6 +423,9 @@ apps:
   - name: grafana-alloy
     namespace: monitoring
     helm_values: |
+      controller:
+        tolerations:
+          - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       alloy:
         extraEnv:
           - name: CLUSTER_NAME
@@ -437,7 +459,8 @@ apps:
           name: forgejo-runner
   - name: forgejo-runner-arm
     namespace: forgejo
-    # sextant nodeSelector is baked into apps/base/forgejo-runner-arm/config.
+    # Unpinned (2026-11-11): schedules on whichever DGX Spark is free; only
+    # arm64 nodes. Volumes are disposable local-path-nvme.
   - name: cert-manager-issuers
     namespace: cert-manager
   - name: submariner-operator

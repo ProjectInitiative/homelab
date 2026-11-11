@@ -44,5 +44,9 @@ spec:
             add:
             - NET_ADMIN
             - NET_RAW
+      # kube-vip fronts the control-plane VIPs and must run on the master
+      # nodes only — never on the DGX Sparks (operator direction 2026-11-11).
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "true"
       hostNetwork: true
       serviceAccountName: kube-vip

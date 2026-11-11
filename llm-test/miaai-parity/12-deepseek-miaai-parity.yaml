@@ -21,6 +21,8 @@ spec:
         seccompProfile: {type: Unconfined}
       nodeSelector:
         kubernetes.io/hostname: chronometer
+      tolerations:
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       terminationGracePeriodSeconds: 10
       initContainers:
         - name: stage-upstream-runtime-files
@@ -312,6 +314,8 @@ spec:
         seccompProfile: {type: Unconfined}
       nodeSelector:
         kubernetes.io/hostname: sextant
+      tolerations:
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       terminationGracePeriodSeconds: 10
       initContainers:
         - name: stage-upstream-runtime-files

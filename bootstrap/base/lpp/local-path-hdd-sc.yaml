@@ -17,3 +17,6 @@ parameters:
   nodePath: "/mnt/local-provisioner/hdd"
 volumeBindingMode: WaitForFirstConsumer
 reclaimPolicy: Retain
+# Provisioner v0.0.31 supports online expansion; needed for in-place PVC
+# size bumps (garage snapshots 20Gi -> 300Gi, 2026-11-11).
+allowVolumeExpansion: true

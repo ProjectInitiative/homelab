@@ -179,6 +179,8 @@ spec:
       hostIPC: true
       dnsPolicy: ClusterFirstWithHostNet
       nodeSelector: {gpu: dgx-spark, gpu-vendor: nvidia}
+      tolerations:
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -190,7 +192,7 @@ spec:
       # the launcher exits before TensorFold ever starts.
       initContainers:
         - name: reclaim-vm-cache
-          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:ef2e6847aa4a-py3-v1@sha256:cc2af44e04d6a2c73a710f14df9ed58a15a4fe7d67ecbdd575f1018e98ddd04e
+          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:4835fc852d34-py3-v1@sha256:73f8a4ad9b6b4aff5e87f07805e6aa87d31fe51b5f901430c2fc97dc2d9c0d9f
           command: ["/bin/bash", "-lc"]
           args:
             - |
@@ -215,7 +217,7 @@ spec:
           securityContext: {privileged: true}
       containers:
         - name: tensorfold
-          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:ef2e6847aa4a-py3-v1@sha256:cc2af44e04d6a2c73a710f14df9ed58a15a4fe7d67ecbdd575f1018e98ddd04e
+          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:4835fc852d34-py3-v1@sha256:73f8a4ad9b6b4aff5e87f07805e6aa87d31fe51b5f901430c2fc97dc2d9c0d9f
           imagePullPolicy: IfNotPresent
           command: ["bash", "/launch/launch-rank.sh", "worker"]
           securityContext:
@@ -279,6 +281,8 @@ spec:
       hostIPC: true
       dnsPolicy: ClusterFirstWithHostNet
       nodeSelector: {gpu: dgx-spark, gpu-vendor: nvidia}
+      tolerations:
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -288,7 +292,7 @@ spec:
       # Match v14's bounded page-cache reclamation before the rank's unified-memory gate.
       initContainers:
         - name: reclaim-vm-cache
-          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:ef2e6847aa4a-py3-v1@sha256:cc2af44e04d6a2c73a710f14df9ed58a15a4fe7d67ecbdd575f1018e98ddd04e
+          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:4835fc852d34-py3-v1@sha256:73f8a4ad9b6b4aff5e87f07805e6aa87d31fe51b5f901430c2fc97dc2d9c0d9f
           command: ["/bin/bash", "-lc"]
           args:
             - |
@@ -313,7 +317,7 @@ spec:
           securityContext: {privileged: true}
       containers:
         - name: tensorfold
-          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:ef2e6847aa4a-py3-v1@sha256:cc2af44e04d6a2c73a710f14df9ed58a15a4fe7d67ecbdd575f1018e98ddd04e
+          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:4835fc852d34-py3-v1@sha256:73f8a4ad9b6b4aff5e87f07805e6aa87d31fe51b5f901430c2fc97dc2d9c0d9f
           imagePullPolicy: IfNotPresent
           command: ["bash", "/launch/launch-rank.sh", "head"]
           securityContext:

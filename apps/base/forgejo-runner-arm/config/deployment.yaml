@@ -25,8 +25,14 @@ spec:
     spec:
       automountServiceAccountToken: false
       enableServiceLinks: false
-      nodeSelector:
-        kubernetes.io/hostname: sextant
+      # arm64 CI runner: NOT pinned to a node — it schedules on whichever DGX
+      # Spark is free (the DGX Sparks are the cluster's only arm64 nodes, so
+      # the dgx-spark-dedicated toleration is required; operator direction
+      # 2026-11-11). Its volumes are disposable cache (see PVC comments); if
+      # it ever goes Pending after a node change, delete both PVCs to
+      # re-provision on the new node.
+      tolerations:
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       securityContext:
         fsGroup: 1000
       containers:
@@ -95,7 +101,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-options: Delete=false
 spec:
-  storageClassName: local-path-nvme-sticky
+  storageClassName: local-path-nvme # disposable CI cache; not node-sticky data
   accessModes: ["ReadWriteOnce"]
   resources:
     requests:
@@ -110,7 +116,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-options: Delete=false
 spec:
-  storageClassName: local-path-nvme-sticky
+  storageClassName: local-path-nvme # disposable nix cache; not node-sticky data
   accessModes: ["ReadWriteOnce"]
   resources:
     requests:
