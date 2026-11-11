@@ -275,10 +275,15 @@ apps:
                   name: snapshots
                 spec:
                   accessModes: [ "ReadWriteOnce" ]
-                  storageClassName: "local-path-hdd-sticky"
+                  # 2026-11-11: moved from local-path-hdd-sticky (20Gi) — the
+                  # metadata LMDB (104GB/node) outgrew it and metadata
+                  # auto-snapshots have been silently failing since July
+                  # (RISK-0046). The pool has 7.3T free; snapshots are a full
+                  # copy of the LMDB and need ~3x the current meta size.
+                  storageClassName: "local-path-sticky"
                   resources:
                     requests:
-                      storage: "20Gi"
+                      storage: "300Gi"
   - name: garage-migrate
     namespace: garage-migrate
     plugin:
