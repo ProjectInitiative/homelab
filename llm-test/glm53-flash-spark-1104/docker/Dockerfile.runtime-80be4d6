@@ -1,7 +1,8 @@
 # Python runtime layer for the immutable native recipe 4835fc852d34 image.
 # Placeholder is intentionally rejected by the suspended Job until the native manifest is verified.
+# Native build Job and registry HEAD independently verified this manifest digest on 2026-11-11.
 # configure-rdma-fabric.sh uses Python's stdlib to validate node inventory and select NCCL HCA/GID values.
-FROM local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:4835fc852d34@sha256:REPLACE_WITH_NATIVE_MANIFEST_SHA256
+FROM local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:4835fc852d34@sha256:c3751655a0778c2fb30f384396014ca5f6512af464a7d648950681c1a2486bb1
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
