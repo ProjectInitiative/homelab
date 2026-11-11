@@ -1,0 +1,18 @@
+# Dedicated postgres login role for the dev JuiceFS metadata engine.
+# Password is provisioned by VSO from OpenBao k8s/juicefs-dev/config
+# (username/password projected as a basic-auth secret by the postgres-cluster
+# app in apps.yaml). Put the OpenBao record in place BEFORE this role syncs,
+# otherwise the DatabaseRole reconciler has no password to apply.
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: juicefs-dev-user
+  namespace: postgres-db
+spec:
+  cluster:
+    name: postgres-cluster
+  name: juicefs_dev_user
+  ensure: present
+  login: true
+  passwordSecret:
+    name: juicefs-dev-postgres-creds

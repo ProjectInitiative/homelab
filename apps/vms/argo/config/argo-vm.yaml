@@ -17,7 +17,14 @@ spec:
           volumeMode: Filesystem
           resources:
             requests:
-              storage: 32Gi
+              # 2026-11-11 single-disk redesign: 256Gi root for /, /nix,
+              # /home (heavy nix store builds outgrew the old 32Gi root).
+              # The old 1Ti argo-data DV was deleted with the two-disk
+              # design; durable state moves to a dedicated JuiceFS mount
+              # inside the guest. JuiceFS capacity is soft/elastic: the
+              # label is not a prepayment; data lands in garage S3 +
+              # local NVMe cache.
+              storage: 256Gi
           storageClassName: juicefs-sc
         source:
           s3:
@@ -26,26 +33,12 @@ spec:
             # expects us-east-1, so import via the us-east-1 ExternalName
             # alias in the garage namespace.
             # nixos-estate.qcow2 = full estate image built from
-            # dotfiles kubevirtConfigurations.argo (kylepzak user, native
-            # fileSystems incl. /data + /nix bind with self-healing store
-            # seed). nixos.qcow2 = old minimal bootstrap image (rollback).
+            # dotfiles kubevirtConfigurations.argo-image (kylepzak user,
+            # 256Gi single-disk layout — 2026-11-11 redesign).
+            # nixos.qcow2 = old minimal bootstrap image (rollback).
             url: "http://us-east-1.garage.svc.cluster.local:3900/iso/nixos-estate.qcow2"
             secretRef: argo-s3-creds
-    - metadata:
-        name: argo-data
-      spec:
-        pvc:
-          accessModes:
-            - ReadWriteMany
-          volumeMode: Filesystem
-          resources:
-            requests:
-              # JuiceFS capacity is soft/elastic: the label is not a
-              # prepayment; data lands in garage S3 + local NVMe cache.
-              storage: 1Ti
-          storageClassName: juicefs-sc
-        source:
-          blank: {}
+
   template:
     metadata:
       labels:
@@ -67,14 +60,6 @@ spec:
               disk:
                 bus: virtio
               dedicatedIOThread: true
-            - name: data
-              # stable /dev/disk/by-id/virtio-argodata for the guest's
-              # fileSystems entry (survives disk reordering) — serial is a
-              # Disk-level field in the kubevirt API, not under .disk
-              serial: argodata
-              disk:
-                bus: virtio
-              dedicatedIOThread: true
           interfaces:
             - name: default
               masquerade: {}
@@ -87,9 +72,6 @@ spec:
         - name: root
           dataVolume:
             name: argo-root
-        - name: data
-          dataVolume:
-            name: argo-data
       # No cloud-init disk: the estate image configures users (kylepzak),
       # ssh keys, hostname, qemu-guest-agent and all storage natively via
       # the dotfiles hosts/argo module. cloud-init stays enabled in the

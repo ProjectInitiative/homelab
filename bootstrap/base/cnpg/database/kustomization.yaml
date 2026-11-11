@@ -4,7 +4,8 @@ resources:
   - postgres-cluster.yaml
   - juicefs-database.yaml
   - juicefs-role.yaml
-  - dev-juicefs-database.yaml
+  - juicefs-dev-database.yaml
+  - juicefs-dev-role.yaml
   - litellm-role.yaml
   - litellm-database.yaml
   - forgejo-database.yaml
