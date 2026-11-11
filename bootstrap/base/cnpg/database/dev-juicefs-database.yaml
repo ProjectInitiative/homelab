@@ -1,8 +1,9 @@
 # Declarative CNPG Database for the dev JuiceFS metadata engine.
-# This is a separate database in the existing postgres-cluster, owned by
-# juicefs_user (credentialed via the juicefs-postgres-creds secret produced by
-# VSO/OpenBao). The dev JuiceFS filesystem will use this DB as its metadata
-# engine and a separate S3 bucket (see the JuiceFS dev share config).
+# Separate database in the existing postgres-cluster, owned by the dedicated
+# dev_juicefs_user role (dev-juicefs-role.yaml, password via OpenBao
+# k8s/dev-juicefs/config -> dev-juicefs-postgres-creds). The dev JuiceFS
+# filesystem uses this DB as its metadata engine and a separate Garage bucket
+# (see docs/dev-juicefs.md for the OpenBao record and manual format steps).
 #
 # NOTE: CNPG declarative Database CRs require the operator to be >= 1.25.0.
 # If the operator is older, comment this out like the ai-juicefs example and
@@ -16,4 +17,4 @@ spec:
   cluster:
     name: postgres-cluster
   name: dev-juicefs
-  owner: juicefs_user
+  owner: dev_juicefs_user
