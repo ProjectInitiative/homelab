@@ -239,6 +239,7 @@ spec:
         gpu: dgx-spark
       tolerations:
         - {key: node.kubernetes.io/disk-pressure, operator: Exists}
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       containers:
         - name: memguard
           image: debian:bookworm-slim

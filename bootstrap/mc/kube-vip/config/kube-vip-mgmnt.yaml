@@ -44,5 +44,7 @@ spec:
             add:
             - NET_ADMIN
             - NET_RAW
+      tolerations:
+      - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       hostNetwork: true
       serviceAccountName: kube-vip

@@ -96,7 +96,8 @@ catalog:
             # The plugin must run with the NVIDIA runtime so NVML and driver
             # libraries are injected into the container.
             runtimeClassName: nvidia
-            tolerations: []
+            tolerations:
+              - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
             gfd:
               enabled: false
             nfd:
@@ -555,6 +556,9 @@ catalog:
         targetRevision: 0.9.1
         helm:
           values: |
+            controller:
+              tolerations:
+                - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
             alloy:
               clustering:
                 enabled: true

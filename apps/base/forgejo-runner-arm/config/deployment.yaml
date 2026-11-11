@@ -27,6 +27,9 @@ spec:
       enableServiceLinks: false
       nodeSelector:
         kubernetes.io/hostname: sextant
+      # Deliberate DGX-resident exception: this aarch64 CI runner is pinned to sextant.
+      tolerations:
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       securityContext:
         fsGroup: 1000
       containers:

@@ -179,6 +179,8 @@ spec:
       hostIPC: true
       dnsPolicy: ClusterFirstWithHostNet
       nodeSelector: {gpu: dgx-spark, gpu-vendor: nvidia}
+      tolerations:
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -279,6 +281,8 @@ spec:
       hostIPC: true
       dnsPolicy: ClusterFirstWithHostNet
       nodeSelector: {gpu: dgx-spark, gpu-vendor: nvidia}
+      tolerations:
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:

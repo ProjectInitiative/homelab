@@ -12,6 +12,8 @@ spec:
       labels:
         app: dnsutils
     spec:
+      tolerations:
+      - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       containers:
       - name: dnsutils
         image: ghcr.io/projectinitiative/dnsutils:latest
