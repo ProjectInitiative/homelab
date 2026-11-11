@@ -73,10 +73,21 @@ memcg OOM kill of `juicefs/mount.juicefs` during model-cache read storms.
 
 Generic pods (`ai-proxy-test`, `conductor-controller`, `forgejo-runner`,
 ingress, OpenBao snapshot jobs, and `svclb`) cannot tolerate the taint and
-cannot be rescheduled onto DGX nodes. The pinned `forgejo-runner-arm` on
-sextant is a deliberate DGX-resident exception and has the matching
-`toleration`. `svclb` load-balancer VIPs will simply stop routing via DGX nodes;
-this is acceptable because the Garage, Postgres, and Samba VIPs live elsewhere.
+cannot be rescheduled onto DGX nodes. `svclb` load-balancer VIPs will simply
+stop routing via DGX nodes; this is acceptable because the Garage, Postgres,
+and Samba VIPs live elsewhere.
+
+- `forgejo-runner-arm` is **unpinned** (2026-11-11): it schedules on whichever
+  DGX Spark is free and carries the toleration (the Sparks are the only arm64
+  nodes). Its cache/nix PVCs use `local-path-nvme` and are disposable; if it
+  ever goes Pending after a node change, delete both PVCs to re-provision on
+  the new node. (It was in `CreateContainerConfigError` before this change —
+  an unrelated pre-existing issue.)
+- kube-vip must **not** run on the DGX nodes: both staged DaemonSets
+  (`kube-vip-ds-bond0`, `kube-vip-ds-mgmnt`) are nodeSelector-restricted to
+  `node-role.kubernetes.io/control-plane=true` (capstan1-3) and carry no DGX
+  toleration. The live `kube-vip-ds` (3/3, all on masters) predates this repo
+  config and is not Git-managed here; migrating it under Argo is a follow-up.
 
 To roll back the taint:
 

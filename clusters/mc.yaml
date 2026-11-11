@@ -400,7 +400,8 @@ apps:
           name: forgejo-runner
   - name: forgejo-runner-arm
     namespace: forgejo
-    # sextant nodeSelector is baked into apps/base/forgejo-runner-arm/config.
+    # Unpinned (2026-11-11): schedules on whichever DGX Spark is free; only
+    # arm64 nodes. Volumes are disposable local-path-nvme.
   - name: cert-manager-issuers
     namespace: cert-manager
   - name: submariner-operator
