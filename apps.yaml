@@ -367,16 +367,16 @@ catalog:
             - username
             - password
           overwrite: true
-        - name: dev-juicefs-postgres-creds
+        - name: juicefs-dev-postgres-creds
           mount: k8s
-          # Dev JuiceFS record (k8s/dev-juicefs/config) holds bucket creds,
-          # metaurl, and the dev_juicefs_user credentials in one place, mirroring
+          # Dev JuiceFS record (k8s/juicefs-dev/config) holds bucket creds,
+          # metaurl, and the juicefs_dev_user credentials in one place, mirroring
           # juicefs/config. Only the role credentials enter postgres-db; the dev
           # node pulls the full record straight from OpenBao to format/mount
-          # (docs/dev-juicefs.md). Put the OpenBao record in place BEFORE the
+          # (docs/juicefs-dev.md). Put the OpenBao record in place BEFORE the
           # DatabaseRole syncs.
-          path: "dev-juicefs/config"
-          destination: "dev-juicefs-postgres-creds"
+          path: "juicefs-dev/config"
+          destination: "juicefs-dev-postgres-creds"
           destinationType: "kubernetes.io/basic-auth"
           destinationIncludes:
             - username
