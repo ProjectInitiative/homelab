@@ -1,0 +1,25 @@
+# One-shot input for 11-runtime-image-python3-build-80be4d6.yaml.
+# Replace the digest placeholder only after the native BuildKit manifest is verified.
+# Not included in kustomization.yaml; create explicitly before starting the suspended Job.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: glm53-flash-1104-runtime-dockerfile-80be4d6
+  namespace: llm-test
+  labels:
+    app: glm53-flash-1104-image-build
+    lane: glm53-flash-1104
+    purpose: runtime-image
+immutable: true
+data:
+  Dockerfile.runtime-80be4d6: |
+    # Python runtime layer for the immutable native recipe 4835fc852d34 image.
+    # Placeholder is intentionally rejected by the suspended Job until the native manifest is verified.
+    # configure-rdma-fabric.sh uses Python's stdlib to validate node inventory and select NCCL HCA/GID values.
+    FROM local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:4835fc852d34@sha256:REPLACE_WITH_NATIVE_MANIFEST_SHA256
+
+    ENV DEBIAN_FRONTEND=noninteractive
+    RUN apt-get update \
+     && apt-get install -y --no-install-recommends python3 \
+     && rm -rf /var/lib/apt/lists/* \
+     && python3 -c 'import ipaddress, json, pathlib, shlex; print("python3 runtime ready")'
