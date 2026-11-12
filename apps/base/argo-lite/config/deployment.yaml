@@ -75,16 +75,16 @@ spec:
               set -e
               mkdir -p /mnt/jfsdev/dev
               chown 1000:100 /mnt/jfsdev/dev || true
-              exec juicefs mount \
-                "${METAURL}" /mnt/jfsdev \
-                --access-key "${ACCESS_KEY}" \
-                --secret-key "${SECRET_KEY}"
+              # S3 creds via env: juicefs 1.4.x dropped --access-key/--secret-key
+              # flags on `mount` (same pattern as the CSI mount pods).
+              exec juicefs mount "${METAURL}" /mnt/jfsdev
           env:
             - name: METAURL
               valueFrom:
                 secretKeyRef:
                   name: juicefs-dev-creds
                   key: metaurl
+            # JuiceFS reads S3 creds from the standard env names
             - name: ACCESS_KEY
               valueFrom:
                 secretKeyRef:
