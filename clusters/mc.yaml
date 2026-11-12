@@ -486,6 +486,18 @@ apps:
 
   - name: argo
     namespace: argo
+  # argo-lite dev container (argo VM replacement). Tailscale LB placeholder
+  # renamed to argo-lite-lb-mc; ssh only.
+  - name: argo-lite
+    namespace: argo
+    patches:
+      - patch: |-
+          - op: replace
+            path: /metadata/name
+            value: argo-lite-lb-mc
+        target:
+          kind: Service
+          name: argo-lite-ts-placeholder
   - name: mcp-kubernetes
     namespace: mcp-system
     patch: |-

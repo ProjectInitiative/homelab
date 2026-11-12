@@ -1,0 +1,15 @@
+# Home PVC: pod root/home on the dev JuiceFS filesystem (multi-host RWX, so
+# the same directory can be mounted from astrolabe's FUSE mount during
+# migration). UID 1000 (kylepzak) matches the image user and FUSE ownership.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: argo-lite-home
+  namespace: argo
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: juicefs-sc
+  resources:
+    requests:
+      storage: 100Gi
