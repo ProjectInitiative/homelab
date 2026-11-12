@@ -705,9 +705,17 @@ An in-cluster MCP server (`mc` and `cc`) exposing a read-only Kubernetes API ove
 - **mc**: `http://mcp-system-mcp-lb-mc.taildeab2.ts.net/sse`
 - **cc**: `http://mcp-system-mcp-lb-cc.taildeab2.ts.net/sse`
 
-### What it can do (read-only, no secrets)
+### What it can do (read + scoped write)
 
 The default RBAC (`mcp-cluster-reader`) allows `get/list/watch` on pods, deployments, events, nodes, logs, storage, metrics, CRDs, etc. — **but not secrets**. See `apps/base/mcp-kubernetes/config/rbac.yaml` for the full list.
+
+The server also runs with `--access-level readwrite`: write tools are offered and execute under the same `mcp-agent-sa` identity, whose **write authority is namespaced and scoped by `apps/base/agent-access`**:
+
+| Scope | Write ability |
+|-------|--------------|
+| `llm-test` | `mcp-jobsmith` — Jobs/CronJobs/configmaps CRUD; pods are read-only (serving pods untouchable) |
+| `agent-sandbox` | Full namespaced access (PSA `restricted` + ResourceQuota enforced; no secrets/RBAC/quota self-modification) |
+| Everywhere else | Read-only — write verbs return `Forbidden` |
 
 ### Granting temporary debug access (exec, port-forward, ephemeral containers)
 

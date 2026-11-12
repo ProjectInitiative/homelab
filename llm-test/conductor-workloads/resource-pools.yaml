@@ -4,6 +4,9 @@ metadata:
   name: dgx-spark
   namespace: llm-test
 spec:
+  # GLM 1104 cutover smoke passed 2026-11-09; Conductor resumes ownership of
+  # residency and RecreateTogether recovery on this pool. 1104 is Resident
+  # (priority 90); v14 is Standby pending the rollback-lane context fit fix.
   managementMode: Manage
   capacity:
     slots: 1

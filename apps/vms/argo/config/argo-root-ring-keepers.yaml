@@ -1,0 +1,111 @@
+# Keep one read-only argo-root consumer per capstan so all three owner mounts
+# stay registered even while the VM is stopped. TCP/13911 host rules are live;
+# verify membership and a bounded peer read before any full-disk warmup.
+# PVC/CSI mounts are per-node, not one global Mount Pod.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argo-root-ring-capstan1
+  namespace: argo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: argo-root-ring-capstan1
+  template:
+    metadata:
+      labels:
+        app: argo-root-ring-capstan1
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/hostname: capstan1
+      containers:
+        - name: keeper
+          image: alpine:3.20
+          command: ["/bin/sh", "-ec"]
+          args: ["test -r /disk/disk.img; exec sleep 2147483647"]
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+          volumeMounts:
+            - name: root
+              mountPath: /disk
+              readOnly: true
+      volumes:
+        - name: root
+          persistentVolumeClaim:
+            claimName: argo-root
+            readOnly: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argo-root-ring-capstan2
+  namespace: argo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: argo-root-ring-capstan2
+  template:
+    metadata:
+      labels:
+        app: argo-root-ring-capstan2
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/hostname: capstan2
+      containers:
+        - name: keeper
+          image: alpine:3.20
+          command: ["/bin/sh", "-ec"]
+          args: ["test -r /disk/disk.img; exec sleep 2147483647"]
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+          volumeMounts:
+            - name: root
+              mountPath: /disk
+              readOnly: true
+      volumes:
+        - name: root
+          persistentVolumeClaim:
+            claimName: argo-root
+            readOnly: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argo-root-ring-capstan3
+  namespace: argo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: argo-root-ring-capstan3
+  template:
+    metadata:
+      labels:
+        app: argo-root-ring-capstan3
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/hostname: capstan3
+      containers:
+        - name: keeper
+          image: alpine:3.20
+          command: ["/bin/sh", "-ec"]
+          args: ["test -r /disk/disk.img; exec sleep 2147483647"]
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+          volumeMounts:
+            - name: root
+              mountPath: /disk
+              readOnly: true
+      volumes:
+        - name: root
+          persistentVolumeClaim:
+            claimName: argo-root
+            readOnly: true

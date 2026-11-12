@@ -1,0 +1,78 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: glm53-flash-1104-image-py3-v2
+  namespace: llm-test
+  labels:
+    app: glm53-flash-1104-image-build
+    lane: glm53-flash-1104
+    purpose: runtime-image
+spec:
+  suspend: false
+  backoffLimit: 0
+  activeDeadlineSeconds: 1800
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      labels:
+        app: glm53-flash-1104-image-build
+        lane: glm53-flash-1104
+        purpose: runtime-image
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      dnsConfig:
+        nameservers: [172.16.1.1, 1.1.1.1]
+      securityContext:
+        fsGroup: 1000
+      nodeSelector:
+        kubernetes.io/arch: arm64
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - {key: kubernetes.io/hostname, operator: In, values: [octant]}
+      containers:
+        - name: buildkit
+          image: moby/buildkit:v0.26.2-rootless
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              set -eu
+              image=local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:74e19a63a9a5-py3-v2
+              echo "building derived runtime $image from the pinned 1104 image"
+              exec buildctl-daemonless.sh build \
+                --frontend dockerfile.v0 \
+                --local context=/workspace/context \
+                --local dockerfile=/workspace/dockerfile \
+                --opt filename=Dockerfile.runtime \
+                --output "type=image,name=$image,push=true,oci-mediatypes=false" \
+                --progress=plain
+          env:
+            - name: BUILDKITD_FLAGS
+              value: "--oci-worker-no-process-sandbox --config=/build/buildkitd.toml"
+          resources:
+            requests: {cpu: "2", memory: 4Gi, ephemeral-storage: 10Gi}
+            limits: {cpu: "4", memory: 8Gi, ephemeral-storage: 15Gi}
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            seccompProfile: {type: Unconfined}
+            appArmorProfile: {type: Unconfined}
+          volumeMounts:
+            - {name: context, mountPath: /workspace/context, readOnly: true}
+            - {name: dockerfile, mountPath: /workspace/dockerfile, readOnly: true}
+            - {name: buildkit-state, mountPath: /home/user/.local/share/buildkit}
+            - {name: build-config, mountPath: /build, readOnly: true}
+      volumes:
+        - name: context
+          emptyDir: {sizeLimit: 1Gi}
+        - name: dockerfile
+          configMap: {name: glm53-flash-1104-runtime-dockerfile, defaultMode: 0444}
+        - name: buildkit-state
+          emptyDir: {sizeLimit: 15Gi}
+        - name: build-config
+          configMap: {name: glm53-flash-1104-buildkit-config, defaultMode: 0555}

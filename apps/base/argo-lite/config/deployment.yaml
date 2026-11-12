@@ -1,0 +1,115 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argo-lite
+  namespace: argo
+  labels:
+    app: argo-lite
+spec:
+  # Single writer by design: the home PVC holds a live workspace; Recreate
+  # mirrors the forgejo pattern and avoids two pods on the same files.
+  strategy:
+    type: Recreate
+  replicas: 1
+  selector:
+    matchLabels:
+      app: argo-lite
+  template:
+    metadata:
+      labels:
+        app: argo-lite
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        # PVC files are owned by uid 1000 (kylepzak) — matches the image user
+        # and the astrolabe-side FUSE mount ownership.
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        # Dev container: sshd PID1 on :2222, baked home-manager terminal
+        # profile (see dotfiles containers/argo-lite).
+        - name: argo-lite
+          image: 172.16.1.50:31872/argo-lite:latest
+          imagePullPolicy: Always
+          ports:
+            - name: ssh
+              containerPort: 2222
+          resources:
+            requests:
+              cpu: "2"
+              memory: 4Gi
+            limits:
+              cpu: "8"
+              memory: 16Gi
+          volumeMounts:
+            - name: home
+              mountPath: /home/kylepzak
+        # JuiceFS sidecar: mounts the juicefs-dev filesystem out-of-band (same
+        # FS the dev node/laptop mount via FUSE), exposing a shared subtree to
+        # both containers. Image matches the CSI mount pods (ce-v1.4.1) so
+        # metadata/cache formats agree.
+        # Security: privileged IS required here — verified 2026-11-12: juicefs
+        # calls mount(2) directly (no fusermount path in the binary), which
+        # needs CAP_SYS_ADMIN (PSA privileged level), and Bidirectional mount
+        # propagation itself is privileged-only. Scoped: no SA token (pod-level
+        # automountServiceAccountToken: false), resource-capped.
+        # Creds come from the VSS-synced juicefs-dev-creds secret
+        # (k8s/juicefs-dev/config record; passphrase included).
+        - name: juicefs-dev
+          image: juicedata/mount:ce-v1.4.1
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              mkdir -p /mnt/jfsdev/dev
+              chown 1000:100 /mnt/jfsdev/dev || true
+              exec juicefs mount \
+                "${METAURL}" /mnt/jfsdev \
+                --access-key "${ACCESS_KEY}" \
+                --secret-key "${SECRET_KEY}"
+          env:
+            - name: METAURL
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-dev-creds
+                  key: metaurl
+            - name: ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-dev-creds
+                  key: access-key
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-dev-creds
+                  key: secret-key
+            - name: JFS_RSA_PASSPHRASE
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-dev-creds
+                  key: passphrase
+                  optional: true
+          securityContext:
+            privileged: true
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          volumeMounts:
+            - name: jfs-shared
+              mountPath: /mnt/jfsdev
+              # mountPropagation so the FUSE mount is visible in the shared
+              # volume for the app container (Bidirectional on the sidecar,
+              # HostToContainer on the consumer).
+              mountPropagation: Bidirectional
+      volumes:
+        - name: home
+          persistentVolumeClaim:
+            claimName: argo-lite-home
+        - name: jfs-shared
+          emptyDir: {}

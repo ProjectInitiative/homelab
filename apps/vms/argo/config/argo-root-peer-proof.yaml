@@ -1,0 +1,65 @@
+# One-shot bounded pre-warm root peer proof. No guest writes, no full disk scan.
+# Remove after collecting the result; a zero peer delta is NOT success.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: argo-root-peer-proof-9cdc4100-v2
+  namespace: argo
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 300
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      nodeSelector: {kubernetes.io/hostname: capstan2}
+      # argo namespace enforces PodSecurity baseline: no host namespaces.
+      containers:
+        - name: probe
+          image: alpine:3.20
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              test -r /disk/disk.img || { echo 'disk.img unreadable'; exit 1; }
+              size=$(stat -c %s /disk/disk.img)
+              test "$size" -gt 0 && test "$size" -le 34359738368 || { echo 'disk size outside gate'; exit 1; }
+              # JuiceFS .config exposes a sanitized Port.PrometheusAgent (no
+              # metadata URL). The metrics port is dynamic on every mount.
+              addr=$(sed -n 's/^[[:space:]]*"PrometheusAgent": "\([^"]*\)".*/\1/p' /disk/.config | head -n 1)
+              port=${addr##*:}
+              case "$port" in ''|*[!0-9]*) echo 'metrics port unavailable'; exit 1;; esac
+              test "$port" -gt 0 && test "$port" -le 65535 || { echo 'metrics port invalid'; exit 1; }
+              url="http://172.16.4.52:$port/metrics"
+              wget -q -T 5 -O /tmp/before "$url" || { echo 'root metrics endpoint unavailable'; exit 1; }
+              grep -Fq 'pvc-f1d339aa-bfed-446e-9723-5abadca8a781' /tmp/before || { echo 'metrics endpoint does not identify root mount'; exit 1; }
+              metric() { awk -v m="$1" 'index($1,m)==1 && (length($1)==length(m) || substr($1,length(m)+1,1)=="{") {v += $2} END {printf "%.0f\n",v+0}' "$2"; }
+              base_gets=$(metric juicefs_remotecache_range_gets /tmp/before)
+              base_bytes=$(metric juicefs_remotecache_range_bytes /tmp/before)
+              base_errors=$(metric juicefs_remotecache_range_errors /tmp/before)
+              echo "before: ranged_gets=$base_gets ranged_bytes=$base_bytes ranged_errors=$base_errors size=$size"
+              # 16 widely spaced 4KiB reads, at most 64KiB requested from FUSE.
+              # Prefetch/readahead may fetch additional blocks; never scan the disk.
+              for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+                block=$((i * 524288 + 8))
+                test "$((block * 4096 + 4096))" -le "$size" || break
+                if ! dd if=/disk/disk.img of=/tmp/sample bs=4096 skip="$block" count=1 2>/tmp/dd-error; then echo "disk read failed at sample=$i"; exit 1; fi
+                hash=$(sha256sum /tmp/sample | cut -d' ' -f1)
+                wget -q -T 5 -O /tmp/after "$url" || { echo 'metrics endpoint disappeared'; exit 1; }
+                gets=$(metric juicefs_remotecache_range_gets /tmp/after)
+                bytes=$(metric juicefs_remotecache_range_bytes /tmp/after)
+                errors=$(metric juicefs_remotecache_range_errors /tmp/after)
+                test "$errors" -eq "$base_errors" || { echo "peer errors increased at sample=$i"; exit 1; }
+                echo "sample=$i offset=$((block * 4096)) sha256=$hash ranged_gets_delta=$((gets - base_gets)) ranged_bytes_delta=$((bytes - base_bytes))"
+                if [ "$gets" -gt "$base_gets" ] && [ "$bytes" -gt "$base_bytes" ]; then echo 'MEASURED_PEER_RANGE_READ; confirm owner-side metrics and all three registry members before warm'; exit 0; fi
+              done
+              echo 'NO_MEASURED_PEER_READ; warm remains blocked'
+              exit 1
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+          volumeMounts:
+            - {name: argo-root, mountPath: /disk, readOnly: true}
+      volumes:
+        - name: argo-root
+          persistentVolumeClaim: {claimName: argo-root, readOnly: true}

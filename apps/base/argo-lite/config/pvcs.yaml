@@ -1,0 +1,16 @@
+# Home PVC: pod root/home rides the PRODUCTION juicefs-sc via the CSI driver,
+# per owner architecture (the dev FS is deliberately outside the CSI stack and
+# is mounted out-of-band by the juicefs-dev sidecar). UID 1000 (kylepzak)
+# matches the image user.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: argo-lite-home
+  namespace: argo
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: juicefs-sc
+  resources:
+    requests:
+      storage: 100Gi

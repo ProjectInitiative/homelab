@@ -19,7 +19,7 @@
 #
 # Fabric adaptation (same contract as the glm53 EXL3 and prior TensorFold lanes):
 #   - Capability scheduling: `nvidia-rdma` RuntimeClass + required hostname
-#     anti-affinity place the two ranks on any two eligible Sparks.
+#     anti-affinity place the two ranks on the explicitly ring-labeled Sparks.
 #   - Rendezvous/config rides the common 172.16.4.x network via headless
 #     Service DNS (master port 29551; rank 1 first, then rank 0).
 #   - RoCE rails are selected per rank from the node-local inventory
@@ -97,6 +97,8 @@ data:
     hcas = []
     gid_indexes = set()
     netdevs = []
+    local_addresses = []
+    peer_addresses = []
     for link in links:
         netdev = link["interface"]
         netdevs.append(netdev)
@@ -108,6 +110,8 @@ data:
         hcas.append(f"{hca}:1")
 
         local_ip = ipaddress.ip_interface(link["address"]).ip
+        local_addresses.append(str(local_ip))
+        peer_addresses.append(link["peerAddress"])
         gid_root = pathlib.Path("/sys/class/infiniband") / hca / "ports/1"
         matches = []
         for gid_path in sorted((gid_root / "gids").iterdir(), key=lambda p: int(p.name)):
@@ -130,8 +134,13 @@ data:
     values = {
         "NCCL_IB_HCA": "=" + ",".join(hcas),
         "NCCL_IB_GID_INDEX": next(iter(gid_indexes)),
-        "NCCL_SOCKET_IFNAME": "=" + fabric["controlPlane"]["interface"],
-        "GLOO_SOCKET_IFNAME": fabric["controlPlane"]["interface"],
+        # Keep NCCL/Gloo off mgmnt.10: the direct ConnectX rails carry both
+        # bootstrap sockets and collectives. The management VLAN must remain
+        # available for Kubernetes, JuiceFS metadata, and control traffic.
+        "NCCL_SOCKET_IFNAME": ",".join("=" + netdev for netdev in netdevs),
+        "GLOO_SOCKET_IFNAME": netdevs[0],
+        "RDMA_LOCAL_ADDRESS": local_addresses[0],
+        "RDMA_PEER_ADDRESS": peer_addresses[0],
         "RDMA_PEER_NODE": links[0]["peerNode"],
         "RDMA_PEER_NETDEVS": ",".join(netdevs),
     }
@@ -209,10 +218,10 @@ data:
     say "TensorFold version: $(tensorfold --version 2>/dev/null || echo unknown)"
     say "selecting RoCE rails from node-local inventory"
     . /opt/tensorfold/configure-rdma-fabric.sh
-    say "rank 0 launching (API 0.0.0.0:8000, master $HOST_IP:29551)"
+    say "rank 0 launching (API 0.0.0.0:8000, master $RDMA_LOCAL_ADDRESS:29551)"
     exec tensorfold serve "$MODEL_SNAP" \
       --tp 2 --rank 0 \
-      --master "$HOST_IP" --master-port 29551 \
+      --master "$RDMA_LOCAL_ADDRESS" --master-port 29551 \
       --name GLM-5.3-Flash-EXL3 \
       --host 0.0.0.0 --port 8000 \
       --drafter "$DRAFTER_SNAP" \
@@ -228,10 +237,10 @@ data:
     say "TensorFold version: $(tensorfold --version 2>/dev/null || echo unknown)"
     say "selecting RoCE rails from node-local inventory"
     . /opt/tensorfold/configure-rdma-fabric.sh
-    say "rank 1 launching (master at $PEER_CONTROL_IP:29551)"
+    say "rank 1 launching (master at $RDMA_PEER_ADDRESS:29551)"
     exec tensorfold serve "$MODEL_SNAP" \
       --tp 2 --rank 1 \
-      --master "$PEER_CONTROL_IP" --master-port 29551 \
+      --master "$RDMA_PEER_ADDRESS" --master-port 29551 \
       --drafter "$DRAFTER_SNAP" \
       --context 512000 --parallel 6 --max-tokens 32768 --thinking --vision
 ---
@@ -330,11 +339,14 @@ spec:
       hostNetwork: true
       hostIPC: true
       dnsPolicy: ClusterFirstWithHostNet
-      # Select the DGX Spark capability pool, not specific hostnames. Conductor
-      # owns residency and recovery when a Spark fails or must be reclaimed.
+      # Keep both ranks on the existing eligible Spark pool; the other zero-
+      # replica TensorFold rank plus hostname anti-affinity spreads the pair.
+      # capstan3's independent legacy mount remains for gate-inspector.
       nodeSelector:
         gpu: dgx-spark
         gpu-vendor: nvidia
+      tolerations:
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -582,11 +594,14 @@ spec:
       hostNetwork: true
       hostIPC: true
       dnsPolicy: ClusterFirstWithHostNet
-      # Select the DGX Spark capability pool, not specific hostnames. Conductor
-      # owns residency and recovery when a Spark fails or must be reclaimed.
+      # Keep both ranks on the existing eligible Spark pool; the other zero-
+      # replica TensorFold rank plus hostname anti-affinity spreads the pair.
+      # capstan3's independent legacy mount remains for gate-inspector.
       nodeSelector:
         gpu: dgx-spark
         gpu-vendor: nvidia
+      tolerations:
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:

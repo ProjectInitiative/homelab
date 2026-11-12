@@ -1,0 +1,10 @@
+# Python runtime layer for the immutable native recipe ef2e6847aa4a image.
+# Native build Job and registry HEAD independently verified this manifest digest on 2026-11-09.
+# configure-rdma-fabric.sh uses Python's stdlib to validate node inventory and select NCCL HCA/GID values.
+FROM local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:ef2e6847aa4a@sha256:8ec389d675f4fbe47754e948652e3999cf2aa1cf9f59a3b3973566e501db798b
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 \
+ && rm -rf /var/lib/apt/lists/* \
+ && python3 -c 'import ipaddress, json, pathlib, shlex; print("python3 runtime ready")'

@@ -98,6 +98,17 @@ readinessProbe:
   failureThreshold: 3
   successThreshold: 1
 
+# Admin API auth: garage v2 refuses all admin API calls without a token while
+# leaving /metrics and /health open. Token is synced from OpenBao
+# (k8s/garage/admin-token, key "token") via the app's vaultSecrets entry in
+# apps.yaml — never put the value in this file or the garage-config ConfigMap.
+environment:
+  - name: GARAGE_ADMIN_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: garage-admin-token
+        key: token
+
 # image:
 #   repository: ghcr.io/projectinitiative/garage
 #   # please prefer using the chart version and not this tag

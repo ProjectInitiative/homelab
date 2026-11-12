@@ -1,0 +1,107 @@
+# Engram storage gate: is the gcache-ring JuiceFS pool fast enough for the
+# 1017 recipe's Engram random 4 KiB reads, or must Engram live on node-local
+# NVMe?
+#
+# Evidence so far (docs + dsv41-parity/README.md):
+#   - Upstream recipe: Engram over NFS measured ~940 us per random 4 KiB read
+#     vs ~90 us local -> prefill collapsed to ~690-890 tok/s (vs ~2000+).
+#     "a decode round reads ~70 random 4 KiB rows" (scripts/config.sh).
+#   - Our dsv41 lane: fully warmed JuiceFS delivered 380-434 random 4 KiB IOPS
+#     (2.3-2.6 ms) vs 12.8-13.4k IOPS (~0.076 ms) on raw NVMe; serving
+#     plateaued at 4.2 tok/s until Engram was packed to local NVMe.
+# The gcache ring adds peer cache sharing over the 200G CX7 fabric; whether it
+# also fixes single-read latency is exactly what this bench measures on the
+# same StorageClass + PVC label the serving lane will use.
+#
+# GATE (decided by the operator from the report; defaults recorded here):
+#   PASS  -> JuiceFS+ring viable for Engram: 4k QD1 mean latency <= 0.20 ms
+#            AND >= 5,000 IOPS  (comfortably under the ~70 rows/round budget)
+#   FAIL  -> use node-local NVMe: run the pack step (README "Engram placement
+#            gate") and mount rank-local PVCs instead of the PVC subPaths.
+#
+# The bench seeds a 16 GiB dataset (larger than the 550 GB ring cache is not
+# required: Engram working set is hot rows, but we evict then warm explicitly
+# so the run measures warm-ring behavior, not object-store fetch), warms every
+# byte, then runs the fio patterns with O_DIRECT. Pinned to octant (idle).
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dsv41-1017-gcache-engram-bench-v1
+  namespace: llm-test
+  labels:
+    app: dsv41-1017-engram-bench
+    lane: dsv41-1017
+    purpose: one-off
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 259200
+  template:
+    metadata:
+      labels:
+        app: dsv41-1017-engram-bench
+        lane: dsv41-1017
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: octant
+      initContainers:
+        - name: warm
+          image: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:gcache-strict-sharding-arm64@sha256:be6ece264ef6c40e7a8e69e6323df95bc5ba92ac0b9e0522679e858b8cff3440
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              DATA=/data/bench/engram-sim.bin
+              # Seed once, evict, then warm: native juicefs warmup reads every
+              # byte into the node's ring cache without duplicating files.
+              if [ ! -f "$DATA" ] || [ "$(stat -c%s "$DATA")" -ne $((16*1024*1024*1024)) ]; then
+                rm -f "$DATA"
+                dd if=/dev/urandom of="$DATA" bs=8M count=2048 status=progress
+                sync
+              fi
+              echo "warming ring cache..."
+              juicefs warmup --path /data/bench 2>/dev/null || \
+                juicefs warmup /data/bench 2>/dev/null || \
+                { echo "juicefs warmup unavailable in image; falling back to dd read-back"; dd if="$DATA" of=/dev/null bs=1M status=progress; }
+              echo "warm complete"
+          resources:
+            requests: {cpu: "2", memory: 1Gi}
+            limits: {cpu: "4", memory: 4Gi}
+          volumeMounts:
+            - {name: models, mountPath: /data}
+      containers:
+        - name: fio
+          image: debian:bookworm-slim
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -uo pipefail
+              apt-get update -qq && apt-get install -y -qq fio jq >/dev/null
+              DIR=/data/bench
+              run() {
+                name=$1; shift
+                echo "=== $name ==="
+                fio --output-format=json --eta=never "$@" --directory="$DIR" --name="$name" \
+                    --direct=1 --runtime=30 --time_based --ramp_time=5 2>/dev/null | \
+                  jq '.jobs[0] | {name, iops_mean: (.read.iops // .read.iops_mean), lat_mean_us: (.read.lat_ns.mean/1000 | round), lat_p99_us: (.read.clat_ns.percentile["99.000000"] // .read.clat_ns.percentile["99.00"] | ./1000 | round), bw_kib: .read.bw}'
+              }
+              # The Engram access shape: ~70 random 4 KiB rows per decode round.
+              run engram-4k-qd1-psync   --rw=randread --bs=4k --iodepth=1 --ioengine=psync --numjobs=1
+              run engram-4k-qd64-libaio --rw=randread --bs=4k --iodepth=64 --ioengine=libaio --numjobs=4 --group_reporting
+              # Weight-file / checkpoint streaming sanity: 4 MiB sequential.
+              run seq-4m-qd16-libaio    --rw=read --bs=1M --iodepth=16 --ioengine=libaio --numjobs=4 --group_reporting
+              echo "=== verdict helper ==="
+              echo "PASS iff engram-4k-qd1-psync lat_mean_us <= 200 and iops_mean >= 5000"
+              echo "See README.md 'Engram placement gate' for the decision procedure."
+          resources:
+            requests: {cpu: "2", memory: 1Gi}
+            limits: {cpu: "4", memory: 4Gi}
+          volumeMounts:
+            - {name: models, mountPath: /data}
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache-ephemeral

@@ -1,0 +1,89 @@
+# Staged only: enable one keeper per capstan after bond0/TCP13912 and the
+# isolated /mnt/jfs-cache/argo-data directory are verified on all three.
+# Do not warm the ~900GB disk.img; this ring serves on-demand reads.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argo-data-ring-capstan1
+  namespace: argo
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: argo-data-ring-capstan1}
+  template:
+    metadata:
+      labels: {app: argo-data-ring-capstan1}
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector: {kubernetes.io/hostname: capstan1}
+      containers:
+        - name: keeper
+          image: alpine:3.20
+          command: ["/bin/sh", "-ec"]
+          args: ["test -r /disk/disk.img; exec sleep 2147483647"]
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+          volumeMounts:
+            - {name: data, mountPath: /disk, readOnly: true}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: argo-data, readOnly: true}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argo-data-ring-capstan2
+  namespace: argo
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: argo-data-ring-capstan2}
+  template:
+    metadata:
+      labels: {app: argo-data-ring-capstan2}
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector: {kubernetes.io/hostname: capstan2}
+      containers:
+        - name: keeper
+          image: alpine:3.20
+          command: ["/bin/sh", "-ec"]
+          args: ["test -r /disk/disk.img; exec sleep 2147483647"]
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+          volumeMounts:
+            - {name: data, mountPath: /disk, readOnly: true}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: argo-data, readOnly: true}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argo-data-ring-capstan3
+  namespace: argo
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: argo-data-ring-capstan3}
+  template:
+    metadata:
+      labels: {app: argo-data-ring-capstan3}
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector: {kubernetes.io/hostname: capstan3}
+      containers:
+        - name: keeper
+          image: alpine:3.20
+          command: ["/bin/sh", "-ec"]
+          args: ["test -r /disk/disk.img; exec sleep 2147483647"]
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+          volumeMounts:
+            - {name: data, mountPath: /disk, readOnly: true}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: argo-data, readOnly: true}

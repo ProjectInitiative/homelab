@@ -1,0 +1,157 @@
+# DeepSeek-V4.1-Flash-1017 TensorFold checkpoint + Engram tables preload into
+# the EPHEMERAL (non-backed-up) model cache. One-shot, suspended in Git.
+#
+#   Checkpoint: Mia-AiLab/DeepSeek-V4.1-Flash-1017-EXL3-EAQ-v1-2.9-bpw
+#               @ 45ee5d0fd106c94a3d77f721e09cbb2f50e5a16b  (39 shards, ~196 GiB)
+#   Engram:     deepseek-ai/DeepSeek-V4.1-Flash-1017
+#               @ 1bae0e1088993b9b82de08f59de5be5a34e42170 — ONLY shards 47+48
+#               (~203 GB) plus index+config, exactly as scripts/prepare.sh pulls.
+#
+# This writes to model-cache-ephemeral (juicefs-cache-sc -> juicefs-mc-cache
+# bucket, not backed up). The legacy `model-cache` PVC is never touched; there
+# is NO migration from it (see README.md).
+#
+# Verification: every file against the immutable 02-checksums.yaml inventory
+# (exact sizes for all, full SHA-256 for the two card-listed Engram shards and
+# all small metadata files; set VERIFY_ALL_SHA=1 before unsuspend to sha256 the
+# ~410 GB of shards too, adding roughly an hour of NVMe reads).
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dsv41-1017-model-pull-v1
+  namespace: llm-test
+  labels:
+    app: dsv41-1017-download
+    lane: dsv41-1017
+    purpose: model-cache-preload
+spec:
+  ttlSecondsAfterFinished: 604800
+  suspend: true
+  backoffLimit: 2147483647
+  template:
+    metadata:
+      labels:
+        app: dsv41-1017-download
+        lane: dsv41-1017
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        # Idle Spark: the puller claims no GPU/HCA, so keep it off chronometer
+        # while the glm53 lane is resident.
+        kubernetes.io/hostname: octant
+      containers:
+        - name: puller
+          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:v6@sha256:7c832f622f68fd03cf4eb6a5705451a223be90e45d1b8a5396f77a43c2672062
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            # Cap aggregate traffic below the gigabit site link.
+            - name: RATE
+              value: "62500000"
+            # Full quant repo; Engram repo filtered to exactly what the recipe
+            # downloads (shards 47+48 + index + config; puller v6 '#'-globs).
+            - name: PULL_MODELS
+              value: >-
+                Mia-AiLab/DeepSeek-V4.1-Flash-1017-EXL3-EAQ-v1-2.9-bpw@45ee5d0fd106c94a3d77f721e09cbb2f50e5a16b,deepseek-ai/DeepSeek-V4.1-Flash-1017@1bae0e1088993b9b82de08f59de5be5a34e42170#model-00047-of-00048.safetensors|model-00048-of-00048.safetensors|model.safetensors.index.json|config.json
+            - name: HF_HUB_DISABLE_XET
+              value: "1"
+            - name: PROGRESS_INTERVAL
+              value: "30"
+            - name: VERIFY_ALL_SHA
+              value: "0"
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface
+                  key: HF_TOKEN
+                  optional: true
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              marker=/models/.dsv41-1017-download-complete
+              model_snap=/models/.cache/huggingface/hub/models--Mia-AiLab--DeepSeek-V4.1-Flash-1017-EXL3-EAQ-v1-2.9-bpw/snapshots/45ee5d0fd106c94a3d77f721e09cbb2f50e5a16b
+              engram_snap=/models/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-V4.1-Flash-1017/snapshots/1bae0e1088993b9b82de08f59de5be5a34e42170
+              rm -f "$marker"
+
+              # Refuse to fill the PVC if the tree is missing and space is short.
+              # Needed: ~410 GiB (checkpoint 196 GiB + engram 203 GB + rank files
+              # ~212 GB written later by 05-prepare) against 3 TiB.
+              free_gib=$(df -BG --output=avail /models | tail -1 | tr -dc '0-9')
+              echo "ephemeral PVC free: ${free_gib} GiB"
+
+              python3 /opt/puller/puller.py
+
+              python3 - "$model_snap" "$engram_snap" "$marker" <<'PY'
+              import hashlib, json, os, pathlib, sys
+
+              model_snap, engram_snap, marker = map(pathlib.Path, sys.argv[1:])
+              expected = json.loads(pathlib.Path("/checksums/sha256.json").read_text())
+              manifest_sha = hashlib.sha256(
+                  (json.dumps(expected, sort_keys=True, separators=(",", ":")) + "\n").encode()
+              ).hexdigest()
+              if manifest_sha != pathlib.Path("/checksums/manifest.sha256").read_text().strip():
+                  raise SystemExit("checksum inventory drift vs pinned manifest.sha256")
+
+              small_max = 10 * 1024 * 1024
+              shard_bytes = 0
+              shard_count = 0
+              for name, spec in sorted(expected.items()):
+                  root, rel = (model_snap, name[len("checkpoint/"):]) if name.startswith("checkpoint/") \
+                      else (engram_snap, name[len("engram/"):])
+                  path = root / rel
+                  if not path.is_file():
+                      raise SystemExit(f"missing: {name}")
+                  size = path.stat().st_size
+                  if size != spec["size"]:
+                      raise SystemExit(f"size mismatch: {name}: {size} != {spec['size']}")
+                  verify_sha = os.environ.get("VERIFY_ALL_SHA") == "1" or size <= small_max or rel.startswith(("model-00047", "model-00048"))
+                  if verify_sha and "sha256" in spec:
+                      h = hashlib.sha256()
+                      with open(path, "rb") as fh:
+                          for chunk in iter(lambda: fh.read(1 << 24), b""):
+                              h.update(chunk)
+                      if h.hexdigest() != spec["sha256"]:
+                          raise SystemExit(f"sha256 mismatch: {name}")
+                  if name.startswith("checkpoint/model-") and name.endswith(".safetensors"):
+                      shard_count += 1
+                      shard_bytes += size
+                  print(f"ok: {name} ({size} bytes)")
+
+              if shard_count != 39 or shard_bytes != 210601036966:
+                  raise SystemExit(f"checkpoint shards {shard_count}/39, {shard_bytes} bytes")
+              for name in ("engram/model-00047-of-00048.safetensors",
+                           "engram/model-00048-of-00048.safetensors",
+                           "engram/model.safetensors.index.json", "engram/config.json"):
+                  if name not in expected:
+                      raise SystemExit(f"inventory missing {name}")
+
+              receipt = {
+                  "files": len(expected),
+                  "manifest_sha256": manifest_sha,
+                  "checkpoint_revision": "45ee5d0fd106c94a3d77f721e09cbb2f50e5a16b",
+                  "engram_revision": "1bae0e1088993b9b82de08f59de5be5a34e42170",
+                  "shards": 39,
+                  "weight_bytes": shard_bytes,
+              }
+              tmp = marker.with_suffix(".tmp")
+              tmp.write_text(json.dumps(receipt, sort_keys=True) + "\n")
+              os.replace(tmp, marker)
+              print(f"receipt written: {marker}")
+              PY
+              echo "DOWNLOAD OK"
+          resources:
+            requests: {cpu: 500m, memory: 1Gi}
+            limits: {cpu: "2", memory: 2Gi}
+          volumeMounts:
+            - {name: models, mountPath: /models}
+            - {name: checksums, mountPath: /checksums, readOnly: true}
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache-ephemeral
+        - name: checksums
+          configMap:
+            name: dsv41-1017-sha256

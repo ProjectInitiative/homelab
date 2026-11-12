@@ -1,0 +1,103 @@
+# Staged, resumable model/drafter download into the existing model-cache PVC.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: glm53-flash-1104-model-pull-v1
+  namespace: llm-test
+  labels:
+    app: glm53-flash-1104-download
+    lane: glm53-flash-1104
+    purpose: model-cache-preload
+spec:
+  suspend: true
+  ttlSecondsAfterFinished: 604800
+  backoffLimit: 2147483647
+  activeDeadlineSeconds: 86400
+  template:
+    metadata:
+      labels:
+        app: glm53-flash-1104-download
+        lane: glm53-flash-1104
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: octant
+      containers:
+        - name: puller
+          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:v6@sha256:7c832f622f68fd03cf4eb6a5705451a223be90e45d1b8a5396f77a43c2672062
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: HF_HOME, value: /models/.cache/huggingface}
+            - {name: RATE, value: "62500000"}
+            - name: PULL_MODELS
+              value: >-
+                Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold@76c0b5173166d2795dd48860f45d8224817f894c,incoai/GLM-5.3-Flash-DFlash2@bf582e4eacc1810f76656d1811693ff6c6737d2a
+            - {name: HF_HUB_DISABLE_XET, value: "1"}
+            - {name: PROGRESS_INTERVAL, value: "30"}
+            - {name: RECEIPT_PATH, value: /models/.glm53-flash-1104-pull-receipt.json}
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface
+                  key: HF_TOKEN
+                  optional: true
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              marker=/models/.glm53-flash-1104-download-complete.json
+              model_rev=76c0b5173166d2795dd48860f45d8224817f894c
+              draft_rev=bf582e4eacc1810f76656d1811693ff6c6737d2a
+              model_snap="/models/.cache/huggingface/hub/models--Mia-AiLab--GLM-5.3-Flash-EXL3-4bpw-TensorFold/snapshots/$model_rev"
+              draft_snap="/models/.cache/huggingface/hub/models--incoai--GLM-5.3-Flash-DFlash2/snapshots/$draft_rev"
+              rm -f "$marker"
+              python3 /opt/puller/puller.py
+              python3 - "$model_snap" "$draft_snap" "$marker" <<'PY'
+              import json, pathlib, sys
+              model, draft, marker = map(pathlib.Path, sys.argv[1:])
+              required = ("config.json", "tokenizer.json", "tokenizer_config.json", "model.safetensors.index.json")
+              for name in required:
+                  if not (model / name).is_file():
+                      raise SystemExit(f"checkpoint metadata missing: {model / name}")
+              index = json.loads((model / "model.safetensors.index.json").read_text())
+              shards = set(index.get("weight_map", {}).values())
+              if not shards:
+                  raise SystemExit("checkpoint weight_map is empty")
+              missing = sorted(name for name in shards if not (model / name).is_file())
+              if missing:
+                  raise SystemExit(f"checkpoint shards missing: {missing[:10]}")
+              weight_bytes = sum((model / name).stat().st_size for name in shards)
+              draft_weights = [p for p in draft.rglob("*") if p.is_file() and p.suffix in (".safetensors", ".bin", ".pt")]
+              if not (draft / "config.json").is_file() or not draft_weights:
+                  raise SystemExit(f"DFlash2 checkpoint incomplete: {draft}")
+              empty = sorted(name for name in shards if (model / name).stat().st_size <= 0)
+              if empty:
+                  raise SystemExit(f"checkpoint has empty shards: {empty[:10]}")
+              receipt_path = pathlib.Path("/models/.glm53-flash-1104-pull-receipt.json")
+              puller_receipt_present = receipt_path.is_file()
+              if not puller_receipt_present:
+                  print(f"puller image did not emit {receipt_path}; using verified snapshot inventory")
+              receipt = {
+                  "model_revision": model.name,
+                  "weight_shards": len(shards),
+                  "weight_bytes": weight_bytes,
+                  "drafter_revision": draft.name,
+                  "drafter_weight_files": len(draft_weights),
+                  "puller_receipt_present": puller_receipt_present,
+              }
+              tmp = marker.with_suffix(".tmp")
+              tmp.write_text(json.dumps(receipt, sort_keys=True) + "\n")
+              tmp.replace(marker)
+              print(f"verified {len(shards)} checkpoint shards ({weight_bytes} bytes), {len(draft_weights)} DFlash2 weight files; receipt {marker}")
+              PY
+              echo "GLM-5.3-Flash 1104 model pull verified"
+          resources:
+            requests: {cpu: 500m, memory: 1Gi}
+            limits: {cpu: "2", memory: 2Gi}
+          volumeMounts:
+            - {name: models, mountPath: /models}
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache

@@ -1,0 +1,39 @@
+# Single, bounded root-disk read after two stable 3-member SQL snapshots and
+# measured 4KiB peer-range read. Keep the CronJob suspended; no data disk warm.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: argo-root-cache-warm-once-20261109
+  namespace: argo
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 10800
+  template:
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      nodeSelector: {kubernetes.io/hostname: capstan2}
+      containers:
+        - name: read-disk
+          image: alpine:3.20
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              set -o pipefail
+              test -r /disk/disk.img
+              bytes=$(stat -c %s /disk/disk.img)
+              test "$bytes" -gt 0 && test "$bytes" -le 34359738368
+              echo "Reading root disk once, bytes=$bytes"
+              # Count the actual stream; a clean short read is not completion.
+              read_bytes=$(dd if=/disk/disk.img bs=4M 2>/tmp/dd.log | wc -c)
+              test "$read_bytes" -eq "$bytes" || { echo "short root read: got=$read_bytes expected=$bytes"; exit 1; }
+              test "$(stat -c %s /disk/disk.img)" -eq "$bytes" || { echo 'disk changed size during pass'; exit 1; }
+              echo "ROOT_WARM_COMPLETE bytes=$read_bytes"
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: "2", memory: 512Mi}
+          volumeMounts:
+            - {name: argo-root, mountPath: /disk, readOnly: true}
+      volumes:
+        - name: argo-root
+          persistentVolumeClaim: {claimName: argo-root, readOnly: true}

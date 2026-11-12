@@ -1,0 +1,132 @@
+---
+# OpenBao backup freshness check — the anti-silent-failure probe.
+#
+# The openbao-snapshot CronJob (every 6h) can fail silently: nobody watches
+# for its pods, and a broken DNS entry or expired credential just means no
+# new snapshot appears. This job runs daily at 08:00 UTC (2h after the 06:00
+# run), lists the bucket, and verifies the newest snapshot is < 26h old
+# (4 missed 6h runs + slack).
+#
+# Failure paths, in order of preference:
+#   1. Telegram message (immediate) — needs TELEGRAM_BOT_TOKEN +
+#      TELEGRAM_CHAT_ID in the openbao-monitoring bao path (optional)
+#   2. exit 1 -> failed CronJob visible in k8s
+#   3. no OneUptime heartbeat sent -> when the OneUptime instance exists
+#      (cc cluster, eventually), a staleness monitor pages non-critically
+#
+# Success path: optional ONEUPTIME_BACKUP_HEARTBEAT check-in — the future
+# OneUptime monitor alerts if the heartbeat stops arriving daily.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openbao-backup-check-script
+  namespace: openbao
+data:
+  check.sh: |
+    #!/bin/sh
+    set -eu
+
+    S3_HOST="garage.garage.svc.cluster.local.:3900"   # trailing dot is load-bearing
+    S3_BUCKET="openbao-snapshots"
+    MAX_AGE_SEC=93600   # 26h
+
+    S3ARGS="--host=$S3_HOST --host-bucket= --no-ssl --config=/dev/null --access_key=$AWS_ACCESS_KEY_ID --secret_key=$AWS_SECRET_ACCESS_KEY"
+
+    notify() {
+      # Telegram alert; no-op unless TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID are set
+      if [ -n "${TELEGRAM_BOT_TOKEN:-}" ] && [ -n "${TELEGRAM_CHAT_ID:-}" ]; then
+        python3 - "$1" <<'PYEOF' || echo "WARN: telegram notify failed"
+    import os, sys, json, urllib.request
+    tok, chat, msg = os.environ["TELEGRAM_BOT_TOKEN"], os.environ["TELEGRAM_CHAT_ID"], sys.argv[1]
+    req = urllib.request.Request(
+        "https://api.telegram.org/bot%s/sendMessage" % tok,
+        data=json.dumps({"chat_id": chat, "text": msg}).encode(),
+        headers={"Content-Type": "application/json"})
+    urllib.request.urlopen(req, timeout=15)
+    PYEOF
+      fi
+      return 0
+    }
+
+    heartbeat() {
+      # OneUptime check-in; no-op until ONEUPTIME_BACKUP_HEARTBEAT is injected
+      if [ -n "${ONEUPTIME_BACKUP_HEARTBEAT:-}" ]; then
+        python3 -c 'import os,urllib.request; urllib.request.urlopen(os.environ["ONEUPTIME_BACKUP_HEARTBEAT"], timeout=10)' \
+          && echo "oneuptime heartbeat sent" || echo "WARN: heartbeat failed"
+      fi
+      return 0
+    }
+
+    LATEST=$(s3cmd $S3ARGS ls "s3://$S3_BUCKET/" 2>/dev/null | awk '{print $4}' | sed 's|.*/||' | sort | tail -1)
+    if [ -z "$LATEST" ]; then
+      echo "ERROR: no snapshots found in s3://$S3_BUCKET/ (list failed or bucket empty)"
+      notify "🚨 openbao backups FAILED: no snapshots in s3://$S3_BUCKET/ (list errored or empty). Check the openbao-snapshot CronJob on mc."
+      exit 1
+    fi
+
+    AGE=$(python3 - "$LATEST" <<'PYEOF' 2>/dev/null || true
+    import sys, time, datetime
+    dt = datetime.datetime.strptime(sys.argv[1], "bao_%Y-%m-%d-%H%M.snapshot").replace(tzinfo=datetime.timezone.utc)
+    print(int(time.time() - dt.timestamp()))
+    PYEOF
+    )
+    if [ -z "${AGE:-}" ]; then
+      echo "ERROR: could not parse timestamp from snapshot name: $LATEST"
+      notify "🚨 openbao backups: unparsable snapshot name '$LATEST' — check the openbao-snapshot job output format."
+      exit 1
+    fi
+
+    if [ "$AGE" -gt "$MAX_AGE_SEC" ]; then
+      echo "STALE: newest snapshot $LATEST is $((AGE / 3600))h old (max $((MAX_AGE_SEC / 3600))h)"
+      notify "🚨 openbao backups STALE: newest snapshot is $((AGE / 3600))h old (max 26h) — 4+ scheduled runs missed. Check the openbao-snapshot CronJob on mc."
+      exit 1
+    fi
+
+    echo "OK: newest snapshot $LATEST is $((AGE / 3600))h old"
+    heartbeat
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: openbao-backup-check
+  namespace: openbao
+spec:
+  # Daily 08:00 UTC — after the 06:00 snapshot run, so a healthy pipeline
+  # always has a <=2h-old snapshot to find.
+  schedule: "0 8 * * *"
+  concurrencyPolicy: Forbid
+  activeDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        metadata:
+          labels:
+            app: openbao-backup-check
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: check
+              image: ghcr.io/openbao/openbao-snapshot-agent:0.3.0
+              command: ["sh", "/check-script/check.sh"]
+              envFrom:
+                - secretRef:
+                    name: openbao-snapshot-s3
+                - secretRef:
+                    name: openbao-monitoring
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 250m
+                  memory: 256Mi
+              volumeMounts:
+                - name: check-script
+                  mountPath: /check-script
+                  readOnly: true
+          volumes:
+            - name: check-script
+              configMap:
+                name: openbao-backup-check-script
+                defaultMode: 0755

@@ -1,3 +1,11 @@
+# desiredState is RUNTIME-ONLY (operator policy 2026-11-11): it is the
+# Conductor residency switch and must never be declared in Git. Argo syncs
+# this app but the field is absent from every rendered manifest, so Argo has
+# nothing to enforce and runtime patches/API calls (cutover.sh, revert.sh,
+# ops-intent SSA) are never reverted. Current live intents are owned by the
+# ops-intent field manager: v14=Standby (p0, unqualified rollback), 1104=Resident
+# (p90, live), cygnets=Resident. Register new workloads without desiredState
+# and set it once at apply time.
 apiVersion: conductor.projectinitiative.io/v1alpha1
 kind: ManagedWorkload
 metadata:
@@ -5,9 +13,6 @@ metadata:
   namespace: llm-test
 spec:
   poolRef: dgx-spark
-  desiredState: Resident
-  # Conductor priority: lower is more urgent; 0 is the LLM recovery lane.
-  # The scheduler may reclaim lower-priority residency when capacity is lost.
   priority: 0
   driver:
     type: DeploymentSet
@@ -43,7 +48,6 @@ metadata:
   namespace: llm-test
 spec:
   poolRef: cygnet-amd
-  desiredState: Resident
   priority: 50
   driver:
     type: DeploymentSet
@@ -72,7 +76,6 @@ metadata:
   namespace: llm-test
 spec:
   poolRef: cygnet-nvidia
-  desiredState: Resident
   priority: 50
   driver:
     type: DeploymentSet
@@ -93,3 +96,43 @@ spec:
     serviceName: cygnet-classifier-nv
     selector:
       app: cygnet-classifier-nv
+---
+# Live GLM-5.3-Flash serving lane (recipe 1104, d4226a1 engine). Proven live
+# 2026-11-09: manual cutover smoke passed (health/models/completion), full 1M
+# window, TF_ROCE=0. Registered Resident so Conductor owns recovery and
+# RecreateTogether once the pool returns to Manage mode.
+apiVersion: conductor.projectinitiative.io/v1alpha1
+kind: ManagedWorkload
+metadata:
+  name: glm53-flash-1104
+  namespace: llm-test
+spec:
+  poolRef: dgx-spark
+  priority: 90
+  driver:
+    type: DeploymentSet
+    deploymentSet:
+      recoveryPolicy: RecreateTogether
+      startupGracePeriod: 60m
+      members:
+        - name: glm53-flash-1104-worker
+          role: worker
+          startOrder: 10
+          stopOrder: 20
+          replicas: 1
+          readyGate: DeploymentAvailable
+        - name: glm53-flash-1104-head
+          role: head
+          startOrder: 20
+          stopOrder: 10
+          replicas: 1
+          readyGate: DeploymentAvailable
+  qualification:
+    serviceName: dgx-spark-backend
+    path: /health
+    port: 8000
+    timeout: 60m
+  routing:
+    serviceName: dgx-spark-backend
+    selector:
+      serving.homelab.io/alias: dgx-spark

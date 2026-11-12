@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ts-vip-watchdog
+  namespace: tailscale
+  labels:
+    app: ts-vip-watchdog
+spec:
+  # Temporarily disabled while Tailscale main is evaluated; keep the
+  # Deployment, ConfigMap, and RBAC resources present for quick re-enable.
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ts-vip-watchdog
+  template:
+    metadata:
+      labels:
+        app: ts-vip-watchdog
+      annotations:
+        watchdog-config-sha256: d9780b0556160fcf2c4d408a73378a434de590c7dac31154a7bb35649dd02f0c
+    spec:
+      serviceAccountName: ts-vip-watchdog
+      hostNetwork: true
+      # The watchdog calls the external Tailscale API. Use the node resolver
+      # instead of routing that lookup through cluster DNS.
+      dnsPolicy: Default
+      automountServiceAccountToken: true
+      containers:
+        - name: watchdog
+          # Pin this image by digest before promoting beyond the dev branch.
+          image: python:3.12-alpine
+          command: ["python3", "/opt/watchdog/watchdog.py"]
+          env:
+            - name: TAILSCALE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: operator-oauth
+                  key: client_id
+            - name: TAILSCALE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: operator-oauth
+                  key: client_secret
+            - name: TAILNET
+              value: "-"
+            - name: FAILURES_BEFORE_REPAIR
+              value: "3"
+            - name: RESTART_GRACE
+              value: "180"
+            - name: COOLDOWN
+              value: "1800"
+            - name: REPAIR_RETRY
+              value: "60"
+            - name: INTERVAL
+              value: "30"
+          volumeMounts:
+            - name: watchdog
+              mountPath: /opt/watchdog
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: watchdog
+          configMap:
+            name: ts-vip-watchdog
+            defaultMode: 0555

@@ -96,7 +96,8 @@ catalog:
             # The plugin must run with the NVIDIA runtime so NVML and driver
             # libraries are injected into the container.
             runtimeClassName: nvidia
-            tolerations: []
+            tolerations:
+              - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
             gfd:
               enabled: false
             nfd:
@@ -176,6 +177,10 @@ catalog:
           mount: k8s
           path: "openbao-snapshot/s3"
           destination: "openbao-snapshot-s3"
+        - name: openbao-monitoring
+          mount: k8s
+          path: "openbao/monitoring"
+          destination: "openbao-monitoring"
     ignoreDifferences:
       - group: admissionregistration.k8s.io
         jsonPointers:
@@ -363,6 +368,21 @@ catalog:
             - username
             - password
           overwrite: true
+        - name: juicefs-dev-postgres-creds
+          mount: k8s
+          # Dev JuiceFS record (k8s/juicefs-dev/config) holds bucket creds,
+          # metaurl, and the juicefs_dev_user credentials in one place, mirroring
+          # juicefs/config. Only the role credentials enter postgres-db; the dev
+          # node pulls the full record straight from OpenBao to format/mount
+          # (docs/juicefs-dev.md). Put the OpenBao record in place BEFORE the
+          # DatabaseRole syncs.
+          path: "juicefs-dev/config"
+          destination: "juicefs-dev-postgres-creds"
+          destinationType: "kubernetes.io/basic-auth"
+          destinationIncludes:
+            - username
+            - password
+          overwrite: true
         - name: litellm-postgres-creds
           mount: k8s
           # The same OpenBao record also contains DATABASE_URL and
@@ -410,6 +430,17 @@ catalog:
           mount: k8s
           path: "garage/rpc"
           destination: "garage-rpc-secret"
+        # Admin API token for garage v2 (GARAGE_ADMIN_TOKEN env on the pods).
+        # Token value lives in OpenBao at k8s/garage/admin-token under key
+        # "token" — used by dinghy's prometheus for the admin API (per-bucket
+        # size audit) and any future admin operations.
+        - name: garage-admin-token
+          mount: k8s
+          path: "garage/admin-token"
+          destination: "garage-admin-token"
+          # adopt the pre-seeded secret (created manually while VSO was
+          # wedged); without this VSO refuses an un-owned destination
+          overwrite: true
     ignoreDifferences:
       - group: ""
         jsonPointers:
@@ -427,21 +458,33 @@ catalog:
       syncOptions:
         - CreateNamespace=true
         - ServerSideApply=true
+        # The STS volumeClaimTemplates are immutable; the snapshots template
+        # size bump (300Gi) is realized by expanding the existing PVCs, not
+        # by rewriting the live STS. RespectIgnoreDifferences keeps Argo from
+        # attempting that immutable-field apply.
+        - RespectIgnoreDifferences=true
 
   tailscale-operator:
     sources:
-      - repoURL: https://pkgs.tailscale.com/helmcharts
-        chart: tailscale-operator
-        targetRevision: 1.102.3
+      # Temporary pin to Tailscale main while the ProxyGroup config-refresh fix
+      # lands in a release. Main commit: d064d751fb91fa4ffe39dad42c92862320985a0f.
+      - repoURL: https://github.com/tailscale/tailscale.git
+        path: cmd/k8s-operator/deploy/chart
+        targetRevision: d064d751fb91fa4ffe39dad42c92862320985a0f
         helm:
           values: |
             apiServerProxyConfig:
               mode: "true"
               allowImpersonation: "true"
             operatorConfig:
-              extraEnv:
-                - name: OPERATOR_HOSTNAME
-                  value: mc-tailscale-operator
+              hostname: mc-tailscale-operator
+              image:
+                repository: tailscale/k8s-operator
+                digest: sha256:5c1043baaba7228edb6c69ee9f9c70b3e1b27e511527364534cf3244cca71d1e
+            proxyConfig:
+              image:
+                repository: tailscale/tailscale
+                digest: sha256:08a3e029dc36c797633092deaa5e243ae4687980adfa2299c53c49a7252a4914
     vaultSecrets:
       createAuth: true
       role: openbao-secrets-operator
@@ -454,6 +497,30 @@ catalog:
           path: "tailscale-operator"
           destination: "operator-oauth"
           overwrite: true
+
+  ts-vip-watchdog:
+    path: apps/base/ts-vip-watchdog/config
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
+  # Agent compute access: jobsmith RBAC (llm-test) + agent-sandbox playbox
+  # (broad namespaced RBAC behind PSA restricted + ResourceQuota). Bound to the
+  # mcp-agent-sa identity; pairs with the mcp-kubernetes readwrite container.
+  agent-access:
+    path: apps/base/agent-access/config
+    podSecurity: restricted
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
 
   garage-operator:
     path: bootstrap/base/garage-operator
@@ -494,6 +561,9 @@ catalog:
         targetRevision: 0.9.1
         helm:
           values: |
+            controller:
+              tolerations:
+                - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
             alloy:
               clustering:
                 enabled: true
@@ -694,12 +764,55 @@ catalog:
       syncOptions:
         - ServerSideApply=true
 
-  # External controller-runtime operator. The immutable source revision itself
-  # pins an immutable multi-arch image and starts the pool in Observe mode.
+  # Staged GLM recipe 1104 lane. Conductor owns Deployment replica counts;
+  # keep Standby while the serving-rank startup failure is investigated.
+  glm53-flash-spark-1104:
+    path: llm-test/glm53-flash-spark-1104
+    annotations:
+      argocd.argoproj.io/sync-wave: "123"
+    syncPolicy:
+      automated:
+        prune: false
+        selfHeal: true
+      syncOptions:
+        - ServerSideApply=true
+        - SkipDryRunOnMissingResource=true
+        - RespectIgnoreDifferences=true
+    # desiredState is Conductor's runtime residency switch; allow manual cutovers
+    # without Argo restoring the Git-declared Standby value.
+    ignoreDifferences:
+      - group: apps
+        kind: Deployment
+        jsonPointers:
+          - /spec/replicas
+      - group: conductor.projectinitiative.io
+        kind: ManagedWorkload
+        jsonPointers:
+          - /spec/desiredState
+
+  # Memory watchdog + forensics for the DGX Spark nodes (RISK-0040):
+  # privileged hostPID DaemonSet watching host MemAvailable, snapshots
+  # attribution, SIGKILLs lane ranks on breach; Conductor RecreateTogether
+  # handles recovery. See llm-test/memguard/README.md.
+  memguard-dgx:
+    path: llm-test/memguard
+    annotations:
+      argocd.argoproj.io/sync-wave: "124"
+    syncPolicy:
+      automated:
+        prune: false
+        selfHeal: true
+      syncOptions:
+        - ServerSideApply=true
+
+  # External controller-runtime operator. Pinned to 0182ad8: removes the
+  # duplicate ResourcePool/dgx-spark + tensorfold-v14 ownership that kept
+  # re-applying managementMode: Observe and desiredState: Resident over the
+  # homelab conductor-workloads intents (2026-11-12 dual-ownership incident).
+  # Pools/workload intent now live ONLY in llm-test/conductor-workloads.
   conductor:
     repoURL: https://github.com/ProjectInitiative/conductor.git
-    # Immutable Conductor deployment commit: priority arbitration + fencing image pin.
-    targetRevision: 3650cbb56a16dfe71083148f5806ca3c5af807f2
+    targetRevision: 0182ad8acef6d258f4c1c7ae96cf645e7ff9d12d
     path: generator
     plugin:
       name: cdk8s-v1.0
@@ -726,6 +839,14 @@ catalog:
       syncOptions:
         - ServerSideApply=true
         - SkipDryRunOnMissingResource=true
+        - RespectIgnoreDifferences=true
+    # desiredState is Conductor's runtime residency switch; allow manual cutovers
+    # without Argo restoring the Git-declared value for any ManagedWorkload.
+    ignoreDifferences:
+      - group: conductor.projectinitiative.io
+        kind: ManagedWorkload
+        jsonPointers:
+          - /spec/desiredState
 
   # Apps
   tailscale-proxy-groups:
@@ -908,6 +1029,64 @@ catalog:
           mount: k8s
           path: "argo/s3-creds"
           destination: "argo-s3-creds"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+        # Allow virtctl stop/start drift: without this, any sync re-applies
+        # spec.runStrategy=Always and boots a VM the operator stopped.
+        - RespectIgnoreDifferences=true
+    ignoreDifferences:
+      - group: kubevirt.io
+        kind: VirtualMachine
+        jsonPointers:
+          - /spec/runStrategy
+      # Temporary maintenance control: allow scaling any data keeper down
+      # while Argo is halted so a writable CSI probe can own that node's
+      # cache path. Restore all keepers before removing these rules.
+      - group: apps
+        kind: Deployment
+        name: argo-data-ring-capstan1
+        namespace: argo
+        jsonPointers:
+          - /spec/replicas
+      - group: apps
+        kind: Deployment
+        name: argo-data-ring-capstan2
+        namespace: argo
+        jsonPointers:
+          - /spec/replicas
+      - group: apps
+        kind: Deployment
+        name: argo-data-ring-capstan3
+        namespace: argo
+        jsonPointers:
+          - /spec/replicas
+
+  argo-lite:
+    # Dev container supplementing the argo VM (see dotfiles ARGO-LITE-HANDOFF.md
+    # + keel dotfiles record). Home PVC on production juicefs-sc via CSI;
+    # juicefs-dev sidecar mounts the dev FS out-of-band. The sidecar IS
+    # privileged — verified kernel requirement (direct mount(2) needs
+    # CAP_SYS_ADMIN; Bidirectional propagation is privileged-only), scoped
+    # via pod-level automountServiceAccountToken: false + resource caps.
+    path: apps/base/argo-lite/config
+    podSecurity: privileged
+    annotations:
+      argocd.argoproj.io/sync-wave: "45"
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      namespace: production
+      audiences:
+        - vault
+      secrets:
+        # Same OpenBao record the juicefs-dev helpers use; key schema matches
+        # juicefs-creds (metaurl/access-key/secret-key/passphrase).
+        - name: juicefs-dev-creds
+          mount: k8s
+          path: "juicefs-dev/config"
+          destination: "juicefs-dev-creds"
     syncPolicy:
       syncOptions:
         - CreateNamespace=true

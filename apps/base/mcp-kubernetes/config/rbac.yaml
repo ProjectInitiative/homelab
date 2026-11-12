@@ -71,9 +71,29 @@ rules:
     resources:
       - customresourcedefinitions
     verbs: ["get", "list", "watch"]
+  # Argo CD Applications are read-only deployment/status metadata. This lets
+  # diagnostics verify sync, health, revisions, and ignoreDifferences without
+  # granting Argo mutation or repository access.
+  - apiGroups: ["argoproj.io"]
+    resources:
+      - applications
+      - applications/status
+    verbs: ["get", "list", "watch"]
   - apiGroups: ["coordination.k8s.io"]
     resources:
       - leases
+    verbs: ["get", "list", "watch"]
+  # Conductor pool/workload state: read-only visibility into residency,
+  # managementMode, effectiveIntent, and qualification so diagnostics can
+  # verify exclusive-lane state before any cutover. Mutation stays with the
+  # authorized operator flow (cutover.sh/revert.sh); the MCP identity still
+  # cannot patch these resources.
+  - apiGroups: ["conductor.projectinitiative.io"]
+    resources:
+      - resourcepools
+      - resourcepools/status
+      - managedworkloads
+      - managedworkloads/status
     verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1

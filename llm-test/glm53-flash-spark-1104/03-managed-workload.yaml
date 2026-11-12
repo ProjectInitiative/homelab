@@ -1,0 +1,45 @@
+# Standby. The 2026-11-05 relaunch hardens the rank launcher to match the recipe's
+# start.sh (memory gate, preserved rank logs, context auto-fit); activate only in
+# an exclusive window with v14 ready to restore.
+apiVersion: conductor.projectinitiative.io/v1alpha1
+kind: ManagedWorkload
+metadata:
+  name: glm53-flash-1104
+  namespace: llm-test
+spec:
+  poolRef: dgx-spark
+  # desiredState is intentionally ABSENT: it is a runtime-only residency
+  # switch owned by the operator/Conductor, never declared in Git.
+  # Keep inactive until the rank startup failure is root-caused and a safe retry is reviewed.
+  priority: 90
+  driver:
+    type: DeploymentSet
+    deploymentSet:
+      recoveryPolicy: RecreateTogether
+      startupGracePeriod: 60m
+      members:
+        - name: glm53-flash-1104-worker
+          role: worker
+          startOrder: 10
+          stopOrder: 20
+          replicas: 1
+          # The worker launcher blocks on the head rendezvous, but its container is
+          # intentionally considered available so Conductor can advance to the head.
+          # DeploymentAvailable matches the pod's actual Running/Ready condition and
+          # avoids the ContainersRunning transition stalling before head creation.
+          readyGate: DeploymentAvailable
+        - name: glm53-flash-1104-head
+          role: head
+          startOrder: 20
+          stopOrder: 10
+          replicas: 1
+          readyGate: DeploymentAvailable
+  qualification:
+    serviceName: dgx-spark-backend
+    path: /health
+    port: 8000
+    timeout: 60m
+  routing:
+    serviceName: dgx-spark-backend
+    selector:
+      serving.homelab.io/alias: dgx-spark

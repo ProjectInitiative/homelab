@@ -1,0 +1,370 @@
+# Staged TP=2 Kubernetes lane. Conductor owns Deployment replicas.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: glm53-flash-1104-launch
+  namespace: llm-test
+  labels: {lane: glm53-flash-1104}
+data:
+  verify-model.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    model=/models/.cache/huggingface/hub/models--Mia-AiLab--GLM-5.3-Flash-EXL3-4bpw-TensorFold/snapshots/76c0b5173166d2795dd48860f45d8224817f894c
+    draft=/models/.cache/huggingface/hub/models--incoai--GLM-5.3-Flash-DFlash2/snapshots/bf582e4eacc1810f76656d1811693ff6c6737d2a
+    receipt=/models/.glm53-flash-1104-download-complete.json
+    test -s "$receipt"
+    grep -Fq '"model_revision": "76c0b5173166d2795dd48860f45d8224817f894c"' "$receipt"
+    grep -Fq '"drafter_revision": "bf582e4eacc1810f76656d1811693ff6c6737d2a"' "$receipt"
+    test -s "$model/config.json"
+    test -s "$model/model.safetensors.index.json"
+    test -s "$model/tokenizer.json"
+    test -n "$(find "$model" -maxdepth 1 -type f -name '*.safetensors' -print -quit)"
+    test -s "$draft/config.json"
+    test -n "$(find "$draft" -type f \( -name '*.safetensors' -o -name '*.bin' -o -name '*.pt' \) -print -quit)"
+    echo "verified pinned GLM checkpoint and DFlash2 snapshot"
+  launch-rank.sh: |
+    #!/bin/bash
+    # Port of the recipe's start.sh rank launch: same env, same serve flags, plus
+    # the three things the shell recipe does that a bare exec could not:
+    #   1. a MemAvailable gate (upstream MIN_AVAIL_GIB=100) so a rank never starts
+    #      into a node whose previous tenant has not released its memory yet;
+    #   2. rank logs appended to the node-local state dir, so a terminated
+    #      container's startup output survives pod recreation (the second cutover
+    #      was undiagnosable because the rank logs were lost with the pods);
+    #   3. the CONTEXT=auto fit: on a memory refusal the engine names the window
+    #      that fits ("fits: ... --context T"); both ranks converge on a shared
+    #      fit file (min wins) and restart smaller, like start.sh's retry.
+    set -euo pipefail
+    role=${1:?role required: head or worker}
+    /launch/verify-model.sh
+    source /opt/rdma/configure-rdma-fabric.sh
+
+    case "$role" in
+      # NCCL bootstrap must stay on the direct ConnectX fabric, not mgmnt.10.
+      head) rank=0; master_ip=${RDMA_LOCAL_ADDRESS:?} ;;
+      worker) rank=1; master_ip=${RDMA_PEER_ADDRESS:?} ;;
+      *) echo "unknown role: $role" >&2; exit 2 ;;
+    esac
+    export HOME=/state/home
+    mkdir -p "$HOME" /state/logs
+    log=/state/logs/rank$rank.log
+    if [ -f "$log" ] && [ "$(stat -c%s "$log" 2>/dev/null || echo 0)" -gt 10485760 ]; then : > "$log"; fi
+
+    avail_kib=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+    need_kib=$(( ${GLM_MIN_AVAIL_GIB:-100} * 1048576 ))
+    if [ "${avail_kib:-0}" -lt "$need_kib" ]; then
+      echo "$(date -u +%FT%TZ) rank $rank: MemAvailable ${avail_kib:-0} KiB is under the ${GLM_MIN_AVAIL_GIB:-100} GiB gate; waiting for the node to free memory" | tee -a "$log"
+      exit 1
+    fi
+
+    export HF_HOME=/models/.cache/huggingface HF_HUB_OFFLINE=1
+    export CUDA_DEVICE_ORDER=PCI_BUS_ID TF_CUDA_DEVICE=0
+    export TENSORFOLD_NO_UPDATE_CHECK=1 TENSORFOLD_NO_LIVE=1
+    export TENSORFOLD_MEMORY_RESERVE_GIB=9.5
+    export TF_GLM_DENSE_BITS=8 TF_GLM_HEAD_BITS=8 TF_GLM_CLEAR_THINKING=1
+    export TF_GLM_RANK="$rank" TF_GLM_WORLD=2 TF_KV_PAGES=on
+    export TF_GLM_ABSORB_MMA=1 TF_GLM_W8A8=0 TF_GLM_CE_EXCHANGE=0 TF_GLM_HOST_CACHE_GIB=0
+    export TENSORFOLD_PREFILL_SHARE=0.68
+    # NCCL-only for the first serving window; custom RoCE stays unqualified (OQ-0050).
+    export TF_ROCE=0 TF_ROCE_MAX_KB=4096 TF_ROCE_HCA="$RDMA_PEER_NETDEVS"
+    export TF_ROCE_GID_INDEX="$NCCL_IB_GID_INDEX"
+    export NCCL_COMM_ID="$master_ip:29583" NCCL_MIN_NCHANNELS=4 NCCL_MAX_NCHANNELS=4
+    export NCCL_DEBUG=WARN
+
+    model=/models/.cache/huggingface/hub/models--Mia-AiLab--GLM-5.3-Flash-EXL3-4bpw-TensorFold/snapshots/76c0b5173166d2795dd48860f45d8224817f894c
+    draft=/models/.cache/huggingface/hub/models--incoai--GLM-5.3-Flash-DFlash2/snapshots/bf582e4eacc1810f76656d1811693ff6c6737d2a
+    # Shared fitted window (min wins); both ranks read it before starting so their
+    # fingerprints agree. Lives on the model-cache PVC, like the pull receipt.
+    fit=/lane-state/glm53-1104-context.tsv
+    ctx=${GLM_CONTEXT:-1048576}
+    if [ -s "$fit" ]; then
+      shared=$(cat "$fit" 2>/dev/null || true)
+      case "$shared" in ''|*[!0-9]*) shared='' ;; esac
+      if [ -n "$shared" ] && [ "$shared" -ge 8192 ] && [ "$shared" -lt "$ctx" ]; then
+        ctx=$shared
+        echo "$(date -u +%FT%TZ) rank $rank: using shared fitted context $ctx" | tee -a "$log"
+      fi
+    fi
+
+    rc=0
+    for attempt in 1 2 3; do
+      echo "$(date -u +%FT%TZ) rank $rank attempt $attempt: context $ctx on ${NODE_NAME:-unknown}; NCCL rendezvous $NCCL_COMM_ID; TF_ROCE=$TF_ROCE" | tee -a "$log"
+      set +e
+      /usr/local/bin/tensorfold-native serve "$model" \
+        --name GLM-5.3-Flash-EXL3 --host 0.0.0.0 --port 8000 \
+        --context "$ctx" --parallel 8 --max-tokens 32768 \
+        --kv-cache fp8 --no-update-check --no-thinking --reasoning-effort xhigh \
+        --vision --vision-max-images 50 --chat-template /templates/chat_template.jinja \
+        --drafter "$draft" --drafter-bits 4 2>&1 | tee -a "$log"
+      rc=${PIPESTATUS[0]}
+      set -e
+      [ "$rc" -eq 0 ] && exit 0
+      # A shared-pages memory refusal names the window that fits; remember it for
+      # both ranks and retry smaller in this pod (Conductor also recreates the pair).
+      fits=$(grep -ho 'fits: .*' "$log" 2>/dev/null | tail -1 || true)
+      t=$(printf '%s' "$fits" | grep -o -- '--context [0-9]*' | grep -o '[0-9]*$' || true)
+      case "$t" in ''|*[!0-9]*) break ;; esac
+      if [ "$t" -ge 8192 ] && [ "$t" -lt "$ctx" ]; then
+        new=$(( t * 99 / 100 / 1024 * 1024 ))
+        echo "$new" > "$fit"
+        echo "$(date -u +%FT%TZ) rank $rank: refused at $ctx; engine fits --context $t; next start $new" | tee -a "$log"
+        ctx=$new
+      else
+        break
+      fi
+    done
+    exit "$rc"
+---
+# Publish endpoints before readiness; rank 1 needs to discover the head before it can become ready.
+apiVersion: v1
+kind: Service
+metadata:
+  name: glm53-flash-1104-head-rendezvous
+  namespace: llm-test
+  labels: {lane: glm53-flash-1104}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector: {app: glm53-flash-1104-head}
+  ports:
+    - {name: nccl-bootstrap, port: 29583, targetPort: 29583, protocol: TCP}
+    - {name: nccl-watch, port: 29584, targetPort: 29584, protocol: TCP}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: glm53-flash-1104-worker-rendezvous
+  namespace: llm-test
+  labels: {lane: glm53-flash-1104}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector: {app: glm53-flash-1104-worker}
+  ports:
+    - {name: nccl-bootstrap, port: 29583, targetPort: 29583, protocol: TCP}
+    - {name: nccl-watch, port: 29584, targetPort: 29584, protocol: TCP}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: glm53-flash-1104-api
+  namespace: llm-test
+  labels: {lane: glm53-flash-1104}
+spec:
+  selector: {app: glm53-flash-1104-head}
+  ports:
+    - {name: http, port: 8000, targetPort: 8000, protocol: TCP}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: glm53-flash-1104-worker
+  namespace: llm-test
+  labels: {app: glm53-flash-1104-worker, lane: glm53-flash-1104}
+spec:
+  replicas: 0
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: glm53-flash-1104-worker}
+  template:
+    metadata:
+      labels: {app: glm53-flash-1104-worker, lane: glm53-flash-1104}
+    spec:
+      priorityClassName: llm-serving-critical
+      automountServiceAccountToken: false
+      runtimeClassName: nvidia-rdma
+      terminationGracePeriodSeconds: 120
+      hostNetwork: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector: {gpu: dgx-spark, gpu-vendor: nvidia}
+      tolerations:
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels: {lane: glm53-flash-1104}
+              topologyKey: kubernetes.io/hostname
+      # Match v14's bounded page-cache reclamation before the rank's unified-memory gate.
+      # Without this, a just-stopped resident can leave MemAvailable around 22 GiB and
+      # the launcher exits before TensorFold ever starts.
+      initContainers:
+        - name: reclaim-vm-cache
+          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:4835fc852d34-py3-v1@sha256:73f8a4ad9b6b4aff5e87f07805e6aa87d31fe51b5f901430c2fc97dc2d9c0d9f
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              threshold_kib=$(( ${GLM_MIN_AVAIL_GIB:-100} * 1048576 ))
+              for attempt in $(seq 1 60); do
+                before=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+                echo "cache reclaim attempt ${attempt}/60: MemAvailable=${before} KiB"
+                sync
+                echo 3 > /proc/sys/vm/drop_caches
+                after=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+                if (( after >= threshold_kib )); then
+                  echo "cache reclaim passed: MemAvailable=${after} KiB"
+                  exit 0
+                fi
+                sleep 5
+              done
+              echo "FATAL: MemAvailable remained below ${threshold_kib} KiB" >&2
+              exit 1
+          env:
+            - {name: GLM_MIN_AVAIL_GIB, value: "100"}
+          securityContext: {privileged: true}
+      containers:
+        - name: tensorfold
+          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:4835fc852d34-py3-v1@sha256:73f8a4ad9b6b4aff5e87f07805e6aa87d31fe51b5f901430c2fc97dc2d9c0d9f
+          imagePullPolicy: IfNotPresent
+          command: ["bash", "/launch/launch-rank.sh", "worker"]
+          securityContext:
+            capabilities: {add: [IPC_LOCK]}
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
+            - {name: GLM_MIN_AVAIL_GIB, value: "100"}
+            - {name: PEER_SERVICE, value: glm53-flash-1104-head-rendezvous.llm-test.svc.cluster.local}
+            - {name: NODE_NAME, valueFrom: {fieldRef: {fieldPath: spec.nodeName}}}
+            - {name: HOST_IP, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
+          resources:
+            requests: {cpu: "16", memory: 96Gi, nvidia.com/gpu: "1", rdma/hca_shared_devices: "1"}
+            limits: {cpu: "32", memory: 128Gi, nvidia.com/gpu: "1", rdma/hca_shared_devices: "1"}
+          ports:
+            - {name: nccl-bootstrap, containerPort: 29583, protocol: TCP}
+            - {name: nccl-watch, containerPort: 29584, protocol: TCP}
+          volumeMounts:
+            - {name: models, mountPath: /models, readOnly: true}
+            - {name: launch, mountPath: /launch, readOnly: true}
+            - {name: chat-template, mountPath: /templates/chat_template.jinja, subPath: chat_template.jinja, readOnly: true}
+            - {name: fabric-config, mountPath: /opt/rdma/configure-rdma-fabric.sh, subPath: configure-rdma-fabric.sh, readOnly: true}
+            - {name: fabric-inventory, mountPath: /etc/dgx-spark/rdma-fabric.json, readOnly: true}
+            - {name: rank-state, mountPath: /state}
+            - {name: lane-state, mountPath: /lane-state}
+      volumes:
+        - name: models
+          persistentVolumeClaim: {claimName: model-cache}
+        - name: launch
+          configMap: {name: glm53-flash-1104-launch, defaultMode: 0555}
+        - name: chat-template
+          configMap: {name: glm53-flash-1104-chat-template, defaultMode: 0444}
+        - name: fabric-config
+          configMap: {name: glm53-flash-1104-rdma-fabric, defaultMode: 0555}
+        - name: fabric-inventory
+          hostPath: {path: /var/lib/dgx-spark/rdma-fabric.json, type: File}
+        - name: rank-state
+          hostPath: {path: /var/lib/llm-test/glm53-flash-1104-state, type: DirectoryOrCreate}
+        - name: lane-state
+          persistentVolumeClaim: {claimName: model-cache}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: glm53-flash-1104-head
+  namespace: llm-test
+  labels: {app: glm53-flash-1104-head, lane: glm53-flash-1104}
+spec:
+  replicas: 0
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: glm53-flash-1104-head}
+  template:
+    metadata:
+      labels: {app: glm53-flash-1104-head, lane: glm53-flash-1104, serving.homelab.io/alias: dgx-spark}
+    spec:
+      priorityClassName: llm-serving-critical
+      automountServiceAccountToken: false
+      runtimeClassName: nvidia-rdma
+      terminationGracePeriodSeconds: 120
+      hostNetwork: true
+      hostIPC: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector: {gpu: dgx-spark, gpu-vendor: nvidia}
+      tolerations:
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels: {lane: glm53-flash-1104}
+              topologyKey: kubernetes.io/hostname
+      # Match v14's bounded page-cache reclamation before the rank's unified-memory gate.
+      initContainers:
+        - name: reclaim-vm-cache
+          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:4835fc852d34-py3-v1@sha256:73f8a4ad9b6b4aff5e87f07805e6aa87d31fe51b5f901430c2fc97dc2d9c0d9f
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              threshold_kib=$(( ${GLM_MIN_AVAIL_GIB:-100} * 1048576 ))
+              for attempt in $(seq 1 60); do
+                before=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+                echo "cache reclaim attempt ${attempt}/60: MemAvailable=${before} KiB"
+                sync
+                echo 3 > /proc/sys/vm/drop_caches
+                after=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+                if (( after >= threshold_kib )); then
+                  echo "cache reclaim passed: MemAvailable=${after} KiB"
+                  exit 0
+                fi
+                sleep 5
+              done
+              echo "FATAL: MemAvailable remained below ${threshold_kib} KiB" >&2
+              exit 1
+          env:
+            - {name: GLM_MIN_AVAIL_GIB, value: "100"}
+          securityContext: {privileged: true}
+      containers:
+        - name: tensorfold
+          image: local-registry.registry.svc.cluster.local:5000/homelab/tensorfold-glm53-flash-1104:4835fc852d34-py3-v1@sha256:73f8a4ad9b6b4aff5e87f07805e6aa87d31fe51b5f901430c2fc97dc2d9c0d9f
+          imagePullPolicy: IfNotPresent
+          command: ["bash", "/launch/launch-rank.sh", "head"]
+          securityContext:
+            capabilities: {add: [IPC_LOCK]}
+          env:
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
+            - {name: GLM_MIN_AVAIL_GIB, value: "100"}
+            - {name: PEER_SERVICE, value: glm53-flash-1104-worker-rendezvous.llm-test.svc.cluster.local}
+            - {name: NODE_NAME, valueFrom: {fieldRef: {fieldPath: spec.nodeName}}}
+            - {name: HOST_IP, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
+          resources:
+            requests: {cpu: "16", memory: 96Gi, nvidia.com/gpu: "1", rdma/hca_shared_devices: "1"}
+            limits: {cpu: "32", memory: 128Gi, nvidia.com/gpu: "1", rdma/hca_shared_devices: "1"}
+          ports:
+            - {name: http, containerPort: 8000, protocol: TCP}
+            - {name: nccl-bootstrap, containerPort: 29583, protocol: TCP}
+            - {name: nccl-watch, containerPort: 29584, protocol: TCP}
+          startupProbe:
+            httpGet: {path: /health, port: 8000}
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 360
+          readinessProbe:
+            httpGet: {path: /health, port: 8000}
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - {name: models, mountPath: /models, readOnly: true}
+            - {name: launch, mountPath: /launch, readOnly: true}
+            - {name: chat-template, mountPath: /templates/chat_template.jinja, subPath: chat_template.jinja, readOnly: true}
+            - {name: fabric-config, mountPath: /opt/rdma/configure-rdma-fabric.sh, subPath: configure-rdma-fabric.sh, readOnly: true}
+            - {name: fabric-inventory, mountPath: /etc/dgx-spark/rdma-fabric.json, readOnly: true}
+            - {name: rank-state, mountPath: /state}
+            - {name: lane-state, mountPath: /lane-state}
+      volumes:
+        - name: models
+          persistentVolumeClaim: {claimName: model-cache}
+        - name: launch
+          configMap: {name: glm53-flash-1104-launch, defaultMode: 0555}
+        - name: chat-template
+          configMap: {name: glm53-flash-1104-chat-template, defaultMode: 0444}
+        - name: fabric-config
+          configMap: {name: glm53-flash-1104-rdma-fabric, defaultMode: 0555}
+        - name: fabric-inventory
+          hostPath: {path: /var/lib/dgx-spark/rdma-fabric.json, type: File}
+        - name: rank-state
+          hostPath: {path: /var/lib/llm-test/glm53-flash-1104-state, type: DirectoryOrCreate}
+        - name: lane-state
+          persistentVolumeClaim: {claimName: model-cache}

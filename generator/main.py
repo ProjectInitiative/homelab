@@ -284,11 +284,14 @@ class ClusterAppsChart(Chart):
                         "mount": secret_item.get("mount", "secret"),
                         "type": secret_item.get("type", "kv-v2"),
                         "path": secret_item["path"],
+                        # VSS only reconciles on spec change or refreshAfter tick;
+                        # without periodic refresh a single failed pass (e.g. an
+                        # openbao outage) leaves SYNCED=False until the operator
+                        # restarts. Override per-app with "refreshAfter".
+                        "refreshAfter": secret_item.get("refreshAfter", "5m"),
                         "destination": destination,
                     },
                 }
-                if "refreshInterval" in secret_item:
-                    vss_manifest["spec"]["refreshInterval"] = secret_item["refreshInterval"]
                 if "namespace" in vs_config:
                     vss_manifest["spec"]["namespace"] = vs_config["namespace"]
 
@@ -349,6 +352,21 @@ class ClusterAppsChart(Chart):
         sync_policy = {}
         if final_automated:
             sync_policy["automated"] = final_automated
+        # Retry backoff (RISK-0037 / RISK-0039): syncPolicy.automated has NO
+        # default retry, so a sync that dies mid-flight (capstan sleep window,
+        # API reset) wedges the app with "Skipping auto-sync: failed previous
+        # sync attempt" until a human intervenes. Default backoff for every
+        # automated app; per-app override via syncPolicy.retry, explicit
+        # `retry: null` in apps.yaml/clusters/*.yaml opts out entirely.
+        final_retry = app_sync_policy.get(
+            "retry",
+            {
+                "limit": 8,
+                "backoff": {"duration": "30s", "factor": 2, "maxDuration": "10m"},
+            },
+        )
+        if final_automated and final_retry:
+            sync_policy["retry"] = final_retry
         if final_sync_options is not None and final_sync_options:
             sync_policy["syncOptions"] = final_sync_options
 
@@ -365,7 +383,9 @@ class ClusterAppsChart(Chart):
         # profile without blocking anything. Infra namespaces that
         # legitimately need privileged pods are allow-listed (audit
         # 2026-10-15): CSI drivers, kubevirt, piraeus, mesh dataplane,
-        # tailscale proxies. Per-app override: podSecurity: privileged.
+        # tailscale proxies. Per-app override: podSecurity: privileged, or
+        # podSecurity: restricted for agent playboxes (blocks privileged AND
+        # host-escape vectors AND run-as-root at admission time).
         _PRIVILEGED_NAMESPACES = {
             "kube-system",
             "kubevirt",
@@ -374,13 +394,14 @@ class ClusterAppsChart(Chart):
             "submariner-k8s-broker",
             "tailscale",
         }
-        _psa_privileged = (
-            app_def.get("podSecurity") == "privileged"
-            or target_ns in _PRIVILEGED_NAMESPACES
+        _psa_mode = app_def.get("podSecurity") or (
+            "privileged" if target_ns in _PRIVILEGED_NAMESPACES else "baseline"
         )
+        _psa_privileged = _psa_mode == "privileged"
+        _psa_restricted = _psa_mode == "restricted"
         _psa_labels = {
             "pod-security.kubernetes.io/enforce": (
-                "privileged" if _psa_privileged else "baseline"
+                "privileged" if _psa_privileged else ("restricted" if _psa_restricted else "baseline")
             ),
             "pod-security.kubernetes.io/enforce-version": "latest",
         }
@@ -389,10 +410,15 @@ class ClusterAppsChart(Chart):
                 {
                     "pod-security.kubernetes.io/audit": "restricted",
                     "pod-security.kubernetes.io/audit-version": "latest",
-                    "pod-security.kubernetes.io/warn": "restricted",
-                    "pod-security.kubernetes.io/warn-version": "latest",
                 }
             )
+            if not _psa_restricted:
+                _psa_labels.update(
+                    {
+                        "pod-security.kubernetes.io/warn": "restricted",
+                        "pod-security.kubernetes.io/warn-version": "latest",
+                    }
+                )
         if "managedNamespaceMetadata" not in sync_policy:
             sync_policy["managedNamespaceMetadata"] = {"labels": {}}
         sync_policy["managedNamespaceMetadata"]["labels"].update(_psa_labels)

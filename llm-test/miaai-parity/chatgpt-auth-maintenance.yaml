@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-proxy-chatgpt-auth
+  namespace: llm-test
+  labels:
+    app: ai-proxy-chatgpt-auth
+    role: ai-platform-maintenance
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ai-proxy-chatgpt-auth
+  template:
+    metadata:
+      labels:
+        app: ai-proxy-chatgpt-auth
+        role: ai-platform-maintenance
+    spec:
+      containers:
+        - name: auth-maintenance
+          image: ghcr.io/berriai/litellm@sha256:87f34979b9f8cb274fac90ca8a4fdda07d8480de22755562a26adeb95ce20d02
+          command:
+            - python3
+            - -c
+            - import time; time.sleep(10**9)
+          stdin: true
+          tty: true
+          env:
+            - name: CHATGPT_TOKEN_DIR
+              value: /tokens/chatgpt
+          volumeMounts:
+            - name: chatgpt-tokens
+              mountPath: /tokens/chatgpt
+      volumes:
+        - name: chatgpt-tokens
+          persistentVolumeClaim:
+            claimName: litellm-chatgpt-tokens

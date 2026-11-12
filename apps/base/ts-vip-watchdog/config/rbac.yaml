@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ts-vip-watchdog
+  namespace: tailscale
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ts-vip-watchdog-read
+rules:
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list"]
+  - apiGroups: ["discovery.k8s.io"]
+    resources: ["endpointslices"]
+    verbs: ["get", "list"]
+  - apiGroups: ["tailscale.com"]
+    resources: ["proxygroups"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ts-vip-watchdog-read
+subjects:
+  - kind: ServiceAccount
+    name: ts-vip-watchdog
+    namespace: tailscale
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ts-vip-watchdog-read
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ts-vip-watchdog-restart
+  namespace: tailscale
+rules:
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["get"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "patch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ts-vip-watchdog-restart
+  namespace: tailscale
+subjects:
+  - kind: ServiceAccount
+    name: ts-vip-watchdog
+    namespace: tailscale
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ts-vip-watchdog-restart

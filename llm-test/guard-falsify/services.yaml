@@ -30,6 +30,7 @@ spec:
         - key: node.kubernetes.io/memory-pressure
           operator: Exists
           effect: NoSchedule
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       containers:
         - name: engine
           image: vllm/vllm-openai:v0.30.0
@@ -110,6 +111,7 @@ spec:
         - key: node.kubernetes.io/memory-pressure
           operator: Exists
           effect: NoSchedule
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       containers:
         - name: engine
           image: vllm/vllm-openai:v0.30.0

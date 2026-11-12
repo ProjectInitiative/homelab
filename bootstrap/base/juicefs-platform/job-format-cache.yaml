@@ -1,0 +1,86 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: juicefs-format-cache
+  namespace: juicefs-platform
+  labels:
+    app.kubernetes.io/part-of: juicefs-platform
+    purpose: one-off
+spec:
+  # Same guardrails as juicefs-format: never treat a metadata outage as an
+  # unformatted database.
+  backoffLimit: 20
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/arch: arm64
+      containers:
+        - name: juicefs-format
+          # Native arm64 gcache image (has juicefs + bash); pinned digest.
+          image: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:gcache-strict-sharding-arm64@sha256:be6ece264ef6c40e7a8e69e6323df95bc5ba92ac0b9e0522679e858b8cff3440
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+              # Only format when the metadata engine explicitly reports that
+              # the filesystem is unformatted. A metadata timeout or outage
+              # must never be treated as an unformatted filesystem.
+              if status_output=$(juicefs status "$metaurl" 2>&1); then
+                echo "JuiceFS filesystem '$name' is already formatted."
+                exit 0
+              fi
+              if ! printf '%s\n' "$status_output" | grep -qi 'database is not formatted'; then
+                echo "JuiceFS metadata status failed; refusing to format '$name'."
+                printf '%s\n' "$status_output"
+                exit 1
+              fi
+
+              echo "Formatting JuiceFS filesystem '$name'..."
+              CMD="juicefs format --storage $storage --bucket $bucket --access-key $access_key --secret-key $secret_key"
+
+              if [ -n "${passphrase:-}" ]; then
+                echo "$passphrase" | $CMD --encrypt-key "$metaurl" "$name"
+                exit $?
+              fi
+              $CMD "$metaurl" "$name"
+          env:
+            - name: passphrase
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-creds-cache
+                  key: passphrase
+                  optional: true
+            - name: storage
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-creds-cache
+                  key: storage
+            - name: bucket
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-creds-cache
+                  key: bucket
+            - name: access_key
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-creds-cache
+                  key: access-key
+            - name: secret_key
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-creds-cache
+                  key: secret-key
+            - name: metaurl
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-creds-cache
+                  key: metaurl
+            - name: name
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-creds-cache
+                  key: name

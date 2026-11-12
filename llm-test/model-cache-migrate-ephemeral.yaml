@@ -1,0 +1,100 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: model-cache-migrate-to-ephemeral
+  namespace: llm-test
+  labels:
+    purpose: one-off
+    app: model-cache-migration
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      labels:
+        app: model-cache-migration
+    spec:
+      # Pin to a DGX node: both PVCs are labeled dgx-model-cache, so mounts
+      # here use the ring image; the source reuses the warm local NVMe cache.
+      # octant: no serving workload, so its model-cache mount pod can be
+      # cycled to pick up the strict-sharding image for the migration reads.
+      nodeSelector:
+        kubernetes.io/hostname: octant
+        kubernetes.io/arch: arm64
+      restartPolicy: OnFailure
+      containers:
+        - name: migrate
+          image: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:gcache-strict-sharding-arm64@sha256:be6ece264ef6c40e7a8e69e6323df95bc5ba92ac0b9e0522679e858b8cff3440
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              SRC=/src
+              DST=/dst
+
+              echo "=== source inventory ==="
+              SRC_FILES=$(find "$SRC" -type f | wc -l)
+              SRC_BYTES=$(find "$SRC" -type f -printf '%s\n' | awk '{s+=$1} END {print s+0}')
+              echo "source: $SRC_FILES files, $SRC_BYTES bytes"
+              find "$SRC" -mindepth 1 -maxdepth 1 | head -20
+
+              echo "=== mkdir pass ==="
+              cd "$SRC"
+              # JuiceFS virtual entries live at the mount root and can be
+              # neither copied nor removed: prune them from every pass.
+              PRUNE='( -name .accesslog -o -name .config -o -name .stats -o -name .control -o -name .trash )'
+              find . $PRUNE -prune -o -type d -print0 | xargs -0 -I{} mkdir -p "$DST/{}"
+
+              echo "=== copy pass (file-granular, resumable, P=8) ==="
+              # Skip files that already exist with the same size: a re-run only
+              # copies what's missing, so interrupted runs resume cheaply.
+              export DST
+              find . $PRUNE -prune -o -type f -print0 | xargs -0 -P 8 -I{} bash -c '
+                f="{}"
+                d="$DST/$f"
+                if [ -f "$d" ] && [ "$(stat -c%s "$d")" = "$(stat -c%s "$f")" ]; then
+                  exit 0
+                fi
+                # Remove any existing target first: JuiceFS rename refuses to
+                # overwrite files whose mode denies owner write (e.g. 0400).
+                rm -f "$d" "$d.cp-tmp"
+                cp -a "$f" "$d.cp-tmp" && mv "$d.cp-tmp" "$d"
+              '
+
+              echo "=== verify pass ==="
+              FAIL=0
+              DST_FILES=$(find "$DST" $PRUNE -prune -o -type f -not -name '*.cp-tmp' -print | wc -l)
+              DST_BYTES=$(find "$DST" $PRUNE -prune -o -type f -not -name '*.cp-tmp' -printf '%s\n' | awk '{s+=$1} END {print s+0}')
+              echo "dest:   $DST_FILES files, $DST_BYTES bytes"
+              if [ "$DST_FILES" -ne "$SRC_FILES" ] || [ "$DST_BYTES" -ne "$SRC_BYTES" ]; then
+                echo "COUNT/SIZE MISMATCH"
+                FAIL=1
+              fi
+              # Size check per file (content check would double-read 2TiB).
+              while IFS= read -r f; do
+                d="$DST/$f"
+                if [ ! -f "$d" ] || [ "$(stat -c%s "$d")" -ne "$(stat -c%s "$f")" ]; then
+                  echo "MISMATCH: $f"
+                  FAIL=1
+                fi
+              done < <(find . $PRUNE -prune -o -type f -print)
+              if [ "$FAIL" -ne 0 ]; then
+                echo "VERIFICATION FAILED"
+                exit 1
+              fi
+              echo "MIGRATION OK: $SRC_FILES files, $DST_BYTES bytes"
+          resources:
+            requests: {cpu: "4", memory: 2Gi}
+            limits: {cpu: "8", memory: 4Gi}
+          volumeMounts:
+            - {name: src, mountPath: /src, readOnly: true}
+            - {name: dst, mountPath: /dst}
+      volumes:
+        - name: src
+          persistentVolumeClaim:
+            claimName: model-cache
+            readOnly: true
+        - name: dst
+          persistentVolumeClaim:
+            claimName: model-cache-ephemeral

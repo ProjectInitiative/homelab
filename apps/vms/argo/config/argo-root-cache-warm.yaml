@@ -1,0 +1,53 @@
+# Staged operator tool. Suspended: Argo CD must never start a full-disk read.
+# After argo-root mounts on all three capstans have joined capstan-argo-root,
+# create one Job from this CronJob on capstan2; do not unsuspend the CronJob.
+# A single reader fills owners across the three-member ring (not three copies).
+# The VM is live: disk.img can change while reading; this is cache warmup,
+# not a consistent backup or a snapshot. No argo-data warmup is implied.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: argo-root-cache-warm
+  namespace: argo
+spec:
+  schedule: "0 0 1 1 *"
+  suspend: true
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 10800
+      template:
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          nodeSelector:
+            kubernetes.io/hostname: capstan2
+          containers:
+            - name: read-disk
+              image: alpine:3.20
+              command: ["/bin/sh", "-ec"]
+              args:
+                - |
+                  test -r /disk/disk.img
+                  bytes=$(stat -c %s /disk/disk.img)
+                  test "$bytes" -gt 0 && test "$bytes" -le 34359738368
+                  echo "Reading $bytes bytes of argo-root/disk.img, read-only"
+                  dd if=/disk/disk.img of=/dev/null bs=4M
+                  echo "Read complete; check owner cache counters and membership"
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: "2"
+                  memory: 512Mi
+              volumeMounts:
+                - name: argo-root
+                  mountPath: /disk
+                  readOnly: true
+          volumes:
+            - name: argo-root
+              persistentVolumeClaim:
+                claimName: argo-root
+                readOnly: true
