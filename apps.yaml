@@ -1075,7 +1075,9 @@ catalog:
     annotations:
       argocd.argoproj.io/sync-wave: "45"
     vaultSecrets:
-      createAuth: true
+      # createAuth stays FALSE: the argo namespace already has operator-auth /
+      # operator-auth-sa (owned by the argo app — SharedResourceWarning fight
+      # otherwise). The VSS references the existing VaultAuth via `auth`.
       role: openbao-secrets-operator
       namespace: production
       audiences:
@@ -1087,6 +1089,7 @@ catalog:
           mount: k8s
           path: "juicefs-dev/config"
           destination: "juicefs-dev-creds"
+          auth: operator-auth
     syncPolicy:
       syncOptions:
         - CreateNamespace=true
