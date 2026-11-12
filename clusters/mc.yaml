@@ -353,6 +353,28 @@ apps:
                   resources:
                     requests:
                       storage: "300Gi"
+            # 2026-11-12: LMDB compaction init container (RISK-0046). The chart
+            # (pinned ref) has no extraInitContainers value, so it is injected
+            # here instead. Fail-open gates: bloat ratio 2x, snapshot age
+            # 5min..6h, >=2 ready peers each serving tokenless /health 200 —
+            # any doubt -> no swap, garage boots on its existing DB.
+            # DRY_RUN=1 until the first real swap is verified; then flip to
+            # "0". Image built from generator/compactor-image (nix-build),
+            # push: ghcr.io/projectinitiative/garage-lmdb-compactor:latest
+            - op: add
+              path: /spec/template/spec/initContainers/-
+              value:
+                name: lmdb-compactor
+                image: ghcr.io/projectinitiative/garage-lmdb-compactor:latest
+                imagePullPolicy: IfNotPresent
+                env:
+                  - name: DRY_RUN
+                    value: "1"
+                volumeMounts:
+                  - name: meta
+                    mountPath: /mnt/meta
+                  - name: snapshots
+                    mountPath: /snapshots
   - name: garage-migrate
     namespace: garage-migrate
     plugin:
