@@ -5,11 +5,11 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: argo-lite-home
-  namespace: argo-lite
+  namespace: argo
 spec:
   accessModes:
     - ReadWriteMany
-  storageClassName: juicefs-dev-sc
+  storageClassName: juicefs-sc
   resources:
     requests:
       storage: 100Gi

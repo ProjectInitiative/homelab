@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: argo-lite
-  namespace: argo-lite
+  namespace: argo
   labels:
     app: argo-lite
 spec:
