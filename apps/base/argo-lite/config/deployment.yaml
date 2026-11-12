@@ -31,7 +31,11 @@ spec:
         # Dev container: sshd PID1 on :2222, baked home-manager terminal
         # profile (see dotfiles containers/argo-lite).
         - name: argo-lite
-          image: 172.16.1.50:31872/argo-lite:latest
+          # In-cluster registry DNS (not the NodePort 172.16.1.50:31872): node
+          # octant lacks the insecure-registry mirror config for the nodeport
+          # endpoint (TLS handshake timeout on pull); every node reaches the
+          # ClusterIP endpoint — proven by the gcache/tensorfold pods.
+          image: local-registry.registry.svc.cluster.local:5000/argo-lite:latest
           imagePullPolicy: Always
           ports:
             - name: ssh
