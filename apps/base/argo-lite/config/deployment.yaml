@@ -21,6 +21,12 @@ spec:
     spec:
       automountServiceAccountToken: false
       enableServiceLinks: false
+      # x86_64 image + nodes are the intended home; the arm64 nodes (octant,
+      # sextant, chronometer — DGX Sparks + RockPi) are not tainted today, so
+      # pin explicitly via nodeSelector. Also avoids the node-octant registry
+      # gap (no insecure-mirror for the nodeport endpoint).
+      nodeSelector:
+        kubernetes.io/arch: amd64
       securityContext:
         # PVC files are owned by uid 1000 (kylepzak) — matches the image user
         # and the astrolabe-side FUSE mount ownership.
