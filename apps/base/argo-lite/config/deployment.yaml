@@ -46,12 +46,18 @@ spec:
           volumeMounts:
             - name: home
               mountPath: /home/kylepzak
-        # JuiceFS sidecar: mounts the SAME juicefs-dev filesystem the dev
-        # node mounts via FUSE, exposing a shared subtree to both containers.
-        # Image matches the CSI mount pods (ce-v1.4.1) so metadata/cache
-        # formats agree. Runs as root: FUSE mount requires it (same as the
-        # CSI mount pods). Creds come from the VSS-synced juicefs-dev-creds
-        # secret (k8s/juicefs-dev/config record; passphrase included).
+        # JuiceFS sidecar: mounts the juicefs-dev filesystem out-of-band (same
+        # FS the dev node/laptop mount via FUSE), exposing a shared subtree to
+        # both containers. Image matches the CSI mount pods (ce-v1.4.1) so
+        # metadata/cache formats agree.
+        # Security: NO privileged, NO extra capabilities — baseline-PSA
+        # compatible. The mount happens through the image's setuid
+        # fusermount3 (verified -rwsr-xr-x in the image), which needs only
+        # /dev/fuse access; juicefs/libfuse falls back to it when the direct
+        # mount(2) is unavailable. Full `privileged` (the upstream CSI mount
+        # pod default) was deliberately rejected as over-broad.
+        # Creds come from the VSS-synced juicefs-dev-creds secret
+        # (k8s/juicefs-dev/config record; passphrase included).
         - name: juicefs-dev
           image: juicedata/mount:ce-v1.4.1
           command: ["/bin/sh", "-c"]
@@ -87,7 +93,11 @@ spec:
                   key: passphrase
                   optional: true
           securityContext:
-            privileged: true
+            runAsUser: 1000
+            runAsGroup: 100
+            allowPrivilegeEscalation: true  # setuid fusermount3 needs it
+            capabilities:
+              drop: ["ALL"]
           resources:
             requests:
               cpu: 500m
@@ -102,9 +112,15 @@ spec:
               # volume for the app container (Bidirectional on the sidecar,
               # HostToContainer on the consumer).
               mountPropagation: Bidirectional
+            - name: fuse-device
+              mountPath: /dev/fuse
       volumes:
         - name: home
           persistentVolumeClaim:
             claimName: argo-lite-home
         - name: jfs-shared
           emptyDir: {}
+        - name: fuse-device
+          hostPath:
+            path: /dev/fuse
+            type: CharDevice

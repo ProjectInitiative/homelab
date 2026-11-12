@@ -1064,9 +1064,11 @@ catalog:
           - /spec/replicas
 
   argo-lite:
-    # Dev container replacing the argo KubeVirt VM (see
-    # dotfiles ARGO-LITE-HANDOFF.md + keel dotfiles record). Home PVC on the
-    # dev JuiceFS filesystem + juicefs-dev sidecar mount + ssh over tailscale.
+    # Dev container supplementing the argo VM (see dotfiles ARGO-LITE-HANDOFF.md
+    # + keel dotfiles record). Home PVC on production juicefs-sc via CSI;
+    # juicefs-dev sidecar mounts the dev FS out-of-band using only setuid
+    # fusermount3 + /dev/fuse — baseline-PSA compatible, so the namespace
+    # keeps its default baseline enforcement (no podSecurity override).
     path: apps/base/argo-lite/config
     annotations:
       argocd.argoproj.io/sync-wave: "45"

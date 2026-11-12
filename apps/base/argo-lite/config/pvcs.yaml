@@ -1,6 +1,7 @@
-# Home PVC: pod root/home on the dev JuiceFS filesystem (multi-host RWX, so
-# the same directory can be mounted from astrolabe's FUSE mount during
-# migration). UID 1000 (kylepzak) matches the image user and FUSE ownership.
+# Home PVC: pod root/home rides the PRODUCTION juicefs-sc via the CSI driver,
+# per owner architecture (the dev FS is deliberately outside the CSI stack and
+# is mounted out-of-band by the juicefs-dev sidecar). UID 1000 (kylepzak)
+# matches the image user.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
