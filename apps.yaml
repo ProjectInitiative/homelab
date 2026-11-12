@@ -805,11 +805,14 @@ catalog:
       syncOptions:
         - ServerSideApply=true
 
-  # External controller-runtime operator. This immutable source revision pins
-  # the startup-gate fix and its published multi-arch controller image.
+  # External controller-runtime operator. Pinned to 0182ad8: removes the
+  # duplicate ResourcePool/dgx-spark + tensorfold-v14 ownership that kept
+  # re-applying managementMode: Observe and desiredState: Resident over the
+  # homelab conductor-workloads intents (2026-11-12 dual-ownership incident).
+  # Pools/workload intent now live ONLY in llm-test/conductor-workloads.
   conductor:
     repoURL: https://github.com/ProjectInitiative/conductor.git
-    targetRevision: 4f8652e525a360f6afb5d1c5e55e49f6ffbc46ee
+    targetRevision: 0182ad8acef6d258f4c1c7ae96cf645e7ff9d12d
     path: generator
     plugin:
       name: cdk8s-v1.0
