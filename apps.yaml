@@ -1066,10 +1066,12 @@ catalog:
   argo-lite:
     # Dev container supplementing the argo VM (see dotfiles ARGO-LITE-HANDOFF.md
     # + keel dotfiles record). Home PVC on production juicefs-sc via CSI;
-    # juicefs-dev sidecar mounts the dev FS out-of-band using only setuid
-    # fusermount3 + /dev/fuse — baseline-PSA compatible, so the namespace
-    # keeps its default baseline enforcement (no podSecurity override).
+    # juicefs-dev sidecar mounts the dev FS out-of-band. The sidecar IS
+    # privileged — verified kernel requirement (direct mount(2) needs
+    # CAP_SYS_ADMIN; Bidirectional propagation is privileged-only), scoped
+    # via pod-level automountServiceAccountToken: false + resource caps.
     path: apps/base/argo-lite/config
+    podSecurity: privileged
     annotations:
       argocd.argoproj.io/sync-wave: "45"
     vaultSecrets:
