@@ -1043,10 +1043,13 @@ catalog:
           - /spec/runStrategy
 
   argo-lite:
-    # Dev container replacing the argo KubeVirt VM (see
-    # dotfiles ARGO-LITE-HANDOFF.md + keel dotfiles record). Home PVC on the
-    # dev JuiceFS filesystem + juicefs-dev sidecar mount + ssh over tailscale.
+    # Dev container supplementing the argo VM (see dotfiles ARGO-LITE-HANDOFF.md
+    # + keel dotfiles record). Home PVC on production juicefs-sc; juicefs-dev
+    # sidecar mounts the dev FS out-of-band (FUSE, needs privileged) — so the
+    # namespace keeps its baseline PSA but this app's pods opt into privileged
+    # via the generator's per-app podSecurity override.
     path: apps/base/argo-lite/config
+    podSecurity: privileged
     annotations:
       argocd.argoproj.io/sync-wave: "45"
     vaultSecrets:
