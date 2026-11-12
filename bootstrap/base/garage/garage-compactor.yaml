@@ -1,0 +1,89 @@
+# Garage LMDB compaction orchestrator — manually triggered, NEVER auto-synced.
+#
+# Design (2026-11-12, RISK-0046): the actual swap is done by the
+# lmdb-compactor INIT CONTAINER inside each recreated garage pod (see
+# clusters/mc.yaml garage KUSTOMIZE_PATCH). This Job only sequences pod
+# deletions one at a time behind hard health gates. Nothing here touches
+# PVCs, OpenBao, or garage data.
+#
+# Workflow:
+#   1. Sync this app once (argocd app sync garage-compactor) — Job is
+#      SUSPENDED, so it deploys inert. RBAC/SA become active.
+#   2. Dry run:  kubectl create job --from=job/garage-compactor garage-compact-dry \
+#                  -n garage
+#      ...but override STAGE: edit the Job (kubectl set env job/... STAGE=dry)
+#      or use the one-liner below. Default env is STAGE=dry.
+#   3. Real run: kubectl set env job/garage-compactor STAGE=real -n garage &&
+#                kubectl create job --from=job/garage-compactor garage-compact-$(date +%m%d) -n garage
+#      (set STAGE back to dry after the pass: kubectl set env job/garage-compactor STAGE=dry -n garage)
+#   4. Destructive steps to reclaim space (after a verified real pass):
+#      for each node: kubectl delete pod garage-N  # init container swaps
+#      then: kubectl exec garage-N -n garage -- ls -la /mnt/meta   # confirm shrunken db.lmdb
+#      and finally remove db.lmdb.precompact-* backups manually once confident.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: garage-compactor
+  namespace: garage
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: garage-compactor
+  namespace: garage
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/status", "pods/log"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "create", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: garage-compactor
+  namespace: garage
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: garage-compactor
+subjects:
+  - kind: ServiceAccount
+    name: garage-compactor
+    namespace: garage
+---
+# Suspended template Job: deploys inert; real runs are `kubectl create job
+# --from=job/garage-compactor <name>`. NEVER enable automated sync on the
+# Argo app for this path.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: garage-compactor
+  namespace: garage
+  annotations:
+    argocd.argoproj.io/sync-wave: "110"
+spec:
+  suspend: true
+  backoffLimit: 0
+  template:
+    spec:
+      serviceAccountName: garage-compactor
+      restartPolicy: Never
+      containers:
+        - name: orchestrator
+          image: ghcr.io/projectinitiative/garage-lmdb-compactor:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/garage-compact-orchestrator"]
+          env:
+            - name: STAGE
+              value: "dry"          # dry | real — flip per run, never leave on real
+            - name: NS
+              value: "garage"
+            - name: SOAK_S
+              value: "600"          # settle time between nodes
+            - name: WAIT_TIMEOUT_S
+              value: "900"          # pod Ready timeout after delete
