@@ -1042,6 +1042,31 @@ catalog:
         jsonPointers:
           - /spec/runStrategy
 
+  argo-lite:
+    # Dev container replacing the argo KubeVirt VM (see
+    # dotfiles ARGO-LITE-HANDOFF.md + keel dotfiles record). Home PVC on the
+    # dev JuiceFS filesystem + juicefs-dev sidecar mount + ssh over tailscale.
+    path: apps/base/argo-lite/config
+    annotations:
+      argocd.argoproj.io/sync-wave: "45"
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      namespace: production
+      audiences:
+        - vault
+      secrets:
+        # Same OpenBao record the juicefs-dev helpers use; key schema matches
+        # juicefs-creds (metaurl/access-key/secret-key/passphrase).
+        - name: juicefs-dev-creds
+          mount: k8s
+          path: "juicefs-dev/config"
+          destination: "juicefs-dev-creds"
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
   kubevirt-manager-auth:
     path: bootstrap/base/kubevirt-manager-auth/config
     annotations:
