@@ -56,6 +56,12 @@ spec:
           volumeMounts:
             - name: home
               mountPath: /home/kylepzak
+            # Consumer of the shared emptyDir: HostToContainer picks up the
+            # FUSE mount the sidecar performs (Bidirectional is on the
+            # sidecar's own mount of the same volume).
+            - name: jfs-shared
+              mountPath: /mnt/jfsdev
+              mountPropagation: HostToContainer
         # JuiceFS sidecar: mounts the juicefs-dev filesystem out-of-band (same
         # FS the dev node/laptop mount via FUSE), exposing a shared subtree to
         # both containers. Image matches the CSI mount pods (ce-v1.4.1) so
