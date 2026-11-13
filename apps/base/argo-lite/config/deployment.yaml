@@ -66,6 +66,11 @@ spec:
             - name: jfs-shared
               mountPath: /mnt/jfsdev
               mountPropagation: HostToContainer
+            # Stable sshd host key from OpenBao (VSS-synced secret). sshd
+            # refuses world/group-readable keys, so strict 0400.
+            - name: ssh-host-key
+              mountPath: /etc/ssh/host-key
+              readOnly: true
         # JuiceFS sidecar: mounts the juicefs-dev filesystem out-of-band (same
         # FS the dev node/laptop mount via FUSE), exposing a shared subtree to
         # both containers. Image matches the CSI mount pods (ce-v1.4.1) so
@@ -133,3 +138,10 @@ spec:
             claimName: argo-lite-home
         - name: jfs-shared
           emptyDir: {}
+        - name: ssh-host-key
+          secret:
+            secretName: argo-lite-ssh-host-key
+            items:
+              - key: key
+                path: ssh_host_ed25519_key
+            defaultMode: 0400

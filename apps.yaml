@@ -1072,6 +1072,14 @@ catalog:
           mount: k8s
           path: "juicefs-dev/config"
           destination: "juicefs-dev-creds"
+        # Stable sshd host key (ed25519 PEM in the `key` field). Without it
+        # the entrypoint generates an ephemeral key each boot and every pod
+        # restart trips clients' known_hosts (REMOTE HOST IDENTIFICATION
+        # CHANGED). Owner put the key in OpenBao 2026-11-13.
+        - name: ssh-host-key
+          mount: k8s
+          path: "argo-lite/ssh-host-key"
+          destination: "argo-lite-ssh-host-key"
     syncPolicy:
       syncOptions:
         - CreateNamespace=true
