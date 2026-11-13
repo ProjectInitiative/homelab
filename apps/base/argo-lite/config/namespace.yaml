@@ -1,0 +1,15 @@
+# Dedicated namespace for argo-lite: the podSecurity labels live HERE (not in
+# managedNamespaceMetadata) so no other app can flip them — the argo ns
+# tug-of-war (argo app enforces baseline, argo-lite needs privileged) made
+# pod admission depend on which app synced last.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argo-lite
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/enforce-version: latest
+    # VSO auth resources (operator-auth / operator-auth-sa) are created here
+    # by this app's own vaultSecrets auth source.
+    vault-auth: "enabled"
