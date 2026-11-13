@@ -56,6 +56,10 @@ spec:
           volumeMounts:
             - name: home
               mountPath: /home/kylepzak
+              # Mount the kylepzak/ subtree, not the FS root — the root is
+              # littered with JuiceFS internals (.config-as-file, .stats,
+              # .accesslog, .trash) that shadow the seeded HM config.
+              subPath: kylepzak
             # Consumer of the shared emptyDir: HostToContainer picks up the
             # FUSE mount the sidecar performs (Bidirectional is on the
             # sidecar's own mount of the same volume).
