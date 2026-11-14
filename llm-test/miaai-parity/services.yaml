@@ -1331,8 +1331,11 @@ spec:
   tls:
     - hosts:
         - ai-https
+  # rule.host must be the full MagicDNS FQDN: the PG reconciler passes the
+  # resolved dnsName as tlsHost and silently drops rules whose host doesn't
+  # match it (InvalidIngressBackend 'rule ... ignored, unsupported').
   rules:
-    - host: ai-https
+    - host: ai-https.taildeab2.ts.net
       http:
         paths:
           - path: /
