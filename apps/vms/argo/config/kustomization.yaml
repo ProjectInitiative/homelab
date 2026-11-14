@@ -3,3 +3,6 @@ kind: Kustomization
 resources:
   - argo-vm.yaml
   - cdi-s3-region-alias.yaml
+  - argo-root-ring-keepers.yaml
+  - argo-data-ring-keepers.yaml
+  - argo-root-cache-warm.yaml

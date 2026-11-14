@@ -193,13 +193,17 @@ apps:
               - cache-eviction=lru
           # Argo VM disks use a bounded cache in a dedicated subdirectory,
           # overriding the capstan node default for these two PVCs. Mount Pods
-          # must be recreated for option changes to take effect.
+          # must be recreated for option changes to take effect. Root disk is
+          # only 30.2G, so 60G cache is ample (also evicts stale pre-split
+          # data blocks in the shared old dir); data gets 250G for the nix
+          # store with ~360-440G free on the dedicated 499G cache partition.
           - pvcSelector:
               matchName: argo-root
               matchStorageClassName: juicefs-sc
             mountOptions:
               - cache-dir=/mnt/jfs-cache/argo
-              - cache-size=102400
+              - cache-size=61440
+              - max-readahead=256M
               - prefetch=8
               - buffer-size=1G
           - pvcSelector:
@@ -207,11 +211,62 @@ apps:
               matchStorageClassName: juicefs-sc
             mountOptions:
               - cache-dir=/mnt/jfs-cache/argo
-              - cache-size=102400
+              - cache-size=256000
+              - max-readahead=256M
               - prefetch=8
               - buffer-size=1G
-          # Keep the target PVC last: CSI v0.33.0 merges matching patches in
-          # order and replaces the entire mountOptions list with the last one.
+          # Argo root gets its own ring, separate from dgx-model-cache and
+          # argo-data. Capstans are amd64; guarded a9f6b9c2 build with
+          # group-advertise=auto (fork commit 9cdc4100: per-node fixed
+          # advertisements are NOT selectable via mountPodPatch on CSI
+          # v0.33.0 — all matching argo-root patches merged and the last
+          # one won, advertising capstan3's IP from every node). auto
+          # derives the default-route/bond IPv4 per node. Verify three
+          # distinct advertised endpoints before warming disk.img.
+          # Keep /mnt/jfs-cache/argo: existing root/data caches preserved.
+          - pvcSelector:
+              matchName: argo-root
+              matchStorageClassName: juicefs-sc
+            ceMountImage: 172.16.1.50:31872/homelab/juicefs-gcache-csi:fe43899a-amd64@sha256:229954ee01903b5b99ef3b90a2a341ead54faf25071bdaec6c2c7ee668f66c66
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
+            mountOptions:
+              - cache-dir=/mnt/jfs-cache/argo
+              - cache-size=61440
+              - max-readahead=256M
+              - prefetch=8
+              - buffer-size=1G
+              - cache-group=capstan-argo-root
+              - group-listen=:13911
+              - group-advertise=auto
+              - group-heartbeat=5s
+              - peer-range-read
+              - remote-timeout=60s
+          # Argo data is a separate volume-scoped ring on the same capstans.
+          # Keep its disk cache directory separate from argo-root: concurrent
+          # mounts must not manage the same local cache tree. Stage with zero
+          # data keepers until peer-only TCP/13912 and the directory are live
+          # on all three hosts; do not warm the ~900GB data disk.
+          - pvcSelector:
+              matchName: argo-data
+              matchStorageClassName: juicefs-sc
+            ceMountImage: 172.16.1.50:31872/homelab/juicefs-gcache-csi:fe43899a-amd64@sha256:229954ee01903b5b99ef3b90a2a341ead54faf25071bdaec6c2c7ee668f66c66
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
+            mountOptions:
+              - cache-dir=/mnt/jfs-cache/argo-data
+              - cache-size=256000
+              - max-readahead=256M
+              - prefetch=8
+              - buffer-size=1G
+              - cache-group=capstan-argo-data
+              - group-listen=:13912
+              - group-advertise=auto
+              - group-heartbeat=5s
+              - peer-range-read
+              - remote-timeout=60s
+          # Keep the model-cache target PVC last: CSI v0.33.0 merges matching
+          # patches in order and replaces mountOptions with the last list.
           # This overrides node-local defaults on any node for model-cache only;
           # model-cache-ephemeral uses a separate StorageClass and backing store.
           - pvcSelector:
