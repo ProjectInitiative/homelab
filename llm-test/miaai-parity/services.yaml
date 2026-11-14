@@ -1295,6 +1295,32 @@ spec:
     matchLabels:
       app: ai-proxy
 ---
+# HTTPS (L7) entry through the same mc-ingress-proxy ProxyGroup. The operator
+# terminates TLS with an auto-provisioned Let's Encrypt cert for the MagicDNS
+# name (ai-https.taildeab2.ts.net) via Tailscale Serve in the proxy pods; the
+# backend stays plain HTTP. Tailnet-private by default (no Funnel annotation).
+# First request after creation is slow — the cert provisions lazily.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-https
+  namespace: llm-test
+  annotations:
+    tailscale.com/proxy-group: mc-ingress-proxy
+spec:
+  ingressClassName: tailscale
+  rules:
+    - host: ai-https
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ai
+                port:
+                  name: http
+---
 apiVersion: v1
 kind: Service
 metadata:
