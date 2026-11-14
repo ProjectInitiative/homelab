@@ -1300,6 +1300,25 @@ spec:
 # name (ai-https.taildeab2.ts.net) via Tailscale Serve in the proxy pods; the
 # backend stays plain HTTP. Tailnet-private by default (no Funnel annotation).
 # First request after creation is slow — the cert provisions lazily.
+# Plain ClusterIP backend for the ai-https Ingress. The operator rejects
+# Ingress backends that are themselves Tailscale LB Services
+# (InvalidIngressBackend: 'rule with host ... ignored, unsupported'), so the
+# Ingress must target a normal Service selector instead.
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-https-backend
+  namespace: llm-test
+spec:
+  type: ClusterIP
+  selector:
+    app: ai-proxy
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8000
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -1320,7 +1339,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: ai
+                name: ai-https-backend
                 port:
                   name: http
 ---
