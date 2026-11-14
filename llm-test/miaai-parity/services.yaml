@@ -1309,6 +1309,9 @@ metadata:
     tailscale.com/proxy-group: mc-ingress-proxy
 spec:
   ingressClassName: tailscale
+  tls:
+    - hosts:
+        - ai-https
   rules:
     - host: ai-https
       http:
