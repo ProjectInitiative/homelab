@@ -721,20 +721,20 @@ catalog:
         - CreateNamespace=true
         - ServerSideApply=true
 
-  # Adopt the existing LiteLLM gateway, test proxy, inspector, telemetry, and
-  # stable backend Service without changing their live specifications. Initial
-  # sync is deliberately manual and non-pruning for a safe ownership handoff.
+  # Adopted from manual kubectl management (ownership handoff completed
+  # 2026-10-13). Initial sync was deliberately manual + non-pruning for a safe
+  # handoff; pruning is now enabled — resources removed from Git are deleted
+  # from the cluster (e.g. the old L3 'ai' LB Service replaced by the Ingress).
   ai-proxy:
     path: llm-test/miaai-parity
     annotations:
       argocd.argoproj.io/sync-wave: "120"
     syncPolicy:
       automated:
-        prune: false
+        prune: true
         selfHeal: true
-      # Initial adoption intentionally uses Argo's default client-side apply:
-      # the live resources are owned by kubectl-client-side-apply, and forcing
-      # SSA conflicts would be an unnecessary risk during ownership handoff.
+      # Adoption used Argo's default client-side apply; keep that (no SSA
+      # conflicts with historical kubectl-client-side-apply ownership).
       syncOptions: []
 
   # Cache-only preload for the NVIDIA Flare GLM-5.3 Flash NVFP4/MXFP8
