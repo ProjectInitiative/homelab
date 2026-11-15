@@ -1295,15 +1295,15 @@ spec:
     matchLabels:
       app: ai-proxy
 ---
-# HTTPS (L7) entry through the same mc-ingress-proxy ProxyGroup. The operator
-# terminates TLS with an auto-provisioned Let's Encrypt cert for the MagicDNS
-# name (ai-https.taildeab2.ts.net) via Tailscale Serve in the proxy pods; the
-# backend stays plain HTTP. Tailnet-private by default (no Funnel annotation).
-# First request after creation is slow — the cert provisions lazily.
-# Plain ClusterIP backend for the ai-https Ingress. The operator rejects
-# Ingress backends that are themselves Tailscale LB Services
-# (InvalidIngressBackend: 'rule with host ... ignored, unsupported'), so the
-# Ingress must target a normal Service selector instead.
+# Primary HTTPS (L7) entry for the gateway through the mc-ingress-proxy
+# ProxyGroup. The operator terminates TLS with an auto-provisioned Let's
+# Encrypt cert for ai.taildeab2.ts.net via Tailscale Serve in the proxy pods.
+# tailscale.com/http-endpoint keeps plain HTTP on port 80 alive alongside 443
+# (no auto-redirect), so legacy clients on http://ai.taildeab2.ts.net keep
+# working. Tailnet-private by default (no Funnel annotation).
+# Backend is a plain ClusterIP Service because the operator rejects Ingress
+# backends that are themselves Tailscale LB Services
+# (InvalidIngressBackend: 'rule with host ... ignored, unsupported').
 apiVersion: v1
 kind: Service
 metadata:
@@ -1322,20 +1322,21 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: ai-https
+  name: ai
   namespace: llm-test
   annotations:
     tailscale.com/proxy-group: mc-ingress-proxy
+    tailscale.com/http-endpoint: "enabled"
 spec:
   ingressClassName: tailscale
   tls:
     - hosts:
-        - ai-https
+        - ai
   # rule.host must be the full MagicDNS FQDN: the PG reconciler passes the
   # resolved dnsName as tlsHost and silently drops rules whose host doesn't
   # match it (InvalidIngressBackend 'rule ... ignored, unsupported').
   rules:
-    - host: ai-https.taildeab2.ts.net
+    - host: ai.taildeab2.ts.net
       http:
         paths:
           - path: /
@@ -1345,25 +1346,6 @@ spec:
                 name: ai-https-backend
                 port:
                   name: http
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: ai
-  namespace: llm-test
-  annotations:
-    tailscale.com/hostname: "ai"
-    tailscale.com/proxy-group: mc-ingress-proxy
-spec:
-  type: LoadBalancer
-  loadBalancerClass: tailscale
-  selector:
-    app: ai-proxy
-  ports:
-    - name: http
-      protocol: TCP
-      port: 80
-      targetPort: 8000
 ---
 # Direct node-style Tailscale entry (no proxy-group annotation). Keep the `ai`
 # ingress-proxy endpoint above as the primary API; this is an optional direct
