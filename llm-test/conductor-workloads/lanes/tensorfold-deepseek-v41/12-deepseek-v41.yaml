@@ -83,7 +83,7 @@ spec:
           command: ["bash", "-lc"]
           args: [". /launch/fabric-env.sh && exec /launch/launch-worker.sh"]
           env:
-            - {name: NVIDIA_DRIVER_CAPABILITIES, value: compute,utility}
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
             - {name: TF_RDMA_DEVICES, value: ""}
             - {name: TF_TP_WORLD, value: "2"}
           resources: {requests: {cpu: "16", memory: 16Gi}, limits: {cpu: "32", memory: 120Gi}}
@@ -124,7 +124,7 @@ spec:
           image: ghcr.io/miaai-lab/deepseek-v4.1-flash-1017-2x-dgx-sparks-tensorfold@sha256:4ed15dceaf0a210052d5db89c74145794d8ee45f63a3436878ac3ec01cea38b5
           command: ["bash", "/launch/launch-head.sh"]
           env:
-            - {name: NVIDIA_DRIVER_CAPABILITIES, value: compute,utility}
+            - {name: NVIDIA_DRIVER_CAPABILITIES, value: "compute,utility"}
             - {name: HOST_IP, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
             - {name: TF_TP_WORLD, value: "2"}
             - {name: TF_TP_PORT, value: "29620"}
