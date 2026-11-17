@@ -144,32 +144,35 @@ PY
 
 if [ "$FABRIC_MODE" = routed ]; then
   # Preflight the routed fabric path: at least one static route to a fabric
-  # subnet we are not on, egressing one of our fabric interfaces.
+  # subnet we are not on, egressing one of our fabric interfaces. Parsed from
+  # /proc/net/route — the runtime image has no iproute2.
   if ! python3 - "$inventory" <<'PY'
 import ipaddress
 import json
 import pathlib
-import subprocess
 import sys
 
 fabric = json.loads(pathlib.Path(sys.argv[1]).read_text())
 local = {ipaddress.ip_interface(l["address"]).network for l in fabric["links"]}
 own = {l["interface"] for l in fabric["links"]}
-routes = subprocess.run(["ip", "-4", "route", "show"], capture_output=True, text=True).stdout
-for line in routes.splitlines():
+RTF_GATEWAY = 0x2
+found = False
+for line in pathlib.Path("/proc/net/route").read_text().splitlines()[1:]:
     fields = line.split()
-    if not fields or "/" not in fields[0]:
+    if len(fields) < 4:
         continue
-    dest = fields[0]
-    if "via" not in fields or "dev" not in fields:
+    iface, dest_hex, _gw_hex, flags = fields[0], fields[1], fields[2], int(fields[3], 16)
+    if iface not in own or not flags & RTF_GATEWAY:
         continue
-    dev = fields[fields.index("dev") + 1]
-    if dev in own and ipaddress.ip_network(dest, strict=False) not in local:
-        raise SystemExit(0)
-raise SystemExit(
-    "routed fabric preflight failed: no route to a non-local fabric subnet via a fabric interface "
-    "(deploy dotfiles routed-RoCE config or pin the lane to an adjacent pair)"
-)
+    dest = str(ipaddress.IPv4Address(int(dest_hex, 16).to_bytes(4, "little")))
+    if ipaddress.ip_network(dest, strict=False) not in local:
+        found = True
+        break
+if not found:
+    raise SystemExit(
+        "routed fabric preflight failed: no route to a non-local fabric subnet via a fabric interface "
+        "(deploy dotfiles routed-RoCE config or pin the lane to an adjacent pair)"
+    )
 PY
   then
     exit 1
