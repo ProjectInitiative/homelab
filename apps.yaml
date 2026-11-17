@@ -737,67 +737,6 @@ catalog:
       # conflicts with historical kubectl-client-side-apply ownership).
       syncOptions: []
 
-  # Cache-only preload for the NVIDIA Flare GLM-5.3 Flash NVFP4/MXFP8
-  # checkpoint. The serving package and Conductor workload are staged later;
-  # this app owns only the resumable raw checkpoint download.
-  flare-glm53:
-    path: llm-test/flare-glm53
-    annotations:
-      argocd.argoproj.io/sync-wave: "123"
-    syncPolicy:
-      automated:
-        prune: false
-        selfHeal: true
-      syncOptions:
-        - ServerSideApply=true
-
-  # Standby-only DeepSeek-V4.1 TensorFold TP2 lane. The cache preload Job is
-  # suspended in Git; Conductor registration lives in conductor-workloads.
-  tensorfold-deepseek-v41:
-    path: llm-test/tensorfold-deepseek-v41
-    annotations:
-      argocd.argoproj.io/sync-wave: "123"
-    syncPolicy:
-      automated:
-        prune: false
-        selfHeal: true
-      syncOptions:
-        - ServerSideApply=true
-
-  # Staged GLM recipe 1104 lane. Conductor owns Deployment replica counts;
-  # keep Standby while the serving-rank startup failure is investigated.
-  glm53-flash-spark-1104:
-    path: llm-test/glm53-flash-spark-1104
-    annotations:
-      argocd.argoproj.io/sync-wave: "123"
-    syncPolicy:
-      automated:
-        prune: false
-        selfHeal: true
-      syncOptions:
-        - ServerSideApply=true
-        - SkipDryRunOnMissingResource=true
-        - RespectIgnoreDifferences=true
-    # desiredState is Conductor's runtime residency switch; allow manual cutovers
-    # without Argo restoring the Git-declared Standby value.
-    ignoreDifferences:
-      - group: apps
-        kind: Deployment
-        jsonPointers:
-          - /spec/replicas
-          # Conductor's placement pins kubernetes.io/hostname into the
-          # nodeSelector at activation (OQ-0055 bestRoute); without this,
-          # selfHeal reverts the pin and the pods re-place freely.
-          - /spec/template/spec/nodeSelector
-      - group: conductor.projectinitiative.io
-        kind: ManagedWorkload
-        jsonPointers:
-          - /spec/desiredState
-
-  # Memory watchdog + forensics for the DGX Spark nodes (RISK-0040):
-  # privileged hostPID DaemonSet watching host MemAvailable, snapshots
-  # attribution, SIGKILLs lane ranks on breach; Conductor RecreateTogether
-  # handles recovery. See llm-test/memguard/README.md.
   memguard-dgx:
     path: llm-test/memguard
     annotations:
@@ -833,16 +772,17 @@ catalog:
       syncOptions:
         - ServerSideApply=true
 
-  # Homelab-owned Conductor policy. This is intentionally separate from the
-  # operator package so Manage/Observe and workload membership changes do not
-  # require a Conductor code or image revision.
+  # THE app for Conductor-managed workloads: pools + ManagedWorkload intents
+  # AND every lane's serving manifests (llm-test/conductor-workloads/lanes/*).
+  # One owner for the whole workload fleet (DEC-0061 lesson: no per-lane apps).
+  # Prune is ON: removing a lane or MW from Git deletes its live objects.
   conductor-workloads:
     path: llm-test/conductor-workloads
     annotations:
       argocd.argoproj.io/sync-wave: "122"
     syncPolicy:
       automated:
-        prune: false
+        prune: true
         selfHeal: true
       syncOptions:
         - ServerSideApply=true
@@ -850,11 +790,18 @@ catalog:
         - RespectIgnoreDifferences=true
     # desiredState is Conductor's runtime residency switch; allow manual cutovers
     # without Argo restoring the Git-declared value for any ManagedWorkload.
+    # Deployment replicas + nodeSelector are Conductor-owned at runtime
+    # (residency + placement pins) — Git declares the template, not the state.
     ignoreDifferences:
       - group: conductor.projectinitiative.io
         kind: ManagedWorkload
         jsonPointers:
           - /spec/desiredState
+      - group: apps
+        kind: Deployment
+        jsonPointers:
+          - /spec/replicas
+          - /spec/template/spec/nodeSelector
 
   # Apps
   tailscale-proxy-groups:
