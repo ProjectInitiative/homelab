@@ -17,6 +17,13 @@ spec:
     deploymentSet:
       recoveryPolicy: RecreateTogether
       startupGracePeriod: 60m
+      # preferAdjacent (OQ-0055): pin the pair onto ring-adjacent nodes
+      # (direct RoCE rails) when one is Ready; otherwise place freely —
+      # the routed-RoCE lane script serves non-adjacent pairs through a
+      # ring neighbour. Ring order comes from the
+      # fabric.homelab.io/ring-position node labels (dotfiles).
+      placement:
+        mode: bestRoute
       members:
         - name: glm53-flash-1104-worker
           role: worker
