@@ -65,3 +65,28 @@ spec:
     requireFencing: true
     defaultMinDwell: 15m
     cooldown: 5m
+---
+# RISK-0047 A/B pool (2026-11-17): Observe-only — Conductor watches the astro
+# diagnostic lane but never manages residency or competes with dgx-spark for
+# slots, so the live chron+sext pair is untouchable while astrolabe is tested.
+apiVersion: conductor.projectinitiative.io/v1alpha1
+kind: ResourcePool
+metadata:
+  name: dgx-spark-astro
+  namespace: llm-test
+spec:
+  managementMode: Observe
+  capacity:
+    slots: 1
+  nodeSelector:
+    gpu: dgx-spark
+    gpu-vendor: nvidia
+  routing:
+    serviceName: glm53-flash-1104-astro-api
+    selector:
+      serving.homelab.io/alias: dgx-spark-astro
+  policy:
+    notReadyGracePeriod: 2m
+    requireFencing: true
+    defaultMinDwell: 15m
+    cooldown: 5m
