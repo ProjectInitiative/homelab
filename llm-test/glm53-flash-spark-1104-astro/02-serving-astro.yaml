@@ -1,5 +1,5 @@
 # RISK-0047 A/B lane (2026-11-17): copy of glm53-flash-spark-1104's serving
-# manifests, renamed and PINNED to the astrolabe(worker)+octant(head) for the RISK-0047 edge test, then back to sextant ring
+# manifests, renamed and PINNED to the chronometer(worker)+sextant(head) — complementary to prod on astrolabe+octant ring
 # edge. Same engine image digest, same launch scripts, same model — only the
 # silicon differs. Isolation from prod: own rendezvous/API services, alias
 # dgx-spark-astro (never joins dgx-spark-backend), own rank-state hostPath,
@@ -288,7 +288,7 @@ spec:
       hostNetwork: true
       hostIPC: true
       dnsPolicy: ClusterFirstWithHostNet
-      nodeSelector: {gpu: dgx-spark, gpu-vendor: nvidia, kubernetes.io/hostname: octant}
+      nodeSelector: {gpu: dgx-spark, gpu-vendor: nvidia, kubernetes.io/hostname: sextant}
       tolerations:
         - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       affinity:
