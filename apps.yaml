@@ -812,7 +812,10 @@ catalog:
   # Pools/workload intent now live ONLY in llm-test/conductor-workloads.
   conductor:
     repoURL: https://github.com/ProjectInitiative/conductor.git
-    targetRevision: 0182ad8acef6d258f4c1c7ae96cf645e7ff9d12d
+    # ecd904d: ring-adjacent placement (OQ-0055) — DeploymentSetSpec.placement
+    # {bestRoute|adjacent|any}, Placing phase, cordon/taint-aware pair choice;
+    # controller image sha256:e008cc3b051598208916a4f19e4240aaca221ea83f6c6c51053f9df0c91a8143.
+    targetRevision: ecd904d725f1b7e61a600fcd2a84b8a8cbd9bb39
     path: generator
     plugin:
       name: cdk8s-v1.0
