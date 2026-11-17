@@ -785,6 +785,10 @@ catalog:
         kind: Deployment
         jsonPointers:
           - /spec/replicas
+          # Conductor's placement pins kubernetes.io/hostname into the
+          # nodeSelector at activation (OQ-0055 bestRoute); without this,
+          # selfHeal reverts the pin and the pods re-place freely.
+          - /spec/template/spec/nodeSelector
       - group: conductor.projectinitiative.io
         kind: ManagedWorkload
         jsonPointers:
