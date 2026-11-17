@@ -145,7 +145,7 @@ spec:
       serving.homelab.io/alias: dgx-spark
 ---
 # RISK-0047 A/B workload (2026-11-17): byte-for-byte copy of the 1104 lane
-# pinned in Git to astrolabe(worker)+octant(head) — direct rails .5/.6, no
+# pinned in Git to astrolabe(worker)+sextant(head) — direct rails .5/.6, no
 # placement block (mode "any" would CLEAR the pins; absent block leaves them
 # alone). Observe pool: no desiredState (runtime-only per policy), priority
 # below prod so nothing here can preempt the live pair. Verdict prompt hits
