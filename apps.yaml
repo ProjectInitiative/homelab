@@ -794,31 +794,6 @@ catalog:
         jsonPointers:
           - /spec/desiredState
 
-  # RISK-0047 A/B diagnostic lane: 1104 copy pinned to astrolabe(worker)+
-  # octant(head) to isolate the suspected GB10 compute fault. Observe pool;
-  # prod chron+sext pair must stay untouched. Replicas stay at 0 in Git —
-  # residency is driven by patching spec.desiredState on the MW.
-  glm53-flash-spark-1104-astro:
-    path: llm-test/glm53-flash-spark-1104-astro
-    annotations:
-      argocd.argoproj.io/sync-wave: "123"
-    syncPolicy:
-      automated:
-        prune: false
-        selfHeal: true
-      syncOptions:
-        - ServerSideApply=true
-        - SkipDryRunOnMissingResource=true
-        - RespectIgnoreDifferences=true
-    ignoreDifferences:
-      - group: apps
-        kind: Deployment
-        jsonPointers:
-          - /spec/replicas
-          # Conductor pins kubernetes.io/hostname dynamically (occupancy-aware
-          # bestRoute); Git must not fight the pin.
-          - /spec/template/spec/nodeSelector
-
   # Memory watchdog + forensics for the DGX Spark nodes (RISK-0040):
   # privileged hostPID DaemonSet watching host MemAvailable, snapshots
   # attribution, SIGKILLs lane ranks on breach; Conductor RecreateTogether

@@ -65,29 +65,3 @@ spec:
     requireFencing: true
     defaultMinDwell: 15m
     cooldown: 5m
----
-# RISK-0047 A/B pool (2026-11-17), upgraded same day: Manage mode — Conductor
-# owns residency and RecreateTogether recovery for the second lane. Cross-lane
-# safety comes from occupancy-aware adjacent placement (conductor 9973764):
-# placement skips nodes hosting the other lane's GPU pods.
-apiVersion: conductor.projectinitiative.io/v1alpha1
-kind: ResourcePool
-metadata:
-  name: dgx-spark-astro
-  namespace: llm-test
-spec:
-  managementMode: Manage
-  capacity:
-    slots: 1
-  nodeSelector:
-    gpu: dgx-spark
-    gpu-vendor: nvidia
-  routing:
-    serviceName: glm53-flash-1104-astro-api
-    selector:
-      serving.homelab.io/alias: dgx-spark-astro
-  policy:
-    notReadyGracePeriod: 2m
-    requireFencing: true
-    defaultMinDwell: 15m
-    cooldown: 5m
