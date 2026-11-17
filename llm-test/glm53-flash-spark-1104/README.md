@@ -61,7 +61,7 @@ The model pull completed and its receipt audit verified 83 checkpoint shards (17
 - Fabric discovery is performed by each serving rank on its scheduled node from the node-local inventory; the launcher validates both rails and HCA/GID selection before starting TensorFold.
 - The live smoke Job was removed from the active Kustomization after the retry failed; it is not a serving or cache resource.
 - `02-serving.yaml` mirrors the current TensorFold v14 two-rank Kubernetes shape: host networking/IPC, `nvidia-rdma`, node capability scheduling and anti-affinity. Worker rank 1 starts first; its launcher waits for the head rendezvous, so the worker uses `DeploymentAvailable` as the Conductor gate and then Conductor starts head rank 0. The launcher replicates `start.sh`'s memory gate, rank-log preservation and context auto-fit (see the status section above). The initial serving window uses NCCL-only; head health gates the stable route.
-- `03-managed-workload.yaml` uses `RecreateTogether` so a rank failure recreates the pair. It is `Standby` pending root-cause of the serving-rank startup failure; its head carries the stable `dgx-spark` alias.
+- The `glm53-flash-1104` intent lives in `llm-test/conductor-workloads` (single owner, 2026-11-17 consolidation) with `RecreateTogether` and `placement: bestRoute`; the lane dir holds only lane manifests.
 
 The serving manifest reuses the existing `tensorfold-v14-rdma-fabric` ConfigMap and `/var/lib/dgx-spark/rdma-fabric.json` host inventory. NCCL bootstrap is placed on the shared control-plane address; NCCL/engine data traffic is selected from the node-local RoCE inventory. This is the Kubernetes adaptation to validate; upstream's launcher discovers its direct-link address through SSH.
 
