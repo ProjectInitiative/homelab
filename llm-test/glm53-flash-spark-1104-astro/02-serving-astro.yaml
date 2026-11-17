@@ -5,7 +5,9 @@
 # dgx-spark-astro (never joins dgx-spark-backend), own rank-state hostPath,
 # own context-fit file on the shared PVC. Chat-template + rdma-fabric
 # configMaps are reused from the prod lane app (identical content wanted).
-# Pool dgx-spark-astro is Observe mode: Conductor watches, never evicts prod.
+# Pool dgx-spark-astro is Manage mode: Conductor owns residency and
+# RecreateTogether recovery; occupancy-aware placement keeps it off prod's
+# edge.
 # Staged TP=2 Kubernetes lane. Conductor owns Deployment replicas.
 ---
 apiVersion: v1
@@ -186,7 +188,7 @@ spec:
       hostNetwork: true
       hostIPC: true
       dnsPolicy: ClusterFirstWithHostNet
-      nodeSelector: {gpu: dgx-spark, gpu-vendor: nvidia, kubernetes.io/hostname: astrolabe}
+      nodeSelector: {gpu: dgx-spark, gpu-vendor: nvidia}
       tolerations:
         - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       affinity:
@@ -288,7 +290,7 @@ spec:
       hostNetwork: true
       hostIPC: true
       dnsPolicy: ClusterFirstWithHostNet
-      nodeSelector: {gpu: dgx-spark, gpu-vendor: nvidia, kubernetes.io/hostname: sextant}
+      nodeSelector: {gpu: dgx-spark, gpu-vendor: nvidia}
       tolerations:
         - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       affinity:
