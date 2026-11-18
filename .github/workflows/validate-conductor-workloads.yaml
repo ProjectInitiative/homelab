@@ -24,7 +24,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: azure/setup-kustomize@v4
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" 2>/dev/null | bash -s -- 5.4.3
+          sudo mv kustomize /usr/local/bin/kustomize
+          kustomize version
       - name: Render each workload dir independently
         id: render
         run: |
