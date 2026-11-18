@@ -1,4 +1,11 @@
 # Staged TP=2 Kubernetes lane. Conductor owns Deployment replicas.
+# NOTE: member Deployments intentionally declare NO `replicas`. Conductor owns
+# scaling at runtime; a Git-declared value would be re-applied by every Argo
+# sync (SSA — argocd-controller owns /spec/replicas, and RespectIgnoreDifferences
+# only protects fields ABSENT from Git), clobbering Resident lanes on each
+# merge (2026-11-18 incident). ignoreDifferences/RespectIgnoreDifferences
+# preserves the live replicas field on sync; first-ever creation defaults to 1
+# and Conductor immediately corrects per desiredState.
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -163,7 +170,6 @@ metadata:
   namespace: llm-test
   labels: {app: glm53-flash-1104-worker, lane: glm53-flash-1104}
 spec:
-  replicas: 0
   strategy: {type: Recreate}
   selector:
     matchLabels: {app: glm53-flash-1104-worker}
@@ -265,7 +271,6 @@ metadata:
   namespace: llm-test
   labels: {app: glm53-flash-1104-head, lane: glm53-flash-1104}
 spec:
-  replicas: 0
   strategy: {type: Recreate}
   selector:
     matchLabels: {app: glm53-flash-1104-head}

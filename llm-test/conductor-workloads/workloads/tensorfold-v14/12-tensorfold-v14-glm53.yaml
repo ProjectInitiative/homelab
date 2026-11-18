@@ -29,6 +29,13 @@
 #     both provided here. No node, link IP, netdev, or mlx5_N is hardcoded.
 #
 # The Deployments intentionally omit `replicas`: Conductor owns scaling and
+# NOTE: member Deployments intentionally declare NO `replicas`. Conductor owns
+# scaling at runtime; a Git-declared value would be re-applied by every Argo
+# sync (SSA — argocd-controller owns /spec/replicas, and RespectIgnoreDifferences
+# only protects fields ABSENT from Git), clobbering Resident lanes on each
+# merge (2026-11-18 incident). ignoreDifferences/RespectIgnoreDifferences
+# preserves the live replicas field on sync; first-ever creation defaults to 1
+# and Conductor immediately corrects per desiredState.
 # coordinated recovery for this dynamic lane. This lane is an exclusive 2-GPU
 # swap with the resident glm53-exl3 pair (same GPUs, host network). Activation
 # order is worker (rank 1) first, then head (rank 0); the head's init gate waits
@@ -318,7 +325,6 @@ metadata:
     app: tensorfold-v14-worker
     lane: tensorfold-v14
 spec:
-  replicas: 0
   strategy:
     type: Recreate
   selector:
@@ -570,7 +576,6 @@ metadata:
     app: tensorfold-v14-head
     lane: tensorfold-v14
 spec:
-  replicas: 0
   strategy:
     type: Recreate
   selector:
