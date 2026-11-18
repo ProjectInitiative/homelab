@@ -5,3 +5,4 @@ resources:
   - 05-deepseek-v41-download.yaml
   - 06-deepseek-v41-prepare.yaml
   - 12-deepseek-v41.yaml
+  - managed-workload.yaml

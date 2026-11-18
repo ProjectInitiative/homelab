@@ -318,6 +318,7 @@ metadata:
     app: tensorfold-v14-worker
     lane: tensorfold-v14
 spec:
+  replicas: 0
   strategy:
     type: Recreate
   selector:
@@ -515,7 +516,7 @@ spec:
             - name: NCCL_DEBUG
               value: WARN
             - name: NVIDIA_DRIVER_CAPABILITIES
-              value: compute,utility
+              value: "compute,utility"
             - name: PEER_SERVICE
               value: tensorfold-v14-head-rendezvous.llm-test.svc.cluster.local
             - name: NODE_NAME
@@ -569,6 +570,7 @@ metadata:
     app: tensorfold-v14-head
     lane: tensorfold-v14
 spec:
+  replicas: 0
   strategy:
     type: Recreate
   selector:
@@ -817,7 +819,7 @@ spec:
             - name: NCCL_DEBUG
               value: WARN
             - name: NVIDIA_DRIVER_CAPABILITIES
-              value: compute,utility
+              value: "compute,utility"
             - name: PEER_SERVICE
               value: tensorfold-v14-worker-rendezvous.llm-test.svc.cluster.local
             - name: NODE_NAME
