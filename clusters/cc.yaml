@@ -183,6 +183,49 @@ apps:
   - name: agent-access
     namespace: agent-sandbox
 
+  # Messaging/function substrate for the systemone distillation pipeline
+  # (OQ-0056). cc's NATS joins mc's JetStream domain as a LEAFNODE — cc dials
+  # out to mc over the submariner globalnet IP, so capture from either side
+  # lands in the same streams. The leaf dial target is patched in below;
+  # flip the values key on once mc's NATS is up and the submariner route is
+  # verified (leaves are outbound-only, no inbound firewall rule needed).
+  # NOTE: the leafnodes key is commented out in apps.yaml until first boot —
+  # a leaf config pointing at a dead target does not break standalone NATS,
+  # but we enable it deliberately.
+  - name: nats
+    namespace: nats
+    # NOTE: cluster helm_values REPLACE the catalog values (generator
+    # behavior), so this carries the full merged set: catalog base + leafnode
+    # remote for mc's JetStream domain (dial-out only, over submariner
+    # globalnet). Enable the leaf AFTER mc's NATS is up and the submariner
+    # route is verified — until then remove the leafnodes block below and
+    # cc runs standalone.
+    helm_values: |
+      config:
+        cluster:
+          enabled: false
+        jetstream:
+          enabled: true
+          fileStore:
+            enabled: true
+            pvc:
+              enabled: true
+              size: 20Gi
+              storageClassName: local-path
+      nats:
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            memory: 2Gi
+      leafnodes:
+        enabled: true
+        remotes:
+          - url: "nats://nats-leaf.nats.svc.mc.global:4222"
+  - name: fission
+    namespace: fission
+
   - name: temp-egress-cc
     patches:
       - patch: |-

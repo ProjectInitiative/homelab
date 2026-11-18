@@ -566,5 +566,43 @@ apps:
   - name: conductor-workloads
     namespace: llm-test
 
+  # Messaging/function substrate for the systemone distillation pipeline
+  # (OQ-0056). Pin NATS and the Fission controller plane to the capstan
+  # pool — the Sparks are reserved for LLM serving (dgx-spark-workload-policy).
+  - name: nats
+    namespace: nats
+    # NOTE: cluster helm_values REPLACE the catalog values (generator
+    # behavior), so this carries the full merged set: catalog base +
+    # capstan-pool affinity.
+    helm_values: |
+      config:
+        cluster:
+          enabled: false
+        jetstream:
+          enabled: true
+          fileStore:
+            enabled: true
+            pvc:
+              enabled: true
+              size: 20Gi
+              storageClassName: local-path
+      nats:
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            memory: 2Gi
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values: [capstan1, capstan2, capstan3]
+  - name: fission
+    namespace: fission
+
   # Hermes is intentionally disabled until its PostgreSQL/JuiceFS storage
   # design is finalized. Catalog/manifests remain available for later.
