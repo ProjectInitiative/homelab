@@ -1,3 +1,10 @@
+# NOTE: member Deployments intentionally declare NO `replicas`. Conductor owns
+# scaling at runtime; a Git-declared value would be re-applied by every Argo
+# sync (SSA — argocd-controller owns /spec/replicas, and RespectIgnoreDifferences
+# only protects fields ABSENT from Git), clobbering Resident lanes on each
+# merge (2026-11-18 incident). ignoreDifferences/RespectIgnoreDifferences
+# preserves the live replicas field on sync; first-ever creation defaults to 1
+# and Conductor immediately corrects per desiredState.
 # Standby-only TP2 deployment skeleton. Raw cache download is not sufficient:
 # the upstream kit and rank-cache preparation must create .deepseek-v41-prepared.
 apiVersion: v1
@@ -60,7 +67,6 @@ metadata:
   namespace: llm-test
   labels: {app: deepseek-v41-worker, lane: deepseek-v41}
 spec:
-  replicas: 0
   strategy: {type: Recreate}
   selector: {matchLabels: {app: deepseek-v41-worker}}
   template:
@@ -102,7 +108,6 @@ metadata:
   namespace: llm-test
   labels: {app: deepseek-v41-head, lane: deepseek-v41}
 spec:
-  replicas: 0
   strategy: {type: Recreate}
   selector: {matchLabels: {app: deepseek-v41-head}}
   template:
