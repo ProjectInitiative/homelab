@@ -1,0 +1,62 @@
+# Per-workload manifest validation for llm-test/conductor-workloads.
+#
+# Why this exists: within a single Argo Application, one malformed manifest
+# fails the whole app's comparison (structured-merge diff) and blocks
+# self-heal/prune for EVERY workload in the app (2026-11-17 incident: an
+# unquoted `value: compute,utility` env froze the entire conductor-workloads
+# app and left the glm53-flash-1104 lane deleted + deadlocked). This gate
+# renders and schema-validates each workload directory independently, so a
+# broken file is caught per-workload at PR time and can never reach main.
+name: validate-conductor-workloads
+
+on:
+  pull_request:
+    paths:
+      - 'llm-test/conductor-workloads/**'
+      - '.github/workflows/validate-conductor-workloads.yaml'
+  push:
+    branches: [main]
+    paths:
+      - 'llm-test/conductor-workloads/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" 2>/dev/null | bash -s -- 5.4.3
+          sudo mv kustomize /usr/local/bin/kustomize
+          kustomize version
+      - name: Render each workload dir independently
+        id: render
+        run: |
+          set -euo pipefail
+          mkdir -p rendered
+          fail=0
+          # Shared pools first: workloads must render against the same fleet.
+          kustomize build llm-test/conductor-workloads --output rendered/all.yaml || fail=1
+          for dir in llm-test/conductor-workloads/workloads/*/; do
+            name=$(basename "$dir")
+            echo "::group::$name"
+            kustomize build "$dir" > "rendered/$name.yaml" || { echo "::error file=$dir::kustomize build failed"; fail=1; continue; }
+            echo "::endgroup::"
+          done
+          exit $fail
+      - name: Schema-validate rendered manifests (kubeconform)
+        if: always()
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD:/work" -w /work ghcr.io/yannh/kubeconform:v0.6.7 \
+            -strict -ignore-missing-schemas -summary rendered/*.yaml
+      - name: No unquoted comma values in flow mappings
+        run: |
+          # The exact failure class from 2026-11-17: `{name: X, value: a,b}`
+          # parses as an extra `b: null` key that SSA schema-diff rejects.
+          if grep -rnE 'value: [A-Za-z0-9_.-]+,[A-Za-z0-9_.-]+' \
+               --include='*.yaml' llm-test/conductor-workloads \
+               | grep -v 'value: "' ; then
+            echo "::error Found unquoted comma-separated flow value (splits into extra keys)"
+            exit 1
+          fi

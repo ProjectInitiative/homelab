@@ -1,0 +1,49 @@
+# Live GLM-5.3-Flash serving lane (recipe 1104, d4226a1 engine). Proven live
+# 2026-11-09: manual cutover smoke passed (health/models/completion), full 1M
+# window, TF_ROCE=0. Registered Resident so Conductor owns recovery and
+# RecreateTogether.
+# desiredState is RUNTIME-ONLY (operator policy 2026-11-11): the Conductor
+# residency switch is never declared in Git. Set it once at apply time via
+# SSA with the ops-intent field manager (cutover.sh / revert.sh do this).
+apiVersion: conductor.projectinitiative.io/v1alpha1
+kind: ManagedWorkload
+metadata:
+  name: glm53-flash-1104
+  namespace: llm-test
+spec:
+  poolRef: dgx-spark
+  priority: 90
+  driver:
+    type: DeploymentSet
+    deploymentSet:
+      recoveryPolicy: RecreateTogether
+      startupGracePeriod: 60m
+      # bestRoute (OQ-0055): pin the pair onto ring-adjacent nodes (direct
+      # RoCE rails) when one is Ready; otherwise place freely — the routed-
+      # RoCE lane script serves non-adjacent pairs through a ring neighbour.
+      # Ring order comes from the fabric.homelab.io/ring-position node
+      # labels (dotfiles); consumed by Conductor >= 477b87d.
+      placement:
+        mode: bestRoute
+      members:
+        - name: glm53-flash-1104-worker
+          role: worker
+          startOrder: 10
+          stopOrder: 20
+          replicas: 1
+          readyGate: DeploymentAvailable
+        - name: glm53-flash-1104-head
+          role: head
+          startOrder: 20
+          stopOrder: 10
+          replicas: 1
+          readyGate: DeploymentAvailable
+  qualification:
+    serviceName: dgx-spark-backend
+    path: /health
+    port: 8000
+    timeout: 60m
+  routing:
+    serviceName: dgx-spark-backend
+    selector:
+      serving.homelab.io/alias: dgx-spark

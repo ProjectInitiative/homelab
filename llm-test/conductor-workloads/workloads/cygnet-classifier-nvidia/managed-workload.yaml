@@ -1,0 +1,31 @@
+# Resident classifier on the cygnet-nvidia pool (dgx-spark nodes).
+# desiredState is RUNTIME-ONLY (operator policy 2026-11-11): the Conductor
+# residency switch is never declared in Git. Set it once at apply time via
+# SSA with the ops-intent field manager (cutover.sh / revert.sh do this).
+apiVersion: conductor.projectinitiative.io/v1alpha1
+kind: ManagedWorkload
+metadata:
+  name: cygnet-classifier-nvidia
+  namespace: llm-test
+spec:
+  poolRef: cygnet-nvidia
+  priority: 50
+  driver:
+    type: DeploymentSet
+    deploymentSet:
+      members:
+        - name: cygnet-classifier-nv
+          role: classifier
+          startOrder: 10
+          stopOrder: 10
+          replicas: 1
+          readyGate: DeploymentAvailable
+  qualification:
+    serviceName: cygnet-classifier-nv
+    path: /health
+    port: 8009
+    timeout: 10m
+  routing:
+    serviceName: cygnet-classifier-nv
+    selector:
+      app: cygnet-classifier-nv

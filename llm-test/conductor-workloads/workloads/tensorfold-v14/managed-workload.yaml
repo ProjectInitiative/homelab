@@ -1,0 +1,40 @@
+# Standby rollback target for the dgx-spark serving lane (p0, unqualified
+# until the 512k-context fit/gate fix lands). Keep Standby in Git; flip to
+# Resident only via revert.sh after the 1104 lane degrades.
+# desiredState is RUNTIME-ONLY (operator policy 2026-11-11): the Conductor
+# residency switch is never declared in Git. Set it once at apply time via
+# SSA with the ops-intent field manager (cutover.sh / revert.sh do this).
+apiVersion: conductor.projectinitiative.io/v1alpha1
+kind: ManagedWorkload
+metadata:
+  name: tensorfold-v14
+  namespace: llm-test
+spec:
+  poolRef: dgx-spark
+  priority: 0
+  driver:
+    type: DeploymentSet
+    deploymentSet:
+      recoveryPolicy: RecreateTogether
+      startupGracePeriod: 30m
+      members:
+        - name: tensorfold-v14-worker
+          role: worker
+          startOrder: 10
+          stopOrder: 20
+          replicas: 1
+          readyGate: ContainersRunning
+        - name: tensorfold-v14-head
+          role: head
+          startOrder: 20
+          stopOrder: 10
+          replicas: 1
+          readyGate: DeploymentAvailable
+  qualification:
+    serviceName: dgx-spark-backend
+    path: /health
+    timeout: 45m
+  routing:
+    serviceName: dgx-spark-backend
+    selector:
+      serving.homelab.io/alias: dgx-spark

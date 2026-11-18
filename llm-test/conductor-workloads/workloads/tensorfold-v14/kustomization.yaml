@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - managed-workload.yaml
+  - services.yaml
+  - 04-tensorfold-v14-checksums.yaml
+  - 05-tensorfold-v14-download.yaml
+  - 12-tensorfold-v14-glm53.yaml
+  - 13-gcache-mount-probe.yaml

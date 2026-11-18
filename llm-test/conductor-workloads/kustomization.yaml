@@ -1,10 +1,18 @@
+# Conductor fleet: shared ResourcePools + one self-contained directory per
+# workload. Each workloads/<name>/ owns its ManagedWorkload intent, serving
+# manifests, jobs, and config — nothing is shared across workload dirs, so
+# a broken file in one workload cannot poison another workload's render.
+# CI validates each directory independently (.github/workflows/...).
+# desiredState on every ManagedWorkload is runtime-only (see each
+# managed-workload.yaml header).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
   - resource-pools.yaml
-  - managed-workloads.yaml
-  - deepseek-v41.yaml
-  - lanes/glm53-flash-spark-1104
-  - lanes/tensorfold-deepseek-v41
-  - lanes/flare-glm53
+  - workloads/glm53-flash-1104
+  - workloads/tensorfold-v14
+  - workloads/tensorfold-deepseek-v41
+  - workloads/flare-glm53
+  - workloads/cygnet-classifier-amd
+  - workloads/cygnet-classifier-nvidia

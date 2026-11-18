@@ -773,8 +773,8 @@ catalog:
         - ServerSideApply=true
 
   # THE app for Conductor-managed workloads: pools + ManagedWorkload intents
-  # AND every lane's serving manifests (llm-test/conductor-workloads/lanes/*).
-  # One owner for the whole workload fleet (DEC-0061 lesson: no per-lane apps).
+  # AND every lane's serving manifests (llm-test/conductor-workloads/workloads/*).
+  # One owner for the whole workload fleet (DEC-0061 lesson: no per-lane apps; per-workload dirs keep files isolated).
   # Prune is ON: removing a lane or MW from Git deletes its live objects.
   conductor-workloads:
     path: llm-test/conductor-workloads

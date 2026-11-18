@@ -6,6 +6,7 @@ resources:
   - 01-download-model.yaml
   - 06-runtime-image-python3-build-v2.yaml
   - 02-serving.yaml
+  - managed-workload.yaml
 
 configMapGenerator:
   - name: glm53-flash-1104-chat-template
