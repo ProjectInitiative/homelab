@@ -1,24 +1,26 @@
-# One-shot data migration: model-cache (old, backed-up tier) ->
-# model-cache-ephemeral (cache tier, juicefs-mc-cache bucket).
+# Full-cache migration: model-cache (old, backed-up tier, Retained PV) ->
+# model-cache-ephemeral (new cache tier, fresh juicefs-cache volume).
 #
-# Copies ONLY live lane trees (the glm53-exlr8-k4 HF snapshot this session
-# pulled, ~356 GiB), not the whole 3 TiB volume's dead weight (old lanes'
-# downloads qwen/dsv41/tonyd2wild artifacts that their retirement plan says
-# to drop). rsync preserves .part resume state; chunk-level integrity comes
-# from the copy job re-verifying the snapshot's .sha256 sidecars afterwards.
+# Copies EVERYTHING on the old volume (all HF snapshots, lane prep artifacts,
+# dsv41 rank-caches and lane receipts) so old-model-cache can be decommissioned
+# immediately. rsync is restartable: on re-run it skips already-copied files.
+#
+# AFTER THIS JOB: the CURRENT 1104 lane's ranks live on hostPath
+# (/var/lib/llm-test/glm53-flash-1104-state), NOT on this volume — its only
+# PVC dependency is the lane-state subdir + HF snapshot. The DSV41 lane keeps
+# its rank-cache bins under dsv41-1017/data/rank-cache (copied here verbatim);
+# a lane re-activation wanting FRESH rank files re-runs its prepare job
+# (06-deepseek-v41-prepare.yaml / 05-prepare-model-tree.yaml), which detects
+# existing rank bins by checksum and regenerates if the model revision moved.
 #
 # Operator steps:
-#   1. Ensure the cache tier is REALLY rebuilt first (new DB, reformatted
-#      volume, PVC re-created on juicefs-cache-sc, meta-check Job green).
+#   1. model-cache-ephemeral must exist and bind to the NEW juicefs-cache
+#      volume (delete the stale PVC first so the CSI provisions fresh).
 #   2. Un-suspend: kubectl -n llm-test patch job model-cache-migrate \
 #        --type=merge -p '{"spec":{"suspend":false}}'
 #   3. Watch:     kubectl -n llm-test logs -f job/model-cache-migrate
-#   4. On success the receipt marker lands at
-#      /eph/.migration-complete.json; old PVC retirement is a separate step.
-#
-# Node choice: sextant/chronometer (capstan-pool nodes with NVMe + the
-# juicefs mounts are node-local; RWX lets any node mount both PVCs). The job
-# is restartable; rsync skips already-copied files.
+#   4. Receipt:   /eph/.migration-complete.json (bytes + file counts).
+#   5. Old PVC/PV retirement is a separate, explicit step after validation.
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -31,7 +33,7 @@ spec:
   suspend: true
   ttlSecondsAfterFinished: 604800
   backoffLimit: 2147483647
-  activeDeadlineSeconds: 172800
+  activeDeadlineSeconds: 604800
   template:
     metadata:
       labels:
@@ -50,24 +52,35 @@ spec:
           args:
             - |
               set -eu
-              SRC=/models/.cache/huggingface/hub/models--kindlingai--glm-5.3-exlr8-k2-k3-k4
-              DST=/eph/.cache/huggingface/hub/models--kindlingai--glm-5.3-exlr8-k2-k3-k4
+              # FULL-CACHE copy: everything under the HF cache root (snapshots,
+              # blobs, refs) plus the top-level lane artifact dirs. Excludes
+              # nothing: old-model-cache is going away entirely.
+              SRC=/models
+              DST=/eph
               marker=/eph/.migration-complete.json
               rm -f "$marker"
-              echo "=== rsync snapshot ==="
+              echo "=== volume census BEFORE ==="
+              du -sh /models/.cache/huggingface 2>/dev/null || true
+              ls -la /models/ | head -20
+              echo "=== rsync full cache ==="
               mkdir -p "$DST"
-              rsync -a --info=progress2,stats2 "$SRC/" "$DST/"
-              echo "=== verify .sha256 sidecars ==="
+              # -H hardlink-preserving (HF cache uses de-duped blob links)
+              # --info=progress2 for a single rolling progress line
+              rsync -aH --info=progress2,stats2 \
+                --exclude '.migration-complete.json' \
+                "$SRC/" "$DST/"
+              echo "=== post-copy verification ==="
               python3 - "$DST" "$marker" <<'PY'
               import hashlib, json, pathlib, sys
-              root, marker = map(pathlib.Path, sys.argv[1:])
-              hs = sorted(root.rglob("hashes/*.sha256"))
-              if not hs:
-                  raise SystemExit("no hash files found in copied tree")
+              root = pathlib.Path(sys.argv[1])
+              marker = pathlib.Path(sys.argv[2])
+              # Verify every .sha256 sidecar we can find (exlr8-style releases
+              # ship hashes/<file>.sha256 trees).
+              hs = list(root.rglob("hashes/*.sha256"))
               verified = 0
-              for h in hs:
-                  rel = h.relative_to(root / "hashes")
-                  target = root / rel.with_suffix("")
+              for h in sorted(hs):
+                  rel = h.relative_to(h.parent.parent)
+                  target = h.parent.parent / rel.with_suffix("")
                   if not target.is_file():
                       continue
                   want = h.read_text().split()[0]
@@ -75,16 +88,34 @@ spec:
                   if got != want:
                       raise SystemExit(f"HASH MISMATCH after copy: {rel}")
                   verified += 1
-              total = sum(f.stat().st_size for f in root.rglob("*") if f.is_file())
-              marker.write_text(json.dumps({
+              # File-count + byte census of the whole copied tree.
+              files = [f for f in root.rglob("*") if f.is_file()]
+              total = sum(f.stat().st_size for f in files)
+              # Key artifacts presence check (the currently-live 1104 snapshot
+              # and the dsv41 rank-cache dir with both rank bins).
+              hub = root / ".cache/huggingface/hub"
+              k4 = hub / "models--kindlingai--glm-5.3-exlr8-k2-k3-k4"
+              dsv = root / "dsv41-1017/data/rank-cache"
+              checks = {
+                  "glm53-exlr8-k4-snapshot": k4.is_dir(),
+                  "dsv41-rank-cache-dir": dsv.is_dir(),
+              }
+              receipt = {
                   "source": "model-cache",
                   "dest": "model-cache-ephemeral",
-                  "hash_files_verified": verified,
+                  "files": len(files),
                   "bytes": total,
-              }, indent=2) + "\n")
-              print(f"verified {verified} files, {total/2**30:.1f} GiB copied", flush=True)
+                  "sha256_files_verified": verified,
+                  "checks": checks,
+              }
+              marker.write_text(json.dumps(receipt, indent=2) + "\n")
+              print(json.dumps(receipt, indent=2), flush=True)
+              missing = [k for k, v in checks.items() if not v]
+              if missing:
+                  raise SystemExit(f"MISSING key artifacts after copy: {missing}")
+              print(f"migration complete: {len(files)} files, {total/2**30:.1f} GiB, {verified} sha256 verified", flush=True)
               PY
-              echo "migration complete: $marker"
+              echo "migration receipt: $marker"
           volumeMounts:
             - {name: src, mountPath: /models, readOnly: true}
             - {name: dst, mountPath: /eph}
