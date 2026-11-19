@@ -1,0 +1,100 @@
+# One-shot data migration: model-cache (old, backed-up tier) ->
+# model-cache-ephemeral (cache tier, juicefs-mc-cache bucket).
+#
+# Copies ONLY live lane trees (the glm53-exlr8-k4 HF snapshot this session
+# pulled, ~356 GiB), not the whole 3 TiB volume's dead weight (old lanes'
+# downloads qwen/dsv41/tonyd2wild artifacts that their retirement plan says
+# to drop). rsync preserves .part resume state; chunk-level integrity comes
+# from the copy job re-verifying the snapshot's .sha256 sidecars afterwards.
+#
+# Operator steps:
+#   1. Ensure the cache tier is REALLY rebuilt first (new DB, reformatted
+#      volume, PVC re-created on juicefs-cache-sc, meta-check Job green).
+#   2. Un-suspend: kubectl -n llm-test patch job model-cache-migrate \
+#        --type=merge -p '{"spec":{"suspend":false}}'
+#   3. Watch:     kubectl -n llm-test logs -f job/model-cache-migrate
+#   4. On success the receipt marker lands at
+#      /eph/.migration-complete.json; old PVC retirement is a separate step.
+#
+# Node choice: sextant/chronometer (capstan-pool nodes with NVMe + the
+# juicefs mounts are node-local; RWX lets any node mount both PVCs). The job
+# is restartable; rsync skips already-copied files.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: model-cache-migrate
+  namespace: llm-test
+  labels:
+    app: model-cache-migrate
+    purpose: cache-tier-cutover
+spec:
+  suspend: true
+  ttlSecondsAfterFinished: 604800
+  backoffLimit: 2147483647
+  activeDeadlineSeconds: 172800
+  template:
+    metadata:
+      labels:
+        app: model-cache-migrate
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: sextant
+      tolerations:
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
+      containers:
+        - name: migrate
+          image: restic/restic:0.17.3
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              SRC=/models/.cache/huggingface/hub/models--kindlingai--glm-5.3-exlr8-k2-k3-k4
+              DST=/eph/.cache/huggingface/hub/models--kindlingai--glm-5.3-exlr8-k2-k3-k4
+              marker=/eph/.migration-complete.json
+              rm -f "$marker"
+              echo "=== rsync snapshot ==="
+              mkdir -p "$DST"
+              rsync -a --info=progress2,stats2 "$SRC/" "$DST/"
+              echo "=== verify .sha256 sidecars ==="
+              python3 - "$DST" "$marker" <<'PY'
+              import hashlib, json, pathlib, sys
+              root, marker = map(pathlib.Path, sys.argv[1:])
+              hs = sorted(root.rglob("hashes/*.sha256"))
+              if not hs:
+                  raise SystemExit("no hash files found in copied tree")
+              verified = 0
+              for h in hs:
+                  rel = h.relative_to(root / "hashes")
+                  target = root / rel.with_suffix("")
+                  if not target.is_file():
+                      continue
+                  want = h.read_text().split()[0]
+                  got = hashlib.sha256(target.read_bytes()).hexdigest()
+                  if got != want:
+                      raise SystemExit(f"HASH MISMATCH after copy: {rel}")
+                  verified += 1
+              total = sum(f.stat().st_size for f in root.rglob("*") if f.is_file())
+              marker.write_text(json.dumps({
+                  "source": "model-cache",
+                  "dest": "model-cache-ephemeral",
+                  "hash_files_verified": verified,
+                  "bytes": total,
+              }, indent=2) + "\n")
+              print(f"verified {verified} files, {total/2**30:.1f} GiB copied", flush=True)
+              PY
+              echo "migration complete: $marker"
+          volumeMounts:
+            - {name: src, mountPath: /models, readOnly: true}
+            - {name: dst, mountPath: /eph}
+          resources:
+            requests: {cpu: "2", memory: "1Gi"}
+            limits: {cpu: "4", memory: "4Gi"}
+      volumes:
+        - name: src
+          persistentVolumeClaim:
+            claimName: model-cache
+        - name: dst
+          persistentVolumeClaim:
+            claimName: model-cache-ephemeral

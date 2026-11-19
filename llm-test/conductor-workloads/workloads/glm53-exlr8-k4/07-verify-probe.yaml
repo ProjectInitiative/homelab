@@ -1,0 +1,69 @@
+# One-off read-only probe: inspect the glm53-exlr8-k4 snapshot tree and the
+# pull receipt. Job CRUD in llm-test only; no serving resources touched.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: glm53-exlr8-k4-verify-probe
+  namespace: llm-test
+  labels:
+    app: glm53-exlr8-k4-verify-probe
+    lane: glm53-exlr8-k4
+    purpose: model-cache-inspect
+spec:
+  suspend: false
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: glm53-exlr8-k4-verify-probe
+        lane: glm53-exlr8-k4
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      tolerations:
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
+      containers:
+        - name: probe
+          image: python:3.12-slim
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -uo pipefail
+              snap=/models/.cache/huggingface/hub/models--kindlingai--glm-5.3-exlr8-k2-k3-k4/snapshots/9e25c28a2e8808d8b2599d780521fd6af24e7558
+              echo "=== marker/receipt ==="
+              cat /models/.glm53-exlr8-k4-download-complete.json 2>/dev/null || echo "NO MARKER"
+              echo "=== puller receipt ==="
+              cat /models/.glm53-exlr8-k4-pull-receipt.json 2>/dev/null | head -c 600 || echo "NO PULLER RECEIPT"
+              echo; echo "=== snapshot top level ==="
+              ls -la "$snap" | head -20
+              echo "=== hash file count ==="
+              find "$snap/hashes" -name '*.sha256' | wc -l
+              echo "=== sample hash paths ==="
+              find "$snap/hashes" -name '*.sha256' | head -5
+              echo "=== target-existence check for 5 hash files ==="
+              python3 - "$snap" <<'PY'
+              import pathlib, sys
+              root = pathlib.Path(sys.argv[1])
+              hs = sorted(root.rglob("hashes/*.sha256"))
+              print("rglob matched:", len(hs))
+              for h in hs[:5]:
+                  rel = h.relative_to(root / "hashes")
+                  target = root / rel.with_suffix("")
+                  print(f"{rel} -> target={target} exists={target.is_file()}")
+              missing = 0
+              for h in hs:
+                  rel = h.relative_to(root / "hashes")
+                  if not (root / rel.with_suffix("")).is_file():
+                      missing += 1
+              print("targets missing:", missing, "of", len(hs))
+              PY
+              echo "=== expert/dense file counts ==="
+              ls "$snap/experts" | wc -l; ls "$snap/dense" | wc -l; ls "$snap/manifests" 2>/dev/null | wc -l; ls "$snap/index-slices/tp4" 2>/dev/null | wc -l
+          volumeMounts:
+            - {name: models, mountPath: /models, readOnly: true}
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache

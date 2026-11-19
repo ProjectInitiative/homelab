@@ -4,6 +4,9 @@ resources:
   - storage-class.yaml
   - storage-class-cache.yaml
   - job-format.yaml
+  - job-format-cache.yaml
+  - job-meta-check-cache.yaml
+  - cronjob-fsck-cache.yaml
   # csidriver.yaml removed (RISK-0039): the CSIDriver is owned by the
   # juicefs-csi-driver chart app (with csidriver.disableHooks: true so it
   # is a plain release resource, not a delete/recreate hook). Two apps

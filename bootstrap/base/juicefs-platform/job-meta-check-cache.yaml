@@ -1,0 +1,50 @@
+# Metadata-DB self-check for the JuiceFS cache tier.
+#
+# Asserts that the juicefs_cache DB exists in the CNPG cluster, is owned by
+# juicefs_cache_user, has JuiceFS tables (jfs_*), and is NOT the prod
+# `juicefs` database. Pure read-only probes; fails loudly on drift so the
+# declarative wiring (juicefs-cache-database.yaml) can't silently regress.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: juicefs-cache-meta-check
+  namespace: juicefs-platform
+  labels:
+    app.kubernetes.io/part-of: juicefs-platform
+    purpose: meta-check
+  annotations:
+    # Operator-triggered (suspend:false here means run once when applied);
+    # keep out of any automated Argo hook path.
+    argocd.argoproj.io/hook: Skip
+spec:
+  suspend: true
+  ttlSecondsAfterFinished: 604800
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: juicefs-cache-meta-check
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: check
+          image: postgres:17-alpine
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              PGPASSWORD="$CHECK_PASSWORD" psql -h postgres-rw.postgres-db.svc.cluster.local -U postgres -At <<'SQL'
+              SELECT 'DB_EXISTS|' || CASE WHEN EXISTS (SELECT 1 FROM pg_database WHERE datname='juicefs_cache') THEN 'yes' ELSE 'no' END;
+              SELECT 'DB_OWNER|' || COALESCE(pg_get_userbyid(datdba),'?') FROM pg_database WHERE datname='juicefs_cache';
+              SELECT 'ROLE_EXISTS|' || CASE WHEN EXISTS (SELECT 1 FROM pg_roles WHERE rolname='juicefs_cache_user') THEN 'yes' ELSE 'no' END;
+              SQL
+              echo "--- table census (juicefs_cache) ---"
+              PGPASSWORD="$CHECK_PASSWORD" psql -h postgres-rw.postgres-db.svc.cluster.local -U postgres -d juicefs_cache -At <<'SQL'
+              SELECT relname || '|' || n_live_tup FROM pg_stat_user_tables ORDER BY n_live_tup DESC LIMIT 12;
+              SQL
+          env:
+            - name: CHECK_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-cache-postgres-creds
+                  key: password

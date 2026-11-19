@@ -36,6 +36,8 @@ spec:
       restartPolicy: OnFailure
       nodeSelector:
         kubernetes.io/hostname: chronometer
+      tolerations:
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       containers:
         - name: puller
           image: registry.taildeab2.ts.net/homelab/model-cache-puller:v7@sha256:fedbacb21b9469e23aba9d847b78cfe6378337ce58ff9a8ffa3a96e7fd9f7708
@@ -79,9 +81,10 @@ spec:
               if missing:
                   raise SystemExit(f"missing metadata: {missing}")
 
-              # 2. bit400 manifest parses and names only K4 widths
-              #    (the MTP layer 78 is stored K3-only in the release, so the
-              #    manifest may carry k3 for it)
+              # 2. bit400 manifest parses with the expected width mix.
+              #    Manifest encodes widths as ints: 2=K2, 3=K3, 4=K4.
+              #    bit400 = essentially all-K4; the MTP layer (78) and a few
+              #    small entries are K3-only in the release. No K2 allowed.
               manifest = json.loads((root / "manifests/exlr8-manifest-bit400.json").read_text())
               widths = set()
               def collect(node):
@@ -89,10 +92,10 @@ spec:
                       for v in node.values(): collect(v)
                   elif isinstance(node, list):
                       for v in node: collect(v)
-                  elif isinstance(node, str) and node in ("k2", "k3", "k4"):
+                  elif isinstance(node, int) and not isinstance(node, bool) and node in (2, 3, 4):
                       widths.add(node)
               collect(manifest)
-              if "k2" in widths or not widths or widths - {"k3", "k4"}:
+              if 2 in widths or 4 not in widths or widths - {3, 4}:
                   raise SystemExit(f"bit400 manifest width set unexpected: {sorted(widths)}")
 
               # 3. spot-check layer file sets: K4 for a mid layer and for

@@ -1,0 +1,20 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: juicefs-cache
+  namespace: postgres-db
+spec:
+  cluster:
+    name: postgres-cluster
+  name: juicefs_cache
+  owner: juicefs_cache_user
+# Declarative CNPG Database for the ephemeral-cache JuiceFS tier
+# (juicefs-cache-sc / juicefs-mc-cache Garage bucket). Dedicated DB so the
+# cache tier's metadata is fully independent from the backed-up `juicefs`
+# database — cache churn must never enter the prod metadata backup.
+# Owner role: juicefs-cache-role.yaml; password via OpenBao
+# k8s/juicefs-cache/config -> juicefs-cache-postgres-creds (mirrors the
+# juicefs / juicefs-dev pairs).
+#
+# NOTE: CNPG declarative Database CRs require the operator to be >= 1.25.0
+# (same caveat as juicefs-dev-database.yaml).
