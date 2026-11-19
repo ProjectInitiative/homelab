@@ -1,8 +1,12 @@
-# GLM-5.3 exlr8 K3/K4 preload — generic puller, staged, resumable.
+# GLM-5.3 exlr8 K4 (bit400) preload — generic puller, staged, resumable.
 #
 # Downloads kindlingai/glm-5.3-exlr8-k2-k3-k4@9e25c28a (v0.7) into the shared
-# model-cache PVC: all K3+K4 expert files, dense/vocab, manifests, TP4 index
-# slices and hash files (~630 GiB; K2 deliberately skipped — see README.md).
+# model-cache PVC: all K4 expert files, the K3 MTP layer (78 — the only width
+# the release stores for it), dense/vocab, manifests, TP4 index slices and
+# hash files (~357 GiB; K2 and mid-layer K3 deliberately skipped — see
+# README.md). bit400 = every routed expert at K4, the release's widest
+# profile, gr8-validated at TP4. Lower profiles can be added later by
+# extending the include filter; the puller resumes incrementally.
 #
 # Uses the GENERIC puller image (llm-test/puller). glm53-cache-puller is a
 # deprecated alias of the same tool; new jobs use model-cache-puller.
@@ -46,7 +50,7 @@ spec:
             - {name: RECEIPT_PATH, value: /models/.glm53-exlr8-k4-pull-receipt.json}
             - name: PULL_MODELS
               value: >-
-                kindlingai/glm-5.3-exlr8-k2-k3-k4@9e25c28a2e8808d8b2599d780521fd6af24e7558#config.json|generation_config.json|tokenizer*.json|chat_template.jinja|manifests/*|dense/*|index-slices/tp4/*|experts/*.index.safetensors|experts/*.k3.safetensors|experts/*.k4.safetensors|hashes/*
+                kindlingai/glm-5.3-exlr8-k2-k3-k4@9e25c28a2e8808d8b2599d780521fd6af24e7558#config.json|generation_config.json|tokenizer*.json|chat_template.jinja|manifests/*|dense/*|index-slices/tp4/*|experts/*.index.safetensors|experts/*.k4.safetensors|experts/exlr8-layer-078.k3.safetensors|hashes/*
             - name: HF_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -70,13 +74,15 @@ spec:
               required = ["config.json", "generation_config.json",
                           "tokenizer.json", "tokenizer_config.json",
                           "chat_template.jinja",
-                          "manifests/exlr8-manifest-bit387.json"]
+                          "manifests/exlr8-manifest-bit400.json"]
               missing = [n for n in required if not (root / n).is_file()]
               if missing:
                   raise SystemExit(f"missing metadata: {missing}")
 
-              # 2. bit387 manifest parses and names only K3/K4 widths
-              manifest = json.loads((root / "manifests/exlr8-manifest-bit387.json").read_text())
+              # 2. bit400 manifest parses and names only K4 widths
+              #    (the MTP layer 78 is stored K3-only in the release, so the
+              #    manifest may carry k3 for it)
+              manifest = json.loads((root / "manifests/exlr8-manifest-bit400.json").read_text())
               widths = set()
               def collect(node):
                   if isinstance(node, dict):
@@ -86,21 +92,19 @@ spec:
                   elif isinstance(node, str) and node in ("k2", "k3", "k4"):
                       widths.add(node)
               collect(manifest)
-              if "k2" in widths or not widths:
-                  raise SystemExit(f"bit387 manifest width set unexpected: {sorted(widths)}")
+              if "k2" in widths or not widths or widths - {"k3", "k4"}:
+                  raise SystemExit(f"bit400 manifest width set unexpected: {sorted(widths)}")
 
-              # 3. spot-check layer file sets: K4 for a mid layer, K3 for
-              #    layer 3 (bit387 keeps 3-12 at K3), K3-only for 78 (MTP)
+              # 3. spot-check layer file sets: K4 for a mid layer and for
+              #    layer 3 (bit400 = all-K4), K3-only for 78 (MTP)
               checks = ["experts/exlr8-layer-040.k4.safetensors",
-                        "experts/exlr8-layer-003.k3.safetensors",
+                        "experts/exlr8-layer-003.k4.safetensors",
                         "experts/exlr8-layer-078.k3.safetensors"]
               for rel in checks:
                   if not (root / rel).is_file():
                       raise SystemExit(f"missing spot-check file: {rel}")
-              if (root / "experts/exlr8-layer-040.k3.safetensors").is_file() is False:
-                  # mid layers may carry K3 too (other profiles use it) — only
-                  # K2 must be absent everywhere
-                  pass
+              if (root / "experts/exlr8-layer-003.k3.safetensors").is_file():
+                  raise SystemExit("mid-layer K3 file present; include filter leaked (expected bit400 all-K4)")
               if (root / "experts/exlr8-layer-040.k2.safetensors").is_file():
                   raise SystemExit("K2 file present; include filter leaked")
 
@@ -124,7 +128,7 @@ spec:
                   "checkpoint": "kindlingai/glm-5.3-exlr8-k2-k3-k4",
                   "revision": "9e25c28a2e8808d8b2599d780521fd6af24e7558",
                   "weight_set": "3d1a293399f0077e27acd18609ee67f33f8e3f8b5963a7c4b42b7dc16ecd1d98",
-                  "filter": "k3+k4+meta (no k2)",
+                  "filter": "k4+meta+k3-mtp-only (no k2, no mid-layer k3)",
                   "hash_files_verified": verified,
                   "bytes_on_disk": total,
               }

@@ -1,4 +1,4 @@
-# glm53-exlr8-k4 — GLM-5.3 exlr8 K3/K4 cache preload (STAGED, pull only)
+# glm53-exlr8-k4 — GLM-5.3 exlr8 bit400 (K4) cache preload (STAGED, pull only)
 
 Cache-only staged lane for the KindlingAI **gr8** engine serving
 GLM-5.3 (744B MoE) on DGX Sparks. This phase downloads the pinned checkpoint
@@ -17,12 +17,17 @@ pass is a separate, later phase (see "Deferred" below).
 - Recipe: [`glm-5.3-exlr8-k4-4x-spark`](https://github.com/kindlingai/glm-5.3-exlr8-k4-4x-spark)
   (TP=4, four Sparks). **`glm-5.3-flash-exlr8-2x-spark` is a different model**
   (GLM-5.3-Flash) and does not apply.
-- Target profile: **`bit387`** — the recipe's pinned manifest
-  (`manifests/exlr8-manifest-bit387.json`): every routed expert at K4 except
-  MoE layers 3–12 and the MTP layer 78 at K3 (K3 is the only width the release
-  stores for layer 78). Card KL vs BF16 on model-written text: 0.0385 mean /
-  0.0058 median — statistically identical to all-K4 `bit400` (0.0381) in 12 GB
-  less per box (89 vs 92 GB experts/box at TP4).
+- Target profile: **`bit400`** — the release's widest/highest-precision profile
+  (operator choice 2026-11-18: "keep the highest precision one"): every routed
+  expert at K4, with the MTP layer 78 at K3 (the only width the release stores
+  for it). Manifest `manifests/exlr8-manifest-bit400.json`. Card KL vs BF16 on
+  model-written text: 0.038 mean / 0.0057 median — the best in the release, a
+  hair better than `bit387` (0.0385 / 0.0058, the 4x-spark recipe's default)
+  at the cost of 3 GB more per box (92 vs 89 GB experts/box at TP4). The gr8
+  engine is validated serving bit400 at TP4 (model card "Known results").
+  Lower profiles (bit387/bit300/…) can be enabled later by extending the
+  pull include filter — the puller resumes incrementally, no re-download of
+  present files.
 
 ### KL table (model-written text, mean/median — from the HF card, v0.7)
 
@@ -41,17 +46,16 @@ quant cards use; only compare within it.
 
 ## Pull plan
 
-We pull **all K3 + K4 expert files** (613 GiB of the 782 GiB repo), not just
-bit387's exact set (~390 GiB): every TP4-relevant profile (bit300/322/340/387/
-400) is a K3/K4 mixture, so profile A/B testing needs zero re-download. K2
-(169 GiB) is skipped — only low-bit profiles (bit200–bit280) need it, and
-those trade too much quality for our purposes. The dense/vocab files, all
-manifests, all per-layer expert indexes, all TP4 index slices and the hash
-files come along (~16 GiB, needed by any profile).
+We pull the **bit400 file set** (~357 GiB of the 782 GiB repo): all K4 experts
+(339 GiB), the K3 MTP layer (~2 GiB), plus dense/vocab, all manifests, all
+per-layer expert indexes, the TP4 index slices and the hash files (~16 GiB,
+needed by any profile). K2 and mid-layer K3 are skipped — if a lower profile
+is wanted later, extend the filter and re-run; the puller downloads only the
+missing files in place.
 
 Pin: `kindlingai/glm-5.3-exlr8-k2-k3-k4@9e25c28a2e8808d8b2599d780521fd6af24e7558`
 
-Estimated on-juicefs footprint: ~630 GiB. `model-cache` PVC is 3 Ti.
+Estimated on-juicefs footprint: ~357 GiB. `model-cache` PVC is 3 Ti.
 
 The pull uses the **generic puller**
 (`homelab/model-cache-puller:v7` — see `llm-test/puller/README.md`; the old
@@ -83,7 +87,7 @@ kubectl -n llm-test patch job glm53-exlr8-k4-cache-pull-v1 --type=merge -p '{"sp
 kubectl -n llm-test logs -f job/glm53-exlr8-k4-cache-pull-v1
 ```
 
-At 62.5 MB/s cap, ~630 GiB takes ~2.9 h best-case; the Job is resumable, so
+At 62.5 MB/s cap, ~357 GiB takes ~1.6 h best-case; the Job is resumable, so
 interrupts cost only the in-flight file.
 
 Re-running an already-complete pull is a cheap no-op (puller skips files
