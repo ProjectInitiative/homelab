@@ -1,0 +1,126 @@
+---
+# mcp-staging: anonymous WebDAV file-drop for MCP kubectl patch/apply payloads.
+#
+# PROBLEM: the mcp-kubernetes server execs kubectl via shlex-split argv (no
+# shell), never wires stdin, and has a read-only root filesystem — so an agent
+# can apply patches/oneliners but cannot stage a multi-line manifest file for
+# `kubectl apply -f /path`. This sidecar set gives any tailnet device an
+# upload endpoint, and the MCP pods a read-only view of the same tree.
+#
+# FLOW: upload from laptop/agent via rclone/curl -> file lands on the shared
+# JuiceFS cache-tier PVC -> MCP pod sees it at /staging -> `kubectl apply -f
+# /staging/foo.yaml` (argv path, no stdin needed).
+#
+# STORAGE: dedicated subPath of the model-cache-ephemeral PVC
+# (juicefs-cache-sc / juicefs-mc-cache bucket). NOT backed up by design —
+# staging is disposable; do not put anything here you cannot regenerate.
+#
+# EXPOSURE: tailnet-only via the existing mc-ingress-proxy ProxyGroup
+# (same pattern as the MCP SSE LB). Anonymous PUT/GET by design: the tailnet
+# IS the boundary (same trust model as the MCP readwrite endpoint itself).
+# The NetworkPolicy mcp-allow-tailscale-only governs pod ingress on 8080;
+# the webdav port rides the same policy via the mcp-kubernetes label.
+#
+# OPERATIONS
+#   Upload:    rclone copy /local/dir garage:mcp-staging/   (after rclone
+#              config with webdav vendor=other, url=http://mcp-staging-mc.taildeab2.ts.net)
+#   or curl:   curl -T file.yaml http://mcp-staging-mc.taildeab2.ts.net/file.yaml
+#   List:      curl http://mcp-staging-mc.taildeab2.ts.net/
+#   MCP side:  kubectl apply -f /staging/<file>
+#   Purge:     rclone delete garage:mcp-staging/ --min-age 7d   (housekeeping)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-staging
+  labels:
+    app: mcp-kubernetes
+    component: mcp-staging
+spec:
+  replicas: 1  # RWX volume makes >1 possible later; one is plenty for staging
+  selector:
+    matchLabels:
+      app: mcp-kubernetes
+      component: mcp-staging
+  template:
+    metadata:
+      labels:
+        # Deliberately carries app: mcp-kubernetes so the existing
+        # mcp-allow-tailscale-only NetworkPolicy (tailscale ns -> 8080)
+        # covers the webdav port too.
+        app: mcp-kubernetes
+        component: mcp-staging
+    spec:
+      containers:
+        - name: webdav
+          image: rclone/rclone:1.68.0@sha256:fba6cdc47d29c6fff55493704ac7308ec9c1c954ad5b6834b991e5ca4ee36594
+          imagePullPolicy: IfNotPresent
+          args:
+            - serve
+            - webdav
+            - /data
+            - --addr
+            - 0.0.0.0:8081
+            - --read-only=false
+            # Anonymous by design: tailnet-only exposure is the boundary.
+            - --no-checksum
+          ports:
+            - containerPort: 8081
+              name: webdav
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+          resources:
+            limits: {cpu: "500m", memory: "256Mi"}
+            requests: {cpu: "100m", memory: "128Mi"}
+          volumeMounts:
+            - name: staging
+              mountPath: /data
+      volumes:
+        - name: staging
+          persistentVolumeClaim:
+            claimName: model-cache-ephemeral
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-staging
+  labels:
+    app: mcp-kubernetes
+    component: mcp-staging
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8081
+      targetPort: 8081
+      name: webdav
+  selector:
+    app: mcp-kubernetes
+    component: mcp-staging
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-staging-ts-placeholder
+  labels:
+    app: mcp-kubernetes
+    component: mcp-staging
+  annotations:
+    tailscale.com/proxy-group: ingress-proxy
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  ports:
+    - name: webdav
+      protocol: TCP
+      port: 80
+      targetPort: 8081
+  selector:
+    app: mcp-kubernetes
+    component: mcp-staging
+---
+
+# The MCP server pods get a read-only /staging mount via the kustomization's
+# `patches` entry (strategic merge on the mcp-kubernetes-server Deployment) —
+# kept OUT of this file so the Deployment resource is not re-declared here.

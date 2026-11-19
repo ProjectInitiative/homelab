@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-kubernetes-server
+spec:
+  template:
+    spec:
+      volumes:
+        - name: staging
+          persistentVolumeClaim:
+            claimName: model-cache-ephemeral
+      containers:
+        - name: mcp-server
+          volumeMounts:
+            - name: staging
+              mountPath: /staging
+              readOnly: true
