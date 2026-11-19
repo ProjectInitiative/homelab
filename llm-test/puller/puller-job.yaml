@@ -1,26 +1,35 @@
-# llm-test/cache-puller — generic Hugging Face model cache puller/deleter.
+# llm-test/puller — generic Hugging Face model cache puller/deleter.
 #
-# Reusable, model-agnostic image that preloads (or evicts) model caches on the
-# shared `model-cache` volume. Declare what to do purely via Job parameters;
+# Image: registry.taildeab2.ts.net/homelab/model-cache-puller (this directory's
+# Dockerfile). Model-agnostic: preloads or evicts model caches on the shared
+# `model-cache` volume. Declare what to do purely via Job parameters;
 # throttling is enforced *in code* (token bucket on the HTTP session), so the
-# image stays tiny (python + huggingface_hub + requests + certs) and is fully
-# controllable at Job time without needing tc/iproute2 in either the image or the node.
+# image stays tiny (python + huggingface_hub + httpx + requests + certs) and is
+# fully controllable at Job time without needing tc/iproute2 in either the
+# image or the node.
+#
+# NAME HISTORY: versions v1-v6 of this same code lineage were pushed as
+# `glm53-cache-puller` (and originally `model-cache-downloader`) — a misnomer,
+# the tool was never glm53-specific. v7 is the first push under the generic
+# name. New Jobs MUST use model-cache-puller; existing glm53-cache-puller:v6
+# pinned Jobs remain valid and can migrate opportunistically.
+#
+# FULL DOC: llm-test/puller/README.md (spec grammar, filters, receipts, recipe).
 #
 # Build / push (arm64 node, e.g. chronometer):
 #   scp -r llm-test/puller chronometer:/tmp/puller-build
 #   ssh chronometer 'cd /tmp/puller-build && podman build -t \
-#       registry.taildeab2.ts.net/homelab/glm53-cache-puller:latest .'
-#   ssh chronometer 'podman push registry.taildeab2.ts.net/homelab/glm53-cache-puller:latest'
+#       registry.taildeab2.ts.net/homelab/model-cache-puller:v7 .'
+#   ssh chronometer 'podman push registry.taildeab2.ts.net/homelab/model-cache-puller:v7'
 #
-# Use (see puller-job.yaml for the concrete GLM example):
-#   PULL_MODELS   = comma-separated 'repo@revision' (revision optional)
+# Use (see puller-job.yaml for the concrete example):
+#   PULL_MODELS   = comma-separated 'repo[@revision][#include-glob|glob]'
 #   DELETE_MODELS = comma-separated repo ids (or cache dirs like models--org--name)
 #   RATE          = max bytes/sec across all pulls (default 104857600 = 100 MiB/s; 0 = unlimited)
 #   HF_HOME       = HF cache root (e.g. /models/.cache/huggingface)
 #
-# This is a *tool* image — DIFFERENT from the serve/caching image
-# (ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3) that the parity Deployments
-# run. The puller only populates the shared volume; the serve image only reads it.
+# This is a *tool* image — it only populates the shared volume; serving images
+# are separate and only read the volume.
 ---
 apiVersion: batch/v1
 kind: Job
@@ -43,7 +52,7 @@ spec:
         kubernetes.io/hostname: chronometer
       containers:
         - name: puller
-          image: registry.taildeab2.ts.net/homelab/glm53-cache-puller:latest
+          image: registry.taildeab2.ts.net/homelab/model-cache-puller:v7@sha256:fedbacb21b9469e23aba9d847b78cfe6378337ce58ff9a8ffa3a96e7fd9f7708
           imagePullPolicy: IfNotPresent
           env:
             - name: HF_HOME

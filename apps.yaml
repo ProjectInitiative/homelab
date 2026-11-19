@@ -721,6 +721,83 @@ catalog:
         - CreateNamespace=true
         - ServerSideApply=true
 
+  # Messaging substrate for the systemone distillation pipeline (OQ-0056):
+  # capture -> chunker/synthetic-gen/labeler fission functions -> label store.
+  # JetStream is PERSISTENT (replay is the point) — 20Gi local-path per pod.
+  # mc hosts the JetStream domain; cc joins as a leafnode (see clusters/cc.yaml
+  # patch) so capture on either side lands in the same streams. Single-server
+  # (not a NATS cluster) until the pipeline proves out.
+  nats:
+    annotations:
+      argocd.argoproj.io/sync-wave: "52"
+    sources:
+      - repoURL: https://nats-io.github.io/k8s/helm/charts/
+        chart: nats
+        targetRevision: 2.15.2
+        helm:
+          values: |
+            config:
+              cluster:
+                enabled: false
+              jetstream:
+                enabled: true
+                fileStore:
+                  enabled: true
+                  pvc:
+                    enabled: true
+                    size: 20Gi
+                    storageClassName: local-path
+            # Leafnode listener for cc to dial in over submariner (enabled via
+            # cluster patch on cc only; see clusters/cc.yaml).
+            # leafnodes:
+            #   enabled: true
+            nats:
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 512Mi
+                limits:
+                  memory: 2Gi
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
+  # Fission serverless runtime for the distillation pipeline functions
+  # (chunker, synthetic-gen, labeler). Deployed per-cluster alongside the
+  # per-cluster NATS; functions are scheduled cluster-locally and talk to
+  # their own cluster's NATS — no cross-cluster function traffic.
+  fission:
+    annotations:
+      argocd.argoproj.io/sync-wave: "55"
+    sources:
+      - repoURL: https://fission.github.io/fission-charts/
+        chart: fission-all
+        targetRevision: 1.27.0
+        helm:
+          values: |
+            serviceType: ClusterIP
+            router:
+              serviceType: ClusterIP
+            # Message-queue trigger uses NATS (not the default Kafka/Streams);
+            # broker points at the same-namespace nats service.
+            mqTrigger:
+              enabled: true
+              messageQueue:
+                type: nats-streaming
+            buildermgr:
+              enabled: true
+            function_controller:
+              enabled: true
+            influxdb:
+              enabled: false
+            prometheus:
+              enabled: false
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
   # Adopted from manual kubectl management (ownership handoff completed
   # 2026-10-13). Initial sync was deliberately manual + non-pruning for a safe
   # handoff; pruning is now enabled — resources removed from Git are deleted
