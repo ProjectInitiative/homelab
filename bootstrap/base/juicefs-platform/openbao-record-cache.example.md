@@ -18,19 +18,18 @@
 # Key-by-key (mirror of the prod record):
 #
 #   name        volume name as JuiceFS knows it. Reuse `juicefs-mc-cache` —
-#               matches the bucket and the existing on-bucket layout, and keeps
-#               the format job's already-formatted check meaningful.
+#               matches the bucket and keeps the format job's already-formatted
+#               check meaningful.
 #   storage     `s3` (Garage speaks the S3 API).
 #   bucket      Full S3 URL of the garage bucket, e.g.
 #               https://s3.garage.svc.cluster.local:3900/juicefs-mc-cache
 #               — copy the exact endpoint form used in k8s/juicefs/config's
 #               bucket key (same garage cluster).
 #   access_key / secret_key
-#               Garage key pair for the bucket. The dump you showed lists key
-#               GKf5de2532834574efaf46c63c (alias juicefs-mc-rw, RWO perm on
-#               this bucket) — reuse that key's secret, or mint a fresh key
-#               and grant it RWO on juicefs-mc-cache only. Not in git either
-#               way.
+#               Garage key pair for the bucket. Reuse the existing key's
+#               secret (GKf5de2532834574efaf46c63c, alias juicefs-mc-rw, RWO on
+#               this bucket) or mint a fresh key granted RWO on
+#               juicefs-mc-cache only. Not in git either way.
 #   metaurl     Postgres URL to the DEDICATED cache metadata DB. The DB must
 #               exist before juicefs format runs:
 #                 kubectl -n postgres-db exec postgres-cluster-2 -c postgres -- \
@@ -47,6 +46,22 @@
 #               The juicefs_cache_user DB credentials. Password must be set in
 #               this record BEFORE the postgres-cluster app syncs the
 #               DatabaseRole (it derives the CNPG secret from here).
+#   passphrase  Passphrase PROTECTING THE RSA PEM (RISK-0045). Generate the
+#               pem first, then put its passphrase here:
+#
+#                 openssl rand -base64 48            # <- the passphrase
+#                 openssl genrsa -aes256 -out juicefs-cache.pem 4096
+#                 head -2 juicefs-cache.pem           # must show: Proc-Type: 4,ENCRYPTED
+#                 bao kv put -namespace=production -mount=k8s juicefs-cache/pem cert=@juicefs-cache.pem
+#                 shred -u juicefs-cache.pem
+#
+#               The pem record (juicefs-cache/pem, key `cert`) is a SEPARATE
+#               OpenBao record — mirrored by apps.yaml's juicefs-key-cache VSO
+#               entry. The format job refuses to run without BOTH the pem and
+#               a passphrase that actually decrypts it (verified pre-format
+#               with openssl rsa -check). JuiceFS CE has NO symmetric
+#               encryption; a volume formatted without a passphrase-protected
+#               pem is permanently unencrypted.
 #
 # Do NOT put these values in git. The SC comment and this file describe the
 # schema only.

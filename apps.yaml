@@ -343,9 +343,17 @@ catalog:
           # juicefs-mc-cache, metadata DB juicefs_cache (dedicated CNPG DB,
           # juicefs-cache-database.yaml). Record mirrors juicefs/config schema.
           # Create the OpenBao record BEFORE syncing — see
-          # bootstrap/base/juicefs-platform/job-format-cache.yaml.
+          # bootstrap/base/juicefs-platform/job-format-cache.yaml and
+          # openbao-record-cache.example.md.
           path: "juicefs-cache/config"
           destination: "juicefs-creds-cache"
+        - name: juicefs-key-cache
+          mount: k8s
+          # Passphrase-protected RSA pem for the cache tier (RISK-0045: the
+          # format job REFUSES to format with a missing or unencrypted pem).
+          # Generate: openssl genrsa -aes256 -out juicefs-cache.pem 4096
+          path: "juicefs-cache/pem"
+          destination: "juicefs-key-cache"
     syncPolicy:
       syncOptions:
         - CreateNamespace=true

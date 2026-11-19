@@ -39,21 +39,55 @@ spec:
                 exit 1
               fi
 
-              echo "Formatting JuiceFS filesystem '$name'..."
-              CMD="juicefs format --storage $storage --bucket $bucket --access-key $access_key --secret-key $secret_key"
-
-              if [ -n "${passphrase:-}" ]; then
-                echo "$passphrase" | $CMD --encrypt-key "$metaurl" "$name"
-                exit $?
+              # FAIL CLOSED ON ENCRYPTION (RISK-0045 lesson): JuiceFS CE has no
+              # symmetric encryption — only --encrypt-rsa-key with a
+              # PASSPHRASE-PROTECTED pem. A missing pem, an unencrypted pem, or
+              # a missing/wrong passphrase must abort the format, never fall
+              # through to an unencrypted filesystem (the encryption choice is
+              # permanent for the volume's life).
+              if [ ! -f /etc/juicefs/private.pem ]; then
+                echo "REFUSING to format: RSA pem record (juicefs-key-cache) not mounted." >&2
+                exit 1
               fi
-              $CMD "$metaurl" "$name"
+              if ! grep -q "ENCRYPTED" /etc/juicefs/private.pem; then
+                echo "REFUSING to format: pem is NOT passphrase-protected (no ENCRYPTED header)." >&2
+                exit 1
+              fi
+              if [ -z "${passphrase:-}" ]; then
+                echo "REFUSING to format: passphrase key missing from config record." >&2
+                exit 1
+              fi
+              # Prove the passphrase actually unwraps the pem BEFORE formatting:
+              if ! openssl rsa -in /etc/juicefs/private.pem -passin "pass:$passphrase" -noout -check >/dev/null 2>&1; then
+                echo "REFUSING to format: passphrase does not decrypt the pem." >&2
+                exit 1
+              fi
+
+              echo "Formatting JuiceFS filesystem '$name' (RSA-encrypted, passphrase-protected pem)..."
+              juicefs format \
+                --storage "$storage" \
+                --bucket "$bucket" \
+                --access-key "$access_key" \
+                --secret-key "$secret_key" \
+                --encrypt-rsa-key /etc/juicefs/private.pem \
+                "$metaurl" "$name"
+          volumeMounts:
+            - name: rsa-key
+              mountPath: /etc/juicefs
+              readOnly: true
           env:
+            # Unwraps the pem at format time; every mount also needs it (CSI
+            # passes it as JFS_RSA_PASSPHRASE from the same secret).
+            - name: JFS_RSA_PASSPHRASE
+              valueFrom:
+                secretKeyRef:
+                  name: juicefs-creds-cache
+                  key: passphrase
             - name: passphrase
               valueFrom:
                 secretKeyRef:
                   name: juicefs-creds-cache
                   key: passphrase
-                  optional: true
             - name: storage
               valueFrom:
                 secretKeyRef:
@@ -84,3 +118,12 @@ spec:
                 secretKeyRef:
                   name: juicefs-creds-cache
                   key: name
+      volumes:
+        - name: rsa-key
+          secret:
+            secretName: juicefs-key-cache
+            # NOT optional: a missing pem record must fail the pod (and the
+            # format), not silently produce an unencrypted filesystem.
+            items:
+              - key: cert
+                path: private.pem
