@@ -1,0 +1,140 @@
+# GLM-5.3 exlr8 K3/K4 preload — generic puller, staged, resumable.
+#
+# Downloads kindlingai/glm-5.3-exlr8-k2-k3-k4@9e25c28a (v0.7) into the shared
+# model-cache PVC: all K3+K4 expert files, dense/vocab, manifests, TP4 index
+# slices and hash files (~630 GiB; K2 deliberately skipped — see README.md).
+#
+# Uses the GENERIC puller image (llm-test/puller). glm53-cache-puller is a
+# deprecated alias of the same tool; new jobs use model-cache-puller.
+#
+# suspend: true — GitOps renders the Job, an operator un-suspends it (README
+# runbook). Resumable: backoffLimit max + OnFailure keeps .part resume intact.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: glm53-exlr8-k4-cache-pull-v1
+  namespace: llm-test
+  labels:
+    app: glm53-exlr8-k4-cache-pull
+    lane: glm53-exlr8-k4
+    purpose: model-cache-preload
+spec:
+  suspend: true
+  ttlSecondsAfterFinished: 604800
+  backoffLimit: 2147483647
+  activeDeadlineSeconds: 86400
+  template:
+    metadata:
+      labels:
+        app: glm53-exlr8-k4-cache-pull
+        lane: glm53-exlr8-k4
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+      containers:
+        - name: puller
+          image: registry.taildeab2.ts.net/homelab/model-cache-puller:v7@sha256:fedbacb21b9469e23aba9d847b78cfe6378337ce58ff9a8ffa3a96e7fd9f7708
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: HF_HOME, value: /models/.cache/huggingface}
+            - {name: RATE, value: "62500000"}
+            - {name: MAX_FILE_WORKERS, value: "6"}
+            - {name: MAX_REPO_WORKERS, value: "1"}
+            - {name: PROGRESS_INTERVAL, value: "30"}
+            - {name: HF_HUB_DISABLE_XET, value: "1"}
+            - {name: RECEIPT_PATH, value: /models/.glm53-exlr8-k4-pull-receipt.json}
+            - name: PULL_MODELS
+              value: >-
+                kindlingai/glm-5.3-exlr8-k2-k3-k4@9e25c28a2e8808d8b2599d780521fd6af24e7558#config.json|generation_config.json|tokenizer*.json|chat_template.jinja|manifests/*|dense/*|index-slices/tp4/*|experts/*.index.safetensors|experts/*.k3.safetensors|experts/*.k4.safetensors|hashes/*
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface
+                  key: HF_TOKEN
+                  optional: true
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+              rev=9e25c28a2e8808d8b2599d780521fd6af24e7558
+              marker=/models/.glm53-exlr8-k4-download-complete.json
+              snap=/models/.cache/huggingface/hub/models--kindlingai--glm-5.3-exlr8-k2-k3-k4/snapshots/$rev
+              rm -f "$marker"
+              python3 /opt/puller/puller.py
+              python3 - "$snap" "$marker" <<'PY'
+              import hashlib, json, pathlib, sys
+              root, marker = map(pathlib.Path, sys.argv[1:])
+
+              # 1. metadata present
+              required = ["config.json", "generation_config.json",
+                          "tokenizer.json", "tokenizer_config.json",
+                          "chat_template.jinja",
+                          "manifests/exlr8-manifest-bit387.json"]
+              missing = [n for n in required if not (root / n).is_file()]
+              if missing:
+                  raise SystemExit(f"missing metadata: {missing}")
+
+              # 2. bit387 manifest parses and names only K3/K4 widths
+              manifest = json.loads((root / "manifests/exlr8-manifest-bit387.json").read_text())
+              widths = set()
+              def collect(node):
+                  if isinstance(node, dict):
+                      for v in node.values(): collect(v)
+                  elif isinstance(node, list):
+                      for v in node: collect(v)
+                  elif isinstance(node, str) and node in ("k2", "k3", "k4"):
+                      widths.add(node)
+              collect(manifest)
+              if "k2" in widths or not widths:
+                  raise SystemExit(f"bit387 manifest width set unexpected: {sorted(widths)}")
+
+              # 3. spot-check layer file sets: K4 for a mid layer, K3 for
+              #    layer 3 (bit387 keeps 3-12 at K3), K3-only for 78 (MTP)
+              checks = ["experts/exlr8-layer-040.k4.safetensors",
+                        "experts/exlr8-layer-003.k3.safetensors",
+                        "experts/exlr8-layer-078.k3.safetensors"]
+              for rel in checks:
+                  if not (root / rel).is_file():
+                      raise SystemExit(f"missing spot-check file: {rel}")
+              if (root / "experts/exlr8-layer-040.k3.safetensors").is_file() is False:
+                  # mid layers may carry K3 too (other profiles use it) — only
+                  # K2 must be absent everywhere
+                  pass
+              if (root / "experts/exlr8-layer-040.k2.safetensors").is_file():
+                  raise SystemExit("K2 file present; include filter leaked")
+
+              # 4. verify every downloaded expert/dense file against its .sha256
+              hashes = sorted(root.rglob("hashes/*.sha256"))
+              if not hashes:
+                  raise SystemExit("no hash files downloaded")
+              verified = failed = 0
+              for h in hashes:
+                  rel = h.relative_to(root / "hashes")
+                  target = root / rel.with_suffix("")  # strip .sha256
+                  if not target.is_file():
+                      continue  # hash for a file outside our filter (e.g. K2)
+                  want = h.read_text().split()[0]
+                  got = hashlib.sha256(target.read_bytes()).hexdigest()
+                  if got != want:
+                      raise SystemExit(f"hash mismatch: {rel}")
+                  verified += 1
+              total = sum(f.stat().st_size for f in root.rglob("*") if f.is_file())
+              receipt = {
+                  "checkpoint": "kindlingai/glm-5.3-exlr8-k2-k3-k4",
+                  "revision": "9e25c28a2e8808d8b2599d780521fd6af24e7558",
+                  "weight_set": "3d1a293399f0077e27acd18609ee67f33f8e3f8b5963a7c4b42b7dc16ecd1d98",
+                  "filter": "k3+k4+meta (no k2)",
+                  "hash_files_verified": verified,
+                  "bytes_on_disk": total,
+              }
+              marker.write_text(json.dumps(receipt, indent=2) + "\n")
+              print(f"verified {verified} files, {total/2**30:.1f} GiB on disk", flush=True)
+              PY
+              echo "pull + verify complete: $marker"
+          volumeMounts:
+            - {name: models, mountPath: /models}
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: model-cache
