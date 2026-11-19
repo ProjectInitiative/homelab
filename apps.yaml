@@ -337,6 +337,15 @@ catalog:
           mount: k8s
           path: "juicefs/pem"
           destination: "juicefs-key"
+        - name: juicefs-cache-creds
+          mount: k8s
+          # Ephemeral-cache tier (juicefs-cache-sc): Garage bucket
+          # juicefs-mc-cache, metadata DB juicefs_cache (dedicated CNPG DB,
+          # juicefs-cache-database.yaml). Record mirrors juicefs/config schema.
+          # Create the OpenBao record BEFORE syncing — see
+          # bootstrap/base/juicefs-platform/job-format-cache.yaml.
+          path: "juicefs-cache/config"
+          destination: "juicefs-creds-cache"
     syncPolicy:
       syncOptions:
         - CreateNamespace=true
@@ -378,6 +387,19 @@ catalog:
           # DatabaseRole syncs.
           path: "juicefs-dev/config"
           destination: "juicefs-dev-postgres-creds"
+          destinationType: "kubernetes.io/basic-auth"
+          destinationIncludes:
+            - username
+            - password
+          overwrite: true
+        - name: juicefs-cache-postgres-creds
+          mount: k8s
+          # Cache-tier JuiceFS DB role credentials (juicefs_cache_user) for the
+          # CNPG DatabaseRole. Mirrors the juicefs-dev pair; OpenBao record
+          # k8s/juicefs-cache/config holds username+password (and the full
+          # bucket/metaurl record consumed by the juicefs-platform app above).
+          path: "juicefs-cache/config"
+          destination: "juicefs-cache-postgres-creds"
           destinationType: "kubernetes.io/basic-auth"
           destinationIncludes:
             - username

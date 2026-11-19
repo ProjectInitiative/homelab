@@ -1,0 +1,17 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: juicefs-cache-user
+  namespace: postgres-db
+spec:
+  cluster:
+    name: postgres-cluster
+  name: juicefs_cache_user
+  ensure: present
+  login: true
+  passwordSecret:
+    name: juicefs-cache-postgres-creds
+# Password source: OpenBao k8s/juicefs-cache/config (username/password keys)
+# projected by the postgres-cluster app's vaultSecrets as the basic-auth
+# Secret juicefs-cache-postgres-creds — same pattern as juicefs-role.yaml.
+# The OpenBao record must exist BEFORE this syncs (see docs/juicefs-cache-tier.md).

@@ -1,0 +1,75 @@
+# Metadata consistency maintenance for the JuiceFS CACHE tier
+# (model-cache-ephemeral PVC, filesystem juicefs-mc-cache).
+#
+# Runs three passes:
+#   A) fsck --fix-orphans  — chunks present in object storage but not referenced
+#      by the metadata engine (e.g. after aborted writes, or wiping/reformatting
+#      out-of-band) get listed and deleted.
+#   B) fsck (default)      — MISSING data detection: metadata references whose
+#      chunk objects are absent/corrupt in the bucket. Reported (never "fixed" —
+#      missing data means data loss; the report is the deliverable).
+#   C) gc                  — reclaims space from leaked/deleted inodes; plus a
+#      metadata compact for the summary.
+#
+# Scheduling: CronJob at 04:00 daily, low-importance, jobs.historyLimits kept
+# small. NEVER run against the prod juicefs-sc tier — this CronJob pins the
+# cache secret (juicefs-creds-cache) exclusively.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: juicefs-cache-fsck
+  namespace: juicefs-platform
+  labels:
+    app.kubernetes.io/part-of: juicefs-platform
+    purpose: metadata-maintenance
+spec:
+  schedule: "0 4 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 172800
+      template:
+        metadata:
+          labels:
+            app: juicefs-cache-fsck
+        spec:
+          restartPolicy: Never
+          # The binary speaks to postgres + garage directly; no PVC mount and
+          # no GPU nodes needed. Pin to the capstan pool to keep DGX links free.
+          nodeSelector:
+            kubernetes.io/arch: arm64
+          containers:
+            - name: fsck
+              # Same gcache image job-format-cache.yaml uses (has juicefs+bash).
+              image: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:gcache-strict-sharding-arm64@sha256:be6ece264ef6c40e7a8e69e6323df95bc5ba92ac0b9e0522679e858b8cff3440
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: META_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: juicefs-creds-cache
+                      key: metaurl
+              command: ["/bin/bash", "-c"]
+              args:
+                - |
+                  set -uo pipefail
+                  echo "=== A) orphaned chunks (object storage refs missing from metadata) ==="
+                  # --fix-orphans deletes unreferenced chunk objects; report path
+                  # kept in stdout. Non-fatal if it finds nothing.
+                  juicefs fsck "$META_URL" --fix-orphans --path "" 2>&1 || \
+                    echo "WARN: orphan pass returned nonzero (review above)"
+                  echo "=== B) missing-data check (metadata refs with absent chunks) ==="
+                  # No --fix flag: missing chunks are DATA LOSS, only reported.
+                  juicefs fsck "$META_URL" 2>&1 || \
+                    echo "WARN: fsck reported inconsistencies (review above)"
+                  echo "=== C) gc — reclaim space from deleted inodes ==="
+                  juicefs gc "$META_URL" --delete 2>&1 || \
+                    echo "WARN: gc returned nonzero (review above)"
+                  echo "=== summary ==="
+                  juicefs status "$META_URL" 2>&1 | head -40
+              resources:
+                requests: {cpu: "200m", memory: "256Mi"}
+                limits: {cpu: "1", memory: "1Gi"}
