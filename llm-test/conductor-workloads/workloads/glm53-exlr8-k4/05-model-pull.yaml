@@ -36,6 +36,8 @@ spec:
       restartPolicy: OnFailure
       nodeSelector:
         kubernetes.io/hostname: chronometer
+      tolerations:
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       containers:
         - name: puller
           image: registry.taildeab2.ts.net/homelab/model-cache-puller:v7@sha256:fedbacb21b9469e23aba9d847b78cfe6378337ce58ff9a8ffa3a96e7fd9f7708
