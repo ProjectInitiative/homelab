@@ -347,6 +347,11 @@ catalog:
           # openbao-record-cache.example.md.
           path: "juicefs-cache/config"
           destination: "juicefs-creds-cache"
+          # The secret pre-exists from the out-of-band October setup (22d old,
+          # no VSO owner labels) — without overwrite VSO refuses to update it
+          # ("invalid owner label") and passphrase/other new keys never reach
+          # the secret. Adopt and own it.
+          overwrite: true
         - name: juicefs-key-cache
           mount: k8s
           # Passphrase-protected RSA pem for the cache tier (RISK-0045: the
@@ -354,6 +359,10 @@ catalog:
           # Generate: openssl genrsa -aes256 -out juicefs-cache.pem 4096
           path: "juicefs-cache/pem"
           destination: "juicefs-key-cache"
+          # Same adoption logic as juicefs-cache-creds: any pre-existing secret
+          # (e.g. from manual setup or a retry race) must be owned by VSO or
+          # updates silently never land.
+          overwrite: true
     syncPolicy:
       syncOptions:
         - CreateNamespace=true
