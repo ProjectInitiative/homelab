@@ -16,6 +16,10 @@ spec:
       restartPolicy: OnFailure
       nodeSelector:
         kubernetes.io/arch: arm64
+      # arm64 nodes (the DGX Sparks) carry the dgx-spark-dedicated taint;
+      # without this toleration the format pod pends forever.
+      tolerations:
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       containers:
         - name: juicefs-format
           # Native arm64 gcache image (has juicefs + bash); pinned digest.
