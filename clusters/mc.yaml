@@ -340,6 +340,18 @@ apps:
               - peer-range-read
               - group-heartbeat=5s
               - remote-timeout=60s
+            # The juicefs client unwraps the volume's RSA-encrypted key from
+            # metadata using JFS_RSA_PASSPHRASE (RISK-0045). The CSI injects
+            # secret keys as env using the KEY NAME ("passphrase"), which the
+            # client ignores — so this patch adds the env it actually wants,
+            # sourced from the kube-system VSO copy of the cache record
+            # (secretKeyRef cannot cross namespaces).
+            env:
+              - name: JFS_RSA_PASSPHRASE
+                valueFrom:
+                  secretKeyRef:
+                    name: juicefs-creds-cache
+                    key: passphrase
   - name: csi-snapshotter
     namespace: kube-system
   - name: juicefs-platform

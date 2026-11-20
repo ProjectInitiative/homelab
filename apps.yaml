@@ -283,6 +283,22 @@ catalog:
   juicefs-csi-driver:
     annotations:
       argocd.argoproj.io/sync-wave: "30"
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      namespace: production
+      audiences:
+        - vault
+      secrets:
+        - name: juicefs-creds-cache-kube-system
+          mount: k8s
+          # kube-system COPY of the cache-tier record, for the CSI mount-pod
+          # env injection: mount pods run in kube-system and secretKeyRef
+          # cannot cross namespaces, so the mountPodPatch env (JFS_RSA_PASSPHRASE
+          # <- passphrase key) needs this copy. Same OpenBao source of truth
+          # as juicefs-creds-cache in juicefs-platform.
+          path: "juicefs-cache/config"
+          destination: "juicefs-creds-cache"
     sources:
       - repoURL: https://juicedata.github.io/charts/
         chart: juicefs-csi-driver
