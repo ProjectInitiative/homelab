@@ -11,9 +11,10 @@
 # JuiceFS cache-tier PVC -> MCP pod sees it at /staging -> `kubectl apply -f
 # /staging/foo.yaml` (argv path, no stdin needed).
 #
-# STORAGE: dedicated subPath of the model-cache-ephemeral PVC
-# (juicefs-cache-sc / juicefs-mc-cache bucket). NOT backed up by design —
-# staging is disposable; do not put anything here you cannot regenerate.
+# STORAGE: dedicated PVC `mcp-staging` (mcp-staging-pvc.yaml, same
+# juicefs-cache-sc tier). NOT backed up by design — staging is disposable;
+# do not put anything here you cannot regenerate. Own PVC = own lifecycle:
+# cache-tier maintenance never touches it.
 #
 # EXPOSURE: tailnet-only via the existing mc-ingress-proxy ProxyGroup
 # (same pattern as the MCP SSE LB). Anonymous PUT/GET by design: the tailnet
@@ -80,7 +81,7 @@ spec:
       volumes:
         - name: staging
           persistentVolumeClaim:
-            claimName: model-cache-ephemeral
+            claimName: mcp-staging
 ---
 apiVersion: v1
 kind: Service

@@ -14,8 +14,9 @@
 # existing rank bins by checksum and regenerates if the model revision moved.
 #
 # Operator steps:
-#   1. model-cache-ephemeral must exist and bind to the NEW juicefs-cache
-#      volume (delete the stale PVC first so the CSI provisions fresh).
+#   1. model-cache-ephemeral-v2 must exist and bind to the NEW juicefs-cache
+#      volume (llm-test/model-cache-ephemeral-v2.yaml; the old PVC bound the
+#      dead PV and was deleted).
 #   2. Un-suspend: kubectl -n llm-test patch job model-cache-migrate \
 #        --type=merge -p '{"spec":{"suspend":false}}'
 #   3. Watch:     kubectl -n llm-test logs -f job/model-cache-migrate
@@ -102,7 +103,7 @@ spec:
               }
               receipt = {
                   "source": "model-cache",
-                  "dest": "model-cache-ephemeral",
+                  "dest": "model-cache-ephemeral-v2",
                   "files": len(files),
                   "bytes": total,
                   "sha256_files_verified": verified,
@@ -128,4 +129,4 @@ spec:
             claimName: model-cache
         - name: dst
           persistentVolumeClaim:
-            claimName: model-cache-ephemeral
+            claimName: model-cache-ephemeral-v2

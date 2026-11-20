@@ -1,0 +1,22 @@
+# Dedicated staging PVC for the mcp-staging WebDAV file-drop.
+#
+# OWN PVC (operator decision 2026-11-19): staging must not share the model
+# cache volume — independent lifecycle, quota, and teardown. JuiceFS CSI
+# gives every PVC its own subPath in the filesystem automatically, so
+# isolation is per-PVC, not per-subPath.
+#
+# Disposable by design: anything here must be regenerable. Same
+# juicefs-cache-sc tier (juicefs-mc-cache bucket, encrypted).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mcp-staging
+  namespace: mcp-system
+  labels:
+    purpose: mcp-staging
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: juicefs-cache-sc
+  resources:
+    requests:
+      storage: 50Gi
