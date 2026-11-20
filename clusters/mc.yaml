@@ -272,7 +272,7 @@ apps:
           - pvcSelector:
               matchName: model-cache
               matchStorageClassName: juicefs-sc
-            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:6aaf22da-arm64@sha256:50848ee986438b756a842ce7f2250a42f1954159ff9d153181a646bd283bb5bf
+            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:6aaf22da@sha256:ea29e3f7dbae59b46c819b51e5f847c74b3df2d16503a02e0458ea0be61422c1
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
             # 2026-11-11 05:07Z: chronometer's juicefs/mount.juicefs was
@@ -330,7 +330,7 @@ apps:
               kubernetes.io/arch: arm64
             pvcSelector:
               matchStorageClassName: juicefs-cache-sc
-            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:6aaf22da-arm64@sha256:50848ee986438b756a842ce7f2250a42f1954159ff9d153181a646bd283bb5bf
+            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:6aaf22da@sha256:ea29e3f7dbae59b46c819b51e5f847c74b3df2d16503a02e0458ea0be61422c1
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
             resources:
@@ -365,12 +365,6 @@ apps:
               - buffer-size=1G
               - max-downloads=200
               - cache-eviction=lru
-            env:
-              - name: JFS_RSA_PASSPHRASE
-                valueFrom:
-                  secretKeyRef:
-                    name: juicefs-creds-cache
-                    key: passphrase
             # The juicefs client unwraps the volume's RSA-encrypted key from
             # metadata using JFS_RSA_PASSPHRASE (RISK-0045). The CSI injects
             # secret keys as env using the KEY NAME ("passphrase"), which the
