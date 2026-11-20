@@ -55,6 +55,20 @@
 #                 bao kv put -namespace=production -mount=k8s juicefs-cache/pem cert=@juicefs-cache.pem
 #                 shred -u juicefs-cache.pem
 #
+#   envs        REQUIRED FOR MOUNTS (the 2026-11-19 outage: format worked,
+#               mounts FATAL'd with "passphrase is required to private key").
+#               The CSI driver injects the JSON map in this key as env vars
+#               into every mount pod (juicefs-csi-driver docs,
+#               security/encryption.md). Without it the mount pod has no
+#               JFS_RSA_PASSPHRASE and cannot unwrap the key from metadata:
+#
+#                 bao kv patch -namespace=production -mount=k8s juicefs-cache/config \
+#                   envs='{"JFS_RSA_PASSPHRASE":"<PEM-PASSPHRASE>"}'
+#
+#               (JSON-in-a-string, same passphrase as the pem record.) The
+#               plain `passphrase` key above is what the FORMAT job reads;
+#               `envs` is what MOUNT pods read. Both must exist.
+#
 #               The pem record (juicefs-cache/pem, key `cert`) is a SEPARATE
 #               OpenBao record — mirrored by apps.yaml's juicefs-key-cache VSO
 #               entry. The format job refuses to run without BOTH the pem and
