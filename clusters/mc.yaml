@@ -318,7 +318,11 @@ apps:
           # (chronometer/sextant/octant have /mnt/pool/juicefs-ring from the
           # 1104 ring; astrolabe needs it created — see ring runbook).
           - pvcSelector:
-              matchName: model-cache-ephemeral-v2
+              # matchStorageClassName (not matchName): EVERY PVC on the cache
+              # tier gets this patch — model-cache-ephemeral-v2 AND mcp-staging
+              # (its mount pod crash-looped for an hour without the env since
+              # only the -v2 name matched). Same filesystem → same ring/env is
+              # correct for all of them.
               matchStorageClassName: juicefs-cache-sc
             ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:6aaf22da-arm64@sha256:50848ee986438b756a842ce7f2250a42f1954159ff9d153181a646bd283bb5bf
             hostNetwork: true
