@@ -1,0 +1,31 @@
+# Temporary-name PVC for the REBUILT cache tier (fresh juicefs_cache DB,
+# reformatted juicefs-mc-cache bucket, encrypted-at-rest).
+#
+# NAME DANCE (operator plan 2026-11-19): the old `model-cache-ephemeral` PVC
+# is still bound to the DEAD PV (pvc-9f83d431 — its metadata DB was dropped).
+# The cache-ring CSI patch is per-PVC-name BY DESIGN (operator: turn it off
+# per-volume if it misbehaves), so the new volume bootstraps under
+# `model-cache-ephemeral-v2`; after old `model-cache` is torn down, rename
+# back to `model-cache-ephemeral` and update the ring patch selector.
+#
+# Ring membership: the mountPodPatch in clusters/mc.yaml targets this name +
+# juicefs-cache-sc, cache-group dgx-model-cache-ephemeral (own group/port
+# 13913 — separate filesystem must not share a cache group with the old
+# juicefs-mc volume during the dual-run scream test).
+#
+# NOTE: do NOT bind to the retained old PV. If the old PV still shows Bound
+# here after apply, delete the leftover PV object first.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-cache-ephemeral-v2
+  namespace: llm-test
+  labels:
+    juicefs-cache-group: dgx-model-cache-ephemeral
+    purpose: ephemeral-model-cache
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: juicefs-cache-sc
+  resources:
+    requests:
+      storage: 3Ti

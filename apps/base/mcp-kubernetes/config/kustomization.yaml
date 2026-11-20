@@ -9,6 +9,7 @@ resources:
   - tailscale-direct-lb.yaml
   - network-policy.yaml
   - mcp-staging.yaml
+  - mcp-staging-pvc.yaml
 patches:
   # Read-only /staging mount in the MCP kubernetes server pods (files uploaded
   # via the mcp-staging WebDAV service become visible for kubectl apply -f).

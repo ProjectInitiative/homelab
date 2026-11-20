@@ -304,6 +304,42 @@ apps:
               # crash-looped TensorFold (2026-11-08). 60s keeps parity with
               # the enterprise default while still bounding stuck peers.
               - remote-timeout=60s
+          # --- REBUILT cache tier ring (2026-11-19) ---
+          # model-cache-ephemeral-v2: the fresh juicefs-mc-cache volume
+          # (dedicated juicefs_cache DB, RSA-encrypted format). Its OWN cache
+          # group + port: a cache group must never mix two DIFFERENT JuiceFS
+          # filesystems, and the old juicefs-mc ring (:13910) stays live
+          # during the dual-run scream test (old 1104 lane vs new TF pair).
+          # FOUR nodes — astrolabe joins the ring for the first time
+          # (max sharding; operator call). Rename dance: this selector
+          # targets -v2 until old model-cache is torn down, then the PVC
+          # renames back to model-cache-ephemeral and this selector follows.
+          # Host cache dirs must exist before mount pods use them
+          # (chronometer/sextant/octant have /mnt/pool/juicefs-ring from the
+          # 1104 ring; astrolabe needs it created — see ring runbook).
+          - pvcSelector:
+              matchName: model-cache-ephemeral-v2
+              matchStorageClassName: juicefs-cache-sc
+            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:6aaf22da-arm64@sha256:50848ee986438b756a842ce7f2250a42f1954159ff9d153181a646bd283bb5bf
+            hostNetwork: true
+            dnsPolicy: ClusterFirstWithHostNet
+            resources:
+              requests: {memory: 2Gi}
+              limits: {memory: 6Gi}
+            mountOptions:
+              - cache-dir=/mnt/pool/juicefs-ring
+              - cache-size=550000
+              - prefetch=8
+              - max-readahead=256M
+              - buffer-size=1G
+              - max-downloads=200
+              - cache-eviction=lru
+              - cache-group=dgx-model-cache-ephemeral
+              - group-listen=:13913
+              - group-advertise=auto-c7
+              - peer-range-read
+              - group-heartbeat=5s
+              - remote-timeout=60s
   - name: csi-snapshotter
     namespace: kube-system
   - name: juicefs-platform
