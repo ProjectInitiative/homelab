@@ -272,7 +272,7 @@ apps:
           - pvcSelector:
               matchName: model-cache
               matchStorageClassName: juicefs-sc
-            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:6aaf22da@sha256:ea29e3f7dbae59b46c819b51e5f847c74b3df2d16503a02e0458ea0be61422c1
+            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:6aaf22da@sha256:b5af82cf738b45af3899677689dd9b0004a82593ed0b9a8366283da25ef9e366
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
             # 2026-11-11 05:07Z: chronometer's juicefs/mount.juicefs was
@@ -332,7 +332,7 @@ apps:
           - pvcSelector:
               matchName: model-cache-ephemeral-v2
               matchStorageClassName: juicefs-cache-sc
-            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:6aaf22da@sha256:ea29e3f7dbae59b46c819b51e5f847c74b3df2d16503a02e0458ea0be61422c1
+            ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:6aaf22da@sha256:b5af82cf738b45af3899677689dd9b0004a82593ed0b9a8366283da25ef9e366
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
             resources:
