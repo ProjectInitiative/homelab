@@ -825,8 +825,11 @@ catalog:
   fission:
     annotations:
       argocd.argoproj.io/sync-wave: "55"
-      # Chronic Degraded (upstream quirk); exclude from parent health so it
-      # cannot block homelab-root sync waves (2026-11-20 root sync hung on it)
+      # Chronic Degraded (upstream quirk); SkipHealthCheck (sync-option form,
+      # unlike ignore-healthcheck) actually skips wave-gating health waits —
+      # argoproj/argo-cd#22940: ignore-healthcheck is display-only. Without
+      # it the root sync hung on fission (2026-11-20).
+      argocd.argoproj.io/sync-options: SkipHealthCheck=true
       argocd.argoproj.io/ignore-healthcheck: "true"
     sources:
       - repoURL: https://fission.github.io/fission-charts/
@@ -864,7 +867,8 @@ catalog:
     path: llm-test/miaai-parity
     annotations:
       argocd.argoproj.io/sync-wave: "120"
-      # Perpetually Progressing; excluded from parent health (see fission note)
+      # Perpetually Progressing; SkipHealthCheck skips wave-gating (see fission note)
+      argocd.argoproj.io/sync-options: Replace=true,SkipHealthCheck=true
       argocd.argoproj.io/ignore-healthcheck: "true"
     syncPolicy:
       automated:
@@ -1250,7 +1254,10 @@ catalog:
     critical: true
     annotations:
       argocd.argoproj.io/sync-wave: "110"
-      # Chronic Degraded; excluded from parent health (see fission note)
+      # Chronic Degraded (upstream quirk); SkipHealthCheck (sync-option form,
+      # unlike ignore-healthcheck) actually skips wave-gating health waits —
+      # argoproj/argo-cd#22940: ignore-healthcheck is display-only.
+      argocd.argoproj.io/sync-options: SkipHealthCheck=true
       argocd.argoproj.io/ignore-healthcheck: "true"
     vaultSecrets:
       createAuth: true
@@ -1278,7 +1285,8 @@ catalog:
     path: apps/base/forgejo-runner/config
     annotations:
       argocd.argoproj.io/sync-wave: "120"
-      # Chronic Degraded; excluded from parent health (see fission note)
+      # Chronic Degraded; SkipHealthCheck skips wave-gating (see fission note)
+      argocd.argoproj.io/sync-options: SkipHealthCheck=true
       argocd.argoproj.io/ignore-healthcheck: "true"
     vaultSecrets:
       createAuth: true
@@ -1308,7 +1316,8 @@ catalog:
     path: apps/base/forgejo-runner-arm/config
     annotations:
       argocd.argoproj.io/sync-wave: "120"
-      # Chronic Degraded; excluded from parent health (see fission note)
+      # Chronic Degraded; SkipHealthCheck skips wave-gating (see fission note)
+      argocd.argoproj.io/sync-options: SkipHealthCheck=true
       argocd.argoproj.io/ignore-healthcheck: "true"
     vaultSecrets:
       createAuth: true
