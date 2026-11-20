@@ -317,12 +317,18 @@ apps:
           # Host cache dirs must exist before mount pods use them
           # (chronometer/sextant/octant have /mnt/pool/juicefs-ring from the
           # 1104 ring; astrolabe needs it created — see ring runbook).
-          - pvcSelector:
-              # matchStorageClassName (not matchName): EVERY PVC on the cache
-              # tier gets this patch — model-cache-ephemeral-v2 AND mcp-staging
-              # (its mount pod crash-looped for an hour without the env since
-              # only the -v2 name matched). Same filesystem → same ring/env is
-              # correct for all of them.
+          #
+          # SPLIT BY NODE ARCH: SC-wide selector covers every cache-tier PVC
+          # (model-cache-ephemeral-v2 AND mcp-staging), but the ring config is
+          # DGX-only. First version applied the arm64 gcache image + DGX ring
+          # options to the amd64 capstans too — mount pods there died instantly
+          # (exec /usr/bin/sh: no such file) and would have joined a ring they
+          # have no business in. kubernetes.io/arch separates the estate
+          # (DGX=arm64, capstan=amd64).
+          # DGX nodes: ring members, arm64 gcache image, hostNetwork.
+          - nodeSelector:
+              kubernetes.io/arch: arm64
+            pvcSelector:
               matchStorageClassName: juicefs-cache-sc
             ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:6aaf22da-arm64@sha256:50848ee986438b756a842ce7f2250a42f1954159ff9d153181a646bd283bb5bf
             hostNetwork: true
@@ -344,6 +350,27 @@ apps:
               - peer-range-read
               - group-heartbeat=5s
               - remote-timeout=60s
+          # Capstan (amd64) nodes: NO ring membership — plain mounts with the
+          # CSI default (amd64-capable) image and local disk cache. Only the
+          # passphrase env is required (same encrypted filesystem).
+          - nodeSelector:
+              kubernetes.io/arch: amd64
+            pvcSelector:
+              matchStorageClassName: juicefs-cache-sc
+            mountOptions:
+              - cache-dir=/mnt/jfs-cache
+              - cache-size=102400
+              - prefetch=8
+              - max-readahead=256M
+              - buffer-size=1G
+              - max-downloads=200
+              - cache-eviction=lru
+            env:
+              - name: JFS_RSA_PASSPHRASE
+                valueFrom:
+                  secretKeyRef:
+                    name: juicefs-creds-cache
+                    key: passphrase
             # The juicefs client unwraps the volume's RSA-encrypted key from
             # metadata using JFS_RSA_PASSPHRASE (RISK-0045). The CSI injects
             # secret keys as env using the KEY NAME ("passphrase"), which the
