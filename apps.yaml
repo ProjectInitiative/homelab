@@ -868,7 +868,12 @@ catalog:
     annotations:
       argocd.argoproj.io/sync-wave: "120"
       # Perpetually Progressing; SkipHealthCheck skips wave-gating (see fission note)
-      argocd.argoproj.io/sync-options: Replace=true,SkipHealthCheck=true
+      # NOTE: Replace=true was NEVER in git — it was live-only drift (added
+      # manually during adoption debugging). Declaring it in PR401 made the
+      # root sync destructively replace the ai-proxy Application CR
+      # (delete+recreate with finalizer cascade, "context deadline exceeded",
+      # app Missing). Keep only SkipHealthCheck here.
+      argocd.argoproj.io/sync-options: SkipHealthCheck=true
       argocd.argoproj.io/ignore-healthcheck: "true"
     syncPolicy:
       automated:
