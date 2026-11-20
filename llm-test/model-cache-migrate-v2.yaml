@@ -76,6 +76,9 @@ spec:
               # --info=progress2 for a single rolling progress line
               rsync -aH --info=progress2,stats2 \
                 --exclude '.migration-complete.json' \
+                --exclude '/.config' \
+                --exclude '/.accesslog' \
+                --exclude '/.stats' \
                 "$SRC/" "$DST/"
               echo "=== post-copy verification ==="
               python3 - "$DST" "$marker" <<'PY'
