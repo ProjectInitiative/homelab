@@ -47,15 +47,22 @@ spec:
         - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       containers:
         - name: migrate
-          image: restic/restic:0.17.3
+          # Alpine + apk rsync at runtime: restic's image has no rsync binary
+          # (first run failed instantly with 'rsync: not found'). Digest =
+          # alpine:3.21 index digest, verified via registry HEAD.
+          image: alpine:3.21@sha256:bc21487101ae47172509130ee1092cc273a831968d64b617776d1f69c81e42ab
           imagePullPolicy: IfNotPresent
+          securityContext:
+            # apk needs root; the job copies root-owned cache files anyway
+            runAsUser: 0
           command: ["/bin/sh", "-c"]
           args:
             - |
               set -eu
-              # FULL-CACHE copy: everything under the HF cache root (snapshots,
-              # blobs, refs) plus the top-level lane artifact dirs. Excludes
-              # nothing: old-model-cache is going away entirely.
+              apk add --no-cache rsync python3 >/dev/null
+              # FULL-CACHE copy: everything under the old volume (HF snapshots
+              # with de-duped blob hardlinks, lane artifacts, dsv41 rank-caches,
+              # receipts). Excludes nothing: old-model-cache is going away.
               SRC=/models
               DST=/eph
               marker=/eph/.migration-complete.json
