@@ -926,6 +926,10 @@ catalog:
     path: llm-test/conductor-workloads
     annotations:
       argocd.argoproj.io/sync-wave: "122"
+      # Degraded while lanes recover; don't block the root on its health
+      # (see fission note)
+      argocd.argoproj.io/sync-options: SkipHealthCheck=true
+      argocd.argoproj.io/ignore-healthcheck: "true"
     syncPolicy:
       automated:
         prune: true
@@ -957,6 +961,12 @@ catalog:
 
   temp-egress-mc:
     path: apps/base/temp-egress-mc/config
+    annotations:
+      # Wave 0 by default = applied first AND health-gates all later waves.
+      # Persistently Progressing -> root sync deadlock (2026-11-20). Same
+      # treatment as the fission note.
+      argocd.argoproj.io/sync-options: SkipHealthCheck=true
+      argocd.argoproj.io/ignore-healthcheck: "true"
 
   temp-egress-cc:
     path: apps/base/temp-egress-cc/config

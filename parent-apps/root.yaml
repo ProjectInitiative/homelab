@@ -87,3 +87,12 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    # Durable retry: transient child-apply failures (CC API timeouts,
+    # dry-run deadlines) previously left the op Failed with no new attempt
+    # until drift re-triggered. Retry with backoff until it lands.
+    retry:
+      limit: 20
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 10m
