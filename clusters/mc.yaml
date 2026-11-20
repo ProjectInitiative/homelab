@@ -318,17 +318,19 @@ apps:
           # (chronometer/sextant/octant have /mnt/pool/juicefs-ring from the
           # 1104 ring; astrolabe needs it created — see ring runbook).
           #
-          # SPLIT BY NODE ARCH: SC-wide selector covers every cache-tier PVC
-          # (model-cache-ephemeral-v2 AND mcp-staging), but the ring config is
-          # DGX-only. First version applied the arm64 gcache image + DGX ring
-          # options to the amd64 capstans too — mount pods there died instantly
-          # (exec /usr/bin/sh: no such file) and would have joined a ring they
-          # have no business in. kubernetes.io/arch separates the estate
-          # (DGX=arm64, capstan=amd64).
-          # DGX nodes: ring members, arm64 gcache image, hostNetwork.
-          - nodeSelector:
-              kubernetes.io/arch: arm64
-            pvcSelector:
+          # SPLIT BY PVC NAME, NOT NODE SELECTOR: CSI v0.33.0 mountPodPatch
+          # matching is PVC-scoped in practice — nodeSelector/hostname
+          # selectors do NOT filter (known trap: matching patches merge, last
+          # mountOptions list wins, first non-empty image wins; the 1104 ring
+          # retrospective hit the same behavior). The arch-split attempt
+          # produced hybrid mounts: amd64 options on DGX (ring silently lost)
+          # and the arm64 image on capstans (exec format crash).
+          #
+          # Patch 1 — the model cache volume: DGX ring member, gcache image
+          # (multi-arch index digest 6aaf22da, resolves per-node arch
+          # naturally), hostNetwork, passphrase env.
+          - pvcSelector:
+              matchName: model-cache-ephemeral-v2
               matchStorageClassName: juicefs-cache-sc
             ceMountImage: local-registry.registry.svc.cluster.local:5000/homelab/juicefs-gcache-csi:6aaf22da@sha256:ea29e3f7dbae59b46c819b51e5f847c74b3df2d16503a02e0458ea0be61422c1
             hostNetwork: true
@@ -350,12 +352,18 @@ apps:
               - peer-range-read
               - group-heartbeat=5s
               - remote-timeout=60s
-          # Capstan (amd64) nodes: NO ring membership — plain mounts with the
-          # CSI default (amd64-capable) image and local disk cache. Only the
-          # passphrase env is required (same encrypted filesystem).
-          - nodeSelector:
-              kubernetes.io/arch: amd64
-            pvcSelector:
+            env:
+              - name: JFS_RSA_PASSPHRASE
+                valueFrom:
+                  secretKeyRef:
+                    name: juicefs-creds-cache
+                    key: passphrase
+          # Patch 2 — mcp-staging: plain mount, NO custom image (CSI default
+          # is multi-arch upstream), NO ring membership. Only the passphrase
+          # env is required (same encrypted filesystem). Name-scoped so it
+          # can never merge with the ring patch above.
+          - pvcSelector:
+              matchName: mcp-staging
               matchStorageClassName: juicefs-cache-sc
             mountOptions:
               - cache-dir=/mnt/jfs-cache
@@ -365,18 +373,15 @@ apps:
               - buffer-size=1G
               - max-downloads=200
               - cache-eviction=lru
-            # The juicefs client unwraps the volume's RSA-encrypted key from
-            # metadata using JFS_RSA_PASSPHRASE (RISK-0045). The CSI injects
-            # secret keys as env using the KEY NAME ("passphrase"), which the
-            # client ignores — so this patch adds the env it actually wants,
-            # sourced from the kube-system VSO copy of the cache record
-            # (secretKeyRef cannot cross namespaces).
             env:
               - name: JFS_RSA_PASSPHRASE
                 valueFrom:
                   secretKeyRef:
                     name: juicefs-creds-cache
                     key: passphrase
+          # (Rename dance: when model-cache-ephemeral-v2 renames back to
+          # model-cache-ephemeral after old-model-cache teardown, patch 1's
+          # matchName follows.)
   - name: csi-snapshotter
     namespace: kube-system
   - name: juicefs-platform
