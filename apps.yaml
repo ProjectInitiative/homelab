@@ -825,6 +825,9 @@ catalog:
   fission:
     annotations:
       argocd.argoproj.io/sync-wave: "55"
+      # Chronic Degraded (upstream quirk); exclude from parent health so it
+      # cannot block homelab-root sync waves (2026-11-20 root sync hung on it)
+      argocd.argoproj.io/ignore-healthcheck: "true"
     sources:
       - repoURL: https://fission.github.io/fission-charts/
         chart: fission-all
@@ -861,6 +864,8 @@ catalog:
     path: llm-test/miaai-parity
     annotations:
       argocd.argoproj.io/sync-wave: "120"
+      # Perpetually Progressing; excluded from parent health (see fission note)
+      argocd.argoproj.io/ignore-healthcheck: "true"
     syncPolicy:
       automated:
         prune: true
@@ -1245,6 +1250,8 @@ catalog:
     critical: true
     annotations:
       argocd.argoproj.io/sync-wave: "110"
+      # Chronic Degraded; excluded from parent health (see fission note)
+      argocd.argoproj.io/ignore-healthcheck: "true"
     vaultSecrets:
       createAuth: true
       role: openbao-secrets-operator
@@ -1271,6 +1278,8 @@ catalog:
     path: apps/base/forgejo-runner/config
     annotations:
       argocd.argoproj.io/sync-wave: "120"
+      # Chronic Degraded; excluded from parent health (see fission note)
+      argocd.argoproj.io/ignore-healthcheck: "true"
     vaultSecrets:
       createAuth: true
       role: openbao-secrets-operator
@@ -1299,6 +1308,8 @@ catalog:
     path: apps/base/forgejo-runner-arm/config
     annotations:
       argocd.argoproj.io/sync-wave: "120"
+      # Chronic Degraded; excluded from parent health (see fission note)
+      argocd.argoproj.io/ignore-healthcheck: "true"
     vaultSecrets:
       createAuth: true
       role: openbao-secrets-operator
