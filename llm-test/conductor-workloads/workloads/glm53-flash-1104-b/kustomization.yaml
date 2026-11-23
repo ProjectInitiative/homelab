@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - 02-serving.yaml
+  - managed-workload.yaml
+
+configMapGenerator:
+  - name: glm53-flash-1104-b-chat-template
+    files:
+      - chat_template.jinja=glm-5.3-flash-vision.jinja
+    options:
+      disableNameSuffixHash: true
+  - name: glm53-flash-1104-b-rdma-fabric
+    files:
+      - configure-rdma-fabric.sh=configure-rdma-fabric.sh
+    options:
+      disableNameSuffixHash: true

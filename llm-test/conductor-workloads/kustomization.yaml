@@ -11,6 +11,7 @@ kind: Kustomization
 resources:
   - resource-pools.yaml
   - workloads/glm53-flash-1104
+  - workloads/glm53-flash-1104-b
   - workloads/glm53-exlr8-k4
   - workloads/tensorfold-v14
   - workloads/tensorfold-deepseek-v41
