@@ -1,0 +1,28 @@
+# Ingress policy: only the tailscale proxy-group pods (ingress from the
+# tailscale namespace) and in-cluster clients may reach zot's registry API.
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: zot-allow-tailscale-and-incluster
+  namespace: zot
+spec:
+  podSelector:
+    matchLabels:
+      app: zot
+  policyTypes:
+    - Ingress
+  ingress:
+    # Tailnet traffic via the ingress-proxy ProxyGroup pods (tailscale-lb.yaml)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: tailscale
+      ports:
+        - port: 5000
+          protocol: TCP
+    # In-cluster consumers (e.g. future k8s-internal registry pulls, mirroring)
+    - from:
+        - podSelector: {}
+      ports:
+        - port: 5000
+          protocol: TCP
