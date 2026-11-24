@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zot
+  namespace: zot
+  labels:
+    app: zot
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: zot
+  template:
+    metadata:
+      labels:
+        app: zot
+    spec:
+      containers:
+        - name: zot
+          image: ghcr.io/project-zot/zot:v2.1.8
+          ports:
+            - name: http
+              containerPort: 5000
+          envFrom:
+            - secretRef:
+                name: zot-s3-creds
+          volumeMounts:
+            - name: config
+              mountPath: /etc/zot
+              readOnly: true
+            - name: zot-cache
+              mountPath: /var/lib/zot-cache
+            - name: zot-storage
+              mountPath: /var/lib/zot
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          readinessProbe:
+            httpGet:
+              path: /v2/
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /v2/
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      volumes:
+        - name: config
+          configMap:
+            name: zot-config
+        # Per-replica bolt-local cache — must stay local (emptyDir), never
+        # shared. See README HA notes.
+        - name: zot-cache
+          emptyDir: {}
+        # Backing store for storage.rootDirectory. Blob data itself lives in
+        # the shared Garage S3 bucket; this local dir only holds transient
+        # upload spool / local state.
+        - name: zot-storage
+          emptyDir:
+            sizeLimit: 20Gi

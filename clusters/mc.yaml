@@ -521,6 +521,18 @@ apps:
             value: mc-ingress-proxy
         target:
           annotationSelector: tailscale.com/proxy-group=ingress-proxy
+  # Zot OCI registry (staged — see apps/base/zot/config/README.md).
+  # The tailscale-lb Service follows the same proxy-group rewrite pattern
+  # as docker-registry/temp-egress-mc.
+  - name: zot
+    namespace: zot
+    patches:
+      - patch: |-
+          - op: replace
+            path: /metadata/annotations/tailscale.com~1proxy-group
+            value: mc-ingress-proxy
+        target:
+          annotationSelector: tailscale.com/proxy-group=ingress-proxy
   - name: prometheus-operator-crds
     namespace: monitoring
   - name: grafana-alloy

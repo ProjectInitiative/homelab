@@ -1,0 +1,31 @@
+# Tailnet exposure for the zot OCI registry via the Tailscale operator's
+# proxy-group pattern (same pattern as docker-registry's Ingress and
+# apps/base/temp-egress-mc/config/garage-s3-internal.yaml).
+#
+# Hostname `zot-mc` resolves to zot-mc.<tailnet>.ts.net on the mc proxy-group
+# device. Port 80 on the device forwards to zot's registry API on 5000.
+#
+# NOTE: the proxy-group annotation is rewritten from `ingress-proxy` to
+# `mc-ingress-proxy` by a cluster-level patch in clusters/mc.yaml (same as
+# temp-egress-mc / docker-registry) — the base value here matches the other
+# apps/base templates.
+apiVersion: v1
+kind: Service
+metadata:
+  name: zot-tailscale
+  namespace: zot
+  labels:
+    app: zot
+  annotations:
+    tailscale.com/proxy-group: ingress-proxy
+    tailscale.com/hostname: zot-mc
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  selector:
+    app: zot
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 5000

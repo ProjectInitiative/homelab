@@ -1,0 +1,43 @@
+{
+  "spec": {
+    "nodeSelector": { "kubernetes.io/hostname": "chronometer" },
+    "hostAliases": [
+      { "hostnames": ["auth.openai.com"], "ip": "104.18.41.241" },
+      { "hostnames": ["auth.openai.com"], "ip": "172.64.146.15" },
+      { "hostnames": ["chatgpt.com"], "ip": "104.18.32.47" },
+      { "hostnames": ["chatgpt.com"], "ip": "172.64.155.209" },
+      { "hostnames": ["api.openai.com"], "ip": "162.159.140.245" },
+      { "hostnames": ["api.openai.com"], "ip": "172.66.0.243" }
+    ],
+    "tolerations": [
+      { "key": "dgx-spark-dedicated", "operator": "Equal", "value": "true", "effect": "NoSchedule" }
+    ],
+    "containers": [
+      {
+        "name": "chatgpt-login",
+        "image": "local-registry.registry.svc.cluster.local:5000/homelab/litellm:v1-arm64",
+        "imagePullPolicy": "IfNotPresent",
+        "stdin": true,
+        "stdinOnce": true,
+        "tty": true,
+        "command": [
+          "python3",
+          "-c",
+          "from litellm.llms.chatgpt.authenticator import Authenticator; Authenticator().get_access_token()"
+        ],
+        "env": [
+          { "name": "CHATGPT_TOKEN_DIR", "value": "/tokens/chatgpt" }
+        ],
+        "volumeMounts": [
+          { "name": "tokens", "mountPath": "/tokens/chatgpt" }
+        ]
+      }
+    ],
+    "volumes": [
+      {
+        "name": "tokens",
+        "persistentVolumeClaim": { "claimName": "litellm-chatgpt-tokens" }
+      }
+    ]
+  }
+}

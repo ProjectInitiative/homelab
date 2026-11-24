@@ -976,6 +976,29 @@ catalog:
   dnsutils:
     path: apps/base/dnsutils/config
 
+  # Zot OCI registry (staged; intended successor/complement to
+  # docker-registry, backed by the same Garage S3). See
+  # apps/base/zot/config/README.md for schema caveats and pending
+  # verification items.
+  zot:
+    path: apps/base/zot/config
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      namespace: production
+      audiences:
+        - vault
+      secrets:
+        - name: zot-s3-creds
+          mount: k8s
+          path: "docker-registry/s3"
+          destination: "zot-s3-creds"
+          overwrite: true
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
+        - ServerSideApply=true
+
   docker-registry:
     path: apps/base/docker-registry/config
     vaultSecrets:

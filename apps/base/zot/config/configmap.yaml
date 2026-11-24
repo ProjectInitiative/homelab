@@ -1,0 +1,54 @@
+# Zot OCI registry configuration.
+#
+# NOTE: written against the fallback config supplied in the staging task.
+# Schema keys for zot v2.1.x (especially the s3 storage driver list shape,
+# cacheDriver, and gc/retention blocks) have NOT been verified against the
+# upstream docs — see README.md "Schema verification checklist" before
+# relying on this in production.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zot-config
+  namespace: zot
+data:
+  config.json: |
+    {
+      "storage": {
+        "rootDirectory": "/var/lib/zot",
+        "s3": [
+          {
+            "name": "garage",
+            "prefix": "zot/",
+            "endpoint": "http://garage.garage.svc.cluster.local:3900",
+            "region": "us-east-1",
+            "bucket": "docker-dev",
+            "accesskey": "${AWS_ACCESS_KEY_ID}",
+            "secretkey": "${AWS_SECRET_ACCESS_KEY}",
+            "secure": false
+          }
+        ],
+        "cacheDriver": [
+          {
+            "name": "boltlocal",
+            "rootdirectory": "/var/lib/zot-cache"
+          }
+        ]
+      },
+      "log": {
+        "level": "info"
+      },
+      "http": {
+        "address": "0.0.0.0",
+        "port": "5000"
+      },
+      "storage.deleteEnabled": true,
+      "gc": {
+        "enable": true,
+        "delay": "24h"
+      },
+      "extensions": {
+        "search": {
+          "enable": true
+        }
+      }
+    }
