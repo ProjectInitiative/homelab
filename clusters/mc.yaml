@@ -401,19 +401,19 @@ apps:
       env:
         - name: VALUES_FILE
           value: garage-values.yaml
-        - name: HELM_VALUES
-          value: |
-            garage:
-              metadataAutoSnapshotInterval: "2 hours"
-              metadataSnapshotsDir: "/snapshots"
-            persistence:
-              meta:
-                storageClass: "host-local-path-nvme-sticky"
-            extraVolumeMounts:
-              - name: snapshots
-                mountPath: /snapshots
+        # Manual rollout control: the chart does not render updateStrategy,
+        # so the StatefulSet default (RollingUpdate) would auto-roll the pods
+        # when the v2.6.0 pod template lands (new image tag + config
+        # checksum). Pin OnDelete so a sync changes NOTHING on running pods;
+        # the operator restarts them one at a time with kubectl delete pod.
+        # The CMP consumes a single ARGOCD_ENV_KUSTOMIZE_PATCH (last env
+        # entry would win), so this also carries the snapshots VCT patch.
         - name: KUSTOMIZE_PATCH
           value: |
+            - op: add
+              path: /spec/updateStrategy
+              value:
+                type: OnDelete
             - op: add
               path: /spec/volumeClaimTemplates/-
               value:
@@ -431,6 +431,20 @@ apps:
                   resources:
                     requests:
                       storage: "300Gi"
+        - name: HELM_VALUES
+          value: |
+            garage:
+              metadataAutoSnapshotInterval: "2 hours"
+              metadataSnapshotsDir: "/snapshots"
+            persistence:
+              meta:
+                storageClass: "host-local-path-nvme-sticky"
+            extraVolumeMounts:
+              - name: snapshots
+                mountPath: /snapshots
+# 2026-11-12: snapshots VCT patch merged into the KUSTOMIZE_PATCH above
+# (the CMP consumes a single KUSTOMIZE_PATCH env); updateStrategy OnDelete
+# added for the v2.6.0 manual rollout.
 # DISABLED 2026-11-12: compactor image is a PRIVATE ghcr package
 # (anonymous pull = 403 DENIED) — garage-2 cannot pull it on a node without a
 # content cache. Re-enable only after adding an imagePullSecret (read:packages

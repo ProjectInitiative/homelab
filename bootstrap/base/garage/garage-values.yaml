@@ -84,6 +84,16 @@ deployment:
   podManagementPolicy: Parallel
   replicaCount: 3
 
+# Admin API as a ClusterIP Service (garage-admin, port 3903). Garage v2.6
+# embeds a web admin UI at /ui/ on the admin port; the tailnet HTTPS endpoint
+# (garage-web Ingress via mc-ingress-proxy) targets this Service. The chart
+# deliberately does NOT put the admin port on the main `garage` Service.
+# NOTE: static UI assets are served without a token; the UI prompts for the
+# admin token (garage-admin-token Secret) on every API call.
+service:
+  admin:
+    enabled: true
+
 # Remove a pod from the Service EndpointSlices when its local admin API is not ready.
 # This is intentionally a readiness check, not a liveness check: transient Garage
 # failures should drain the pod from HAProxy without forcing a restart.

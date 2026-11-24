@@ -1,0 +1,60 @@
+# Tailnet HTTPS entry for the Garage web admin UI, mirroring the LiteLLM
+# `ai` endpoint (llm-test/miaai-parity/services.yaml): an Ingress through
+# the mc-ingress-proxy ProxyGroup where the Tailscale operator terminates
+# TLS with an auto-provisioned Let's Encrypt cert for the MagicDNS name.
+#
+# Backend is the chart's garage-admin ClusterIP Service (garage-values.yaml
+# service.admin.enabled) because the operator rejects Ingress backends that
+# are themselves Tailscale LB Services (InvalidIngressBackend). The web UI
+# is served by the garage binary itself at /ui/ on the admin port (3903);
+# static assets load unauthenticated, API calls need the admin token
+# (garage-admin-token Secret, synced from OpenBao k8s/garage/admin-token).
+#
+# URL: https://garage-web.taildeab2.ts.net/ui/
+# Rule host must be the full MagicDNS FQDN: the PG reconciler passes the
+# resolved dnsName as tlsHost and silently drops rules whose host doesn't
+# match it (InvalidIngressBackend 'rule ... ignored, unsupported').
+apiVersion: v1
+kind: Service
+metadata:
+  name: garage-web-backend
+  namespace: garage
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: garage
+  ports:
+    - name: admin
+      protocol: TCP
+      port: 80
+      targetPort: 3903
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: garage-web
+  namespace: garage
+  annotations:
+    # primary tailnet HTTPS entry via the mc-ingress-proxy ProxyGroup
+    # (cluster-specific: garage is deployed to mc only, so the annotation
+    # is set directly instead of the placeholder+patch pattern)
+    tailscale.com/proxy-group: mc-ingress-proxy
+    # keep plain HTTP on port 80 alive alongside 443 (no auto-redirect),
+    # same as the LiteLLM `ai` endpoint
+    tailscale.com/http-endpoint: "enabled"
+spec:
+  ingressClassName: tailscale
+  tls:
+    - hosts:
+        - garage-web
+  rules:
+    - host: garage-web.taildeab2.ts.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: garage-web-backend
+                port:
+                  name: admin
