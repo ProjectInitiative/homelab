@@ -991,7 +991,7 @@ catalog:
       secrets:
         - name: zot-s3-creds
           mount: k8s
-          path: "zot/s3"
+          path: "docker-registry/s3"
           destination: "zot-s3-creds"
           overwrite: true
     syncPolicy:

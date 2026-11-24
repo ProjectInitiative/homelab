@@ -33,12 +33,12 @@ Wired in `apps.yaml` under the `zot` catalog entry (follows the
 - cdk8s generates the dedicated VaultAuth + `operator-auth-sa`
   ServiceAccount and labels the `zot` namespace `vault-auth: enabled`.
 - The pod consumes it via `envFrom: secretRef: zot-s3-creds`, expecting keys
-  `ZOT_S3_ACCESS_KEY` and `ZOT_S3_SECRET_KEY` (exactly as interpolated by the
-  `${ZOT_S3_ACCESS_KEY}` / `${ZOT_S3_SECRET_KEY}` placeholders in
+  `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` (exactly as interpolated by the
+  `${AWS_ACCESS_KEY_ID}` / `${AWS_SECRET_ACCESS_KEY}` placeholders in
   `config.json`).
 
 **User action required:** seed OpenBao at `k8s/zot/s3` with the Garage
-S3 credentials (keys `ZOT_S3_ACCESS_KEY`, `ZOT_S3_SECRET_KEY`), and create
+S3 credentials (keys `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`), and create
 the Vault role binding for `operator-auth-sa` in the `zot` namespace
 (`kubernetes_cluster_mc` mount).
 

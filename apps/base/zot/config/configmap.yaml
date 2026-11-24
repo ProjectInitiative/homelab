@@ -22,8 +22,8 @@ data:
             "endpoint": "http://garage.garage.svc.cluster.local:3900",
             "region": "us-east-1",
             "bucket": "docker-dev",
-            "accesskey": "${ZOT_S3_ACCESS_KEY}",
-            "secretkey": "${ZOT_S3_SECRET_KEY}",
+            "accesskey": "${AWS_ACCESS_KEY_ID}",
+            "secretkey": "${AWS_SECRET_ACCESS_KEY}",
             "secure": false
           }
         ],
