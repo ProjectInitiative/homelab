@@ -914,11 +914,12 @@ catalog:
   # Pools/workload intent now live ONLY in llm-test/conductor-workloads.
   conductor:
     repoURL: https://github.com/ProjectInitiative/conductor.git
-    # 9973764: occupancy-aware adjacent placement — chooseAdjacentPair skips
-    # nodes hosting foreign GPU pods, so two resident lanes coexist on the
-    # 4-node fabric; recovery re-enters Placing and re-chooses automatically.
-    # Controller image sha256:e0078647e91b8faf857c97a80e21b0a398eb6ca0a9f96d1efa2feac93be1c716.
-    targetRevision: 99737640d3b90b44bf912b6846e73fdc8bf0bee6
+    # 7b2c32e: capacity-aware multi-resident arbitration (DEC-0063) — slots
+    # are spark units; residents admitted in priority order while demand
+    # fits. Occupancy-aware adjacent placement (9973764) retained.
+    # Controller image sha-7b2c32e index sha256:b2cd54c5811c5072d7554f3e395a6ed45cdce5279a5da8236447eaf842152635
+    # (digest independently HEAD-verified against ghcr.io).
+    targetRevision: 7b2c32ebc9b7ba10e79622914f8a195fa7692558
     path: generator
     plugin:
       name: cdk8s-v1.0
