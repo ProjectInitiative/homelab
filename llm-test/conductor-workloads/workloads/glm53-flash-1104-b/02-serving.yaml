@@ -55,6 +55,13 @@ data:
     esac
     export HOME=/state/home
     mkdir -p "$HOME" /state/logs
+    # LEARN store (patch 0113): on-disk conversation persistence. CACHE_DIR
+    # defaults under HOME; we root it explicitly on the emptyDir learn volume
+    # so k8s manages its lifecycle (cleaned on pod removal, node-local NVMe).
+    # Rank 0's cache/learn holds every rank's part; LEARN_MIN_FREE_GIB makes
+    # the engine stop writing below 15 GiB free (rolling limit).
+    export CACHE_DIR=/learn
+    mkdir -p /learn
     log=/state/logs/rank$rank.log
     if [ -f "$log" ] && [ "$(stat -c%s "$log" 2>/dev/null || echo 0)" -gt 10485760 ]; then : > "$log"; fi
 
@@ -236,6 +243,15 @@ spec:
             - {name: PEER_SERVICE, value: glm53-flash-1104-b-head-rendezvous.llm-test.svc.cluster.local}
             - {name: NODE_NAME, valueFrom: {fieldRef: {fieldPath: spec.nodeName}}}
             - {name: HOST_IP, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
+            # Conversation persistence (recipe patch 0113): prompt states on
+            # disk so conversations resume after eviction/restart. Only rank
+            # 0 writes them (its cache/learn holds every rank's part), but the
+            # env is harmless on both; LEARN_MIN_FREE_GIB is the rolling limit.
+            - {name: LEARN_GIB, value: "30"}
+            - {name: LEARN_MIN_FREE_GIB, value: "15"}
+            # KV sharding (recipe patch 0114): each stream's latent rows stay
+            # on one Spark — ~2x token capacity at 1-4% decode cost.
+            - {name: KV_SHARD, value: "1"}
           resources:
             requests: {cpu: "16", memory: 96Gi, nvidia.com/gpu: "1", rdma/hca_shared_devices: "1"}
             limits: {cpu: "32", memory: 128Gi, nvidia.com/gpu: "1", rdma/hca_shared_devices: "1"}
@@ -249,6 +265,7 @@ spec:
             - {name: fabric-config, mountPath: /opt/rdma/configure-rdma-fabric.sh, subPath: configure-rdma-fabric.sh, readOnly: true}
             - {name: fabric-inventory, mountPath: /etc/dgx-spark/rdma-fabric.json, readOnly: true}
             - {name: rank-state, mountPath: /state}
+            - {name: learn, mountPath: /learn}
             - {name: lane-state, mountPath: /lane-state}
       volumes:
         - name: models
@@ -263,6 +280,13 @@ spec:
           hostPath: {path: /var/lib/dgx-spark/rdma-fabric.json, type: File}
         - name: rank-state
           hostPath: {path: /var/lib/llm-test/glm53-flash-1104-b-state, type: DirectoryOrCreate}
+        # LEARN store: emptyDir = node-local NVMe, k8s-managed cleanup (wiped
+        # with the pod). Conversation persistence survives engine restarts
+        # within a pod; node loss loses it (fine for a validation lane; move
+        # to the cache ring if cross-node persistence is wanted later).
+        - name: learn
+          emptyDir:
+            sizeLimit: 40Gi
         - name: lane-state
           persistentVolumeClaim: {claimName: model-cache-ephemeral-v2}
 ---
@@ -337,6 +361,15 @@ spec:
             - {name: PEER_SERVICE, value: glm53-flash-1104-b-worker-rendezvous.llm-test.svc.cluster.local}
             - {name: NODE_NAME, valueFrom: {fieldRef: {fieldPath: spec.nodeName}}}
             - {name: HOST_IP, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
+            # Conversation persistence (recipe patch 0113): prompt states on
+            # disk so conversations resume after eviction/restart. Only rank
+            # 0 writes them (its cache/learn holds every rank's part), but the
+            # env is harmless on both; LEARN_MIN_FREE_GIB is the rolling limit.
+            - {name: LEARN_GIB, value: "30"}
+            - {name: LEARN_MIN_FREE_GIB, value: "15"}
+            # KV sharding (recipe patch 0114): each stream's latent rows stay
+            # on one Spark — ~2x token capacity at 1-4% decode cost.
+            - {name: KV_SHARD, value: "1"}
           resources:
             requests: {cpu: "16", memory: 96Gi, nvidia.com/gpu: "1", rdma/hca_shared_devices: "1"}
             limits: {cpu: "32", memory: 128Gi, nvidia.com/gpu: "1", rdma/hca_shared_devices: "1"}
@@ -361,6 +394,7 @@ spec:
             - {name: fabric-config, mountPath: /opt/rdma/configure-rdma-fabric.sh, subPath: configure-rdma-fabric.sh, readOnly: true}
             - {name: fabric-inventory, mountPath: /etc/dgx-spark/rdma-fabric.json, readOnly: true}
             - {name: rank-state, mountPath: /state}
+            - {name: learn, mountPath: /learn}
             - {name: lane-state, mountPath: /lane-state}
       volumes:
         - name: models
@@ -375,5 +409,12 @@ spec:
           hostPath: {path: /var/lib/dgx-spark/rdma-fabric.json, type: File}
         - name: rank-state
           hostPath: {path: /var/lib/llm-test/glm53-flash-1104-b-state, type: DirectoryOrCreate}
+        # LEARN store: emptyDir = node-local NVMe, k8s-managed cleanup (wiped
+        # with the pod). Conversation persistence survives engine restarts
+        # within a pod; node loss loses it (fine for a validation lane; move
+        # to the cache ring if cross-node persistence is wanted later).
+        - name: learn
+          emptyDir:
+            sizeLimit: 40Gi
         - name: lane-state
           persistentVolumeClaim: {claimName: model-cache-ephemeral-v2}

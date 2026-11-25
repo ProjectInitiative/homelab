@@ -41,3 +41,24 @@ Image is identical (pinned): `tensorfold-glm53-flash-1104:ef2e6847aa4a-py3-v1@sh
    `model-cache-ephemeral-v2` — check juicefs mount pods per node:
    `kubectl get pods -A -o wide | grep juicefs` and confirm one mount pod per
    node holding the ring PVC.
+
+## Conversation persistence + KV sharding (validation features)
+
+The B-pair also validates two recipe features the A-pair doesn't run:
+
+- **`LEARN_GIB=30` / `LEARN_MIN_FREE_GIB=15`** (recipe patch 0113): prompt
+  states written to disk (`CACHE_DIR/learn`) so conversations resume after
+  eviction or restart — measured upstream at 102.5k tokens in 1.8 s vs 58.4 s
+  cold. Store is a **40 GiB emptyDir** on the pod (node-local NVMe, k8s-managed
+  cleanup on pod removal). The engine's own `LEARN_MIN_FREE_GIB=15` is the
+  rolling limit — nothing is written below 15 GiB free. Restart-of-pod loses
+  the store (emptyDir); move to the cache ring via subPath if cross-restart
+  persistence is wanted after validation.
+- **`KV_SHARD=1`** (recipe patch 0114): each stream's latent rows stay on one
+  Spark — roughly 2x token capacity at a 1-4% decode cost. Requires KV=fp8 +
+  KV_PAGES=on + DFlash2 (defaults already set). TP=2 only, so `start-tp4.sh`
+  semantics don't apply here.
+
+If either misbehaves during validation, revert by setting the env to the
+A-pair defaults (`LEARN_GIB=0`, `KV_SHARD=0`) in one reviewed commit — no
+volume changes needed.

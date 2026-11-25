@@ -1,3 +1,9 @@
+# Pinned chart source: Garage v2.6.0 (chart 0.10.7).
+# Previous pin: 12367d30 (chart 0.9.1 / Garage v2.1.0).
+# Rollout is manual: the cluster KUSTOMIZE_PATCH pins updateStrategy:
+# OnDelete, so an Argo sync applies the new pod template (image tag +
+# config checksum) without rolling the StatefulSet — pods only restart
+# when deleted one at a time.
 repo: https://git.deuxfleurs.fr/Deuxfleurs/garage
-ref: 12367d307b365f947936cf18b90b0f5b7607da5d
+ref: 9a4a1a2bdb0641f859f4458ff1e19f00a378e25c
 path: script/helm/garage
