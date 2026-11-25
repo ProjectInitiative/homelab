@@ -401,19 +401,19 @@ apps:
       env:
         - name: VALUES_FILE
           value: garage-values.yaml
-        # Manual rollout control: the chart does not render updateStrategy,
-        # so the StatefulSet default (RollingUpdate) would auto-roll the pods
-        # when the v2.6.0 pod template lands (new image tag + config
-        # checksum). Pin OnDelete so a sync changes NOTHING on running pods;
-        # the operator restarts them one at a time with kubectl delete pod.
-        # The CMP consumes a single ARGOCD_ENV_KUSTOMIZE_PATCH (last env
-        # entry would win), so this also carries the snapshots VCT patch.
+        # NOTE on rollout behavior: updateStrategy stays the chart default
+        # (RollingUpdate). A previous attempt pinned OnDelete via this patch,
+        # but the live STS carries a rollingUpdate:{partition:0} block from
+        # its creation — adding /spec/updateStrategy type:OnDelete left that
+        # block in place and the API rejected the apply (rollingUpdate only
+        # allowed with RollingUpdate). RollingUpdate is fine here anyway:
+        # StatefulSet rolls pods one at a time (highest ordinal first) with a
+        # readiness gate between, so a chart bump + sync upgrades garage
+        # pod-by-pod automatically and safely.
+        # The CMP consumes a single ARGOCD_ENV_KUSTOMIZE_PATCH, so this also
+        # carries the snapshots VCT patch.
         - name: KUSTOMIZE_PATCH
           value: |
-            - op: add
-              path: /spec/updateStrategy
-              value:
-                type: OnDelete
             - op: add
               path: /spec/volumeClaimTemplates/-
               value:
