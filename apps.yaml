@@ -919,7 +919,7 @@ catalog:
     # fits. Occupancy-aware adjacent placement (9973764) retained.
     # Controller image sha-7b2c32e index sha256:b2cd54c5811c5072d7554f3e395a6ed45cdce5279a5da8236447eaf842152635
     # (digest independently HEAD-verified against ghcr.io).
-    targetRevision: 7b2c32ebc9b7ba10e79622914f8a195fa7692558
+    targetRevision: f474c97f6932e820bb9d6cf7583b4f8e9b0d7d74
     path: generator
     plugin:
       name: cdk8s-v1.0
