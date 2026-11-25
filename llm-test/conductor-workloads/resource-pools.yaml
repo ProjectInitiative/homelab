@@ -5,11 +5,13 @@ metadata:
   namespace: llm-test
 spec:
   # GLM 1104 cutover smoke passed 2026-11-09; Conductor resumes ownership of
-  # residency and RecreateTogether recovery on this pool. 1104 is Resident
-  # (priority 90); v14 is Standby pending the rollback-lane context fit fix.
+  # residency and RecreateTogether recovery on this pool. Capacity is spark
+  # units (one spark = one DGX node): residents admitted in priority order
+  # while demand fits (DEC-0063). A (1104, prio 90) + B (1104-b, prio 80)
+  # each demand 2 -> both co-resident on the 4-node ring.
   managementMode: Manage
   capacity:
-    slots: 1
+    slots: 4
   nodeSelector:
     gpu: dgx-spark
     gpu-vendor: nvidia
