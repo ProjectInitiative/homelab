@@ -191,9 +191,7 @@ spec:
       hostNetwork: true
       hostIPC: true
       dnsPolicy: ClusterFirstWithHostNet
-      # TEMP-PIN: sextant for the B-pair validation window (A-pair owns the other nodes).
-      # Remove this pin (and chronometer's) in the same reviewed commit as the A-pair teardown.
-      nodeSelector: {gpu: dgx-spark, gpu-vendor: nvidia, kubernetes.io/hostname: sextant}
+      nodeSelector: {gpu: dgx-spark, gpu-vendor: nvidia}
       tolerations:
         - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       affinity:
@@ -311,9 +309,7 @@ spec:
       hostNetwork: true
       hostIPC: true
       dnsPolicy: ClusterFirstWithHostNet
-      # TEMP-PIN: chronometer for the B-pair validation window (A-pair owns the other nodes).
-      # Remove this pin (and sextant's) in the same reviewed commit as the A-pair teardown.
-      nodeSelector: {gpu: dgx-spark, gpu-vendor: nvidia, kubernetes.io/hostname: chronometer}
+      nodeSelector: {gpu: dgx-spark, gpu-vendor: nvidia}
       tolerations:
         - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       affinity:

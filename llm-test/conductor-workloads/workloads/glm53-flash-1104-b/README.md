@@ -21,28 +21,16 @@ the new volume under real serving load without touching live traffic.
 
 Image is identical (pinned): `tensorfold-glm53-flash-1104:ef2e6847aa4a-py3-v1@sha256:cc2af44e04d6a2c73a710f14df9ed58a15a4fe7d67ecbdd575f1018e98ddd04e`.
 
-## TEMP-PIN placement (validation window)
+## Placement (post DEC-0063 multi-slot capacity)
 
-- head pinned to node `chronometer`, worker pinned to `sextant`
-  (`kubernetes.io/hostname` nodeSelectors, marked `TEMP-PIN` in
-  `02-serving.yaml`). Guarantees disjoint nodes from the A-pair during
-  validation and exercises the 4-node cache ring.
+Pool `dgx-spark` capacity is 4 spark units; A and B each demand 2 (default:
+member replica count), so both are admitted and co-resident. Placement is
+Conductor-owned (`bestRoute`): occupancy-aware adjacent pairing gives each
+lane a disjoint ring-adjacent pair (A on its current nodes, B on the free
+pair) without any manifest pins. Earlier TEMP-PINs were removed — they were
+overwritten by Conductor placement at runtime anyway.
 
-## Cutover plan (after A-pair teardown)
-
-1. A-pair stands down (user-authorized; cutover.sh/revert.sh in the A lane).
-2. Volume rename dance: `model-cache-ephemeral-v2` → `model-cache-ephemeral`;
-   update per-PVC `matchName` mountPodPatch selectors in `clusters/mc.yaml`.
-3. **In one reviewed commit**: remove both `TEMP-PIN` nodeSelectors from
-   `02-serving.yaml` (fall back to the CR's `bestRoute` placement) and, if
-   desired, move serve port 8100 → 8000 back to the canonical shape.
-4. After B reaches steady state on `bestRoute`, verify ring spread: all 4 DGX
-   nodes (chronometer, sextant, octant, astrolabe) mount
-   `model-cache-ephemeral-v2` — check juicefs mount pods per node:
-   `kubectl get pods -A -o wide | grep juicefs` and confirm one mount pod per
-   node holding the ring PVC.
-
-## Conversation persistence + KV sharding (validation features)
+## Conversation persistence## Conversation persistence + KV sharding (validation features)
 
 The B-pair also validates two recipe features the A-pair doesn't run:
 
