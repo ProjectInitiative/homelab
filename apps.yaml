@@ -521,11 +521,19 @@ catalog:
 
   tailscale-operator:
     sources:
-      # Temporary pin to Tailscale main while the ProxyGroup config-refresh fix
-      # lands in a release. Main commit: d064d751fb91fa4ffe39dad42c92862320985a0f.
+      # Pinned to tag v1.106.1 (ca97d565, 2026-11-24): first release lineage
+      # containing the ProxyGroup config-refresh fix that forced the previous
+      # temporary main pin (d064d751, ancestor of v1.106.1). Also brings:
+      # ProxyGroup Pods start in Parallel (no more one-unready-pod-gate),
+      # liveness/readiness probes on ProxyGroup pods, ProxyGroup state Secrets
+      # kept until cleanup finishes, egress port limit 20000.
+      # NOTE on rollout: the Parallel pod-management policy change cannot be
+      # applied in place — the operator deletes the mc-ingress-proxy
+      # StatefulSet with pods orphaned and recreates/adopts them, so expect
+      # brief tailnet HTTPS endpoint flapping during the first sync.
       - repoURL: https://github.com/tailscale/tailscale.git
         path: cmd/k8s-operator/deploy/chart
-        targetRevision: d064d751fb91fa4ffe39dad42c92862320985a0f
+        targetRevision: ca97d565daae99bf53b1f45f28c36ee081a14f04 # v1.106.1
         helm:
           values: |
             apiServerProxyConfig:
@@ -535,11 +543,16 @@ catalog:
               hostname: mc-tailscale-operator
               image:
                 repository: tailscale/k8s-operator
-                digest: sha256:5c1043baaba7228edb6c69ee9f9c70b3e1b27e511527364534cf3244cca71d1e
+                # No versioned k8s-operator image >= v1.106.1 is published yet
+                # (versioned tags stop at v1.104.7, which lacks the ProxyGroup
+                # fixes). Digest = unstable-v1.105.368, the newest main build
+                # (contains all ProxyGroup fixes incl. Parallel pod start).
+                digest: sha256:3fdbe6e08768ed629b45511dd2c103140137994cc631b17daa101feb3370d337
             proxyConfig:
               image:
                 repository: tailscale/tailscale
-                digest: sha256:08a3e029dc36c797633092deaa5e243ae4687980adfa2299c53c49a7252a4914
+                # Matching unstable-v1.105.368 proxy build.
+                digest: sha256:bf0f9f4878dc672d684fc917629a3e6b8d061c15cf3ce2e364f99a7bd5399518
     vaultSecrets:
       createAuth: true
       role: openbao-secrets-operator
