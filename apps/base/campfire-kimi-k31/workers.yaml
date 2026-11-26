@@ -1,0 +1,177 @@
+# Staged worker Jobs. Both are suspended, so Kubernetes will create no Pods,
+# reserve no GPU/memory, pull no images, and claim no Campfire work.
+# Replace :latest with a tested linux/arm64 image digest before unsuspending.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: campfire-kimi-k31-worker-a
+  namespace: campfire-kimi-k31
+  labels:
+    app.kubernetes.io/name: campfire-kimi-k31-worker
+    campfire.kindlingai.dev/worker: a
+spec:
+  suspend: true
+  completions: 1
+  parallelism: 1
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: campfire-kimi-k31-worker
+        campfire.kindlingai.dev/worker: a
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      priorityClassName: campfire-volunteer
+      runtimeClassName: nvidia
+      terminationGracePeriodSeconds: 120
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+        kubernetes.io/arch: arm64
+        gpu: dgx-spark
+        gpu-vendor: nvidia
+      tolerations:
+        - key: dgx-spark-dedicated
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      containers:
+        - name: encoder
+          image: ghcr.io/kindlingai/exlr8enc:latest
+          imagePullPolicy: Always
+          args:
+            - site
+            - --watch
+            - --job
+            - kimi-k31-pmul1x-f16
+            - --key-file
+            - /run/campfire/api-key
+            - --bf16
+            - /models/kimi-k31
+          resources:
+            requests:
+              cpu: "4"
+              memory: 16Gi
+              ephemeral-storage: 20Gi
+              nvidia.com/gpu: "1"
+            limits:
+              nvidia.com/gpu: "1"
+              ephemeral-storage: 200Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: model
+              mountPath: /models
+              readOnly: true
+            - name: campfire-key
+              mountPath: /run/campfire
+              readOnly: true
+            - name: scratch
+              mountPath: /tmp
+      volumes:
+        - name: model
+          persistentVolumeClaim:
+            claimName: campfire-kimi-k31-models
+            readOnly: true
+        - name: campfire-key
+          secret:
+            secretName: campfire-api
+            defaultMode: 0440
+            items:
+              - key: api-key
+                path: api-key
+        - name: scratch
+          emptyDir:
+            sizeLimit: 100Gi
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: campfire-kimi-k31-worker-b
+  namespace: campfire-kimi-k31
+  labels:
+    app.kubernetes.io/name: campfire-kimi-k31-worker
+    campfire.kindlingai.dev/worker: b
+spec:
+  suspend: true
+  completions: 1
+  parallelism: 1
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: campfire-kimi-k31-worker
+        campfire.kindlingai.dev/worker: b
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      priorityClassName: campfire-volunteer
+      runtimeClassName: nvidia
+      terminationGracePeriodSeconds: 120
+      nodeSelector:
+        kubernetes.io/hostname: sextant
+        kubernetes.io/arch: arm64
+        gpu: dgx-spark
+        gpu-vendor: nvidia
+      tolerations:
+        - key: dgx-spark-dedicated
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      containers:
+        - name: encoder
+          image: ghcr.io/kindlingai/exlr8enc:latest
+          imagePullPolicy: Always
+          args:
+            - site
+            - --watch
+            - --job
+            - kimi-k31-pmul1x-f16
+            - --key-file
+            - /run/campfire/api-key
+            - --bf16
+            - /models/kimi-k31
+          resources:
+            requests:
+              cpu: "4"
+              memory: 16Gi
+              ephemeral-storage: 20Gi
+              nvidia.com/gpu: "1"
+            limits:
+              nvidia.com/gpu: "1"
+              ephemeral-storage: 200Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: model
+              mountPath: /models
+              readOnly: true
+            - name: campfire-key
+              mountPath: /run/campfire
+              readOnly: true
+            - name: scratch
+              mountPath: /tmp
+      volumes:
+        - name: model
+          persistentVolumeClaim:
+            claimName: campfire-kimi-k31-models
+            readOnly: true
+        - name: campfire-key
+          secret:
+            secretName: campfire-api
+            defaultMode: 0440
+            items:
+              - key: api-key
+                path: api-key
+        - name: scratch
+          emptyDir:
+            sizeLimit: 100Gi
