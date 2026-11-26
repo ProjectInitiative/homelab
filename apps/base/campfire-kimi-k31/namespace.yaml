@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: campfire-kimi-k31
+  labels:
+    app.kubernetes.io/part-of: campfire-kimi-k31
+    app.kubernetes.io/managed-by: gitops

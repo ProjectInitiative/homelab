@@ -707,6 +707,8 @@ apps:
                     values: [capstan1, capstan2, capstan3]
   - name: fission
     namespace: fission
+  - name: campfire-kimi-k31
+    namespace: campfire-kimi-k31
 
   # Hermes is intentionally disabled until its PostgreSQL/JuiceFS storage
   # design is finalized. Catalog/manifests remain available for later.
