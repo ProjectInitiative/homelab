@@ -19,7 +19,7 @@ data:
     set -euo pipefail
     model=/models/.cache/huggingface/hub/models--Mia-AiLab--GLM-5.3-Flash-EXL3-4bpw-TensorFold/snapshots/76c0b5173166d2795dd48860f45d8224817f894c
     draft=/models/.cache/huggingface/hub/models--incoai--GLM-5.3-Flash-DFlash2/snapshots/bf582e4eacc1810f76656d1811693ff6c6737d2a
-    receipt=/models/.glm53-flash-1104-b-download-complete.json
+    receipt=/models/.glm53-flash-1104-download-complete.json
     test -s "$receipt"
     grep -Fq '"model_revision": "76c0b5173166d2795dd48860f45d8224817f894c"' "$receipt"
     grep -Fq '"drafter_revision": "bf582e4eacc1810f76656d1811693ff6c6737d2a"' "$receipt"
