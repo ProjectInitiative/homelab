@@ -382,6 +382,28 @@ apps:
           # (Rename dance: when model-cache-ephemeral-v2 renames back to
           # model-cache-ephemeral after old-model-cache teardown, patch 1's
           # matchName follows.)
+          # Temporary plain mount for Campfire's separately allocated model PVC.
+          # The downloader is pinned to capstan1 while Spark GPUs are busy; no
+          # peer-cache ring is used during the multi-TB ingest. After download
+          # completes and its pod is gone, replace this PVC-scoped patch with
+          # the DGX cache-ring options before allowing worker Jobs to mount it.
+          - pvcSelector:
+              matchName: campfire-kimi-k31-models
+              matchStorageClassName: juicefs-cache-sc
+            mountOptions:
+              - cache-dir=/mnt/jfs-cache
+              - cache-size=102400
+              - prefetch=8
+              - max-readahead=256M
+              - buffer-size=1G
+              - max-downloads=200
+              - cache-eviction=lru
+            env:
+              - name: JFS_RSA_PASSPHRASE
+                valueFrom:
+                  secretKeyRef:
+                    name: juicefs-creds-cache
+                    key: passphrase
   - name: csi-snapshotter
     namespace: kube-system
   - name: juicefs-platform

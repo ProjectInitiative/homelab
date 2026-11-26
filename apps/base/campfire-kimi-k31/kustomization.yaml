@@ -1,8 +1,11 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-# Deliberately staged only. This directory is not referenced by apps.yaml or
-# clusters/mc.yaml; do not apply until the bring-up gates in README.md clear.
+# GitOps-managed project resources. Worker Jobs remain suspended until
+# credentials, image digest, and checkpoint receipt are ready.
 resources:
   - namespace.yaml
   - priorityclass.yaml
+  - pvc.yaml
+  - build-puller-amd64.yaml
+  - download-job.yaml
   - workers.yaml
