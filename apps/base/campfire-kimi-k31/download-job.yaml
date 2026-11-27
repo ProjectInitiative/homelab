@@ -3,8 +3,9 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: campfire-kimi-k31-download
-  namespace: campfire-kimi-k31
+  # Distinct from the active out-of-band downloader in llm-test.
+  name: campfire-kimi-k31-download-staged
+  namespace: llm-test
   labels:
     app.kubernetes.io/part-of: campfire-kimi-k31
     app.kubernetes.io/component: model-download

@@ -1395,6 +1395,19 @@ catalog:
     path: apps/base/campfire-kimi-k31
     annotations:
       argocd.argoproj.io/sync-wave: "40"
+    vaultSecrets:
+      createAuth: true
+      role: openbao-secrets-operator
+      namespace: production
+      audiences:
+        - vault
+      secrets:
+        - name: campfire-api-key
+          mount: k8
+          path: campfire/kimi-k31/workers
+          destination: campfire-api
+          destinationIncludes:
+            - api-key
     syncPolicy:
       syncOptions:
         - CreateNamespace=true

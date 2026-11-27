@@ -6,6 +6,7 @@ resources:
   - namespace.yaml
   - priorityclass.yaml
   - pvc.yaml
+  - legacy-pvc.yaml
   - build-puller-amd64.yaml
   - download-job.yaml
   - workers.yaml

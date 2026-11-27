@@ -2,7 +2,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: campfire-kimi-k31-models
-  namespace: campfire-kimi-k31
+  namespace: llm-test
   labels:
     app.kubernetes.io/part-of: campfire-kimi-k31
     app.kubernetes.io/component: model-checkpoint

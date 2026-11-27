@@ -15,9 +15,9 @@
 
 1. Sign in at <https://campfire.kindlingai.dev> with GitHub and request/await account approval.
 2. On the project page, create an API key. Upstream says the key is sent only to Campfire as `Authorization: Bearer KEY`; never put it in Git, a command argument, logs, or chat.
-3. Once approved, we will place it in OpenBao KV v2 at mount `k8s`, path `campfire/kimi-k31/worker-a`, field `api-key` (and optionally a separate `worker-b` path/key if the site confirms multiple keys per account are supported). The active manifest should use VSO to project only that field into a read-only Secret file. No key has been supplied or requested in chat.
+3. Once approved, place the shared key in OpenBao KV v2 at mount `k8`, path `campfire/kimi-k31/workers`, field `api-key`. The Campfire catalog config generates a VaultAuth and VaultStaticSecret that projects only `api-key` into the read-only Kubernetes Secret `campfire-api` in namespace `llm-test`; both workers mount it at `/run/campfire/api-key`. Do not send the key in chat.
 
-You can set up the account now; no cluster changes, downloads, PVC allocation, or workers have been performed. Tell me when approval and key creation are complete, but do not send the key here.
+Account approval and key creation can proceed now. The checkpoint download is running on the llm-test PVC; no Campfire worker has been activated. Do not send the key here.
 
 ## Storage design
 
@@ -31,15 +31,15 @@ The JuiceFS CSI mount cache is not a quota for model storage. Campfire uses a pl
 
 ## Current staged resources
 
-- GitOps base includes namespace `campfire-kimi-k31`, PriorityClass `campfire-volunteer` (`value: -10`, `preemptionPolicy: Never`), an approved 2 TiB RWX PVC on `juicefs-cache-sc`, an amd64 puller-image build Job on capstan1, a **suspended** download Job, and two independent, **suspended** finite worker Jobs pinned to chronometer and sextant.
-- Each Job requests one `nvidia.com/gpu`, mounts the eventual shared model PVC read-only, consumes `/run/campfire/api-key` from Secret `campfire-api` read-only, uses local scratch, disables service-account token automount, and uses the upstream `site --watch --job kimi-k31-pmul1x-f16 --key-file ... --bf16 ...` command.
+- The Argo app now targets `llm-test`, where the active direct downloader's 2 TiB RWX PVC already lives. `pvc.yaml` declares that exact claim for Argo adoption (same name, namespace, StorageClass, access mode, and size); the legacy `campfire-kimi-k31` namespace/PVC remain explicitly retained and are not used by these workers. The base also includes PriorityClass `campfire-volunteer` (`value: -10`, `preemptionPolicy: Never`), a puller-image build Job, a separately named **suspended** staged downloader, and two independent, **suspended** finite worker Jobs pinned to chronometer and sextant.
+- Each worker requests one `nvidia.com/gpu`, mounts the adopted `llm-test/campfire-kimi-k31-models` PVC read-only, consumes `/run/campfire/api-key` from Secret `campfire-api` read-only, uses local scratch, disables service-account token automount, and uses the upstream `site --watch --job kimi-k31-pmul1x-f16 --key-file ... --bf16 ...` command.
 - Worker image is temporarily the upstream `:latest` tag because anonymous GHCR manifest resolution returned HTTP 401. The Jobs MUST remain suspended until the user provides GHCR `read:packages` access, the ARM64 digest is verified, and the image can be pulled. Add an imagePullSecret only through OpenBao/VSO or another approved secret flow.
 - Downloader image is built natively for capstan1/amd64 from the pinned homelab source commit and pushed to the internal registry. Its output digest must be verified and set in `download-job.yaml` before that Job is unsuspended. This extra build is necessary because the current model-cache-puller:v7 digest is arm64-only while capstan1 is amd64.
 - The downloader is separate because upstream expects weights already on disk (`hf download ... --revision ... --local-dir ...`); the encoder does not fetch this checkpoint itself. HF auth is not configured because the model repo is public; re-evaluate only if download returns an actual access denial.
-- The Campfire API key VSO projection is still pending account approval/key setup. Encoder Jobs remain suspended; GHCR pull access and a digest-pinned tested image are also required before worker activation.
+- The Campfire VSO projection is now configured in `apps.yaml` for the shared OpenBao path above. It will reconcile once the key exists and is accessible; no key is in Git. Encoder Jobs remain suspended pending key projection, checkpoint validation, and a verified digest-pinned tested image.
 - No NCCL/MPI/Ray/tensor parallelism: workers independently claim queue slots. Do not auto-switch to other projects or auto-delete the PVC.
 
-Node inventory (read-only, current): `chronometer`, `sextant`, and `octant` are DGX Spark/NVIDIA nodes; `nvidia-device-plugin` is running on all three. Existing serving work currently occupies the Sparks, including GLM-5.3-Flash B-lane pods on chronometer/sextant. This workload must not be enabled until the operator confirms the GLM lane is spun down and the GPU scheduling/priority behavior is validated. Cluster MCP identity cannot list cluster-scoped PriorityClasses; use the GitOps source to select a non-disruptive priority rather than inventing one.
+Node inventory: `chronometer`, `sextant`, and `octant` are DGX Spark/NVIDIA nodes. Kyle confirms chronometer and sextant are available for Campfire workers; GLM remains on other nodes and does not need to be stopped for this placement. Verify current GPU allocation and scheduling before activation. Cluster MCP identity cannot list cluster-scoped PriorityClasses; use the GitOps source to select a non-disruptive priority rather than inventing one.
 
 ## Bring-up gates
 
@@ -55,8 +55,8 @@ Node inventory (read-only, current): `chronometer`, `sextant`, and `octant` are 
 
 Commands must use one line when handed to the operator. Expected names/fields are finalized during activation; do not use these commands until resources exist.
 
-- Download progress: `kubectl --context mc -n campfire-kimi-k31 logs job/campfire-kimi-k31-download -f`
-- Worker logs: `kubectl --context mc -n campfire-kimi-k31 logs job/campfire-kimi-k31-worker-a -f`
+- Download progress: `kubectl --context mc -n llm-test logs job/campfire-kimi-k31-download -f`
+- Worker logs: `kubectl --context mc -n llm-test logs job/campfire-kimi-k31-worker-a -f`
 - GPU use: `kubectl --context mc top nodes chronometer sextant` (supplement with node `nvidia-smi` telemetry via existing monitoring; do not add host mounts or privileged access just for telemetry).
 - Contribution/status: check the project's public page/API at <https://campfire.kindlingai.dev/jobs/kimi-k31-pmul1x-f16> and attribute only accepted uploads to these workers.
 - Scale to zero / suspend: suspend or delete the two worker Jobs after recording their owned claims; never run account-wide release-all. Follow upstream's per-claim release only for claims explicitly verified as owned by that worker.
