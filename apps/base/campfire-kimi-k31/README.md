@@ -1,6 +1,6 @@
 # Campfire Kimi-K3.1-Pro quantization (staged scaffold)
 
-**Status: checkpoint verified; both unsuspended worker Jobs attempted and failed.** Jobs use scheduler-selected ARM64 DGX/NVIDIA nodes (no hostname pin). Worker A on astrolabe could not reach `campfire.kindlingai.dev` to fetch the encoder; worker B on octant launched the encoder but its claim request was refused with HTTP 401. Both Jobs exhausted retries; no active worker Pods or accepted Campfire claims remain.
+**Status: checkpoint verified; both unsuspended worker Jobs attempted and failed.** Jobs use scheduler-selected ARM64 DGX/NVIDIA nodes (no hostname pin). Worker A on astrolabe initially could not reach `campfire.kindlingai.dev`; worker B on octant launched the encoder but its claim request was refused with HTTP 401. A follow-up authenticated probe found the mounted file nonempty (43 bytes; 42 after CR/LF trim), but `GET /api/claims` still returned 401. Astrolabe's later HTTPS probe returned 302, so its earlier connect failure appears transient. Failed worker Jobs and diagnostic probes were deleted; no active worker Pods or accepted Campfire claims remain.
 
 ## Verified upstream facts (2026-11-26)
 
