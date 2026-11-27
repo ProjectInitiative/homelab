@@ -72,3 +72,51 @@ spec:
         - name: scratch
           emptyDir:
             sizeLimit: 64Mi
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: campfire-node-egress-probe-astrolabe-20261127
+  namespace: llm-test
+  labels:
+    app.kubernetes.io/part-of: campfire-kimi-k31
+    app.kubernetes.io/component: egress-probe
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 60
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: campfire-kimi-k31
+        app.kubernetes.io/component: egress-probe
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      priorityClassName: campfire-volunteer
+      nodeSelector:
+        kubernetes.io/hostname: astrolabe
+        kubernetes.io/arch: arm64
+      tolerations:
+        - key: dgx-spark-dedicated
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      containers:
+        - name: probe
+          image: registry.taildeab2.ts.net/homelab/campfire-exlr8-quant:arm64-20261127@sha256:dc46472f1e85cdbd6c604877289457e305eaa67bb806451600a081a24b877743
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              code=$(curl -sS --connect-timeout 5 --max-time 10 --output /dev/null --write-out '%{http_code}' https://campfire.kindlingai.dev/exlr8enc/latest/exlr8enc-linux-arm64 2>/dev/null || true)
+              if [ "$code" = 000 ]; then echo 'campfire_https_connect=failed'; else echo "campfire_latest_http=$code"; fi
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+              ephemeral-storage: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+              ephemeral-storage: 32Mi
