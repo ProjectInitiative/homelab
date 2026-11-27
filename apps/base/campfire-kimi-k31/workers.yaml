@@ -5,7 +5,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: campfire-kimi-k31-worker-a
+  name: campfire-kimi-k31-worker-a-arm64
   namespace: llm-test
   labels:
     app.kubernetes.io/name: campfire-kimi-k31-worker
@@ -38,8 +38,8 @@ spec:
           effect: NoSchedule
       containers:
         - name: encoder
-          image: ghcr.io/kindlingai/exlr8enc:latest
-          imagePullPolicy: Always
+          image: registry.taildeab2.ts.net/homelab/campfire-exlr8-quant:arm64-20261127@sha256:dc46472f1e85cdbd6c604877289457e305eaa67bb806451600a081a24b877743
+          imagePullPolicy: IfNotPresent
           args:
             - site
             - --watch
@@ -92,7 +92,7 @@ spec:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: campfire-kimi-k31-worker-b
+  name: campfire-kimi-k31-worker-b-arm64
   namespace: llm-test
   labels:
     app.kubernetes.io/name: campfire-kimi-k31-worker
@@ -125,8 +125,8 @@ spec:
           effect: NoSchedule
       containers:
         - name: encoder
-          image: ghcr.io/kindlingai/exlr8enc:latest
-          imagePullPolicy: Always
+          image: registry.taildeab2.ts.net/homelab/campfire-exlr8-quant:arm64-20261127@sha256:dc46472f1e85cdbd6c604877289457e305eaa67bb806451600a081a24b877743
+          imagePullPolicy: IfNotPresent
           args:
             - site
             - --watch
