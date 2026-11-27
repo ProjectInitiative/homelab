@@ -267,8 +267,11 @@ apps:
               - remote-timeout=60s
           # Keep the model-cache target PVC last: CSI v0.33.0 merges matching
           # patches in order and replaces mountOptions with the last list.
-          # This overrides node-local defaults on any node for model-cache only;
-          # model-cache-ephemeral uses a separate StorageClass and backing store.
+          # This PVC-scoped ring patch applies on EVERY node that mounts the
+          # claim. Capstan /mnt/pool is bcachefs, so model-cache consumers must
+          # be pinned to DGX; an unpinned CPU consumer creates a ring mount on
+          # Capstan and bypasses its /mnt/jfs-cache ext4 default. The separate
+          # model-cache-ephemeral PVC uses its own StorageClass/backing store.
           - pvcSelector:
               matchName: model-cache
               matchStorageClassName: juicefs-sc
@@ -322,9 +325,12 @@ apps:
           # matching is PVC-scoped in practice — nodeSelector/hostname
           # selectors do NOT filter (known trap: matching patches merge, last
           # mountOptions list wins, first non-empty image wins; the 1104 ring
-          # retrospective hit the same behavior). The arch-split attempt
-          # produced hybrid mounts: amd64 options on DGX (ring silently lost)
-          # and the arm64 image on capstans (exec format crash).
+          # retrospective hit the same behavior). All consumers of these ring
+          # PVCs must therefore be DGX-pinned; a nodeSelector in this patch
+          # cannot keep /mnt/pool/juicefs-ring off Capstan's bcachefs pool.
+          # The arch-split attempt produced hybrid mounts: amd64 options on
+          # DGX (ring silently lost) and the arm64 image on capstans (exec
+          # format crash).
           #
           # Patch 1 — the model cache volume: DGX ring member, gcache image
           # (multi-arch index digest 6aaf22da, resolves per-node arch
