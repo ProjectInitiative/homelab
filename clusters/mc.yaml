@@ -268,10 +268,11 @@ apps:
           # Keep the model-cache target PVC last: CSI v0.33.0 merges matching
           # patches in order and replaces mountOptions with the last list.
           # This PVC-scoped ring patch applies on EVERY node that mounts the
-          # claim. Capstan /mnt/pool is bcachefs, so model-cache consumers must
-          # be pinned to DGX; an unpinned CPU consumer creates a ring mount on
-          # Capstan and bypasses its /mnt/jfs-cache ext4 default. The separate
-          # model-cache-ephemeral PVC uses its own StorageClass/backing store.
+          # claim. The ring group is intended to be DGX-only: consumers must
+          # be DGX-pinned, since an unpinned CPU consumer would join the same
+          # peer group on Capstan. Cache-dir may share /mnt/jfs-cache with
+          # ordinary mounts; JuiceFS keeps cache blocks under each FS UUID.
+          # model-cache-ephemeral uses its own filesystem and cache group.
           - pvcSelector:
               matchName: model-cache
               matchStorageClassName: juicefs-sc
@@ -288,7 +289,7 @@ apps:
               requests: {memory: 2Gi}
               limits: {memory: 6Gi}
             mountOptions:
-              - cache-dir=/mnt/jfs-cache/juicefs-ring
+              - cache-dir=/mnt/jfs-cache
               - cache-size=550000
               - prefetch=8
               - max-readahead=256M
@@ -317,8 +318,9 @@ apps:
           # (max sharding; operator call). Rename dance: this selector
           # targets -v2 until old model-cache is torn down, then the PVC
           # renames back to model-cache-ephemeral and this selector follows.
-          # All cache directories are under /mnt/jfs-cache; create the
-          # ring subdirectory on each node before mounting (see ring runbook).
+          # Both ring mounts use the shared local cache root /mnt/jfs-cache.
+          # JuiceFS scopes local cache blocks by filesystem UUID; cache-group
+          # names independently control distributed peer sharing.
           #
           # SPLIT BY PVC NAME, NOT NODE SELECTOR: CSI v0.33.0 mountPodPatch
           # matching is PVC-scoped in practice — nodeSelector/hostname
@@ -345,7 +347,7 @@ apps:
               requests: {memory: 2Gi}
               limits: {memory: 6Gi}
             mountOptions:
-              - cache-dir=/mnt/jfs-cache/juicefs-ring
+              - cache-dir=/mnt/jfs-cache
               - cache-size=550000
               - prefetch=8
               - max-readahead=256M

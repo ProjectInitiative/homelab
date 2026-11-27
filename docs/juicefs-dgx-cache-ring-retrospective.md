@@ -41,9 +41,12 @@ chronometer, 501 GiB on octant, and 317 GiB on sextant at the time). No
    `attachRequired: false` and `podInfoOnMount: true`.
 4. The `model-cache` PVC was labeled
    `juicefs-cache-group: dgx-model-cache`.
-5. Ring mounts initially used the pool-backed cache directory, separate from
-   the older non-ring cache directory used during rollback. Both paths have
-   since been moved under the dedicated JuiceFS cache root.
+5. Ring mounts initially used a separate pool-backed cache path from the
+   older non-ring path used during rollback. This was path-level isolation,
+   not a different block format; current mount options
+   use `/mnt/jfs-cache` for both ring and non-ring clients. JuiceFS scopes its
+   local block cache by filesystem UUID, while `cache-group` controls peer
+   sharing.
 6. Ring peer traffic uses host networking and TCP port `13910`. Port `3910`
    collided with other services and caused an ephemeral fallback in an earlier
    attempt.
