@@ -377,7 +377,10 @@ spec:
             httpGet: {path: /health, port: 8100}
             periodSeconds: 10
             timeoutSeconds: 3
-            failureThreshold: 360
+            # 150 min: cold-tier first load (hash + read 163.6 GiB over the ring) took ~55 min
+            # on the fast path and restarts re-read; the original 60-min budget killed the
+            # container mid-load after the engine finally bound (kube, not Conductor).
+            failureThreshold: 900
           readinessProbe:
             httpGet: {path: /health, port: 8100}
             periodSeconds: 10
