@@ -1,6 +1,6 @@
-# Staged worker Jobs. Both are suspended, so Kubernetes will create no Pods,
-# reserve no GPU/memory, pull no images, and claim no Campfire work.
-# Replace :latest with a tested linux/arm64 image digest before unsuspending.
+# Active worker Jobs. The launcher and Campfire API can see transient upstream
+# DNS/HTTP failures, so allow multiple Pod retries instead of giving up quickly.
+# The ARM64 launcher image is pinned by digest.
 ---
 apiVersion: batch/v1
 kind: Job
@@ -14,7 +14,7 @@ spec:
   suspend: false
   completions: 1
   parallelism: 1
-  backoffLimit: 2
+  backoffLimit: 8
   template:
     metadata:
       labels:
@@ -100,7 +100,7 @@ spec:
   suspend: false
   completions: 1
   parallelism: 1
-  backoffLimit: 2
+  backoffLimit: 8
   template:
     metadata:
       labels:
