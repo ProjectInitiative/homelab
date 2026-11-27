@@ -1,0 +1,74 @@
+# Read-only auth probe: checks only that the manual Secret is non-empty and
+# queries the authenticated claims endpoint. Never prints the key or response.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: campfire-api-auth-probe-20261127
+  namespace: llm-test
+  labels:
+    app.kubernetes.io/part-of: campfire-kimi-k31
+    app.kubernetes.io/component: auth-probe
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 120
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: campfire-kimi-k31
+        app.kubernetes.io/component: auth-probe
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      priorityClassName: campfire-volunteer
+      nodeSelector:
+        kubernetes.io/hostname: octant
+        kubernetes.io/arch: arm64
+      tolerations:
+        - key: dgx-spark-dedicated
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      containers:
+        - name: probe
+          image: registry.taildeab2.ts.net/homelab/campfire-exlr8-quant:arm64-20261127@sha256:dc46472f1e85cdbd6c604877289457e305eaa67bb806451600a081a24b877743
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              key=/run/campfire/api-key
+              if [ ! -s "$key" ]; then echo 'api_key_file=missing_or_empty'; exit 2; fi
+              raw_bytes=$(wc -c < "$key" | tr -d '[:space:]')
+              clean_bytes=$(tr -d '\r\n' < "$key" | wc -c | tr -d '[:space:]')
+              printf 'api_key_file=nonempty raw_bytes=%s after_line_ending_trim=%s\n' "$raw_bytes" "$clean_bytes"
+              umask 077
+              { printf 'Authorization: Bearer '; tr -d '\r\n' < "$key"; printf '\n'; } > /tmp/campfire-headers
+              code=$(curl -sS --max-time 20 --header @/tmp/campfire-headers --output /dev/null --write-out '%{http_code}' https://campfire.kindlingai.dev/api/claims 2>/dev/null || true)
+              rm -f /tmp/campfire-headers
+              if [ "$code" = 000 ]; then echo 'api_claims_http=network_error'; else printf 'api_claims_http=%s\n' "$code"; fi
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+              ephemeral-storage: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+              ephemeral-storage: 64Mi
+          volumeMounts:
+            - name: campfire-key
+              mountPath: /run/campfire
+              readOnly: true
+            - name: scratch
+              mountPath: /tmp
+      volumes:
+        - name: campfire-key
+          secret:
+            secretName: campfire-api
+            defaultMode: 0440
+            items:
+              - key: api-key
+                path: api-key
+        - name: scratch
+          emptyDir:
+            sizeLimit: 64Mi
