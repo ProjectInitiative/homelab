@@ -27,7 +27,6 @@ spec:
       runtimeClassName: nvidia
       terminationGracePeriodSeconds: 120
       nodeSelector:
-        kubernetes.io/hostname: chronometer
         kubernetes.io/arch: arm64
         gpu: dgx-spark
         gpu-vendor: nvidia
@@ -114,7 +113,6 @@ spec:
       runtimeClassName: nvidia
       terminationGracePeriodSeconds: 120
       nodeSelector:
-        kubernetes.io/hostname: sextant
         kubernetes.io/arch: arm64
         gpu: dgx-spark
         gpu-vendor: nvidia

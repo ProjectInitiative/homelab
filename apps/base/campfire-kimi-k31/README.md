@@ -1,6 +1,6 @@
 # Campfire Kimi-K3.1-Pro quantization (staged scaffold)
 
-**Status: checkpoint download complete and verified; workers remain suspended.** The direct downloader completed and logged `CAMPFIRE_CHECKPOINT_VERIFIED` for all 96 shards (1,561,293,160,568 bytes; expected checkpoint identity). Both worker Jobs remain `suspend: true`. The custom ARM64 launcher image is built and pushed to the registry-v2 endpoint; no Campfire work has been started.
+**Status: checkpoint verified; both workers submitted unsuspended at Kyle's direction.** The direct downloader logged `CAMPFIRE_CHECKPOINT_VERIFIED` for all 96 shards (1,561,293,160,568 bytes; expected identity). Worker placement is scheduler-selected across eligible ARM64 DGX/NVIDIA nodes; monitor pod scheduling and claim/API results. The custom launcher image is digest-pinned in the internal registry.
 
 ## Verified upstream facts (2026-11-26)
 
@@ -31,7 +31,7 @@ The JuiceFS CSI mount cache is not a quota for model storage. Reuse the establis
 
 ## Current staged resources
 
-- The Argo app now targets `llm-test`, where the active direct downloader's 2 TiB RWX PVC already lives. `pvc.yaml` declares that exact claim for Argo adoption (same name, namespace, StorageClass, access mode, and size); the legacy `campfire-kimi-k31` namespace/PVC remain explicitly retained and are not used by these workers. The base also includes PriorityClass `campfire-volunteer` (`value: -10`, `preemptionPolicy: Never`), a puller-image build Job, a separately named **suspended** staged downloader, and two independent, **suspended** finite worker Jobs pinned to chronometer and sextant.
+- The Argo app now targets `llm-test`, where the active direct downloader's 2 TiB RWX PVC already lives. `pvc.yaml` declares that exact claim for Argo adoption (same name, namespace, StorageClass, access mode, and size); the legacy `campfire-kimi-k31` namespace/PVC remain explicitly retained and are not used by these workers. The base also includes PriorityClass `campfire-volunteer` (`value: -10`, `preemptionPolicy: Never`), a puller-image build Job, a separately named **suspended** staged downloader, and two independent finite worker Jobs selecting eligible ARM64 DGX/NVIDIA nodes without hostname pinning.
 - Each worker requests one `nvidia.com/gpu`, mounts the adopted `llm-test/campfire-kimi-k31-models` PVC read-only, consumes `/run/campfire/api-key` from Secret `campfire-api` read-only, uses local scratch, disables service-account token automount, and uses the upstream `site --watch --job kimi-k31-pmul1x-f16 --key-file ... --bf16 ...` command.
 - Both worker specs now use the internally mirrored, digest-pinned ARM64 launcher image above; no GHCR token or imagePullSecret is needed. The image pull and platform were verified from the development host, but a no-claim GB10 CLI/GPU smoke test remains before activation.
 - Downloader image is built natively for capstan1/amd64 from the pinned homelab source commit and pushed to the internal registry. Its output digest must be verified and set in `download-job.yaml` before that Job is unsuspended. This extra build is necessary because the current model-cache-puller:v7 digest is arm64-only while capstan1 is amd64.
