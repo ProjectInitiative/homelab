@@ -27,7 +27,7 @@ The pinned HF repository inventory has 96 `.safetensors` shards totaling 1,561,2
 
 During download, the CSI mountPodPatch is explicitly PVC-scoped and uses the plain cache-tier mount on capstan1 (no cache ring). After download completes, remove the completed downloader Job/pod before changing mount options; then apply a PVC-specific cache-ring patch and verify the JuiceFS mount on the Spark nodes before resuming workers. The volume uses the existing cache-tier `juicefs-mc-cache` filesystem; ring membership must match this exact filesystem. Do not touch global JuiceFS configuration or other PVCs.
 
-The JuiceFS CSI mount cache is not a quota for model storage. Reuse the established `/mnt/pool/juicefs-ring` cache infrastructure, but choose group/port/cache size after checking existing cache-ring membership, available local NVMe, and host/network capacity. Do not alter the global ring for this workload.
+The JuiceFS CSI mount cache is not a quota for model storage. Campfire uses a plain, non-ring mount at `/mnt/jfs-cache`; it must not join either DGX model-cache ring. The capstan cache partition at `/mnt/jfs-cache` is dedicated ext4, while `/mnt/pool` is bcachefs. Do not add a ring or alter global JuiceFS settings for this workload.
 
 ## Current staged resources
 
