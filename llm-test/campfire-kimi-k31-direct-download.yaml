@@ -1,0 +1,110 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: campfire-kimi-k31-download
+  namespace: llm-test
+  labels:
+    app.kubernetes.io/part-of: campfire-kimi-k31
+    app.kubernetes.io/component: model-download
+    app.kubernetes.io/managed-by: manual
+spec:
+  suspend: false
+  completions: 1
+  parallelism: 1
+  backoffLimit: 5
+  activeDeadlineSeconds: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: campfire-kimi-k31
+        app.kubernetes.io/component: model-download
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      priorityClassName: campfire-volunteer
+      nodeSelector:
+        kubernetes.io/hostname: capstan1
+        kubernetes.io/arch: amd64
+      containers:
+        - name: puller
+          image: python:3.12-slim
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              set -eu
+              marker=/models/.campfire-kimi-k31.complete
+              rm -f "$marker"
+              python3 -m pip install --no-cache-dir 'huggingface_hub==0.36.0' 'httpx==0.28.1' 'requests==2.32.5'
+              python3 -c 'import urllib.request; urllib.request.urlretrieve("https://raw.githubusercontent.com/ProjectInitiative/homelab/e46779791284b5f6c5e8021399bb68eac8ec6ed1/llm-test/puller/puller.py", "/tmp/puller.py")'
+              python3 /tmp/puller.py
+              python3 - <<'PY'
+              import hashlib, json, os
+              from pathlib import Path
+              rev = "80aff651e9b2d2f5b9f70f92a0a7a77054418e16"
+              expected_id = "fd60deec1f24953995872744cf085c3cdae261e73fd203046e5f74f6ee9d9c79"
+              snap = Path("/models/.cache/huggingface/hub/models--moonshotai--Kimi-K3.1-Pro/snapshots") / rev
+              config = (snap / "config.json").read_bytes()
+              index = (snap / "model.safetensors.index.json").read_bytes()
+              actual_id = hashlib.sha256(config + index).hexdigest()
+              assert actual_id == expected_id, (actual_id, expected_id)
+              shards = list(snap.glob("model-*-of-000096.safetensors"))
+              shard_bytes = sum(p.stat().st_size for p in shards)
+              assert len(shards) == 96, len(shards)
+              assert shard_bytes == 1561293160568, shard_bytes
+              link = Path("/models/kimi-k31")
+              if link.is_symlink() or link.exists():
+                  link.unlink()
+              link.symlink_to(snap)
+              Path("/models/.campfire-kimi-k31.complete").write_text(
+                  f"revision={rev}\nweights_id={actual_id}\nshards={len(shards)}\nshard_bytes={shard_bytes}\n"
+              )
+              print(f"CAMPFIRE_CHECKPOINT_VERIFIED {actual_id} {len(shards)} {shard_bytes}", flush=True)
+              PY
+          env:
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            - name: HF_HUB_DISABLE_XET
+              value: "1"
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface
+                  key: HF_TOKEN
+                  optional: true
+            - name: PULL_MODELS
+              value: moonshotai/Kimi-K3.1-Pro@80aff651e9b2d2f5b9f70f92a0a7a77054418e16
+            - name: RATE
+              value: "106250000"
+            - name: MAX_FILE_WORKERS
+              value: "8"
+            - name: MAX_REPO_WORKERS
+              value: "1"
+            - name: PROGRESS_INTERVAL
+              value: "30"
+            - name: RECEIPT_PATH
+              value: /models/.campfire-kimi-k31-download.json
+            - name: METRICS_PORT
+              value: "0"
+          resources:
+            requests:
+              cpu: "2"
+              memory: 2Gi
+              ephemeral-storage: 2Gi
+            limits:
+              cpu: "4"
+              memory: 4Gi
+              ephemeral-storage: 10Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: campfire-kimi-k31-models
