@@ -120,3 +120,64 @@ spec:
               cpu: 100m
               memory: 64Mi
               ephemeral-storage: 32Mi
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: campfire-dns-probe-chronometer-20261127
+  namespace: llm-test
+  labels:
+    app.kubernetes.io/part-of: campfire-kimi-k31
+    app.kubernetes.io/component: dns-probe
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 180
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: campfire-kimi-k31
+        app.kubernetes.io/component: dns-probe
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      priorityClassName: campfire-volunteer
+      nodeSelector:
+        kubernetes.io/hostname: chronometer
+        kubernetes.io/arch: arm64
+      tolerations:
+        - key: dgx-spark-dedicated
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      containers:
+        - name: probe
+          image: registry.taildeab2.ts.net/homelab/campfire-exlr8-quant:arm64-20261127@sha256:dc46472f1e85cdbd6c604877289457e305eaa67bb806451600a081a24b877743
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              dns_fail=0
+              other_fail=0
+              http_ok=0
+              i=0
+              while [ "$i" -lt 30 ]; do
+                if code=$(curl -sS --connect-timeout 2 --max-time 4 --output /dev/null --write-out '%{http_code}' https://quant.kindlingai.dev/ 2>/tmp/curl.err); then
+                  http_ok=$((http_ok + 1))
+                else
+                  err=$(cat /tmp/curl.err || true)
+                  case "$err" in *resolve*|*Resolve*|*name\ resolution*) dns_fail=$((dns_fail + 1));; *) other_fail=$((other_fail + 1));; esac
+                fi
+                i=$((i + 1))
+                sleep 1
+              done
+              printf 'queries=%s http_responses=%s dns_failures=%s other_failures=%s\n' "$i" "$http_ok" "$dns_fail" "$other_fail"
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+              ephemeral-storage: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+              ephemeral-storage: 32Mi
