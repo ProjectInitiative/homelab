@@ -23,7 +23,7 @@ spec:
       automountServiceAccountToken: false
       priorityClassName: campfire-volunteer
       nodeSelector:
-        kubernetes.io/hostname: capstan1
+        kubernetes.io/hostname: capstan3
         kubernetes.io/arch: amd64
       containers:
         - name: puller
