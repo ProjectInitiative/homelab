@@ -1,6 +1,6 @@
-# Campfire Kimi-K3.1-Pro quantization (staged scaffold)
+# Campfire Kimi-K3.1-Pro quantization
 
-**Status: both unsuspended, unpinned worker Jobs are running with the refreshed key.** Scheduler selected chronometer and sextant; both Pods are Ready with zero restarts. In the latest hour of logs, each completed four layer-16 expert uploads (A: 727, 358, 198, 716; B: 804, 749, 291, 170), 24.8 MB each—about 198 MB total. Per-slot encoding takes ~8.5 minutes. Latest public aggregate: uploaded 13,869; claimed 172; open 3,899; 64,584 not ready; 13 layers done (not all attributable to these workers). `--watch` remains active.
+**Status (2026-11-27 22:21Z):** Worker A's original Pod exited after repeated HTTP 502/DNS failures during piece upload; its claim-release request also hit DNS failure. The Job exhausted `backoffLimit: 2`; two fresh Pods then could not fetch the latest encoder build because their new `/tmp` emptyDirs had no cached binary. The worker manifest now allows 8 failed-Pod retries, and the failed A Job was recreated. Replacement A on chronometer is Running/Ready with zero restarts and downloaded encoder build `37222b4a824f0bf65407b4b793fb848272b24f46`; no post-restart upload has been observed yet. Worker B remains Running/Ready on sextant with zero restarts; its latest observed upload was layer 19 expert 387 (24.8 MB). Intermittent DNS/HTTP failures remain unresolved; do not release claims account-wide (a failed claim may remain held for up to 12 hours). The active `-arm64` Jobs are applied from the pushed `dev` manifest; Argo's current `main` revision still declares different, suspended worker Jobs.
 
 ## Verified upstream facts (2026-11-26)
 
