@@ -1,0 +1,22 @@
+# Preserve the originally scaffolded Campfire-namespace claim during the
+# move to llm-test. Workers and the downloader use the llm-test claim instead.
+# This old claim is intentionally retained; remove only after verifying its
+# volume/backend identity and receiving explicit user approval.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: campfire-kimi-k31-models
+  namespace: campfire-kimi-k31
+  labels:
+    app.kubernetes.io/part-of: campfire-kimi-k31
+    app.kubernetes.io/component: legacy-model-checkpoint
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
+    campfire.kindlingai.dev/reclaim-policy: "manual-after-user-approval"
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: juicefs-cache-sc
+  resources:
+    requests:
+      storage: 2Ti

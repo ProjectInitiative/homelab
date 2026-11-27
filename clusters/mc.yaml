@@ -730,7 +730,7 @@ apps:
   - name: fission
     namespace: fission
   - name: campfire-kimi-k31
-    namespace: campfire-kimi-k31
+    namespace: llm-test
 
   # Hermes is intentionally disabled until its PostgreSQL/JuiceFS storage
   # design is finalized. Catalog/manifests remain available for later.

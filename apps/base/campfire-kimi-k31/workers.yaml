@@ -6,7 +6,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: campfire-kimi-k31-worker-a
-  namespace: campfire-kimi-k31
+  namespace: llm-test
   labels:
     app.kubernetes.io/name: campfire-kimi-k31-worker
     campfire.kindlingai.dev/worker: a
@@ -93,7 +93,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: campfire-kimi-k31-worker-b
-  namespace: campfire-kimi-k31
+  namespace: llm-test
   labels:
     app.kubernetes.io/name: campfire-kimi-k31-worker
     campfire.kindlingai.dev/worker: b
