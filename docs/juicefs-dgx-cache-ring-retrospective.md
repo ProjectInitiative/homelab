@@ -36,13 +36,14 @@ chronometer, 501 GiB on octant, and 317 GiB on sextant at the time). No
    `8d8935ec0e2d37c31e4e7dd9ea318012265bc418`.
 2. The CSI image was fixed for the mount script's Bash ANSI-C quoting by
    linking `/bin/sh` to `/bin/bash`. The original failure was:
-   `fusermount3: unknown option '$cache-dir=/mnt/pool/juicefs-ring'`.
+   `fusermount3: unknown option` for the cache-dir mount option.
 3. `CSIDriver/csi.juicefs.com` was made durable with
    `attachRequired: false` and `podInfoOnMount: true`.
 4. The `model-cache` PVC was labeled
    `juicefs-cache-group: dgx-model-cache`.
-5. Ring mounts use `/mnt/pool/juicefs-ring`, leaving the older
-   `/mnt/pool/juicefs` cache path available for rollback.
+5. Ring mounts initially used the pool-backed cache directory, separate from
+   the older non-ring cache directory used during rollback. Both paths have
+   since been moved under the dedicated JuiceFS cache root.
 6. Ring peer traffic uses host networking and TCP port `13910`. Port `3910`
    collided with other services and caused an ephemeral fallback in an earlier
    attempt.
