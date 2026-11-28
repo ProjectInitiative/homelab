@@ -363,11 +363,9 @@ catalog:
           # openbao-record-cache.example.md.
           path: "juicefs-cache/config"
           destination: "juicefs-creds-cache"
-          # The secret pre-exists from the out-of-band October setup (22d old,
-          # no VSO owner labels) — without overwrite VSO refuses to update it
-          # ("invalid owner label") and passphrase/other new keys never reach
-          # the secret. Adopt and own it.
-          overwrite: true
+          # Secret pre-existed from the out-of-band October setup (un-owned,
+          # no VSO owner labels). overwrite is now the generator default; this
+          # entry was the original adopt-and-own case (keel 2026-10-30).
         - name: juicefs-key-cache
           mount: k8s
           # Passphrase-protected RSA pem for the cache tier (RISK-0045: the
@@ -378,7 +376,6 @@ catalog:
           # Same adoption logic as juicefs-cache-creds: any pre-existing secret
           # (e.g. from manual setup or a retry race) must be owned by VSO or
           # updates silently never land.
-          overwrite: true
     syncPolicy:
       syncOptions:
         - CreateNamespace=true
@@ -409,7 +406,6 @@ catalog:
           destinationIncludes:
             - username
             - password
-          overwrite: true
         - name: juicefs-dev-postgres-creds
           mount: k8s
           # Dev JuiceFS record (k8s/juicefs-dev/config) holds bucket creds,
@@ -424,7 +420,6 @@ catalog:
           destinationIncludes:
             - username
             - password
-          overwrite: true
         - name: juicefs-cache-postgres-creds
           mount: k8s
           # Cache-tier JuiceFS DB role credentials (juicefs_cache_user) for the
@@ -437,7 +432,6 @@ catalog:
           destinationIncludes:
             - username
             - password
-          overwrite: true
         - name: litellm-postgres-creds
           mount: k8s
           # The same OpenBao record also contains DATABASE_URL and
@@ -448,7 +442,6 @@ catalog:
           destinationIncludes:
             - username
             - password
-          overwrite: true
         - name: forgejo-postgres-creds
           mount: k8s
           # Forgejo DB role credentials (forgejo_user) for the CNPG DatabaseRole.
@@ -458,7 +451,6 @@ catalog:
           destinationIncludes:
             - username
             - password
-          overwrite: true
     syncPolicy:
       automated:
         prune: false
@@ -495,7 +487,6 @@ catalog:
           destination: "garage-admin-token"
           # adopt the pre-seeded secret (created manually while VSO was
           # wedged); without this VSO refuses an un-owned destination
-          overwrite: true
     ignoreDifferences:
       - group: ""
         jsonPointers:
@@ -564,7 +555,6 @@ catalog:
           mount: k8s
           path: "tailscale-operator"
           destination: "operator-oauth"
-          overwrite: true
 
   ts-vip-watchdog:
     path: apps/base/ts-vip-watchdog/config
@@ -1007,7 +997,6 @@ catalog:
           mount: k8s
           path: "docker-registry/s3"
           destination: "zot-s3-creds"
-          overwrite: true
     syncPolicy:
       syncOptions:
         - CreateNamespace=true
@@ -1026,7 +1015,6 @@ catalog:
           mount: k8s
           path: "docker-registry/s3"
           destination: "registry-s3-creds"
-          overwrite: true
     syncPolicy:
       automated:
         prune: true
@@ -1051,7 +1039,6 @@ catalog:
           mount: k8s
           path: "cert-manager/cloudflare"
           destination: "cloudflare-api-token"
-          overwrite: true
     syncPolicy:
       syncOptions:
         - ServerSideApply=true
@@ -1322,7 +1309,6 @@ catalog:
           mount: k8s
           path: "forgejo/config"
           destination: "forgejo-secrets"
-          overwrite: true
     syncPolicy:
       automated:
         prune: false
@@ -1351,7 +1337,6 @@ catalog:
           mount: k8s
           path: "forgejo/runner"
           destination: "forgejo-runner-credentials"
-          overwrite: true
     syncPolicy:
       automated:
         prune: false
@@ -1382,7 +1367,6 @@ catalog:
           mount: k8s
           path: "forgejo/runner-arm"
           destination: "forgejo-runner-arm-credentials"
-          overwrite: true
     syncPolicy:
       automated:
         prune: false
@@ -1403,7 +1387,7 @@ catalog:
         - vault
       secrets:
         - name: campfire-api-key
-          mount: k8
+          mount: k8s
           path: campfire/kimi-k31/workers
           destination: campfire-api
           destinationIncludes:
