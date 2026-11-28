@@ -270,7 +270,14 @@ class ClusterAppsChart(Chart):
                     "name": secret_item["destination"],
                     "create": True,
                     **({"type": secret_item["destinationType"]} if "destinationType" in secret_item else {}),
-                    **({"overwrite": secret_item["overwrite"]} if "overwrite" in secret_item else {}),
+                    # overwrite defaults to TRUE: the whole point of VSS is that
+                    # OpenBao is the source of truth, so VSO must be able to
+                    # adopt/update destinations — including pre-existing ones.
+                    # Without overwrite, VSO silently refuses any un-owned
+                    # destination (e.g. a hand-created secret) and the VSS sits
+                    # SYNCED=False forever. Opt OUT with "overwrite: false" for
+                    # the rare case a manual secret must never be clobbered.
+                    **({"overwrite": secret_item["overwrite"]} if "overwrite" in secret_item else {"overwrite": True}),
                 }
                 if "destinationIncludes" in secret_item:
                     destination["transformation"] = {"includes": secret_item["destinationIncludes"]}
