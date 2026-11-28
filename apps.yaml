@@ -1403,7 +1403,7 @@ catalog:
         - vault
       secrets:
         - name: campfire-api-key
-          mount: k8
+          mount: k8s
           path: campfire/kimi-k31/workers
           destination: campfire-api
           destinationIncludes:
