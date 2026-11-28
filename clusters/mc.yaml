@@ -80,7 +80,14 @@ apps:
           metadata:
             name: default
           spec:
-            address: http://openbao.openbao.svc.cluster.local:8200
+            # openbao-active selects ONLY the current raft leader (label set by
+            # service_registration). The all-pods `openbao` svc sends ~2/3 of
+            # reads to standbys, which forward to the leader — that forwarding
+            # hop returned 'empty response' during DNS/network flakiness and
+            # wedged VSS syncs (2026-11-28). Direct-to-leader removes it.
+            # Brief zero-endpoint window during leader election is covered by
+            # VSO retry + refreshAfter: 5m.
+            address: http://openbao-active.openbao.svc.cluster.local:8200
         target:
           kind: VaultConnection
           name: default
@@ -88,7 +95,9 @@ apps:
     namespace: openbao-secrets-operator
     helm_values: |
       vault:
-        address: http://openbao.openbao:8200
+        # Must match the VaultConnection above: direct-to-leader, no standby
+        # forwarding hop.
+        address: http://openbao-active.openbao.svc.cluster.local:8200
         auth:
           method: kubernetes
           path: kubernetes_cluster_mc
