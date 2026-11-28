@@ -1406,6 +1406,10 @@ catalog:
           mount: k8s
           path: campfire/kimi-k31/workers
           destination: campfire-api
+          # Secret/campfire-api was created manually (pre-VSS); without
+          # overwrite VSO refuses to adopt/update un-owned destinations
+          # (keel 2026-10-30 gotcha).
+          overwrite: true
           destinationIncludes:
             - api-key
     syncPolicy:
