@@ -1839,6 +1839,13 @@ spec:
         app: gate-inspector
         role: ai-platform-tooling
     spec:
+      # This CPU-only viewer stores redacted decisions on the model-cache PVC.
+      # That PVC's ring patch is PVC-scoped; an unpinned consumer on Capstan
+      # puts its cache under /mnt/pool (bcachefs). Keep the consumer on DGX,
+      # where the model-cache ring belongs.
+      nodeSelector: {gpu: dgx-spark, gpu-vendor: nvidia}
+      tolerations:
+        - {key: dgx-spark-dedicated, operator: Equal, value: "true", effect: NoSchedule}
       securityContext:
         seccompProfile:
           type: RuntimeDefault

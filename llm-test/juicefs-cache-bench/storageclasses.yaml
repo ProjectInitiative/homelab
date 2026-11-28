@@ -13,7 +13,7 @@ provisioner: csi.juicefs.com
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 mountOptions:
-  - cache-dir=/mnt/pool/juicefs-bench/control
+  - cache-dir=/mnt/jfs-cache/juicefs-bench/control
   - cache-size=32768
   - cache-expire=0
   - free-space-ratio=0.05
@@ -39,7 +39,7 @@ provisioner: csi.juicefs.com
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 mountOptions:
-  - cache-dir=/mnt/pool/juicefs-bench/direct
+  - cache-dir=/mnt/jfs-cache/juicefs-bench/direct
   - cache-size=32768
   - cache-expire=0
   - free-space-ratio=0.05
@@ -66,7 +66,7 @@ provisioner: csi.juicefs.com
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 mountOptions:
-  - cache-dir=/mnt/pool/juicefs-bench/meta
+  - cache-dir=/mnt/jfs-cache/juicefs-bench/meta
   - cache-size=32768
   - cache-expire=0
   - free-space-ratio=0.05
@@ -98,7 +98,7 @@ provisioner: csi.juicefs.com
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 mountOptions:
-  - cache-dir=/mnt/pool/juicefs-bench/fuse1m
+  - cache-dir=/mnt/jfs-cache/juicefs-bench/fuse1m
   - cache-size=32768
   - cache-expire=0
   - free-space-ratio=0.05
@@ -125,7 +125,7 @@ provisioner: csi.juicefs.com
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 mountOptions:
-  - cache-dir=/mnt/pool/juicefs-bench/stripped
+  - cache-dir=/mnt/jfs-cache/juicefs-bench/stripped
   - cache-size=32768
   - cache-expire=0
   - free-space-ratio=0.05
@@ -153,7 +153,7 @@ provisioner: csi.juicefs.com
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 mountOptions:
-  - cache-dir=/mnt/pool/juicefs-bench/meta-direct
+  - cache-dir=/mnt/jfs-cache/juicefs-bench/meta-direct
   - cache-size=32768
   - cache-expire=0
   - free-space-ratio=0.05
@@ -186,7 +186,7 @@ provisioner: csi.juicefs.com
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 mountOptions:
-  - cache-dir=/mnt/pool/juicefs-bench/combined
+  - cache-dir=/mnt/jfs-cache/juicefs-bench/combined
   - cache-size=32768
   - cache-expire=0
   - free-space-ratio=0.05

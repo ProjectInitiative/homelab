@@ -120,7 +120,7 @@ apps:
             pvcSelector:
               matchStorageClassName: juicefs-sc
             mountOptions:
-              - cache-dir=/mnt/pool/juicefs
+              - cache-dir=/mnt/jfs-cache
               - cache-size=1500000
               - prefetch=8
               - max-readahead=256M
@@ -132,7 +132,7 @@ apps:
             pvcSelector:
               matchStorageClassName: juicefs-sc
             mountOptions:
-              - cache-dir=/mnt/pool/juicefs
+              - cache-dir=/mnt/jfs-cache
               - cache-size=550000
               - prefetch=8
               - max-readahead=256M
@@ -144,7 +144,7 @@ apps:
             pvcSelector:
               matchStorageClassName: juicefs-sc
             mountOptions:
-              - cache-dir=/mnt/pool/juicefs
+              - cache-dir=/mnt/jfs-cache
               - cache-size=550000
               - prefetch=8
               - max-readahead=256M
@@ -267,8 +267,12 @@ apps:
               - remote-timeout=60s
           # Keep the model-cache target PVC last: CSI v0.33.0 merges matching
           # patches in order and replaces mountOptions with the last list.
-          # This overrides node-local defaults on any node for model-cache only;
-          # model-cache-ephemeral uses a separate StorageClass and backing store.
+          # This PVC-scoped ring patch applies on EVERY node that mounts the
+          # claim. The ring group is intended to be DGX-only: consumers must
+          # be DGX-pinned, since an unpinned CPU consumer would join the same
+          # peer group on Capstan. Cache-dir may share /mnt/jfs-cache with
+          # ordinary mounts; JuiceFS keeps cache blocks under each FS UUID.
+          # model-cache-ephemeral uses its own filesystem and cache group.
           - pvcSelector:
               matchName: model-cache
               matchStorageClassName: juicefs-sc
@@ -285,7 +289,7 @@ apps:
               requests: {memory: 2Gi}
               limits: {memory: 6Gi}
             mountOptions:
-              - cache-dir=/mnt/pool/juicefs-ring
+              - cache-dir=/mnt/jfs-cache
               - cache-size=550000
               - prefetch=8
               - max-readahead=256M
@@ -314,17 +318,21 @@ apps:
           # (max sharding; operator call). Rename dance: this selector
           # targets -v2 until old model-cache is torn down, then the PVC
           # renames back to model-cache-ephemeral and this selector follows.
-          # Host cache dirs must exist before mount pods use them
-          # (chronometer/sextant/octant have /mnt/pool/juicefs-ring from the
-          # 1104 ring; astrolabe needs it created — see ring runbook).
+          # Both ring mounts use the shared local cache root /mnt/jfs-cache.
+          # JuiceFS scopes local cache blocks by filesystem UUID; cache-group
+          # names independently control distributed peer sharing.
           #
           # SPLIT BY PVC NAME, NOT NODE SELECTOR: CSI v0.33.0 mountPodPatch
           # matching is PVC-scoped in practice — nodeSelector/hostname
           # selectors do NOT filter (known trap: matching patches merge, last
           # mountOptions list wins, first non-empty image wins; the 1104 ring
-          # retrospective hit the same behavior). The arch-split attempt
-          # produced hybrid mounts: amd64 options on DGX (ring silently lost)
-          # and the arm64 image on capstans (exec format crash).
+          # retrospective hit the same behavior). All consumers of these ring
+          # PVCs must therefore be DGX-pinned; a nodeSelector in this patch
+          # cannot constrain placement. All local cache paths stay under
+          # /mnt/jfs-cache, and capstan ring membership is not intended.
+          # The arch-split attempt produced hybrid mounts: amd64 options on
+          # DGX (ring silently lost) and the arm64 image on capstans (exec
+          # format crash).
           #
           # Patch 1 — the model cache volume: DGX ring member, gcache image
           # (multi-arch index digest 6aaf22da, resolves per-node arch
@@ -339,7 +347,7 @@ apps:
               requests: {memory: 2Gi}
               limits: {memory: 6Gi}
             mountOptions:
-              - cache-dir=/mnt/pool/juicefs-ring
+              - cache-dir=/mnt/jfs-cache
               - cache-size=550000
               - prefetch=8
               - max-readahead=256M

@@ -35,7 +35,7 @@ References:
 6. `meta-direct`: metadata cache and direct-I/O interaction.
 7. `combined`: metadata + direct I/O + 1 MiB FUSE + stripped read-ahead.
 
-All profiles use a distinct `/mnt/pool/juicefs-bench/<profile>` host directory for
+All profiles use a distinct `/mnt/jfs-cache/juicefs-bench/<profile>` host directory for
 profile isolation, a 32 GiB cache cap, a 5% free-space floor, and unique test
 data. Astrolabe is currently about 91% full, so the default 10% floor disables
 warming entirely. Test blocks are evicted before warmup and again during
